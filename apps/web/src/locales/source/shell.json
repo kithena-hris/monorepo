@@ -1771,13 +1771,37 @@
     "text": "You’re on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>."
   },
+  "components.inbox.detail-recruiting.a_month": {
+    "text": "a month",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text built in code."
+  },
+  "components.inbox.detail-recruiting.a_year": {
+    "text": "a year",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text built in code."
+  },
   "components.inbox.detail-recruiting.agenda": {
     "text": "Agenda",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
   },
+  "components.inbox.detail-recruiting.an_hour": {
+    "text": "an hour",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text built in code."
+  },
+  "components.inbox.detail-recruiting.approve": {
+    "text": "Approve",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text inside <Button>."
+  },
+  "components.inbox.detail-recruiting.approved": {
+    "text": "Approved",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"title\" value."
+  },
   "components.inbox.detail-recruiting.asked_first_for_more_times": {
     "text": "Asked {{first}} for more times",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the onClick of <Button>. Filled in: {{first}}."
+  },
+  "components.inbox.detail-recruiting.base_pay": {
+    "text": "Base pay",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
   },
   "components.inbox.detail-recruiting.book_and_send_the_invitation": {
     "text": "Book and send the invitation",
@@ -1787,13 +1811,29 @@
     "text": "Booked: {{first}}, {{day}} at {{hour}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the onClick of <Button>. Filled in: {{first}}, {{day}}, {{hour}}."
   },
+  "components.inbox.detail-recruiting.budget": {
+    "text": "Budget",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
+  },
   "components.inbox.detail-recruiting.candidate": {
     "text": "Candidate",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
   },
-  "components.inbox.detail-recruiting.create_the_contract": {
-    "text": "Create the contract",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, RecruitingBody: text inside <a>."
+  "components.inbox.detail-recruiting.candidate_signs_first": {
+    "text": "The candidate signs first, then you for the company.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: the onClick of <Button>."
+  },
+  "components.inbox.detail-recruiting.changed": {
+    "text": "{{from}} → {{to}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: the items of <KeyValues>. Filled in: {{from}}, {{to}}."
+  },
+  "components.inbox.detail-recruiting.confirm_before_sending": {
+    "text": "Confirm before sending",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: the title of <Alert>."
+  },
+  "components.inbox.detail-recruiting.drafting_the_contract": {
+    "text": "Drafting the contract from the accepted terms…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: text inside <div>."
   },
   "components.inbox.detail-recruiting.first_has_the_invitation": {
     "text": "{{first}} has the invitation with the meeting link",
@@ -1803,21 +1843,113 @@
     "text": "Interview",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
   },
+  "components.inbox.detail-recruiting.no": {
+    "text": "No",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scale: text built in code."
+  },
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": {
     "text": "None works: ask for more times",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: text inside <Button>."
   },
+  "components.inbox.detail-recruiting.notes": {
+    "text": "Notes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scorecard: text inside <FieldLabel>."
+  },
   "components.inbox.detail-recruiting.open_in_recruiting": {
     "text": "Open in Recruiting",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, RecruitingBody: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text inside <a>."
   },
   "components.inbox.detail-recruiting.open_it_in_recruiting_instead": {
     "text": "Open it in Recruiting instead.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: text inside <Alert>."
   },
+  "components.inbox.detail-recruiting.open_the_contract_page": {
+    "text": "Open the contract page",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: text inside <a>."
+  },
+  "components.inbox.detail-recruiting.openings": {
+    "text": "Openings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
+  },
+  "components.inbox.detail-recruiting.overall_recommendation": {
+    "text": "Overall recommendation",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scorecard: text inside <FieldLabel>."
+  },
+  "components.inbox.detail-recruiting.reason": {
+    "text": "Reason",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: the label of <NoteDialog>."
+  },
+  "components.inbox.detail-recruiting.reject": {
+    "text": "Reject…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text inside <Button>."
+  },
+  "components.inbox.detail-recruiting.reject_it": {
+    "text": "Reject it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: the confirm of <NoteDialog>."
+  },
+  "components.inbox.detail-recruiting.reject_the_offer": {
+    "text": "Reject the offer?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: the title of <NoteDialog>."
+  },
+  "components.inbox.detail-recruiting.reject_the_requisition": {
+    "text": "Reject the requisition?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: the title of <NoteDialog>."
+  },
+  "components.inbox.detail-recruiting.rejected": {
+    "text": "Rejected",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"title\" value."
+  },
+  "components.inbox.detail-recruiting.replace_to_confirm": {
+    "text": "Replace each [[TO CONFIRM: …]] in the text.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: text inside <Alert>."
+  },
   "components.inbox.detail-recruiting.role": {
     "text": "Role",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-recruiting.scorecard_submitted": {
+    "text": "Scorecard submitted",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scorecard: the onClick of <Button>."
+  },
+  "components.inbox.detail-recruiting.send_to_sign": {
+    "text": "Send to sign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: text inside <Button>."
+  },
+  "components.inbox.detail-recruiting.sent_to_sign": {
+    "text": "Sent to sign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: the onClick of <Button>."
+  },
+  "components.inbox.detail-recruiting.sign_on": {
+    "text": "Sign-on",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
+  },
+  "components.inbox.detail-recruiting.starts": {
+    "text": "Starts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
+  },
+  "components.inbox.detail-recruiting.step_of": {
+    "text": "Step {{step}} of {{steps}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: the hint of <Actions>. Filled in: {{step}}, {{steps}}."
+  },
+  "components.inbox.detail-recruiting.strong_no": {
+    "text": "Strong no",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scale: text built in code."
+  },
+  "components.inbox.detail-recruiting.strong_yes": {
+    "text": "Strong yes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scale: text built in code."
+  },
+  "components.inbox.detail-recruiting.submit_once_begun": {
+    "text": "You can submit it once the interview has begun.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scorecard: the hint of <Actions>."
+  },
+  "components.inbox.detail-recruiting.submit_scorecard": {
+    "text": "Submit scorecard",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scorecard: text inside <Button>."
+  },
+  "components.inbox.detail-recruiting.target_start": {
+    "text": "Target start",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
   },
   "components.inbox.detail-recruiting.text": {
     "text": "{{format}} – {{format2}}",
@@ -1839,9 +1971,29 @@
     "text": "Times in {{zone}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the hint of <Actions>. Filled in: {{zone}}."
   },
+  "components.inbox.detail-recruiting.variable_target": {
+    "text": "Variable target",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
+  },
+  "components.inbox.detail-recruiting.what_you_saw_and_heard": {
+    "text": "What you saw and heard",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scorecard: the placeholder of <Textarea>."
+  },
   "components.inbox.detail-recruiting.where": {
     "text": "Where",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-recruiting.whoever_asked_sees_why": {
+    "text": "Whoever asked for it sees your reason.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: the description of <NoteDialog>."
+  },
+  "components.inbox.detail-recruiting.why": {
+    "text": "Why",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: a \"label\" value."
+  },
+  "components.inbox.detail-recruiting.yes": {
+    "text": "Yes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scale: text built in code."
   },
   "components.inbox.detail-timeoff.approve": {
     "text": "Approve",

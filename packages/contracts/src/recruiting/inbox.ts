@@ -1,7 +1,7 @@
 import * as z from 'zod';
 
 import { asFinancial, asInternal, asPublic, policy } from '../classification.js';
-import { CalendarDate, Instant } from '../primitives.js';
+import { CalendarDate, Instant, Money } from '../primitives.js';
 
 /**
  * Recruiting's answer to the Inbox (Recruiting PRD §5.3, REC-014): the kinds
@@ -32,13 +32,9 @@ export const RECRUITING_INBOX_KINDS = {
   createContract: 'recruiting.create-contract',
 } as const;
 
-export const RecruitingApprovalDetail = z.object({
-  /** What is approved, as Recruiting names it: "Senior Backend Engineer, 2 openings". */
-  subject: z.string().max(240).register(policy, asInternal()),
+const ApprovalSteps = {
   step: z.int().min(1).register(policy, asPublic()),
   steps: z.int().min(1).register(policy, asPublic()),
-  /** Why approval is needed: "Above budget", "Outside the band". */
-  reasons: z.array(z.string().max(120).register(policy, asPublic())),
   /** What changed since the last approval (PRD §7.2). */
   changes: z.array(
     z.object({
@@ -47,15 +43,59 @@ export const RecruitingApprovalDetail = z.object({
       to: z.string().max(120).register(policy, asFinancial()),
     }),
   ),
-});
+};
+
+/**
+ * What an approver decides on, to approve or reject it in the Inbox
+ * (`recruiting.requisition-approval`, `recruiting.offer-approval`): the
+ * figures as they are, for the reader's language to format.
+ */
+export const RecruitingApprovalDetail = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('requisition'),
+    requisitionId: z.uuid().register(policy, asPublic()),
+    title: z.string().max(240).register(policy, asInternal()),
+    openings: z.int().min(1).register(policy, asPublic()),
+    targetStart: CalendarDate.nullable(),
+    budget: z.object({ from: Money, to: Money }).nullable(),
+    justification: z.string().max(4000).register(policy, asInternal()),
+    ...ApprovalSteps,
+  }),
+  z.object({
+    kind: z.literal('offer'),
+    offerId: z.uuid().register(policy, asPublic()),
+    candidate: z.string().max(200).register(policy, asInternal('identity')),
+    job: z.string().max(200).register(policy, asInternal()),
+    base: Money,
+    frequency: z.enum(['year', 'month', 'hour']).register(policy, asPublic()),
+    startDate: CalendarDate,
+    variableTarget: Money.nullable(),
+    signOn: Money.nullable(),
+    ...ApprovalSteps,
+  }),
+]);
 export type RecruitingApprovalDetail = z.infer<typeof RecruitingApprovalDetail>;
 
+/** A scorecard owed, to fill in and submit from the Inbox (`recruiting.scorecard`). */
 export const RecruitingScorecardDetail = z.object({
+  interviewId: z.uuid().register(policy, asPublic()),
   candidate: z.string().max(200).register(policy, asInternal('identity')),
   job: z.string().max(200).register(policy, asInternal()),
   interview: z.string().max(120).register(policy, asInternal()),
+  /** Submitted only once it has begun; before that, a draft. */
+  startsAt: Instant,
   endedAt: Instant,
   dueOn: CalendarDate,
+  /** What to rate, 1 to 4; none, only the overall recommendation. */
+  competencies: z
+    .array(
+      z.object({
+        key: z.string().max(60).register(policy, asPublic()),
+        name: z.string().max(120).register(policy, asInternal()),
+        description: z.string().max(1000).register(policy, asInternal()),
+      }),
+    )
+    .max(30),
 });
 export type RecruitingScorecardDetail = z.infer<typeof RecruitingScorecardDetail>;
 
