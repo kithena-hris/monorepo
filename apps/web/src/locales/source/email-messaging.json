@@ -1,7 +1,31 @@
 {
+  "correspondence.footer": {
+    "text": "Sent by {{company}} about your application. Reply to this email to answer them.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"footer\" value. Filled in: {{company}}."
+  },
+  "correspondence.manage": {
+    "text": "Choose what reaches you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"label\" value."
+  },
+  "correspondence.member_footer": {
+    "text": "Sent to you at {{company}} by Kithena, because it is yours to do or to know.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"footer\" value. Filled in: {{company}}."
+  },
+  "correspondence.next": {
+    "text": "What happens next",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"title\" value."
+  },
+  "correspondence.times": {
+    "text": "Times",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"timesTitle\" value."
+  },
   "invitation.button_not_working": {
     "text": "Button not working? Paste this into your browser:",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: a \"buttonNotWorking\" value."
+  },
+  "invitation.deadline": {
+    "text": "{{date}} at {{time}} UTC",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: text built in code. Filled in: {{date}}, {{time}}."
   },
   "invitation.invitation.action": {
     "text": "Set up your account",
@@ -115,6 +139,10 @@
     "text": "Your sign-in address",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: a \"address\" value."
   },
+  "notice.about": {
+    "text": "About",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts: a \"label\" value."
+  },
   "notice.approval_decided.action": {
     "text": "Open People",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"approval_decided\" value."
@@ -187,6 +215,10 @@
     "text": "{{company}}: a change is waiting for your approval",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
   },
+  "notice.button_not_working": {
+    "text": "Button not working? Paste this into your browser:",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts: a \"note\" value."
+  },
   "notice.correction_requested.action": {
     "text": "Open your profile",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
@@ -206,6 +238,10 @@
   "notice.correction_requested.subject": {
     "text": "{{company}}: HR asked you to correct a detail",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.document": {
+    "text": "Document",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts: a \"label\" value."
   },
   "notice.document_completed.action": {
     "text": "Open the document",
@@ -350,6 +386,10 @@
   "notice.inbox_update.lede": {
     "text": "{{opening}} Nothing is owed; it is in your Inbox at {{company}}.",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{opening}}, {{company}}."
+  },
+  "notice.next": {
+    "text": "What happens next",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts: a \"title\" value."
   },
   "notice.profile_reminder.action": {
     "text": "Open your profile",

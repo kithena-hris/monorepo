@@ -3,7 +3,8 @@ import { err, failure, ok, wordsIn, type Result, type Words } from '@kithena/dom
 
 import type { EmailAddress } from './address.js';
 import { escapeHtml, safeHref, safeImageSrc } from './markup.js';
-import { dark, light, scale } from './palette.js';
+import { frame } from './frame.js';
+import { light } from './palette.js';
 
 /**
  * The one message this service sends today: somebody has an account waiting at
@@ -128,6 +129,8 @@ const MONTHS = [
  * this assertable in a test that will still pass on a different Node build.
  */
 export function formatDeadline(iso: string, words: Language = ENGLISH): string | null {
+  // A bare `t`, so `i18n-extract` finds every key.
+  const { t } = words;
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return null;
 
@@ -146,7 +149,7 @@ export function formatDeadline(iso: string, words: Language = ENGLISH): string |
         year: 'numeric',
         timeZone: 'UTC',
       }).format(at);
-  return words.t('invitation.deadline', '{{date}} at {{time}} UTC', {
+  return t('invitation.deadline', '{{date}} at {{time}} UTC', {
     date,
     time: `${hours}:${minutes}`,
   });
@@ -192,21 +195,16 @@ export function renderInvitation(
 
   return ok({
     subject: copy.subject,
-    html: html({
-      copy: escaped(copy),
+    html: card(escaped(copy), {
       language: escapeHtml(words.language),
       company: escapeHtml(companyName),
       recipient: escapeHtml(message.recipient),
       href,
-      // The visible copy of the link, which is not the `href`. A person who
-      // does not trust a button is right not to, and the thing they check is
-      // the text.
+      // The visible copy of the link, which is not the `href`: a person who
+      // does not trust a button checks the text.
       plainUrl: escapeHtml(message.enrolUrl),
-      deadline: escapeHtml(deadline),
       logo: safeImageSrc(message.logoUrl ?? null),
-      // Kithena's own when the company chose nothing, or named a preset that
-      // no longer exists. `accentHex` returns null for both, which is why it
-      // does not simply default to Indigo itself.
+      // Kithena's own when the company chose nothing or a preset that is gone.
       accent: accentHex(message.themeId) ?? light['accent-solid'],
     }),
     text: text({
@@ -375,288 +373,42 @@ const COPY: Record<MessagePurpose, (t: Words, company: string, deadline: string)
 
 /* -------------------------------------------------------------- rendering -- */
 
-interface View {
-  readonly copy: Copy;
-  /** Escaped, as every value in the view is. */
-  readonly language: string;
-  readonly company: string;
-  readonly recipient: string;
-  readonly href: string;
-  readonly plainUrl: string;
-  readonly deadline: string;
-  readonly logo: string | null;
-  /**
-   * The company's accent, resolved to sRGB, already defaulted.
-   *
-   * A hex and not a preset id: the template renders colours, and a template
-   * that looked one up would be the second place a fallback had to be decided.
-   */
-  readonly accent: string;
-}
-
 /**
- * Reach, in the subset of HTML that survives a mail client.
- *
- * ### Why this looks like 2004
- *
- * Outlook on Windows still renders through Word. No flexbox, no grid, no
- * `border-radius`, and a `<style>` block it feels free to ignore. Gmail strips
- * the `<head>` entirely on some clients. These constraints are twenty years old
- * and have not moved, so the layout is tables and the styling is inline — this
- * is not a web page that happens to be emailed.
- *
- * ### How it is still the design system
- *
- * Every colour is a Reach token resolved to sRGB by `palette.ts`, and
- * `pnpm email:theme-drift` fails if one of them moves. Every size, radius and
- * weight below names the token it came from. The button is `Button`
- * `variant="primary" size="lg"` written out longhand: `accent-solid` on
- * `fg-on-accent`, `--radius-md`, `--reach-control-lg`, `--text-md`, medium.
- * The card is `Card` `variant="outlined"`: `surface`, a `border` line rather
- * than a shadow, `--radius-lg`, `p-5`.
- *
- * ### Dark mode
- *
- * The inline styles are the light theme, because inline is the only thing every
- * client honours and a light email is never *wrong*. The `<style>` block adds
- * the dark palette for the clients that both keep it and report
- * `prefers-color-scheme` — Apple Mail, iOS Mail, Outlook.com. Gmail keeps
- * neither and force-inverts instead, which is why the light palette is chosen
- * from Reach's own tokens rather than from pure white and black: an inverted
- * `#f9fafb` is a usable dark, an inverted `#ffffff` is not.
+ * The invitation in the frame every email shares (`frame.ts`): which account
+ * it is for and when the link runs out as the summary, the steps a passkey
+ * takes, one button, and what to do once it has expired.
  */
-function html(view: View): string {
-  const preheader = view.copy.preheader;
-  const pad = scale.cardPadding;
-
-  return `<!doctype html>
-<html lang="${view.language}" style="margin:0;padding:0;">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="x-apple-disable-message-reformatting" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="supported-color-schemes" content="light dark" />
-    <title>${view.copy.heading}</title>
-    <!--[if mso]>
-      <style>
-        /* Word substitutes Times New Roman for any family it cannot resolve,
-           which turns the whole message serif. This names one it can. */
-        * { font-family: 'Segoe UI', Arial, sans-serif !important; }
-      </style>
-    <![endif]-->
-    <style>
-      /* Only clients that keep a style block and honour the query get this.
-         The inline light theme stands everywhere else. */
-      @media (prefers-color-scheme: dark) {
-        .k-canvas { background: ${dark.canvas} !important; }
-        .k-surface { background: ${dark.surface} !important; border-color: ${dark.border} !important; }
-        .k-inset { background: ${dark['surface-sunken']} !important; border-color: ${dark.border} !important; }
-        .k-fg { color: ${dark.fg} !important; }
-        .k-muted { color: ${dark['fg-muted']} !important; }
-        .k-accent { color: ${dark.accent} !important; }
-        .k-rule { background: ${dark.border} !important; }
-        .k-chip { background: ${dark['accent-subtle']} !important; color: ${dark['accent-fg']} !important; }
-      }
-      /* A phone is 320px at its narrowest. The card loses its outer margin
-         rather than its padding: cramped copy reads worse than a card that
-         touches the edges. */
-      @media only screen and (max-width: 600px) {
-        .k-pad { padding-left: 18px !important; padding-right: 18px !important; }
-        .k-button { display: block !important; }
-      }
-    </style>
-  </head>
-  <body class="k-canvas" style="margin:0;padding:0;width:100%;background:${light.canvas};font-family:${scale.fontFamily};-webkit-font-smoothing:antialiased;">
-    <!-- Shown in the inbox list beside the subject. Without it, clients pull
-         the first line of the body, which here is the heading repeated. The
-         entities pad it so the client does not fill the rest of the preview
-         line with the markup that follows. -->
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}${'&#847;&zwnj;&nbsp;'.repeat(30)}</div>
-
-    <table role="presentation" class="k-canvas" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${light.canvas};">
-      <tr>
-        <td align="center" style="padding:40px 12px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:544px;">
-
-            <!-- Wordmark. Type rather than an image on purpose: Gmail drops
-                 data: image sources and Outlook desktop will not render SVG,
-                 so the mark would be a broken box for most recipients. -->
-            <tr>
-              <td style="padding:0 4px 18px 4px;">
-                <span class="k-accent" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:${light.accent};">Kithena</span>
-              </td>
-            </tr>
-
-            <!-- Card variant="outlined": a line, not a shadow. -->
-            <tr>
-              <td class="k-surface" style="background:${light.surface};border:1px solid ${light.border};border-radius:${scale.radiusCard};overflow:hidden;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-
-                  <!-- A 3px accent rule across the top. The one piece of
-                       ornament, and it earns its place: it is what makes the
-                       card read as somebody's at a glance in a crowded inbox.
-                       The company's colour when they chose one, so it is the
-                       same rule their sign-in page opens with; Kithena's when
-                       they did not. -->
-                  <tr>
-                    <td style="height:3px;line-height:3px;font-size:0;background:${view.accent};">&nbsp;</td>
-                  </tr>
-
-${logoRow(view, pad)}
-                  <tr>
-                    <td class="k-pad" style="padding:${view.logo === null ? '28px' : '4px'} ${pad} 0 ${pad};">
-                      <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:600;color:${light.fg};">${view.copy.heading}</h1>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td class="k-pad k-muted" style="padding:10px ${pad} 0 ${pad};font-size:${scale.body.size};line-height:${scale.body.lineHeight};color:${light['fg-muted']};">
-                      ${view.copy.lede}
-                    </td>
-                  </tr>
-
-                  <!-- Which account this is. The same thing the enrolment page
-                       says before the device prompt appears, and here for the
-                       same reason: one device holds passkeys for several
-                       accounts, and the prompt only shows what it was told at
-                       registration. -->
-                  <tr>
-                    <td class="k-pad" style="padding:22px ${pad} 0 ${pad};">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="k-inset" style="background:${light['surface-sunken']};border:1px solid ${light.border};border-radius:${scale.radiusInset};">
-                        <tr>
-                          <td style="padding:13px 15px;">
-                            <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};">${view.copy.address}</div>
-                            <div class="k-fg" style="padding-top:3px;font-size:${scale.body.size};line-height:${scale.body.lineHeight};font-weight:500;color:${light.fg};word-break:break-all;">${view.recipient}</div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <!-- Button variant="primary" size="lg", longhand. -->
-                  <tr>
-                    <td class="k-pad" style="padding:22px ${pad} 0 ${pad};">
-${button(view)}
-                    </td>
-                  </tr>
-
-                  <!-- What actually happens, because a passkey is unfamiliar to
-                       most people receiving this and "no password to choose"
-                       raises more questions than it answers on its own. -->
-                  <tr>
-                    <td class="k-pad" style="padding:26px ${pad} 0 ${pad};">
-                      <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};padding-bottom:10px;">${view.copy.next}</div>
-${steps(view)}
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td class="k-pad" style="padding:24px ${pad} 0 ${pad};">
-                      <div class="k-rule" style="height:1px;line-height:1px;font-size:0;background:${light.border};">&nbsp;</div>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td class="k-pad" style="padding:16px ${pad} 0 ${pad};">
-                      <!-- Badge tone="accent" size="sm": rounded-full, subtle
-                           wash, medium weight. -->
-                      <span class="k-chip" style="display:inline-block;padding:3px 10px;border-radius:999px;background:${light['accent-subtle']};color:${light['accent-fg']};font-size:${scale.tiny.size};line-height:16px;font-weight:500;">${view.copy.chip}</span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td class="k-pad k-muted" style="padding:12px ${pad} ${pad} ${pad};font-size:${scale.small.size};line-height:${scale.small.lineHeight};color:${light['fg-muted']};">
-                      <p style="margin:0 0 10px 0;">${view.copy.expired} ${view.copy.caution}</p>
-                      <p style="margin:0;">${view.copy.buttonNotWorking}<br /><a href="${view.href}" class="k-muted" style="color:${light['fg-muted']};word-break:break-all;text-decoration:underline;">${view.plainUrl}</a></p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <tr>
-              <td class="k-muted" style="padding:18px 4px 0 4px;font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};color:${light['fg-muted']};">
-                ${view.copy.footer} ${view.copy.oneOff}
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
-}
-
-/**
- * The numbered steps.
- *
- * Rows rather than an `<ol>`: list markers are styled inconsistently across
- * clients and Outlook indents them by an amount nobody agrees on, so the number
- * is an element of its own in a two-column row.
- *
- * The chip is Reach's stepper tick — `accent-subtle` on `accent-fg` rather than
- * a solid fill, because those two are the pair chosen to clear contrast on a
- * wash. `accent-fg` on a solid accent measures about 1.5:1 and merely looks "a
- * bit low", which `tokens.css` warns about by name.
- */
-function steps(view: View): string {
-  const rows = view.copy.steps
-    .map(
-      (item, index) => `                        <tr>
-                          <td width="30" valign="top" style="padding:0 10px 10px 0;">
-                            <span class="k-chip" style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:999px;background:${light['accent-subtle']};color:${light['accent-fg']};font-size:${scale.tiny.size};font-weight:600;text-align:center;">${String(index + 1)}</span>
-                          </td>
-                          <td valign="top" class="k-muted" style="padding:0 0 10px 0;font-size:${scale.small.size};line-height:20px;color:${light['fg-muted']};">${item}</td>
-                        </tr>`,
-    )
-    .join('\n');
-
-  return `                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-${rows}
-                      </table>`;
-}
-
-/**
- * The company's mark, above the heading, or nothing.
- *
- * Constrained by height rather than width, so a wordmark and a square badge
- * both sit on the same baseline. `max-width` keeps a very wide wordmark inside
- * the card on a phone; Outlook ignores it, which is why the height is the one
- * that is fixed.
- */
-function logoRow(view: View, pad: string): string {
-  if (view.logo === null) return '';
-  return `                  <tr>
-                    <td class="k-pad" style="padding:26px ${pad} 0 ${pad};">
-                      <img src="${view.logo}" alt="${view.company}" height="28" style="height:28px;max-width:180px;width:auto;border:0;outline:none;display:block;" />
-                    </td>
-                  </tr>
-`;
-}
-
-/**
- * The primary action.
- *
- * Two buttons, and only ever one of them visible. Word ignores `border-radius`
- * and `padding` on an anchor, so Outlook would otherwise get a square,
- * unpadded, hard-to-hit link — the VML `roundrect` inside the conditional
- * comment is what gives it the same 8px corner and 44px height as everywhere
- * else. `mso-hide:all` on the real one keeps Outlook from showing both.
- *
- * `arcsize="18%"` rather than a pixel radius: VML takes a percentage of the
- * shorter side, and 8 of 44 is 18%.
- */
-function button(view: View): string {
-  return `                      <!--[if mso]>
-                      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${view.href}" style="height:${scale.controlHeight};v-text-anchor:middle;width:220px;" arcsize="18%" stroke="f" fillcolor="${view.accent}">
-                        <w:anchorlock/>
-                        <center style="color:${light['fg-on-accent']};font-family:'Segoe UI',Arial,sans-serif;font-size:${scale.body.size};font-weight:500;">${view.copy.action}</center>
-                      </v:roundrect>
-                      <![endif]-->
-                      <!--[if !mso]><!-- -->
-                      <a href="${view.href}" class="k-button" style="display:inline-block;box-sizing:border-box;height:${scale.controlHeight};line-height:${scale.controlHeight};padding:0 20px;background:${view.accent};color:${light['fg-on-accent']};font-size:${scale.body.size};font-weight:500;text-align:center;text-decoration:none;border-radius:${scale.radiusControl};mso-hide:all;">${view.copy.action}</a>
-                      <!--<![endif]-->`;
+function card(
+  copy: Copy,
+  v: {
+    readonly language: string;
+    readonly company: string;
+    readonly recipient: string;
+    readonly href: string;
+    readonly plainUrl: string;
+    readonly logo: string | null;
+    readonly accent: string;
+  },
+): string {
+  return frame({
+    language: v.language,
+    title: copy.heading,
+    preheader: copy.preheader,
+    company: v.company,
+    logo: v.logo,
+    accent: v.accent,
+    paragraphs: [copy.lede],
+    // Which account this is, as the enrolment page says before the device asks:
+    // one device holds passkeys for several accounts.
+    facts: [{ label: copy.address, value: v.recipient }],
+    times: null,
+    steps: { title: copy.next, items: copy.steps },
+    action: { label: copy.action, href: v.href },
+    secondary: null,
+    note: `<strong>${copy.chip}.</strong> ${copy.expired} ${copy.caution}<br /><br />${copy.buttonNotWorking}<br /><a href="${v.href}" style="color:inherit;word-break:break-all;text-decoration:underline;">${v.plainUrl}</a>`,
+    footer: `${copy.footer} ${copy.oneOff}`,
+    manage: null,
+  });
 }
 
 function text(v: { copy: Copy; recipient: string; url: string }): string {

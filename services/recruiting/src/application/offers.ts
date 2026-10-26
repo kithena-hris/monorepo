@@ -666,9 +666,33 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
         : t('email.offer.declined_heading', 'Offer declined'),
       facts: [
         { label: t('email.offer.role', 'Role'), value: job.title },
+        ...(accepted
+          ? [
+              {
+                label: t('email.contract.start', 'Start'),
+                value: await longDay(ctx, latest(offer).startDate),
+              },
+            ]
+          : []),
         { label: t('email.offer.version', 'Version'), value: String(version) },
         ...(accepted ? [] : [{ label: t('email.offer.reason', 'Reason'), value: vars.reason }]),
       ],
+      ...(accepted
+        ? {
+            steps: [
+              t(
+                'email.offer.next_contract',
+                '{{company}} prepares your contract from the terms you accepted',
+                vars,
+              ),
+              t('email.offer.next_sign', 'You get it by email to sign, with a code to open it'),
+              t(
+                'email.offer.next_signup',
+                'Once both of you have signed, you are invited to set up your account and start onboarding',
+              ),
+            ],
+          }
+        : {}),
     },
   );
   if (accepted) {
@@ -692,7 +716,26 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
         facts: [
           { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
           { label: t('email.offer.role', 'Role'), value: job.title },
+          {
+            label: t('email.contract.start', 'Start'),
+            value: await longDay(ctx, latest(offer).startDate),
+          },
           { label: t('email.offer.version', 'Version'), value: String(version) },
+        ],
+        steps: [
+          t(
+            'email.offer.team_next_draft',
+            'Create the contract: Kithena drafts it from the accepted terms',
+          ),
+          t(
+            'email.offer.team_next_check',
+            'Check every fact, change what you need, then send it to sign',
+          ),
+          t(
+            'email.offer.team_next_sign',
+            '{{first}} signs first, then you for the company, and they are hired',
+            vars,
+          ),
         ],
         ...(href === null
           ? {}
@@ -707,11 +750,28 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
     await hiringTeam(ctx, job.id),
     t('email.offer.team_declined', '{{name}} declined the offer for {{job}}', vars),
     t(
-      'email.offer.team_declined_body',
-      '{{name}} declined version {{version}}.\n\nTheir reason: “{{reason}}”\n\nChange the terms and send a new version from the offer.\n\n{{link}}',
-      { ...vars, link },
+      'email.offer.team_declined_body_2',
+      '{{name}} declined version {{version}}. Change the terms and send a new version from the offer, or close their application.',
+      vars,
     ),
     `offer-${offer.state}:${offer.id}:${String(version)}`,
+    {
+      heading: t('email.offer.declined_heading', 'Offer declined'),
+      facts: [
+        { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
+        { label: t('email.offer.role', 'Role'), value: job.title },
+        { label: t('email.offer.reason', 'Reason'), value: vars.reason === '' ? '—' : vars.reason },
+      ],
+      action: { label: t('email.offer.open_offer', 'Open the offer'), href: link },
+    },
+  );
+}
+
+/** A day as an email says it, in the company's language: "2 November 2026". */
+async function longDay(ctx: Ctx, day: string): Promise<string> {
+  const { language } = await mailWords(ctx);
+  return new Intl.DateTimeFormat(language, { dateStyle: 'long', timeZone: 'UTC' }).format(
+    new Date(`${day}T00:00:00Z`),
   );
 }
 
@@ -765,7 +825,19 @@ async function tellSigned(
       heading: t('email.contract.hired_heading', 'You are hired'),
       facts: [
         { label: t('email.offer.role', 'Role'), value: job.title },
-        { label: t('email.contract.start', 'Start'), value: startDate },
+        { label: t('email.contract.start', 'Start'), value: await longDay(ctx, startDate) },
+      ],
+      steps: [
+        t(
+          'email.contract.next_invite',
+          'You get an invitation to sign up to {{company}}’s Kithena',
+          vars,
+        ),
+        t(
+          'email.contract.next_confirm',
+          'Confirm the details from your contract and add what is still missing',
+        ),
+        t('email.contract.next_onboard', 'Your onboarding plan starts, ready for your first day'),
       ],
     },
   );
@@ -784,7 +856,18 @@ async function tellSigned(
       facts: [
         { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
         { label: t('email.offer.role', 'Role'), value: job.title },
-        { label: t('email.contract.start', 'Start'), value: startDate },
+        { label: t('email.contract.start', 'Start'), value: await longDay(ctx, startDate) },
+      ],
+      steps: [
+        t('email.contract.team_next_invite', 'Send their invitation, now or on a day you choose'),
+        t(
+          'email.contract.team_next_confirm',
+          'They confirm the details from their contract and sign up',
+        ),
+        t(
+          'email.contract.team_next_onboard',
+          'They are an employee in onboarding until their first day',
+        ),
       ],
       action: {
         label: t('email.contract.invite_action', 'Invite {{first}}', vars),
@@ -1041,6 +1124,21 @@ export async function candidateSignedContract(
       facts: [
         { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
         { label: t('email.offer.role', 'Role'), value: job.title },
+      ],
+      steps: [
+        t(
+          'email.contract.turn_next_sign',
+          'Sign the contract for the company: every page, then the last',
+        ),
+        t(
+          'email.contract.turn_next_hired',
+          '{{name}} is hired the moment you finish, and told so',
+          vars,
+        ),
+        t(
+          'email.contract.turn_next_invite',
+          'Invite them to sign up from the Set up task in your Inbox',
+        ),
       ],
       ...(href === null
         ? {}

@@ -72,6 +72,10 @@ const Request = z.object({
         .object({ label: z.string().min(1).max(60), href: z.url().max(2000) })
         .nullable()
         .optional(),
+      /** What happens next, in order: a numbered list under the facts. */
+      steps: z.array(z.string().min(1).max(300)).max(6).optional(),
+      /** Small print under the button. */
+      note: z.string().max(300).nullable().optional(),
       themeId: z.string().max(40).nullable().optional(),
       logoUrl: z.url().max(2000).nullable().optional(),
     })
