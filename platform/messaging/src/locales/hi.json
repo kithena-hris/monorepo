@@ -3,6 +3,7 @@
   "correspondence.manage": "चुनें कि आप तक क्या पहुँचे",
   "correspondence.member_footer": "{{company}} में आपको Kithena द्वारा भेजा गया, क्योंकि यह आपको करना है या जानना है।",
   "correspondence.next": "आगे क्या होगा",
+  "correspondence.open": "खोलें",
   "correspondence.times": "समय",
   "invitation.button_not_working": "बटन काम नहीं कर रहा? इसे अपने ब्राउज़र में पेस्ट करें:",
   "invitation.deadline": "{{date}} को {{time}} UTC",

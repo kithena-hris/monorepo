@@ -3,6 +3,7 @@
   "correspondence.manage": "Выбрать, что приходит",
   "correspondence.member_footer": "Отправлено вам в {{company}} через Kithena, потому что это ваша задача или вам важно это знать.",
   "correspondence.next": "Что дальше",
+  "correspondence.open": "Открыть",
   "correspondence.times": "Время",
   "invitation.button_not_working": "Кнопка не работает? Вставьте это в браузер:",
   "invitation.deadline": "{{date}} в {{time}} UTC",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderCorrespondence } from './correspondence.js';
+import { buttonFrom, renderCorrespondence } from './correspondence.js';
 
 /** A module's own email (Recruiting PRD §12.7), drawn in the frame every email shares. */
 describe('correspondence', () => {
@@ -29,5 +29,28 @@ describe('correspondence', () => {
     expect(toMember.value.html).toContain(
       'href="https://acme.app.kithena.com/settings/notifications"',
     );
+  });
+});
+
+describe('a link at the end of the words', () => {
+  it('becomes the button, labelled by the line before it', () => {
+    expect(
+      buttonFrom(
+        'Your review is due Friday.\n\nOpen your review:\nhttps://acme.app.kithena.com/performance/r1',
+        'Open',
+      ),
+    ).toEqual({
+      label: 'Open your review',
+      href: 'https://acme.app.kithena.com/performance/r1',
+      text: 'Your review is due Friday.',
+    });
+    expect(buttonFrom('Sessions: https://acme.app.kithena.com/l', 'Open')).toBeNull();
+    const r = renderCorrespondence(
+      'Reminder',
+      'Due Friday.\n\nhttps://acme.app.kithena.com/p',
+      'Acme',
+    );
+    if (!r.ok) throw new Error('expected an email');
+    expect(r.value.html).toContain('href="https://acme.app.kithena.com/p" class="k-button"');
   });
 });

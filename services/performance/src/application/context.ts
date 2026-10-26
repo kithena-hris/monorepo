@@ -289,8 +289,25 @@ export async function deliver(
       }
     }
   if (deps.mailer === undefined) return;
+  // Every reminder here goes to a member: their account, by the address it goes to, for a push.
+  const accounts =
+    mail.length === 0
+      ? new Map<string, string>()
+      : await deps.uow
+          .run(tenantId, async (tx) => {
+            const all = await tx.members.list();
+            return new Map(
+              all.flatMap((m) =>
+                m.workEmail == null || m.accountId === null
+                  ? []
+                  : [[m.workEmail.toLowerCase(), m.accountId] as const],
+              ),
+            );
+          })
+          .catch(() => new Map<string, string>());
   for (const m of mail) {
     if (m.chat === 'only' || (typeof m.chat === 'object' && m.chat.only === true)) continue;
+    const accountId = accounts.get(m.to.toLowerCase());
     try {
       await deps.mailer.send({
         tenantId,
@@ -299,6 +316,7 @@ export async function deliver(
         text: m.text,
         dedupeKey: m.dedupeKey,
         ...(m.attachments === undefined ? {} : { attachments: m.attachments }),
+        ...(accountId === undefined ? {} : { accountId, urgent: true }),
       });
     } catch {
       // ponytail: a lost reminder is not retried; the Inbox still has it. A delivery queue when one is missed.

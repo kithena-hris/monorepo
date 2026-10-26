@@ -3,6 +3,7 @@
   "correspondence.manage": "Scegli cosa ti arriva",
   "correspondence.member_footer": "Inviato a te in {{company}} da Kithena, perché tocca a te farlo o saperlo.",
   "correspondence.next": "Cosa succede ora",
+  "correspondence.open": "Apri",
   "correspondence.times": "Orari",
   "invitation.button_not_working": "Il pulsante non funziona? Incolla questo nel browser:",
   "invitation.deadline": "{{date}} alle {{time}} UTC",
