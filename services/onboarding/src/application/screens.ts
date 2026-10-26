@@ -39,6 +39,8 @@ export async function boardScreen(ctx: Ctx, state: string | undefined): Promise<
           // Where the hire came from, so the screen it came from can link its plan.
           source: hire?.source ?? null,
           externalId: hire?.externalId ?? null,
+          // The viewer's own plan, for `/onboarding/mine` to open.
+          mine: ctx.viewer.personId !== null && p.personId === ctx.viewer.personId,
           state: p.state,
           startDate: p.startDate,
           department: p.department,

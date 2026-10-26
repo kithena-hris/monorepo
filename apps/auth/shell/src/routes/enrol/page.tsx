@@ -33,6 +33,8 @@ import { useBrandRamp } from '../../lib/brand';
 import { resolveTenant } from '../../lib/tenant';
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 
+const TENANT_APP_BASE = process.env['MODERN_TENANT_APP_BASE'] ?? '';
+
 /**
  * Creating a first passkey.
  *
@@ -523,9 +525,16 @@ export default function Enrol(): JSX.Element {
       setState({ kind: 'done' });
       // Straight on to signing in. Leaving someone on a success screen with a
       // spent link is how they press the button again and are told, correctly
-      // and uselessly, that their link has been used.
+      // and uselessly, that their link has been used. A new hire goes on to
+      // their onboarding plan: the company's sign-in page remembers where they
+      // were going and lands them there.
       window.setTimeout(
-        () => void navigate(`/login?tenant=${encodeURIComponent(tenant.slug)}`),
+        () =>
+          recovering || TENANT_APP_BASE === ''
+            ? void navigate(`/login?tenant=${encodeURIComponent(tenant.slug)}`)
+            : window.location.replace(
+                `${TENANT_APP_BASE.replace('{slug}', tenant.slug)}/onboarding/mine`,
+              ),
         900,
       );
       return;
