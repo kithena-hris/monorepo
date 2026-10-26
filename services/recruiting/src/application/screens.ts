@@ -2,8 +2,12 @@ import { CATEGORY_ICONS } from '../domain/benefits/benefits.js';
 import { agreementsOf } from './agreements.js';
 import { catalogueOf, categoriesOf, everyCatalogue } from './catalogue.js';
 import { err, ok, type Result } from '@kithena/domain-kit';
-import type { InboxItem, Instant } from '@kithena/contracts';
-import { RECRUITING_INBOX_KINDS } from '@kithena/contracts';
+import type { CalendarDate, InboxItem, Instant } from '@kithena/contracts';
+import {
+  RECRUITING_INBOX_KINDS,
+  type RecruitingApprovalDetail,
+  type RecruitingScorecardDetail,
+} from '@kithena/contracts';
 
 import { jobPermissions, may, maySeeOffer } from '../domain/access/access.js';
 import { currentStage, daysInStage, furthestCategory } from '../domain/pipeline/application.js';
@@ -26,7 +30,7 @@ import { checkOffer, contractPage, hiringTeam } from './offers.js';
 import { generalSettings } from './setup.js';
 import { builtInEmails } from './emails.js';
 import { jobChannel } from './chat.js';
-import type { ApplicationRecord, JobRecord } from './ports.js';
+import type { ApplicationRecord, Approval, JobRecord } from './ports.js';
 import { t } from './reader-words.js';
 
 /**
@@ -802,6 +806,47 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
   };
 }
 
+/** What the approver decides on, for approving or rejecting it in the Inbox; null if it has gone. */
+async function approvalDetail(ctx: Ctx, a: Approval): Promise<RecruitingApprovalDetail | null> {
+  const steps = {
+    step: approvalState(a.steps, a.decisions).step + 1,
+    steps: a.steps.length,
+    changes: [...a.changes],
+  };
+  if (a.subject.kind === 'requisition') {
+    const r = await ctx.tx.requisitions.get(a.subject.id);
+    if (r === null) return null;
+    return {
+      kind: 'requisition',
+      requisitionId: r.id,
+      title: r.title,
+      openings: r.openings,
+      targetStart: r.targetStart,
+      budget: r.budget,
+      justification: r.justification,
+      ...steps,
+    };
+  }
+  const offer = await ctx.tx.offers.get(a.subject.id);
+  const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
+  if (offer === null || app === null) return null;
+  const v = latest(offer);
+  const money = (amountMinor: number) =>
+    amountMinor > 0 ? { amountMinor, currency: v.pay.currency } : null;
+  return {
+    kind: 'offer',
+    offerId: offer.id,
+    candidate: (await ctx.tx.candidates.get(app.candidateId))?.name ?? '',
+    job: (await ctx.tx.jobs.get(app.jobId))?.title ?? '',
+    base: { amountMinor: v.pay.baseMinor, currency: v.pay.currency },
+    frequency: v.pay.frequency,
+    startDate: v.startDate,
+    variableTarget: money(v.pay.variableTargetMinor),
+    signOn: money(v.pay.signOnMinor),
+    ...steps,
+  };
+}
+
 /**
  * Recruiting's answer to the Inbox (PRD §5.3, REC-064): approvals waiting on
  * the person, scorecards they owe, today's interviews.
@@ -832,6 +877,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         : t('inbox.screens.approve_an_offer', 'Approve an offer');
     items.push({
       ...base,
+      detail: await approvalDetail(ctx, a),
       id: `recruiting:${a.subject.kind === 'requisition' ? 'requisition-approval' : 'offer-approval'}:${a.id}`,
       lane: 'task',
       kind:
@@ -852,8 +898,30 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     });
   }
   for (const i of await ctx.tx.interviews.owedBy(person)) {
+    const app = await ctx.tx.applications.get(i.applicationId);
+    const endedAt = new Date(Date.parse(i.startsAt) + i.minutes * 60_000).toISOString() as Instant;
+    const scorecard: RecruitingScorecardDetail | null =
+      app === null
+        ? null
+        : {
+            interviewId: i.id,
+            candidate: (await ctx.tx.candidates.get(app.candidateId))?.name ?? '',
+            job: (await ctx.tx.jobs.get(app.jobId))?.title ?? '',
+            interview: i.title,
+            startsAt: i.startsAt as Instant,
+            endedAt,
+            dueOn: new Date(Date.parse(endedAt) + 24 * 3_600_000)
+              .toISOString()
+              .slice(0, 10) as CalendarDate,
+            competencies: (await competenciesOf(ctx, app.jobId, i.planKey)).map((c) => ({
+              key: c.key,
+              name: c.name,
+              description: c.description,
+            })),
+          };
     items.push({
       ...base,
+      detail: scorecard,
       id: `recruiting:scorecard:${i.id}`,
       lane: 'task',
       kind: RECRUITING_INBOX_KINDS.scorecard,

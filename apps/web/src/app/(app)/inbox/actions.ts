@@ -318,6 +318,40 @@ export async function bookCandidateTime(
   return done(await recruiting('BookFromAsk', { applicationId, askId, input: { startsAt } }), t);
 }
 
+/** A scorecard filled in and submitted from the Inbox (R15). */
+export async function submitScorecard(
+  interviewId: string,
+  ratings: Readonly<Record<string, number>>,
+  recommendation: 'strong_no' | 'no' | 'yes' | 'strong_yes',
+  notes: string | null,
+): Promise<Outcome> {
+  const t = await serverWords();
+  return done(
+    await recruiting('SaveScorecard', {
+      interviewId,
+      input: { ratings, recommendation, notes, submit: true },
+    }),
+    t,
+  );
+}
+
+/** A requisition or an offer, approved or rejected from the Inbox; a rejection says why. */
+export async function decideRecruitingApproval(
+  kind: 'requisition' | 'offer',
+  id: string,
+  decision: 'approved' | 'rejected',
+  comment: string | null,
+): Promise<Outcome> {
+  const t = await serverWords();
+  const input = { decision, comment };
+  return done(
+    kind === 'requisition'
+      ? await recruiting('DecideRequisition', { requisitionId: id, input })
+      : await recruiting('DecideOffer', { offerId: id, input }),
+    t,
+  );
+}
+
 /** R16 from the Inbox: none of the candidate's times works; they are asked for others. */
 export async function askCandidateForMoreTimes(
   applicationId: string,

@@ -1,10 +1,37 @@
 'use client';
 
-import { RecruitingChooseTimeDetail } from '@kithena/contracts';
-import { Alert, Button, KeyValues, locale, RadioCard, RadioGroup } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import {
+  RecruitingApprovalDetail,
+  RecruitingChooseTimeDetail,
+  RecruitingScorecardDetail,
+} from '@kithena/contracts';
+import {
+  Alert,
+  Button,
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldLabel,
+  KeyValues,
+  locale,
+  RadioCard,
+  RadioGroup,
+  SegmentedControl,
+  SegmentedControlItem,
+  Spinner,
+  Textarea,
+} from '@reach/ui';
+import { useEffect, useState, type JSX } from 'react';
 
-import { askCandidateForMoreTimes, bookCandidateTime } from '../../app/(app)/inbox/actions';
+import { recruitingAct } from '../../app/(app)/recruiting/actions';
+
+import {
+  askCandidateForMoreTimes,
+  bookCandidateTime,
+  decideRecruitingApproval,
+  submitScorecard,
+} from '../../app/(app)/inbox/actions';
+import { NoteDialog } from './dialogs';
 import { Actions, type BodyProps } from './pane';
 import { t as tr } from '../../lib/t';
 
@@ -163,24 +190,473 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
   );
 }
 
+const money = (m: { amountMinor: number; currency: string }): string =>
+  new Intl.NumberFormat(locale(), { style: 'currency', currency: m.currency }).format(
+    m.amountMinor / 100,
+  );
+
+const longDay = (date: string): string =>
+  new Intl.DateTimeFormat(locale(), { dateStyle: 'long', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00Z`),
+  );
+
+/**
+ * A requisition or an offer to approve, decided here: what it asks for, what
+ * changed since it was last approved, and Approve, or Reject with a reason.
+ */
+function Approval({ item, act }: BodyProps): JSX.Element {
+  const parsed = RecruitingApprovalDetail.safeParse(item.detail);
+  const [rejecting, setRejecting] = useState(false);
+  if (!parsed.success)
+    return (
+      <Actions>
+        <Button asChild>
+          <a href={item.link}>
+            {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
+          </a>
+        </Button>
+      </Actions>
+    );
+  const d = parsed.data;
+  const id = d.kind === 'requisition' ? d.requisitionId : d.offerId;
+  const per =
+    d.kind === 'offer'
+      ? d.frequency === 'year'
+        ? tr('components.inbox.detail-recruiting.a_year', 'a year')
+        : d.frequency === 'month'
+          ? tr('components.inbox.detail-recruiting.a_month', 'a month')
+          : tr('components.inbox.detail-recruiting.an_hour', 'an hour')
+      : '';
+  const facts =
+    d.kind === 'requisition'
+      ? [
+          {
+            label: tr('components.inbox.detail-recruiting.openings', 'Openings'),
+            value: String(d.openings),
+          },
+          ...(d.targetStart === null
+            ? []
+            : [
+                {
+                  label: tr('components.inbox.detail-recruiting.target_start', 'Target start'),
+                  value: longDay(d.targetStart),
+                },
+              ]),
+          ...(d.budget === null
+            ? []
+            : [
+                {
+                  label: tr('components.inbox.detail-recruiting.budget', 'Budget'),
+                  value: `${money(d.budget.from)} – ${money(d.budget.to)}`,
+                },
+              ]),
+          ...(d.justification.trim() === ''
+            ? []
+            : [
+                {
+                  label: tr('components.inbox.detail-recruiting.why', 'Why'),
+                  value: d.justification,
+                },
+              ]),
+        ]
+      : [
+          {
+            label: tr('components.inbox.detail-recruiting.candidate', 'Candidate'),
+            value: d.candidate,
+          },
+          { label: tr('components.inbox.detail-recruiting.role', 'Role'), value: d.job },
+          {
+            label: tr('components.inbox.detail-recruiting.base_pay', 'Base pay'),
+            value: `${money(d.base)} ${per}`,
+          },
+          ...(d.variableTarget === null
+            ? []
+            : [
+                {
+                  label: tr(
+                    'components.inbox.detail-recruiting.variable_target',
+                    'Variable target',
+                  ),
+                  value: money(d.variableTarget),
+                },
+              ]),
+          ...(d.signOn === null
+            ? []
+            : [
+                {
+                  label: tr('components.inbox.detail-recruiting.sign_on', 'Sign-on'),
+                  value: money(d.signOn),
+                },
+              ]),
+          {
+            label: tr('components.inbox.detail-recruiting.starts', 'Starts'),
+            value: longDay(d.startDate),
+          },
+        ];
+  const decide = (decision: 'approved' | 'rejected', comment: string | null): void => {
+    act.run(() => decideRecruitingApproval(d.kind, id, decision, comment), {
+      title:
+        decision === 'approved'
+          ? tr('components.inbox.detail-recruiting.approved', 'Approved')
+          : tr('components.inbox.detail-recruiting.rejected', 'Rejected'),
+      next: true,
+    });
+  };
+  return (
+    <div className="flex flex-col gap-5">
+      <KeyValues layout="aligned" labelWidth="8rem" items={facts} />
+      {d.changes.length === 0 ? null : (
+        <KeyValues
+          layout="aligned"
+          labelWidth="8rem"
+          items={d.changes.map((c) => ({
+            label: c.field,
+            value: tr('components.inbox.detail-recruiting.changed', '{{from}} → {{to}}', {
+              from: c.from,
+              to: c.to,
+            }),
+          }))}
+        />
+      )}
+      <Actions
+        hint={
+          d.steps > 1
+            ? tr('components.inbox.detail-recruiting.step_of', 'Step {{step}} of {{steps}}', {
+                step: d.step,
+                steps: d.steps,
+              })
+            : undefined
+        }
+      >
+        <Button
+          variant="primary"
+          disabled={act.pending}
+          onClick={() => {
+            decide('approved', null);
+          }}
+        >
+          {tr('components.inbox.detail-recruiting.approve', 'Approve')}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={act.pending}
+          onClick={() => {
+            setRejecting(true);
+          }}
+        >
+          {tr('components.inbox.detail-recruiting.reject', 'Reject…')}
+        </Button>
+      </Actions>
+      {rejecting ? (
+        <NoteDialog
+          title={
+            d.kind === 'requisition'
+              ? tr(
+                  'components.inbox.detail-recruiting.reject_the_requisition',
+                  'Reject the requisition?',
+                )
+              : tr('components.inbox.detail-recruiting.reject_the_offer', 'Reject the offer?')
+          }
+          description={tr(
+            'components.inbox.detail-recruiting.whoever_asked_sees_why',
+            'Whoever asked for it sees your reason.',
+          )}
+          label={tr('components.inbox.detail-recruiting.reason', 'Reason')}
+          confirm={tr('components.inbox.detail-recruiting.reject_it', 'Reject it')}
+          onClose={() => {
+            setRejecting(false);
+          }}
+          onConfirm={(note) => {
+            setRejecting(false);
+            decide('rejected', note);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+interface Drafted {
+  readonly title: string;
+  readonly body: string;
+  readonly toConfirm: readonly string[];
+}
+
+/**
+ * An accepted offer's contract, written and sent from here: drafted from the
+ * accepted terms, read and changed in place, then sent to sign (the
+ * candidate first, then the company). The contract page keeps the AI chat
+ * and the preview for anything more.
+ */
+function CreateContract({ item, act }: BodyProps): JSX.Element {
+  const offerId = item.id.replace(/^recruiting:create-contract:/u, '');
+  const [draft, setDraft] = useState<Drafted | null | 'failed'>(null);
+  const [body, setBody] = useState('');
+  useEffect(() => {
+    let live = true;
+    void recruitingAct('DraftContract', { offerId }).then((done) => {
+      if (!live) return;
+      if (!done.ok) {
+        setDraft('failed');
+        return;
+      }
+      const d = done.data as Drafted;
+      setDraft(d);
+      setBody(d.body);
+    });
+    return () => {
+      live = false;
+    };
+  }, [offerId]);
+  const open = (
+    <Button asChild variant="secondary">
+      <a href={item.link}>
+        {tr('components.inbox.detail-recruiting.open_the_contract_page', 'Open the contract page')}
+      </a>
+    </Button>
+  );
+  if (draft === null)
+    return (
+      <div className="flex items-center gap-3 text-fg-muted">
+        <Spinner />
+        {tr(
+          'components.inbox.detail-recruiting.drafting_the_contract',
+          'Drafting the contract from the accepted terms…',
+        )}
+      </div>
+    );
+  if (draft === 'failed') return <Actions>{open}</Actions>;
+  const unconfirmed = /\[\[TO CONFIRM:/u.test(body);
+  return (
+    <div className="flex flex-col gap-5">
+      {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
+      {draft.toConfirm.length === 0 && !unconfirmed ? null : (
+        <Alert
+          tone="warning"
+          title={tr(
+            'components.inbox.detail-recruiting.confirm_before_sending',
+            'Confirm before sending',
+          )}
+        >
+          {draft.toConfirm.length > 0
+            ? draft.toConfirm.join(' · ')
+            : tr(
+                'components.inbox.detail-recruiting.replace_to_confirm',
+                'Replace each [[TO CONFIRM: …]] in the text.',
+              )}
+        </Alert>
+      )}
+      <Field>
+        <FieldLabel>{draft.title}</FieldLabel>
+        <FieldControl>
+          <Textarea
+            autoResize
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+            }}
+          />
+        </FieldControl>
+      </Field>
+      <Actions>
+        <Button
+          variant="primary"
+          disabled={unconfirmed || body.trim() === '' || act.pending}
+          onClick={() => {
+            act.run(
+              async () => {
+                const sent = await recruitingAct('SendContract', {
+                  offerId,
+                  title: draft.title,
+                  body,
+                });
+                return sent.ok ? { ok: true } : { ok: false, message: sent.message };
+              },
+              {
+                title: tr('components.inbox.detail-recruiting.sent_to_sign', 'Sent to sign'),
+                description: tr(
+                  'components.inbox.detail-recruiting.candidate_signs_first',
+                  'The candidate signs first, then you for the company.',
+                ),
+                next: true,
+              },
+            );
+          }}
+        >
+          {tr('components.inbox.detail-recruiting.send_to_sign', 'Send to sign')}
+        </Button>
+        {open}
+      </Actions>
+    </div>
+  );
+}
+
+const RECOMMENDATIONS = ['strong_no', 'no', 'yes', 'strong_yes'] as const;
+
+/** 1 to 4 with labelled anchors and no midpoint, as the scorecard on the interview page. */
+function Scale({
+  label,
+  value,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: number | null;
+  readonly onChange: (v: number) => void;
+}): JSX.Element {
+  const anchors = [
+    tr('components.inbox.detail-recruiting.strong_no', 'Strong no'),
+    tr('components.inbox.detail-recruiting.no', 'No'),
+    tr('components.inbox.detail-recruiting.yes', 'Yes'),
+    tr('components.inbox.detail-recruiting.strong_yes', 'Strong yes'),
+  ];
+  return (
+    <SegmentedControl
+      aria-label={label}
+      value={value === null ? '' : String(value)}
+      onValueChange={(v) => {
+        if (v !== '') onChange(Number(v));
+      }}
+      className="w-full"
+    >
+      {anchors.map((a, i) => (
+        <SegmentedControlItem key={a} value={String(i + 1)}>
+          {`${String(i + 1)} · ${a}`}
+        </SegmentedControlItem>
+      ))}
+    </SegmentedControl>
+  );
+}
+
+/**
+ * A scorecard owed, filled in and submitted here: each competency 1 to 4,
+ * the overall recommendation and notes. Before the interview has begun it
+ * cannot be submitted; the interview page keeps a draft.
+ */
+function Scorecard({ item, act, now }: BodyProps): JSX.Element {
+  const parsed = RecruitingScorecardDetail.safeParse(item.detail);
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [recommendation, setRecommendation] = useState<number | null>(null);
+  const [notes, setNotes] = useState('');
+  if (!parsed.success)
+    return (
+      <Actions>
+        <Button asChild>
+          <a href={item.link}>
+            {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
+          </a>
+        </Button>
+      </Actions>
+    );
+  const d = parsed.data;
+  const begun = Date.parse(d.startsAt) <= Date.parse(now);
+  const rated = d.competencies.every((c) => ratings[c.key] !== undefined);
+  const chosen = recommendation === null ? undefined : RECOMMENDATIONS[recommendation - 1];
+  return (
+    <div className="flex flex-col gap-5">
+      <KeyValues
+        layout="aligned"
+        labelWidth="6rem"
+        items={[
+          {
+            label: tr('components.inbox.detail-recruiting.candidate', 'Candidate'),
+            value: d.candidate,
+          },
+          { label: tr('components.inbox.detail-recruiting.role', 'Role'), value: d.job },
+          {
+            label: tr('components.inbox.detail-recruiting.interview', 'Interview'),
+            value: d.interview,
+          },
+        ]}
+      />
+      {d.competencies.map((c) => (
+        <Field key={c.key}>
+          <FieldLabel>{c.name}</FieldLabel>
+          {c.description === '' ? null : <FieldDescription>{c.description}</FieldDescription>}
+          <Scale
+            label={c.name}
+            value={ratings[c.key] ?? null}
+            onChange={(v) => {
+              setRatings({ ...ratings, [c.key]: v });
+            }}
+          />
+        </Field>
+      ))}
+      <Field>
+        <FieldLabel>
+          {tr(
+            'components.inbox.detail-recruiting.overall_recommendation',
+            'Overall recommendation',
+          )}
+        </FieldLabel>
+        <Scale
+          label={tr(
+            'components.inbox.detail-recruiting.overall_recommendation',
+            'Overall recommendation',
+          )}
+          value={recommendation}
+          onChange={setRecommendation}
+        />
+      </Field>
+      <Field>
+        <FieldLabel>{tr('components.inbox.detail-recruiting.notes', 'Notes')}</FieldLabel>
+        <FieldControl>
+          <Textarea
+            autoResize
+            value={notes}
+            onChange={(e) => {
+              setNotes(e.target.value);
+            }}
+            placeholder={tr(
+              'components.inbox.detail-recruiting.what_you_saw_and_heard',
+              'What you saw and heard',
+            )}
+          />
+        </FieldControl>
+      </Field>
+      <Actions
+        hint={
+          begun
+            ? undefined
+            : tr(
+                'components.inbox.detail-recruiting.submit_once_begun',
+                'You can submit it once the interview has begun.',
+              )
+        }
+      >
+        <Button
+          variant="primary"
+          disabled={!begun || !rated || chosen === undefined || act.pending}
+          onClick={() => {
+            if (chosen === undefined) return;
+            act.run(
+              () => submitScorecard(d.interviewId, ratings, chosen, notes === '' ? null : notes),
+              {
+                title: tr(
+                  'components.inbox.detail-recruiting.scorecard_submitted',
+                  'Scorecard submitted',
+                ),
+                next: true,
+              },
+            );
+          }}
+        >
+          {tr('components.inbox.detail-recruiting.submit_scorecard', 'Submit scorecard')}
+        </Button>
+      </Actions>
+    </div>
+  );
+}
+
 export function RecruitingBody(props: BodyProps): JSX.Element {
   if (props.item.kind === 'recruiting.choose-time' && props.item.lane === 'task')
     return <ChooseTime {...props} />;
-  if (props.item.kind === 'recruiting.create-contract')
-    return (
-      <div className="flex flex-col gap-5">
-        {props.item.summary === null ? null : (
-          <p className="text-base text-fg-muted">{props.item.summary}</p>
-        )}
-        <Actions>
-          <Button asChild variant="primary">
-            <a href={props.item.link}>
-              {tr('components.inbox.detail-recruiting.create_the_contract', 'Create the contract')}
-            </a>
-          </Button>
-        </Actions>
-      </div>
-    );
+  if (
+    props.item.kind === 'recruiting.requisition-approval' ||
+    props.item.kind === 'recruiting.offer-approval'
+  )
+    return <Approval {...props} />;
+  if (props.item.kind === 'recruiting.scorecard') return <Scorecard {...props} />;
+  if (props.item.kind === 'recruiting.create-contract') return <CreateContract {...props} />;
   return (
     <Actions>
       <Button asChild>
