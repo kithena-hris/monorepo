@@ -89,6 +89,7 @@ export const CHOICE_LABELS: Readonly<Record<string, string>> = {
   work_model: 'Work model',
   working_pattern: 'Working pattern',
   pay_frequency: 'Pay frequency',
+  pay_basis: 'Pay basis',
 };
 
 export const choiceField = (
@@ -157,6 +158,14 @@ const own = {
   collectAt: 'onboarding',
 } satisfies Partial<AttributeDefinitionInput>;
 
+/** How to reach somebody outside work: theirs and HR's, and confidential. */
+const personalContact = {
+  classification: 'confidential',
+  piiKind: 'contact',
+  exportable: true,
+  aiEligible: false,
+} as const;
+
 /** Somebody's job and terms, HR's to fill in, filled from the contract on a hire. */
 const terms = {
   sectionKey: 'employment',
@@ -220,7 +229,7 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     order: 5,
     dataType: 'email',
     typeConfig: { kind: 'email' },
-    classification: { ...identity, piiKind: 'contact' },
+    classification: personalContact,
   }),
   field({
     ...own,
@@ -230,7 +239,7 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     order: 6,
     dataType: 'phone',
     typeConfig: { kind: 'phone' },
-    classification: { ...identity, piiKind: 'contact' },
+    classification: personalContact,
   }),
   field({
     ...own,
@@ -240,7 +249,7 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     order: 7,
     dataType: 'address',
     typeConfig: { kind: 'address' },
-    classification: { ...identity, piiKind: 'contact' },
+    classification: personalContact,
   }),
   field({
     ...terms,
@@ -288,12 +297,25 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     typeConfig: { kind: 'text' },
   }),
   field({ ...pay, ...money, key: 'base_salary', label: 'Base salary', order: 0 }),
+  // What the base salary is quoted per, as the offer states it.
   {
-    ...choiceField('pay_frequency', { sectionKey: 'compensation', order: 1 }, [
-      { value: 'year', label: 'Yearly' },
-      { value: 'month', label: 'Monthly' },
-      { value: 'hour', label: 'Hourly' },
+    ...choiceField('pay_basis', { sectionKey: 'compensation', order: 1 }, [
+      { value: 'year', label: 'Per year' },
+      { value: 'month', label: 'Per month' },
+      { value: 'hour', label: 'Per hour' },
     ]),
+    ownership: pay.ownership,
+    visibility: pay.visibility,
+    ...howPaid,
+    effectiveDated: false,
+  },
+  // How often payroll pays; a company's own (an import's) are added to these.
+  {
+    ...choiceField(
+      'pay_frequency',
+      { sectionKey: 'compensation', order: 2 },
+      builtInChoices('pay_frequency'),
+    ),
     ownership: pay.ownership,
     visibility: pay.visibility,
     ...howPaid,
@@ -304,18 +326,18 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     ...howPaid,
     key: 'payments_per_year',
     label: 'Payments per year',
-    order: 2,
+    order: 3,
     dataType: 'number',
     typeConfig: { kind: 'number', min: 1, max: 14, decimals: 0 },
   }),
-  field({ ...pay, ...money, key: 'variable_pay_target', label: 'Variable pay target', order: 3 }),
-  field({ ...pay, ...money, key: 'sign_on_bonus', label: 'Sign-on bonus', order: 4 }),
-  field({ ...pay, ...money, key: 'relocation_allowance', label: 'Relocation allowance', order: 5 }),
+  field({ ...pay, ...money, key: 'variable_pay_target', label: 'Variable pay target', order: 4 }),
+  field({ ...pay, ...money, key: 'sign_on_bonus', label: 'Sign-on bonus', order: 5 }),
+  field({ ...pay, ...money, key: 'relocation_allowance', label: 'Relocation allowance', order: 6 }),
   field({
     ...pay,
     key: 'equity',
     label: 'Equity',
-    order: 6,
+    order: 7,
     dataType: 'text',
     // "1200 × options vesting over four years": an offer's description runs to 300.
     typeConfig: { kind: 'text', maxLength: 400 },

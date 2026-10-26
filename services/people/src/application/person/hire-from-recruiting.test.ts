@@ -124,7 +124,7 @@ describe('a hire Recruiting made', () => {
       fte: '1.0000',
       // The offer's pay, for the Compensation fields.
       base_salary: { amountMinor: 4_200_000, currency: 'EUR' },
-      pay_frequency: 'year',
+      pay_basis: 'year',
       payments_per_year: 14,
       sign_on_bonus: { amountMinor: 500_000, currency: 'EUR' },
       equity: '1200 × options',

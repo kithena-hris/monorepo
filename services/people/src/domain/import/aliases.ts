@@ -172,6 +172,24 @@ const CHOICES: Readonly<Record<string, { ours: readonly Named[]; known: readonly
       { value: 'part_time', label: 'Part-time', names: ['parttime', 'pt'] },
     ],
   },
+  // How often payroll pays, not what a salary is quoted per (`pay_basis`).
+  pay_frequency: {
+    ours: [
+      { value: 'weekly', label: 'Weekly', names: ['every week'] },
+      {
+        value: 'bi_weekly',
+        label: 'Bi-weekly',
+        names: ['biweekly', 'fortnightly', 'every two weeks', 'every 2 weeks'],
+      },
+      {
+        value: 'semi_monthly',
+        label: 'Semi-monthly',
+        names: ['semimonthly', 'twice monthly', 'twice a month'],
+      },
+      { value: 'monthly', label: 'Monthly', names: ['every month'] },
+    ],
+    known: [],
+  },
   work_model: {
     ours: [
       {

@@ -19,7 +19,7 @@ import { valueSchemaFor } from './values.js';
  * REC-141): `recruiting.candidate.hired` creates the person in `pre_hire`
  * from the start date, with the name, the work email, the manager, the
  * placement, the contract's terms (probation end among them) and the offer's
- * pay (base, frequency, payments a year, variable target, sign-on, relocation,
+ * pay (base, what it is quoted per, payments a year, variable target, sign-on, relocation,
  * equity) in the fields the company's schema has (the core ones, `CORE_PACK`),
  * and the signature they signed the contract with in the company's signature
  * field, so the first document they sign in Kithena is signed with it;
@@ -73,7 +73,8 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
     ...(payload.locationId === null ? {} : { location_id: payload.locationId }),
     legal_entity_id: payload.legalEntityId,
     base_salary: payload.pay.base,
-    pay_frequency: payload.pay.frequency,
+    // What the salary is quoted per; how often payroll pays is HR's to say.
+    pay_basis: payload.pay.frequency,
     payments_per_year: payload.terms.paymentsPerYear,
     ...(payload.pay.variableTarget === null
       ? {}

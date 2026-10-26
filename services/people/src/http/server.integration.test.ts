@@ -1257,6 +1257,24 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     // Employment type and work model are People's own: mapped onto them, never a second field.
     expect(view.choices.map((c) => [c.header, c.key, c.added])).toEqual([
       ['Employment Type', 'employment_type', ['Full-time', 'Part-time']],
+      // How often payroll pays: Bi-weekly and Monthly are People's own.
+      ['Pay Frequency', 'pay_frequency', ['Monthly (14 payments)']],
+    ]);
+    // Core fields every company has: the file's columns land on them, never a second field.
+    expect(
+      columns
+        .filter((x) =>
+          ['Date of Birth', 'Personal Email', 'Mobile Phone', 'FTE', 'Job Title'].includes(
+            x.header,
+          ),
+        )
+        .map((x) => [x.header, x.status, x.key]),
+    ).toEqual([
+      ['Date of Birth', 'mapped', 'date_of_birth'],
+      ['Personal Email', 'mapped', 'personal_email'],
+      ['Mobile Phone', 'mapped', 'mobile_phone'],
+      ['FTE', 'mapped', 'fte'],
+      ['Job Title', 'mapped', 'job_title'],
     ]);
     expect(view.blocked).toBeNull();
     const proposals = view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
@@ -1332,14 +1350,13 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     });
     expect(of('Annual Base Salary').field.dataType).toBe('money');
     for (const h of [
-      'FTE',
       'Standard Weekly Hours',
       'Annual Leave Balance (days)',
       'Sick Leave Balance (days)',
     ]) {
       expect([h, of(h).field.dataType]).toEqual([h, 'decimal']);
     }
-    for (const h of ['Passport Expiry', 'Last Raise Date', 'Leave Start Date', 'Date of Birth']) {
+    for (const h of ['Passport Expiry', 'Last Raise Date', 'Leave Start Date']) {
       expect([h, of(h).field.dataType]).toEqual([h, 'date']);
     }
     // Pay: confidential, HR and finance, changes approved.
@@ -1399,8 +1416,6 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     }
     // Personal contact and address: the person's and HR's.
     for (const h of [
-      'Personal Email',
-      'Mobile Phone',
       'Home Address Line 1',
       'Home City',
       'Home Postal Code',
