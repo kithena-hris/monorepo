@@ -562,6 +562,8 @@ jobs:
         if: env.FILES != ''
         env:
           ACCEPTANCE_LOGS: ${{ runner.temp }}/acceptance-servers.log
+          # Pages drawn as a person sees them, for reading a design change in review.
+          ACCEPTANCE_SHOTS: ${{ runner.temp }}/acceptance-shots
         run: |
           echo "files: $FILES"
           # shellcheck disable=SC2086 # one argument per file
@@ -574,6 +576,14 @@ jobs:
         with:
           name: web-acceptance-logs-${{ matrix.part }}
           path: ${{ runner.temp }}/acceptance-servers.log
+          retention-days: 7
+      - name: keep the screenshots
+        if: always() && env.FILES != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-acceptance-shots-${{ matrix.part }}
+          path: ${{ runner.temp }}/acceptance-shots
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: nothing to check

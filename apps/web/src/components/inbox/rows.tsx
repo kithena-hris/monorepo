@@ -21,15 +21,18 @@ export function RowBadges({
   item,
   now,
   zone,
+  fresh = false,
 }: {
   readonly item: Shown;
   readonly now: string;
   readonly zone: string;
+  /** In the feed's New section, which already says so. */
+  readonly fresh?: boolean;
 }): JSX.Element {
   const due = item.due === null ? null : dueOf(item.due, item.dueVerb, now, zone);
   return (
     <span className="flex flex-wrap items-center gap-1.5">
-      {item.unread ? (
+      {item.unread && !fresh ? (
         <Badge size="sm" tone="accent" variant="solid">
           {t('components.inbox.rows.new', 'New')}
         </Badge>
@@ -113,6 +116,7 @@ export function InboxRow({
   onCheck,
   swipe,
   onOpen,
+  fresh = false,
 }: {
   readonly item: Shown;
   readonly now: string;
@@ -125,9 +129,11 @@ export function InboxRow({
   readonly onCheck?: (on: boolean) => void;
   readonly swipe?: readonly SwipeAction[];
   readonly onOpen?: () => void;
+  /** In the feed's New section: no New badge, which the section already says. */
+  readonly fresh?: boolean;
 }): JSX.Element {
   const age = item.count === null ? since(item.at, now) : String(item.count);
-  const badges = <RowBadges item={item} now={now} zone={zone} />;
+  const badges = <RowBadges item={item} now={now} zone={zone} fresh={fresh} />;
   const title = item.title;
   if (selecting) {
     return (

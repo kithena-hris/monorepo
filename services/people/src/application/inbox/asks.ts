@@ -347,7 +347,7 @@ function answered(deps: Deps, tenantId: string, ask: DetailAsk): void {
     tenantId,
     { accountId: ask.requestedBy },
     { kind: 'inbox_update', topic: 'answered' },
-    `/inbox/updates?item=${encodeURIComponent(`people:answered:${ask.id}`)}`,
+    `/inbox?item=${encodeURIComponent(`people:answered:${ask.id}`)}`,
     `ask/${ask.id}/answered`,
   );
 }

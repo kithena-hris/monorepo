@@ -216,7 +216,7 @@ export interface InboxNotifier {
     tenantId: string,
     to: Recipient,
     notice: InboxNotice,
-    /** The item, as the Inbox addresses it: `/inbox/todo?item=…`. */
+    /** The item, as the Inbox addresses it: `/inbox?item=…`. */
     itemPath: string,
     /** What makes a retry the same message. */
     dedupeKey: string,

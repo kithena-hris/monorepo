@@ -61,7 +61,7 @@ describe('Inbox email, as the person chose', () => {
         tenantId: base.tenantId,
         email: base.email,
         companyName: base.companyName,
-        url: 'https://acme.app.kithena.com/inbox/updates',
+        url: 'https://acme.app.kithena.com/inbox',
       },
     ]);
     expect(await w.flush()).toEqual({ sent: 1, failed: 0 });

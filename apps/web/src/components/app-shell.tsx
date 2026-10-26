@@ -271,6 +271,7 @@ const HOST_PAGES = new Set([
   '/inbox/todo',
   '/inbox/updates',
   '/inbox/requests',
+  '/inbox/snoozed',
   '/inbox/done',
   '/people/menu',
   '/settings',
@@ -780,7 +781,7 @@ export function AppShell({
                                         ?.name ?? ''
                                     ]?.sections ?? []),
                                 area.href,
-                              ) ?? (area.href === '/inbox' ? '/inbox/todo' : area.href)) as Route
+                              ) ?? area.href) as Route
                             }
                             onClick={() => {
                               setPressed({ href: area.href, from: pathname });
@@ -1618,7 +1619,7 @@ function MobileTabs({
             current: isCurrent('/people', pathname) && !isCurrent('/people/me', pathname),
           },
           {
-            href: '/inbox/todo',
+            href: '/inbox',
             label: tr('components.app-shell.inbox', 'Inbox'),
             icon: <icons.inbox />,
             current: isCurrent('/inbox', pathname),

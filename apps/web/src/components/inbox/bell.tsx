@@ -129,7 +129,7 @@ function Arrivals({ inbox }: { readonly inbox: Promise<InboxPeek> }): null {
       action: {
         label: tr('components.inbox.bell.open', 'Open'),
         onClick: () => {
-          window.location.assign(`/inbox/todo?item=${encodeURIComponent(fresh.id)}`);
+          window.location.assign(`/inbox?item=${encodeURIComponent(fresh.id)}`);
         },
       },
     });

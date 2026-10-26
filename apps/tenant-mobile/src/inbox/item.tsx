@@ -401,7 +401,7 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
           <ActionSheetItem
             onSelect={() => {
               void Clipboard.setStringAsync(
-                `${signed.company.origin}/inbox/todo?item=${encodeURIComponent(item.id)}`,
+                `${signed.company.origin}/inbox?item=${encodeURIComponent(item.id)}`,
               ).then(() =>
                 toast({ title: t('inbox.item.link_copied', 'Link copied'), tone: 'success' }),
               );

@@ -86,4 +86,4 @@ export async function appUrl(ctx: Ctx, path: string): Promise<string | null> {
 
 /** An Inbox task, as the Inbox addresses it: the email's button opens the task itself. */
 export const inboxTask = (itemId: string): string =>
-  `/inbox/todo?item=${encodeURIComponent(itemId)}`;
+  `/inbox?item=${encodeURIComponent(itemId)}`;

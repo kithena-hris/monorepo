@@ -64,7 +64,7 @@ describe('the daily digest', () => {
       tenantId,
       email,
       companyName: tenantId === ACME ? 'Acme' : 'Globex',
-      url: `https://${tenantId === ACME ? 'acme' : 'globex'}.app.kithena.com/inbox/updates`,
+      url: `https://${tenantId === ACME ? 'acme' : 'globex'}.app.kithena.com/inbox`,
     });
     await s.hold(held(ACME, 'adam@acme.example'));
     await s.hold(held(ACME, 'adam@acme.example'));

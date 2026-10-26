@@ -123,7 +123,7 @@ export function deliverInbox(deps: InboxDeliveryDeps) {
         tenantId: request.tenantId,
         email: request.email,
         companyName: request.companyName,
-        url: new URL('/inbox/updates', request.url).toString(),
+        url: new URL('/inbox', request.url).toString(),
       });
       return ok({ outcome: 'held' as const });
     }
