@@ -528,15 +528,14 @@ export default function Enrol(): JSX.Element {
       // and uselessly, that their link has been used. A new hire goes on to
       // their onboarding plan: the company's sign-in page remembers where they
       // were going and lands them there.
-      window.setTimeout(
-        () =>
-          recovering || TENANT_APP_BASE === ''
-            ? void navigate(`/login?tenant=${encodeURIComponent(tenant.slug)}`)
-            : window.location.replace(
-                `${TENANT_APP_BASE.replace('{slug}', tenant.slug)}/onboarding/mine`,
-              ),
-        900,
-      );
+      window.setTimeout(() => {
+        if (recovering || TENANT_APP_BASE === '')
+          void navigate(`/login?tenant=${encodeURIComponent(tenant.slug)}`);
+        else
+          window.location.replace(
+            `${TENANT_APP_BASE.replace('{slug}', tenant.slug)}/onboarding/mine`,
+          );
+      }, 900);
       return;
     }
 
