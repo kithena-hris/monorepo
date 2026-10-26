@@ -49,6 +49,12 @@
         }
       ]
     ],
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "extra": {
+      "eas": {
+        "projectId": "7e87e96b-b518-4a46-aa50-9716aaef75f2"
+      }
+    },
+    "owner": "akashvgnair"
   }
 }
