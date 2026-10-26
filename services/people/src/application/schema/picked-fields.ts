@@ -2,7 +2,12 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ok, type Result } from '@kithena/domain-kit';
 import type { Actor } from '@kithena/contracts';
 
-import { CORE_PACK, DEPARTMENT_FIELD, SIGNATURE_FIELD } from '../../country-packs/core.js';
+import {
+  CORE_PACK,
+  DEPARTMENT_FIELD,
+  EMPLOYEE_NUMBER_FIELD,
+  SIGNATURE_FIELD,
+} from '../../country-packs/core.js';
 import { SchemaDraft } from '../../domain/schema/draft.js';
 import type { FoldSectionsDeps } from './fold-sections.js';
 
@@ -23,7 +28,8 @@ import type { FoldSectionsDeps } from './fold-sections.js';
  * same way, so a hire's contract signature always has somewhere to go, and
  * every core section and field it lacks (`CORE_PACK`): the personal,
  * employment and pay fields every company has. A company's own field under a
- * core key is left as it is.
+ * core key is left as it is. The employee number becomes Kithena's to give and
+ * required, and People numbers whoever has none (`PersonAccess.number`).
  */
 
 export const PICKED_REASON = 'Every company has the core fields; departments and managers are picked, not typed';
@@ -51,7 +57,20 @@ function apply(
   const sections = CORE_PACK.sections
     .filter((s) => draft.section(s.key) === undefined && draft.addSection(s).ok)
     .map((s) => s.key);
+  // The employee number Kithena gives and nobody types (`EMPLOYEE_NUMBER_FIELD`).
+  const number = draft.attribute(EMPLOYEE_NUMBER_FIELD.key);
+  const locked =
+    number !== undefined &&
+    number.origin === 'core' &&
+    number.ownership.some((r) => r !== 'system') &&
+    draft.updateAttribute(number.key, {
+      ownership: EMPLOYEE_NUMBER_FIELD.ownership,
+      requiredness: EMPLOYEE_NUMBER_FIELD.requiredness,
+    }).ok
+      ? number.key
+      : null;
   const added = [
+    locked,
     draft.attribute(DEPARTMENT_FIELD.key) === undefined && draft.addAttribute(DEPARTMENT_FIELD).ok
       ? DEPARTMENT_FIELD.key
       : null,

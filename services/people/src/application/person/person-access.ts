@@ -298,6 +298,11 @@ export interface PersonAccess {
    * Confirm a provisional record as an employee, from a start date. The one
    * hire path: every transport and the import come through here.
    */
+  /**
+   * Give somebody without an employee number their entity's next (a record
+   * from before numbering was automatic). Nobody types one: People writes it.
+   */
+  number(tx: Tx, asking: On<object>): Promise<Result<{ readonly numbered: boolean }>>;
   hire(
     tx: Tx,
     asking: On<{
@@ -624,6 +629,9 @@ export const REPORTS_TO = 'manager_id';
 
 /** An id no person has, for asking what the viewer may see tenant-wide. */
 const NOBODY = '00000000-0000-0000-0000-000000000000';
+
+/** The scheme an entity numbers its people under until HR sets its own: 00001, 00002… */
+const DEFAULT_SCHEME = { prefix: '', digits: 5, start: 1 } as const;
 
 /**
  * Whether the viewer may filter the directory by these keys.
@@ -1375,6 +1383,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
    */
   async function nextNumber(tx: Tx, tenantId: string, entity: string): Promise<string | null> {
     if (!deps.numbering) return null;
+    // Every entity numbers its people: one HR has not set up starts at 00001.
+    if (!(await deps.numbering.scheme(tx, tenantId, entity))) {
+      await deps.numbering.save(tx, tenantId, entity, DEFAULT_SCHEME);
+    }
     for (let skips = 0; skips < 100; skips += 1) {
       // eslint-disable-next-line no-await-in-loop -- each allocation depends on the last
       const next = await deps.numbering.allocate(tx, tenantId, entity);
@@ -1440,6 +1452,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       readonly changes: Readonly<Record<string, unknown>>;
       /** When a dated change takes effect. Defaults to today. */
       readonly effectiveFrom?: string;
+      /**
+       * The employee number in `changes` is People's own (`nextNumber`), or one
+       * carried over on a record's creation: written past the rule that
+       * nobody types it.
+       */
+      readonly allocated?: boolean;
     },
     /**
      * False when the caller will tell identity itself, later in the same
@@ -1475,8 +1493,20 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
     const definitions = version.document.attributes;
     const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-    const { allowed, refused } = partitionWrites(definitions, asking.changes, relations);
+    // The number they hold, sent back unchanged by a form or a file, is no write.
+    const { employee_number: number, ...asked } = asking.changes;
+    const own =
+      number === undefined || number === person.values['employee_number']
+        ? {}
+        : { employee_number: number };
+    const partitioned = partitionWrites(
+      definitions,
+      asking.allocated === true ? asked : { ...asked, ...own },
+      relations,
+    );
+    const { refused } = partitioned;
     if (refused.length > 0) return err(refusalOf(byKey, refused, relations));
+    const allowed = asking.allocated === true ? { ...partitioned.allowed, ...own } : partitioned.allowed;
 
     const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...allowed });
     const effectiveFrom = asking.effectiveFrom ?? day;
@@ -1737,7 +1767,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (next !== null) {
         const numbered = await update(
           tx,
-          { ...asking, changes: { employee_number: next }, effectiveFrom },
+          { ...asking, changes: { employee_number: next }, effectiveFrom, allocated: true },
           tellIdentity,
         );
         return numbered.ok
@@ -2217,7 +2247,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (Object.keys(changes).length > 0) {
         const placedWrite = await update(
           tx,
-          { ...asking, changes, effectiveFrom: asking.startDate },
+          { ...asking, changes, effectiveFrom: asking.startDate, allocated: next !== null },
           false,
         );
         if (!placedWrite.ok) return placedWrite;
@@ -2837,7 +2867,21 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         return api.read(tx, { ...asking, personId: id });
       }
       const { hireDate, attributes, ...rest } = asking;
-      const created = await update(tx, { ...rest, personId: id, changes: attributes });
+      // Numbered as they are created, in the entity they are placed in; a
+      // number the company already gave them (an import) is carried over.
+      const entity = attributes['legal_entity_id'];
+      const number =
+        attributes['employee_number'] !== undefined ||
+        typeof entity !== 'string' ||
+        !version.document.attributes.some((d) => d.key === 'employee_number')
+          ? null
+          : await nextNumber(tx, asking.tenantId, entity);
+      const created = await update(tx, {
+        ...rest,
+        personId: id,
+        changes: number === null ? attributes : { ...attributes, employee_number: number },
+        allocated: true,
+      });
       if (!created.ok || hireDate === undefined) return created;
       return api.hire(tx, { ...rest, personId: id, hireDate });
     },
@@ -3351,6 +3395,29 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       });
     },
 
+    async number(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
+      if (!person) return err(PersonNotFound());
+      const held = person.values['employee_number'];
+      if (
+        (typeof held === 'string' && held !== '') ||
+        person.legalEntityId === null ||
+        !version.document.attributes.some((d) => d.key === 'employee_number')
+      ) {
+        return ok({ numbered: false });
+      }
+      const next = await nextNumber(tx, asking.tenantId, person.legalEntityId);
+      if (next === null) return ok({ numbered: false });
+      const written = await update(tx, {
+        ...asking,
+        changes: { employee_number: next },
+        allocated: true,
+      });
+      return written.ok ? ok({ numbered: true }) : written;
+    },
+
     /**
      * Hire a provisional record: `status_changed`, `hired` and, for a linked
      * person, `identity_facts_changed` — all through the outbox, in this
@@ -3376,9 +3443,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       // The values first, without telling identity: the hire below tells it
       // once, with the name as it stands after both.
       const { changes: asked = {}, hireDate, ...rest } = asking;
-      const changes = { ...asked, ...(await numberFor(tx, asking, version, asked, hireDate)) };
+      const numbered = await numberFor(tx, asking, version, asked, hireDate);
+      const changes = { ...asked, ...numbered };
       if (Object.keys(changes).length > 0) {
-        const updated = await update(tx, { ...rest, changes }, false);
+        const updated = await update(
+          tx,
+          { ...rest, changes, allocated: numbered.employee_number !== undefined },
+          false,
+        );
         if (!updated.ok) return updated;
       }
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
@@ -3834,6 +3906,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             personId,
             changes: { employee_number: next },
             effectiveFrom: renumberInto.on,
+            allocated: true,
           });
           if (!written.ok) return written;
         }

@@ -105,6 +105,7 @@ export function inMemoryNumbers(): EmployeeNumbers {
       schemes.set(id, { ...found, nextValue: found.nextValue + 1 });
       return Promise.resolve({ ...found, sequence: found.nextValue });
     },
+    unnumbered: () => Promise.resolve([]),
     taken: () => Promise.resolve(false),
     observe: (_tx, _tenant, id, sequence) => {
       const found = schemes.get(id);

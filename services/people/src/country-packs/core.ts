@@ -323,6 +323,27 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
   }),
 ];
 
+/**
+ * The employee number: given by People to every record as it is created, in
+ * its entity's scheme (Settings › Organisation, `00001` until HR sets one),
+ * and never typed or changed. Existing companies' fields become this from
+ * `pickedFields`.
+ */
+export const EMPLOYEE_NUMBER_FIELD: AttributeDefinitionInput = field({
+    key: 'employee_number',
+    sectionKey: 'employment',
+    label: 'Employee number',
+    order: 1,
+    dataType: 'text',
+    typeConfig: { kind: 'text' },
+    // People writes it on every new record (`nextNumber`); nobody types it.
+    ownership: ['system'],
+    required: true,
+    visibility: ['self', 'manager', 'hr'],
+    collectAt: 'hr_only',
+    classification: { ...identity, piiKind: 'none' },
+  });
+
 export const CORE_PACK: {
   readonly sections: readonly SectionInput[];
   readonly attributes: readonly AttributeDefinitionInput[];
@@ -380,18 +401,7 @@ export const CORE_PACK: {
       classification: { ...identity, piiKind: 'contact' },
       includeInDirectory: true,
     }),
-    field({
-      key: 'employee_number',
-      sectionKey: 'employment',
-      label: 'Employee number',
-      order: 1,
-      dataType: 'text',
-      typeConfig: { kind: 'text' },
-      ownership: ['hr'],
-      visibility: ['self', 'manager', 'hr'],
-      collectAt: 'hr_only',
-      classification: { ...identity, piiKind: 'none' },
-    }),
+    EMPLOYEE_NUMBER_FIELD,
     field({
       key: 'manager_id',
       sectionKey: 'employment',

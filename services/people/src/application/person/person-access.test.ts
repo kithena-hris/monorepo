@@ -5,6 +5,7 @@ import { PersonHired } from '@kithena/contracts';
 import { UTC_CALENDAR, type TenantCalendar } from '../../domain/org/calendar.js';
 import { fixedCalendars } from '../org/org.js';
 import { define, inMemoryPeople, noTransaction as tx, TENANT, versionOf } from './in-memory.js';
+import { inMemoryNumbers } from '../org/in-memory.js';
 import { inTenantResult, personAccess } from './person-access.js';
 import type { Viewer } from './ports.js';
 import { withSupport } from './subject.js';
@@ -1347,5 +1348,44 @@ describe('a new manager', () => {
 
   it('is anyone else', async () => {
     expect((await moving(ADA, GRACE)).ok).toBe(true);
+  });
+});
+
+describe('an employee number', () => {
+  const ENTITY = '00000000-0000-4000-8000-0000000000e1';
+  const number = define({
+    key: 'employee_number',
+    ownership: ['system'],
+    visibility: ['self', 'manager', 'hr'],
+    requiredness: { mode: 'always' },
+  });
+
+  it('is given by People, in a scheme it starts itself, and typed by nobody', async () => {
+    const store = inMemoryPeople([versionOf(3, [number])]);
+    store.seed(ADA, { account: ADA_ACCOUNT, fields: { legalEntityId: ENTITY } });
+    const people = personAccess({ ...store.deps, numbering: inMemoryNumbers() });
+
+    const given = await people.number(tx, { ...asking(hr), personId: ADA });
+    expect(given).toEqual(ok({ numbered: true }));
+    const read = await people.read(tx, { ...asking(hr), personId: ADA });
+    expect(read.ok && read.value.attributes['employee_number']).toBe('00001');
+    // Once is enough.
+    expect(await people.number(tx, { ...asking(hr), personId: ADA })).toEqual(
+      ok({ numbered: false }),
+    );
+
+    const typed = await people.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { employee_number: '00042' },
+    });
+    expect(!typed.ok && typed.error.code).toBe('FIELD_NOT_WRITABLE');
+    // Sent back unchanged, as a form does, it is no write at all.
+    const same = await people.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { employee_number: '00001' },
+    });
+    expect(!same.ok && same.error.code).toBe('NOTHING_CHANGED');
   });
 });

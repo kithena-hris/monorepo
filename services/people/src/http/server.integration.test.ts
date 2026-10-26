@@ -1236,7 +1236,8 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     );
     expect(ownChoices.map((x) => [x.header, x.status, x.key, x.adds])).toEqual([
       ['Employment Type', 'mapped', 'employment_type', ['Full-time', 'Part-time']],
-      ['Work Arrangement', 'mapped', 'work_model', []],
+      // A core field every company has, with every value the file uses: nothing to add.
+      ['Work Arrangement', 'mapped', 'work_model', null],
     ]);
     const mapping = Object.fromEntries(
       columns.map((x) => [x.index, x.status === 'mapped' ? x.key : null]),
@@ -1256,7 +1257,6 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     // Employment type and work model are People's own: mapped onto them, never a second field.
     expect(view.choices.map((c) => [c.header, c.key, c.added])).toEqual([
       ['Employment Type', 'employment_type', ['Full-time', 'Part-time']],
-      ['Work Arrangement', 'work_model', []],
     ]);
     expect(view.blocked).toBeNull();
     const proposals = view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);

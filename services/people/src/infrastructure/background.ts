@@ -13,6 +13,7 @@ import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { personAccess } from '../application/person/person-access.js';
+import { SYSTEM_VIEWER } from '../application/person/subject.js';
 import { bringDueIntoForce, endAccessDue, startArrivals } from '../application/person/start.js';
 import { invitations } from '../application/person/invitations.js';
 import { drizzleInvitationStore, identityInviterFrom } from './invitations.js';
@@ -285,17 +286,6 @@ export async function startBackground(
     ...repairs,
     departments: async (tx, tenantId) => (await org.orgUnits(tx, tenantId)).length,
   });
-  // Departments and managers picked, never typed (`picked-fields.ts`).
-  jobs.push(
-    every(24 * HOUR, () =>
-      forEachTenant('picked-fields', async (tenantId) => {
-        const done = await inTenant(tenantId, (scope) => picked(scope.tx, tenantId, randomUUID()));
-        if (!done.ok) logger.warn({ tenantId, code: done.error.code }, 'picked fields not set');
-        else if (done.value.version !== null)
-          logger.info({ tenantId, version: done.value.version }, 'picked fields set');
-      }),
-    ),
-  );
   jobs.push(
     every(24 * HOUR, () =>
       forEachTenant('fold-sections', async (tenantId) => {
@@ -384,24 +374,59 @@ export async function startBackground(
   // dated a pre-hire's first day lands on an active record. The access it
   // goes through renumbers a transfer, so it holds the unique-claim key ring;
   // without one there is no People to write anyway (the server refuses to boot).
-  const bringDue =
+  const numbers = drizzleEmployeeNumbers();
+  const access =
     keys.length === 0
+      ? null
+      : personAccess({
+          ...lifecycleDeps,
+          schemas: drizzleSchemaVersions(),
+          relations: drizzleRelations(),
+          secrets: drizzleSecretStore(staticKeyRing(keys), logger),
+          uniques: drizzleUniqueClaims(staticKeyRing(keys)),
+          numbering: numbers,
+          completeness: lifecycleCompleteness,
+          refusals: drizzleScheduledRefusals(),
+        });
+  const bringDue =
+    access === null
       ? null
       : bringDueIntoForce({
           inTenant,
           scheduled: drizzleScheduled(),
           clock: systemClock,
-          access: personAccess({
-            ...lifecycleDeps,
-            schemas: drizzleSchemaVersions(),
-            relations: drizzleRelations(),
-            secrets: drizzleSecretStore(staticKeyRing(keys), logger),
-            uniques: drizzleUniqueClaims(staticKeyRing(keys)),
-            numbering: drizzleEmployeeNumbers(),
-            completeness: lifecycleCompleteness,
-            refusals: drizzleScheduledRefusals(),
-          }),
+          access,
         });
+  // Departments and managers picked, never typed, and every core field
+  // (`picked-fields.ts`); then whoever has no employee number gets one.
+  jobs.push(
+    every(24 * HOUR, () =>
+      forEachTenant('picked-fields', async (tenantId) => {
+        const done = await inTenant(tenantId, (scope) => picked(scope.tx, tenantId, randomUUID()));
+        if (!done.ok) logger.warn({ tenantId, code: done.error.code }, 'picked fields not set');
+        else if (done.value.version !== null)
+          logger.info({ tenantId, version: done.value.version }, 'picked fields set');
+        if (access === null) return;
+        const ids = await inTenant(tenantId, (scope) => numbers.unnumbered(scope.tx, tenantId));
+        let numbered = 0;
+        for (const personId of ids) {
+          // One transaction each: a refusal leaves the rest numbered.
+          // eslint-disable-next-line no-await-in-loop -- each takes the entity's next number in turn
+          const one = await inTenant(tenantId, (scope) =>
+            access.number(scope.tx, {
+              tenantId,
+              viewer: SYSTEM_VIEWER,
+              correlationId: randomUUID(),
+              personId,
+            }),
+          );
+          if (one.ok && one.value.numbered) numbered += 1;
+          else if (!one.ok) logger.warn({ tenantId, personId, code: one.error.code }, 'not numbered');
+        }
+        if (numbered > 0) logger.info({ tenantId, numbered }, 'employee numbers given');
+      }),
+    ),
+  );
   // Invitations HR kept for a day (PRD §8.2 step 8), sent hourly once that
   // day has begun on the person's calendar; without identity, none is kept.
   const inviter = identityInviterFrom(env);

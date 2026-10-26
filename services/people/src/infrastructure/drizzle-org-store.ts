@@ -1,4 +1,4 @@
-import { and, asc, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, lte, notInArray, sql } from 'drizzle-orm';
 import { publish } from '@kithena/db-kit';
 import { CalendarDate } from '@kithena/contracts';
 
@@ -308,6 +308,20 @@ export function drizzleEmployeeNumbers(): EmployeeNumbers {
         .where(at(tenantId, legalEntityId))
         .returning({ prefix: employeeNumbering.prefix, digits: employeeNumbering.digits, next: employeeNumbering.nextValue });
       return row ? { prefix: row.prefix, digits: row.digits, sequence: row.next - 1 } : null;
+    },
+
+    async unnumbered(tx, tenantId) {
+      const rows = await tx
+        .select({ id: person.id })
+        .from(person)
+        .where(
+          and(
+            eq(person.tenantId, tenantId),
+            isNull(person.employeeNumber),
+            notInArray(person.status, ['discarded', 'merged', 'terminated']),
+          ),
+        );
+      return rows.map((r) => r.id);
     },
 
     async taken(tx, tenantId, employeeNumber) {

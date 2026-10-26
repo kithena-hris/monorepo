@@ -190,6 +190,13 @@ describe('who may write what', () => {
     expect(canWrite(ethnicity, relations({ isHr: true, isAdmin: true })).ok).toBe(false);
   });
 
+  it('lets nobody type a field Kithena writes, an administrator included', () => {
+    const number = define({ key: 'employee_number', ownership: ['system'] });
+    expect(canWrite(number, relations({ isHr: true, isAdmin: true, isFinance: true })).ok).toBe(
+      false,
+    );
+  });
+
   it('refuses a write to a deprecated field', () => {
     // Hidden from forms, still exported, still in history. Accepting a write
     // would put a new value in a field no form shows.
