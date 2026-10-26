@@ -547,6 +547,9 @@ function plain({ item, signed, navigation }: BodyArgs): Body {
       <ModuleActions
         item={item}
         navigation={navigation}
+        open={() => {
+          openIn(signed, navigation, item);
+        }}
         fallback={
           <Button
             className="flex-1"

@@ -29,7 +29,7 @@ import { BookUser, FileText, PenLine, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { ask, formInputs, useSigned, type Area } from '../people/api';
+import { ask, formInputs, useSigned } from '../people/api';
 import { ScanIdButton } from '../people/attribute-input';
 import { nifSuggestion } from '../people/checks';
 import { ClashDialog } from '../timeoff/approvals';
@@ -37,7 +37,7 @@ import { shareBase64 } from '../people/media';
 import { readInbox } from './api';
 import { contactShaped, valuesFrom, type PickedContact } from './contact-fill';
 import { d, FieldInput, openIn, str, type Field_, type Nav } from './item';
-import { ModuleActions } from './module-actions';
+import { ModuleActions, useInboxWrite } from './module-actions';
 import { ago, days, dueOf, firstName, iconOf, type Item } from './model';
 import { t } from '../i18n';
 
@@ -46,43 +46,6 @@ import { t } from '../i18n';
  * finished here, in a centred modal or with one tap, and the card leaves To
  * do. The card itself opens the item for the rest of the story.
  */
-
-/** A write from a card or its modal: said in a toast, the Inbox read again. */
-export function useInboxWrite(): {
-  write: (
-    area: Area,
-    operation: string,
-    variables: Record<string, unknown>,
-    done: string,
-  ) => Promise<boolean>;
-  busy: string | null;
-} {
-  const signed = useSigned();
-  const { toast } = useToast();
-  const [busy, setBusy] = useState<string | null>(null);
-  const write = async (
-    area: Area,
-    operation: string,
-    variables: Record<string, unknown>,
-    done: string,
-  ): Promise<boolean> => {
-    setBusy(operation);
-    const answer = await ask<unknown>(signed, operation, variables, area);
-    setBusy(null);
-    void readInbox(signed);
-    if (!answer.ok) {
-      toast({
-        title: t('inbox.task-card.that_did_not_work', 'That did not work'),
-        description: answer.message,
-        tone: 'danger',
-      });
-      return false;
-    }
-    toast({ title: done, tone: 'success' });
-    return true;
-  };
-  return { write, busy };
-}
 
 interface Short {
   readonly date: string;
@@ -298,7 +261,14 @@ export function TaskCard({
       break;
     default:
       actions = (
-        <ModuleActions item={item} navigation={navigation} fallback={action('Open', show)} />
+        <ModuleActions
+          item={item}
+          navigation={navigation}
+          open={() => {
+            openIn(signed, navigation, item);
+          }}
+          fallback={action('Open', show)}
+        />
       );
   }
 

@@ -24,11 +24,52 @@ import { useState, type ReactNode } from 'react';
 import { Linking } from 'react-native';
 
 import { chooseFile, putFile, scan } from '../documents/api';
-import { useSigned } from '../people/api';
-import { openIn, type Nav } from './item';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import { ask, useSigned, type Area } from '../people/api';
+import type { PeopleRoutes } from '../people/routes';
+import { readInbox } from './api';
 import type { Item } from './model';
-import { useInboxWrite } from './task-card';
 import { t } from '../i18n';
+
+type Nav = Pick<NativeStackNavigationProp<PeopleRoutes>, 'navigate'>;
+
+/** A write from a card or its modal: said in a toast, the Inbox read again. */
+export function useInboxWrite(): {
+  write: (
+    area: Area,
+    operation: string,
+    variables: Record<string, unknown>,
+    done: string,
+  ) => Promise<boolean>;
+  busy: string | null;
+} {
+  const signed = useSigned();
+  const { toast } = useToast();
+  const [busy, setBusy] = useState<string | null>(null);
+  const write = async (
+    area: Area,
+    operation: string,
+    variables: Record<string, unknown>,
+    done: string,
+  ): Promise<boolean> => {
+    setBusy(operation);
+    const answer = await ask<unknown>(signed, operation, variables, area);
+    setBusy(null);
+    void readInbox(signed);
+    if (!answer.ok) {
+      toast({
+        title: t('inbox.task-card.that_did_not_work', 'That did not work'),
+        description: answer.message,
+        tone: 'danger',
+      });
+      return false;
+    }
+    toast({ title: done, tone: 'success' });
+    return true;
+  };
+  return { write, busy };
+}
 
 /**
  * Documents', Onboarding's and Performance's tasks done on the card, as the
@@ -40,10 +81,13 @@ import { t } from '../i18n';
 export function ModuleActions({
   item,
   navigation,
+  open,
   fallback,
 }: {
   readonly item: Item;
   readonly navigation: Nav;
+  /** Where the item lives, for what is not done here. */
+  readonly open: () => void;
   readonly fallback: ReactNode;
 }): ReactNode {
   if (item.lane !== 'task') return fallback;
@@ -57,7 +101,7 @@ export function ModuleActions({
   }
   if (item.module === 'performance') {
     const p = PerformanceInboxDetail.safeParse(item.detail);
-    if (p.success) return <PerformanceActions item={item} d={p.data} navigation={navigation} />;
+    if (p.success) return <PerformanceActions item={item} d={p.data} open={open} />;
   }
   return fallback;
 }
@@ -242,25 +286,19 @@ function OnboardingActions({
 function PerformanceActions({
   item,
   d,
-  navigation,
+  open,
 }: {
   readonly item: Item;
   readonly d: PerformanceInboxDetail;
-  readonly navigation: Nav;
+  readonly open: () => void;
 }): React.JSX.Element {
-  const signed = useSigned();
   const { write, busy } = useInboxWrite();
   const [declining, setDeclining] = useState(false);
   const [note, setNote] = useState('');
   if (d.kind === 'nominations') {
     return (
       <>
-        <Button
-          size="sm"
-          onPress={() => {
-            openIn(signed, navigation, item);
-          }}
-        >
+        <Button size="sm" onPress={open}>
           {t('inbox.module-actions.change', 'Change')}
         </Button>
         <Button
