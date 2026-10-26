@@ -15,7 +15,7 @@ import {
   type ModuleActivity,
 } from '@kithena/contracts';
 
-import type { Caller, ChatButton, Deps, Member, Tx, MailWords } from './ports.js';
+import type { Caller, ChatButton, Deps, MailParts, Member, Tx, MailWords } from './ports.js';
 
 /**
  * What every use case starts from (PRF-004): who is asking, what they are to
@@ -34,6 +34,8 @@ export interface Outgoing {
   readonly dedupeKey: string;
   /** A session's calendar invitation (`invite.ics`). */
   readonly attachments?: readonly { readonly filename: string; readonly base64: string }[];
+  /** A heading, facts, the button and what happens next, laid out by messaging. */
+  readonly parts?: MailParts;
   /**
    * In the company's chat app too, by default; `false` for a cycle whose
    * reminders keep out of it, `only` for a notice with buttons and no email.
@@ -316,12 +318,32 @@ export async function deliver(
         text: m.text,
         dedupeKey: m.dedupeKey,
         ...(m.attachments === undefined ? {} : { attachments: m.attachments }),
+        ...(m.parts === undefined ? {} : { parts: m.parts }),
         ...(accountId === undefined ? {} : { accountId, urgent: true }),
       });
     } catch {
       // ponytail: a lost reminder is not retried; the Inbox still has it. A delivery queue when one is missed.
     }
   }
+}
+
+/** A calendar date as an email says it, in the company's language: "Friday 6 November". */
+export const dayIn = (language: string, day: string): string =>
+  new Intl.DateTimeFormat(language, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(`${day}T00:00:00Z`));
+
+/**
+ * A page of the company's app as a link an email can carry: on its own host
+ * once identity has said which, else null and the email has no button.
+ */
+export async function appUrl(ctx: Ctx, path: string): Promise<string | null> {
+  const host = (await ctx.tx.settings.get('host')) as { slug?: string } | null;
+  if (ctx.deps.appBase === undefined || host?.slug === undefined) return null;
+  return `${ctx.deps.appBase.replace('{slug}', host.slug)}${path}`;
 }
 
 /** A person's work email, for a reminder; null when the projection has none. */

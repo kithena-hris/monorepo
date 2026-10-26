@@ -107,6 +107,26 @@ async function invite(
               'You are invited to {{title}} on {{when}} (UTC){{value}}. The invitation is attached for your calendar.',
               { title: item.title, when, value: where === null ? '' : `, ${where}` },
             ),
+      parts: {
+        facts: [
+          { label: t('email.learning.when', 'When'), value: `${when} UTC` },
+          ...(session.place === null
+            ? []
+            : [{ label: t('email.learning.where', 'Where'), value: session.place }]),
+        ],
+        // Only a real link becomes the button: messaging refuses anything else, and the email with it.
+        ...(method === 'REQUEST' &&
+        session.online !== null &&
+        /^https:\/\//u.test(session.online) &&
+        URL.canParse(session.online)
+          ? {
+              action: {
+                label: t('email.learning.join_online', 'Join online'),
+                href: session.online,
+              },
+            }
+          : {}),
+      },
       dedupeKey: `performance-invite:${session.id}:${personId}:${String(sequence)}:${method}`,
       attachments: [
         { filename: 'invite.ics', base64: Buffer.from(ics, 'utf8').toString('base64') },

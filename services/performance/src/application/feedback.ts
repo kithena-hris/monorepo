@@ -12,7 +12,9 @@ import {
 } from '../domain/feedback.js';
 import { published } from '../domain/template.js';
 import {
+  appUrl,
   audit,
+  dayIn,
   event,
   forbidden,
   me,
@@ -258,7 +260,7 @@ export async function requestFeedback(
     due: CalendarDate | null;
   },
 ): Promise<Result<{ id: string }>> {
-  const { t } = await mailWords(ctx);
+  const { t, language } = await mailWords(ctx);
   const who = me(ctx);
   if (!who.ok) return who;
   const about = input.about ?? who.value;
@@ -283,6 +285,22 @@ export async function requestFeedback(
   });
   const name = await names(ctx);
   const members = await ctx.members();
+  const open = await appUrl(ctx, '/performance/feedback/requests');
+  const facts = [
+    { label: t('email.feedback.asked_by', 'Asked by'), value: name(who.value) },
+    ...(about === who.value
+      ? []
+      : [{ label: t('email.feedback.about', 'About'), value: name(about) }]),
+    ...(input.topic === null
+      ? []
+      : [{ label: t('email.feedback.topic', 'Topic'), value: input.topic }]),
+    ...(input.question === null
+      ? []
+      : [{ label: t('email.feedback.question', 'Question'), value: input.question.slice(0, 500) }]),
+    ...(input.due === null
+      ? []
+      : [{ label: t('email.feedback.by', 'By'), value: dayIn(language, input.due) }]),
+  ];
   for (const p of to) {
     const email = members.find((m) => m.personId === p)?.workEmail;
     if (email)
@@ -302,6 +320,14 @@ export async function requestFeedback(
                 : t('email.feedback.on', ' on {{topic}}', { topic: input.topic }),
           },
         ),
+        parts: {
+          facts,
+          ...(open === null
+            ? {}
+            : {
+                action: { label: t('email.feedback.give_feedback', 'Give feedback'), href: open },
+              }),
+        },
         dedupeKey: `request:${id}:${p}`,
       });
   }

@@ -70,6 +70,7 @@ export function composePerformance(env: NodeJS.ProcessEnv = process.env): Compos
       ...(webhooks === undefined ? {} : { webhooks }),
       ...(chat === undefined ? {} : { chat }),
       tools,
+      appBase: env['TENANT_APP_BASE'] || 'https://{slug}.app.kithena.com',
       chatToken: env['SLACK_PERFORMANCE_TOKEN'] ?? '',
       // The assistant's secret for its pair (assistant PRD §15.3); empty refuses it.
       assistantCallerFrom: withMember(

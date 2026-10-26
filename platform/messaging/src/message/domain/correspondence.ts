@@ -81,7 +81,9 @@ export function renderCorrespondence(
     day: d.day.slice(0, LIMITS.label),
     times: d.times.slice(0, LIMITS.timesPerDay).map((t) => t.slice(0, LIMITS.label)),
   }));
+  // A fact with nothing to say (a topic left blank) is left out, not drawn empty.
   const facts = (parts.facts ?? [])
+    .filter((f) => f.label.trim() !== '' && f.value.trim() !== '')
     .slice(0, LIMITS.facts)
     .map((f) => ({ label: f.label.slice(0, LIMITS.label), value: f.value.slice(0, LIMITS.value) }));
   // A link that is not plainly https is dropped, never rendered: the words still say what to do.

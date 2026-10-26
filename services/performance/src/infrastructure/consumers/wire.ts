@@ -36,7 +36,8 @@ async function startConsumers(
   const consumers = await Promise.all([
     consume(new Kafka(kafka), 'performance', PersonHired.topic, handle),
     consume(new Kafka(kafka), 'performance-onboarding', PlanStarted.topic, handle),
-    consume(new Kafka(kafka), 'performance-identity', TenantAdministratorNamed.topic, handle),
+    // `-2`: identity's topic again from the start, for the company's host (`TenantProvisioned`).
+    consume(new Kafka(kafka), 'performance-identity-2', TenantAdministratorNamed.topic, handle),
   ]);
   return {
     stop: async () => {

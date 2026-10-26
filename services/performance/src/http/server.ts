@@ -103,6 +103,7 @@ export interface PerformanceServerOptions {
   readonly assistantCallerFrom?: CallerFrom;
   readonly chat?: Deps['chat'];
   readonly tools?: Deps['tools'];
+  readonly appBase?: Deps['appBase'];
   /** The chat app's pair secret (`SLACK_PERFORMANCE_TOKEN`); empty refuses it. */
   readonly chatToken?: string;
 }
@@ -122,6 +123,7 @@ export function performanceServer(
     ...(options.webhooks === undefined ? {} : { webhooks: options.webhooks }),
     ...(options.chat === undefined ? {} : { chat: options.chat }),
     ...(options.tools === undefined ? {} : { tools: options.tools }),
+    ...(options.appBase === undefined ? {} : { appBase: options.appBase }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   const capabilities = capabilitiesHandler({

@@ -39,13 +39,49 @@
     "text": "Give your tax ID, health insurer and social security number",
     "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"DE\" value."
   },
-  "email.plans.hello_were_glad_youre_joining_us": {
-    "text": "Hello {{givenName}},\n\nWe’re glad you’re joining us on {{startDate}}. Your first days, who meets you and what to do beforehand are here:\n{{jobsOrigin}}/welcome#{{token}}\n\nThe link is yours alone; please don’t share it.",
-    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"text\" value. Filled in: {{givenName}}, {{startDate}}, {{jobsOrigin}}, {{token}}."
+  "email.plans.first_day": {
+    "text": "First day",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"label\" value."
+  },
+  "email.plans.hello_glad_youre_joining": {
+    "text": "Hello {{givenName}},\n\nWe’re glad you’re joining us. Your welcome page has your first days, who meets you and what to do before you start; anything you fill in there reaches the right person on its own.",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"text\" value. Filled in: {{givenName}}."
+  },
+  "email.plans.on_day_one_meets_you": {
+    "text": "On {{firstDay}}, {{who}} meets you",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"steps\" value. Filled in: {{firstDay}}, {{who}}."
+  },
+  "email.plans.see_your_first_days": {
+    "text": "See your first days",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"label\" value."
+  },
+  "email.plans.team": {
+    "text": "Team",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"label\" value."
+  },
+  "email.plans.the_link_is_yours_alone": {
+    "text": "The link is yours alone; please don’t share it.",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"note\" value."
+  },
+  "email.plans.welcome_name": {
+    "text": "Welcome, {{givenName}}",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"heading\" value. Filled in: {{givenName}}."
   },
   "email.plans.welcome_what_happens_before_your_first": {
     "text": "Welcome: what happens before your first day",
     "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"subject\" value."
+  },
+  "email.plans.where": {
+    "text": "Where",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"label\" value."
+  },
+  "email.plans.your_manager": {
+    "text": "Your manager",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"label\" value."
+  },
+  "email.plans.your_team": {
+    "text": "your team",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"who\" value."
   },
   "equipment": {
     "text": "Prepare the laptop and equipment",
