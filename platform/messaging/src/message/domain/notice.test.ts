@@ -301,3 +301,30 @@ describe('a notice is the company’s, in its name, mark and colour', () => {
     expect(result.value.html).not.toContain('>Kithena<');
   });
 });
+
+describe('a notice that names its item', () => {
+  it('heads the card with its title when given, and shows a document by name', () => {
+    const named = renderNotice(
+      { kind: 'inbox_task', topic: 'document_sign' },
+      'https://acme.app.kithena.com/inbox?item=x',
+      'Acme',
+      undefined,
+      undefined,
+      { title: null, body: 'Remote-work addendum.pdf' },
+    );
+    if (!named.ok) throw new Error('expected a notice');
+    expect(named.value.html).toContain('>Document</td>');
+    expect(named.value.html).toContain('Remote-work addendum.pdf');
+    expect(named.value.text).toContain('Remote-work addendum.pdf');
+    const titled = renderNotice(
+      { kind: 'inbox_task', topic: 'time_off_approval' },
+      'https://acme.app.kithena.com/inbox?item=y',
+      'Acme',
+      undefined,
+      undefined,
+      { title: 'Approve Adam’s time off', body: null },
+    );
+    if (!titled.ok) throw new Error('expected a notice');
+    expect(titled.value.html).toContain('Approve Adam’s time off</h1>');
+  });
+});

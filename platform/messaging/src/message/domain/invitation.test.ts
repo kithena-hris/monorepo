@@ -201,10 +201,12 @@ describe('the message is the design system', () => {
 });
 
 describe('the company mark', () => {
-  it('shows a hosted logo above the heading', () => {
+  it('signs the email with a hosted logo beside the company’s name', () => {
     const message = rendered({ logoUrl: 'https://x.public.blob.vercel-storage.com/acme.png' });
     expect(message.html).toContain('src="https://x.public.blob.vercel-storage.com/acme.png"');
-    expect(message.html).toContain('alt="Acme Corp"');
+    // Beside the name, so a screen reader is not told it twice.
+    expect(message.html).toContain('alt=""');
+    expect(message.html).toContain('>Acme Corp</td>');
   });
 
   it('omits the row entirely when there is no logo', () => {
@@ -259,7 +261,7 @@ describe('the parts that make it read as ours', () => {
     expect(message.html).toContain('fingerprint, face or PIN');
     expect(message.html).toContain('Nothing leaves your device');
     for (const n of ['1', '2', '3']) {
-      expect(message.html).toContain(`>${n}</span>`);
+      expect(message.html).toContain(`>${n}</div>`);
     }
     // And the same three, in the same order, for a client that strips HTML.
     expect(message.text).toContain('1. Your device asks for your fingerprint');
@@ -319,10 +321,10 @@ describe("the company's own colour", () => {
     expect(rendered({ themeId: 'forest' }).html).toContain(`background:${forest};">&nbsp;`);
   });
 
-  it('leaves the wordmark alone', () => {
-    // Kithena's mark stays Kithena's colour. The company owns the button and
-    // the rule; it does not own the name of the product sending the message.
-    expect(rendered({ themeId: 'forest' }).html).toContain(`color:${light.accent};">Kithena`);
+  it('colours the rule and the button, never the words', () => {
+    // The company owns the button and the rule; text stays the palette's, so
+    // a light theme colour never leaves a name unreadable.
+    expect(rendered({ themeId: 'forest' }).html).not.toContain(`color:${forest}`);
   });
 
   it('falls back to our own accent when the company chose no theme', () => {

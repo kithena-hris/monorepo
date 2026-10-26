@@ -994,6 +994,10 @@ export interface MailParts {
   readonly facts?: readonly { readonly label: string; readonly value: string }[];
   readonly action?: { readonly label: string; readonly href: string } | null;
   readonly secondary?: { readonly label: string; readonly href: string } | null;
+  /** What happens next, in order: a numbered list under the facts. */
+  readonly steps?: readonly string[];
+  /** Small print under the button: how long a link lasts. */
+  readonly note?: string | null;
   readonly themeId?: string | null;
   readonly logoUrl?: string | null;
 }

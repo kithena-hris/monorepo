@@ -94,8 +94,8 @@ export const scale = {
   /** `--font-sans`, minus the variable cut nobody has installed in a mail client. */
   fontFamily:
     "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-  /** `--text-xl` / 1.375rem, tracking -0.015em. The one heading. */
-  heading: { size: '22px', lineHeight: '30px', tracking: '-0.34px' },
+  /** `--text-xl` / 1.5rem, line height 1.2, tracking -0.015em. The one heading. */
+  heading: { size: '24px', lineHeight: '30px', tracking: '-0.36px' },
   /** `--text-md` / 1rem. Body copy in an email is 16px, not the 14px a dense
    *  HRIS screen uses — nobody reads a message in a data grid. */
   body: { size: '16px', lineHeight: '24px', tracking: '0' },

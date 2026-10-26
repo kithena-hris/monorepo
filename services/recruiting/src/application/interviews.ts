@@ -637,11 +637,23 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
         companyName: settings.companyName,
       }),
       t(
-        'email.interviews.hello_this_interview_is_cancelled',
-        'Hello {{name}},\n\nThis interview is cancelled.',
-        { name: candidate.name },
+        'email.interviews.hello_this_interview_is_cancelled_2',
+        'Hello {{name}},\n\nThis interview is cancelled, and it is gone from your calendar. {{companyName}} will be in touch about what happens next; reply to this email with any question.',
+        { name: candidate.name.split(' ')[0] ?? candidate.name, companyName: settings.companyName },
       ),
-      {},
+      {
+        heading: t('email.interviews.cancelled_heading', 'Interview cancelled'),
+        facts: [
+          { label: t('email.interviews.interview', 'Interview'), value: interview.title },
+          ...(job === null
+            ? []
+            : [{ label: t('email.interviews.role', 'Role'), value: job.title }]),
+          {
+            label: t('email.interviews.was', 'Was'),
+            value: `${when} (${candidate.timeZone ?? 'UTC'})`,
+          },
+        ],
+      },
       attachments,
     );
     return;

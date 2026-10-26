@@ -324,6 +324,13 @@ export async function answerAsk(
         value2: await portalLink(ctx, loaded.candidate.id),
       },
     ),
+    {
+      heading:
+        ask.kind === 'slots'
+          ? t('email.requests.other_times_heading', 'We will offer other times')
+          : t('email.requests.received_heading', 'Received, thank you'),
+      facts: [{ label: t('email.requests.about', 'About'), value: ask.label }],
+    },
   );
   await tellTeam(
     ctx,
@@ -413,6 +420,19 @@ export async function requestChange(
         zone,
       },
     ),
+    {
+      heading: t('email.requests.move_heading', 'We asked to move your interview'),
+      facts: [
+        { label: t('email.requests.interview', 'Interview'), value: interview.title },
+        {
+          label: t('email.requests.until_then', 'Until then'),
+          value: `${fmt(interview.startsAt, zone, (await mailWords(ctx)).language)} (${zone})`,
+        },
+        ...(why.trim() === ''
+          ? []
+          : [{ label: t('email.requests.why', 'Why'), value: why.trim() }]),
+      ],
+    },
   );
   await tellTeam(
     ctx,
