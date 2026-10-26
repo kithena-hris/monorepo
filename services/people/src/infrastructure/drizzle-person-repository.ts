@@ -40,6 +40,24 @@ type AggregateColumns = {
   mergedInto: string | null;
 };
 
+/**
+ * A stored actor, parsed. Until #562 People wrote itself (a hire from
+ * Recruiting) as a user with the account id `system`; those rows are read as
+ * the system they were, and anything else malformed still throws.
+ */
+function actorOf(stored: unknown): Actor {
+  const parsed = Actor.safeParse(stored);
+  if (parsed.success) return parsed.data;
+  if (
+    typeof stored === 'object' &&
+    stored !== null &&
+    Reflect.get(stored, 'kind') === 'user' &&
+    Reflect.get(stored, 'userId') === 'system'
+  )
+    return { kind: 'system', process: 'people' };
+  return Actor.parse(stored);
+}
+
 export function drizzlePersonRepository(): PersonRepository {
   return {
     async load(tx, tenantId, personId) {
@@ -56,12 +74,7 @@ export function drizzlePersonRepository(): PersonRepository {
       const rows = await tx
         .select(withEmployment)
         .from(person)
-        .where(
-          and(
-            eq(person.tenantId, tenantId),
-            eq(person.identityAccountId, identityAccountId),
-          ),
-        )
+        .where(and(eq(person.tenantId, tenantId), eq(person.identityAccountId, identityAccountId)))
         .limit(1);
 
       return toSnapshot(rows[0]);
@@ -117,7 +130,9 @@ export function drizzlePersonRepository(): PersonRepository {
       const rows = await tx
         .select()
         .from(employmentPeriod)
-        .where(and(eq(employmentPeriod.tenantId, tenantId), eq(employmentPeriod.personId, personId)))
+        .where(
+          and(eq(employmentPeriod.tenantId, tenantId), eq(employmentPeriod.personId, personId)),
+        )
         .orderBy(asc(employmentPeriod.period));
       return rows.map((r) => ({
         period: r.period,
@@ -158,7 +173,7 @@ export function drizzlePersonRepository(): PersonRepository {
         // Parsed rather than asserted: the column is JSONB, so what comes back
         // is whatever was written, and a domain reading `actor.kind` off an
         // unchecked value is one bad row away from a crash in a retention job.
-        actor: Actor.parse(row.actor),
+        actor: actorOf(row.actor),
         supersedes: row.supersedes,
         eventId: row.eventId,
       }));

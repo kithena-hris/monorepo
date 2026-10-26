@@ -1,3 +1,4 @@
+import { Actor } from '@kithena/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { attributesOf, hiresFromRecruiting } from './hire-from-recruiting.js';
@@ -131,6 +132,14 @@ describe('a hire Recruiting made', () => {
     const again = await hires.hired(tx, hired as never);
     expect(again.outcome).toBe('unchanged');
     expect(store.rows.size).toBe(1);
+  });
+
+  it('is written by the system, an actor the shared contract reads back', async () => {
+    const { store, hires } = setup();
+    await hires.hired(tx, hired as never);
+    const actors = store.history.map((h) => h.actor);
+    expect(actors.length).toBeGreaterThan(0);
+    for (const actor of actors) expect(Actor.safeParse(actor).success).toBe(true);
   });
 
   it('keeps the signature the contract was signed with in the company’s signature field', async () => {
