@@ -77,7 +77,7 @@ import {
 import type { Asking, ConditionOp, GapsIn, PersonCount, Refine, SealedValue } from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
-import { countryOf, factsOf } from './subject.js';
+import { countryOf, factsOf, SYSTEM } from './subject.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
 import {
   checkIdentifier,
@@ -881,6 +881,7 @@ const SYSTEM_RELATIONS: ViewerRelations = {
   isAdmin: false,
 };
 const EFFECTIVE_ACTOR: Actor = { kind: 'system', process: 'people-effective' };
+const SYSTEM_ACTOR: Actor = { kind: 'system', process: 'people' };
 /**
  * An approved change is written with the reach its requester had when they
  * asked (PEO-077): the write was checked then, and only that one key is in it.
@@ -1037,6 +1038,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const integration = integrationOf(asking);
     return (
       systemOf(asking) ??
+      // People itself (a hire Recruiting made): no account, so not a user.
+      (asking.viewer.accountId === SYSTEM ? SYSTEM_ACTOR : undefined) ??
       (integration === undefined
         ? userActor(asking.viewer)
         : {
