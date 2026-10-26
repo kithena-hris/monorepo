@@ -1561,10 +1561,11 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       columns: { existing: number; created: number; kithena: number; leftOut: number };
     }>(c.graph, { ...step, proposals }, 'meridian-run');
     expect(done).toMatchObject({ created: 100, blocked: 0, held: 0 });
-    // 15 to People's own (employment type, work model, Department and the four
-    // lifecycle columns among them), 87 new, 2 ids, and Manager Employee Number
+    // 21 to People's own (employment type, work model, Department, the four
+    // lifecycle columns and the core fields — date of birth, personal email,
+    // mobile, FTE, job title, pay frequency — among them), 81 new, 2 ids, and Manager Employee Number
     // left out: the manager is read from Manager Email.
-    expect(done.columns).toEqual({ existing: 15, created: 87, kithena: 2, leftOut: 1 });
+    expect(done.columns).toEqual({ existing: 21, created: 81, kithena: 2, leftOut: 1 });
 
     // The requests: one per person, listing every detail asked of them that
     // the file left empty; none for anybody who has left, nor per field.
