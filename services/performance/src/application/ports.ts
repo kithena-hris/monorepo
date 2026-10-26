@@ -202,6 +202,10 @@ export interface Mailer {
     readonly dedupeKey: string;
     /** A session's `.ics` invitation, at most. */
     readonly attachments?: readonly { readonly filename: string; readonly base64: string }[];
+    /** The member's account: their devices hear of it too, if they turned push on. */
+    readonly accountId?: string;
+    /** Something for them to do, pushed at once, rather than news. */
+    readonly urgent?: boolean;
   }): Promise<void>;
   /**
    * The company's language and this module's words in it: every email is

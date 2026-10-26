@@ -3,6 +3,7 @@
   "correspondence.manage": "உங்களுக்கு எது வர வேண்டும் எனத் தேர்வுசெய்க",
   "correspondence.member_footer": "{{company}} இல் உங்களுக்கு Kithena அனுப்பியது, ஏனெனில் இது நீங்கள் செய்ய வேண்டியது அல்லது அறிய வேண்டியது.",
   "correspondence.next": "அடுத்து என்ன நடக்கும்",
+  "correspondence.open": "திற",
   "correspondence.times": "நேரங்கள்",
   "invitation.button_not_working": "பட்டன் வேலை செய்யவில்லையா? இதை உங்கள் பிரவுசரில் ஒட்டவும்:",
   "invitation.deadline": "{{date}} {{time}} UTC",

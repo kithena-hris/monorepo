@@ -15,6 +15,10 @@
     "text": "What happens next",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"title\" value."
   },
+  "correspondence.open": {
+    "text": "Open",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: text built in code."
+  },
   "correspondence.times": {
     "text": "Times",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"timesTitle\" value."

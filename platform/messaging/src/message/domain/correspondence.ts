@@ -85,15 +85,23 @@ export function renderCorrespondence(
     .slice(0, LIMITS.facts)
     .map((f) => ({ label: f.label.slice(0, LIMITS.label), value: f.value.slice(0, LIMITS.value) }));
   // A link that is not plainly https is dropped, never rendered: the words still say what to do.
+  // No button given, and the words end on a link: that link is the button, not a line of text.
+  const lifted = parts.action == null ? buttonFrom(body, t('correspondence.open', 'Open')) : null;
   const action =
-    parts.action == null ? null : link(parts.action.label, safeHref(parts.action.href));
+    lifted !== null
+      ? link(lifted.label, safeHref(lifted.href))
+      : parts.action == null
+        ? null
+        : link(parts.action.label, safeHref(parts.action.href));
   const secondary =
     parts.secondary == null ? null : link(parts.secondary.label, safeHref(parts.secondary.href));
   const title = (parts.heading ?? '').trim() === '' ? heading : (parts.heading ?? '').trim();
   const steps = (parts.steps ?? [])
     .slice(0, LIMITS.steps)
     .map((x) => escapeHtml(x.slice(0, LIMITS.value)));
-  const paragraphs = body.split(/\n{2,}/u).map((p) => escapeHtml(p).replace(/\n/gu, '<br />'));
+  const paragraphs = (lifted?.text ?? body)
+    .split(/\n{2,}/u)
+    .map((p) => escapeHtml(p).replace(/\n/gu, '<br />'));
   const manage = member?.manageHref == null ? null : safeHref(member.manageHref);
   const html = frame({
     language: escapeHtml(words.language),
@@ -156,6 +164,41 @@ export function renderCorrespondence(
       timesTitle: parts.times?.title ?? t('correspondence.times', 'Times'),
     }),
   });
+}
+
+const URL_LINE = /^\s*(https:\/\/\S+)\s*$/u;
+const LABELLED_URL = /^\s*([^:\n]{1,60}):\s*(https:\/\/\S+)\s*$/u;
+
+/**
+ * The last link in the words, on a line of its own ("Open it: https://…", or
+ * "Open it:" over the link), as a button: its label and where it goes, and
+ * the words without it. Null when there is none, or nothing would be left.
+ */
+export function buttonFrom(
+  text: string,
+  open: string,
+): { readonly label: string; readonly href: string; readonly text: string } | null {
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i] ?? '';
+    const labelled = LABELLED_URL.exec(line);
+    const bare = URL_LINE.exec(line);
+    if (labelled === null && bare === null) continue;
+    let from = i;
+    let label = open;
+    const href = labelled?.[2] ?? bare?.[1] ?? '';
+    if (labelled !== null) label = (labelled[1] ?? open).trim();
+    else {
+      const before = (lines[i - 1] ?? '').trim();
+      if (before.endsWith(':') && before.length <= 61) {
+        label = before.slice(0, -1).trim();
+        from = i - 1;
+      }
+    }
+    const rest = [...lines.slice(0, from), ...lines.slice(i + 1)].join('\n').trim();
+    return rest === '' ? null : { label, href, text: rest };
+  }
+  return null;
 }
 
 const link = (label: string, href: string | null): { label: string; href: string } | null =>
