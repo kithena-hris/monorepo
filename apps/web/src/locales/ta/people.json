@@ -2350,6 +2350,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "ஒவ்வொரு புலத்தையும் பார்க்கத் தேடலை அழிக்கவும், அல்லது அனைத்துப் புலங்களையும் காட்டவும்.",
   "settings.field-registry.confidential": "ரகசியம்",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "ரகசியம் அல்லது மறைகுறியாக்கப்பட்டது: உதவியாளருடன் ஒருபோதும் பகிரப்படாது.",
+  "settings.field-registry.core": "அடிப்படை",
   "settings.field-registry.count_fields_match_one": "{{count}} புலம் பொருந்துகிறது",
   "settings.field-registry.count_fields_match_other": "{{count}} புலங்கள் பொருந்துகின்றன",
   "settings.field-registry.drag_a_row_to_reorder_click": "{{count}} · வரிசைப்படுத்த ஒரு வரிசையை இழுக்கவும் · இங்கே மாற்ற \"கேட்கப்படுவது\" அல்லது \"உதவியாளர்\" ஐக் கிளிக் செய்யவும்",

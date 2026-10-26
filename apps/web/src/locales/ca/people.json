@@ -2441,6 +2441,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Esborra la cerca o mostra Tots els camps per veure’ls tots.",
   "settings.field-registry.confidential": "Confidencial",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Confidencial o xifrat: mai no es comparteix amb l’assistent.",
+  "settings.field-registry.core": "Bàsic",
   "settings.field-registry.count_fields_match_many": "{{count}} camps coincideixen",
   "settings.field-registry.count_fields_match_one": "{{count}} camp coincideix",
   "settings.field-registry.count_fields_match_other": "{{count}} camps coincideixen",

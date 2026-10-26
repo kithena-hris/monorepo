@@ -2325,6 +2325,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Löschen Sie die Suche oder zeigen Sie „Alle Felder“, um jedes Feld zu sehen.",
   "settings.field-registry.confidential": "Vertraulich",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Vertraulich oder verschlüsselt: wird nie mit dem Assistenten geteilt.",
+  "settings.field-registry.core": "Kernfeld",
   "settings.field-registry.count_fields_match_one": "{{count}} Feld passt",
   "settings.field-registry.count_fields_match_other": "{{count}} Felder passen",
   "settings.field-registry.drag_a_row_to_reorder_click": "{{count}} · ziehen Sie eine Zeile zum Umsortieren · klicken Sie auf „Gefragt“ oder „Assistent“, um es hier zu ändern",

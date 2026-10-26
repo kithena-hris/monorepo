@@ -2451,6 +2451,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Borra la búsqueda o muestra Todos los campos para verlos todos.",
   "settings.field-registry.confidential": "Confidencial",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Confidencial o cifrado: nunca se comparte con el asistente.",
+  "settings.field-registry.core": "Básico",
   "settings.field-registry.count_fields_match_many": "{{count}} campos coinciden",
   "settings.field-registry.count_fields_match_one": "{{count}} campo coincide",
   "settings.field-registry.count_fields_match_other": "{{count}} campos coinciden",

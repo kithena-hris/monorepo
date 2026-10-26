@@ -2453,6 +2453,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Limpe a pesquisa ou mostre Todos os campos para ver cada campo.",
   "settings.field-registry.confidential": "Confidencial",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Confidencial ou encriptado: nunca é partilhado com o assistente.",
+  "settings.field-registry.core": "Essencial",
   "settings.field-registry.count_fields_match_many": "{{count}} campos correspondem",
   "settings.field-registry.count_fields_match_one": "{{count}} campo corresponde",
   "settings.field-registry.count_fields_match_other": "{{count}} campos correspondem",

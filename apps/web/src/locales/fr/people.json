@@ -2409,6 +2409,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Effacez la recherche, ou affichez Tous les champs, pour voir chaque champ.",
   "settings.field-registry.confidential": "Confidentiel",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Confidentiel ou chiffré : jamais partagé avec l’assistant.",
+  "settings.field-registry.core": "Essentiel",
   "settings.field-registry.count_fields_match_many": "{{count}} champs correspondent",
   "settings.field-registry.count_fields_match_one": "{{count}} champ correspond",
   "settings.field-registry.count_fields_match_other": "{{count}} champs correspondent",

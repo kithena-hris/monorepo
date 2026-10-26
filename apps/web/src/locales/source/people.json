@@ -9567,6 +9567,10 @@
     "text": "Confidential or encrypted: never shared with the assistant.",
     "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, AssistantShare: text inside <p>."
   },
+  "settings.field-registry.core": {
+    "text": "Core",
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, Badges: text inside <Badge>."
+  },
   "settings.field-registry.count_fields_match_one": {
     "text": "{{count}} field matches",
     "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, Found: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."

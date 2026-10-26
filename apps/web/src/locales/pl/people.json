@@ -2542,6 +2542,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Wyczyść wyszukiwanie lub pokaż Wszystkie pola, aby zobaczyć każde pole.",
   "settings.field-registry.confidential": "Poufne",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Poufne lub zaszyfrowane: nigdy nie są udostępniane asystentowi.",
+  "settings.field-registry.core": "Podstawowe",
   "settings.field-registry.count_fields_match_few": "{{count}} pola pasują",
   "settings.field-registry.count_fields_match_many": "{{count}} pól pasuje",
   "settings.field-registry.count_fields_match_one": "{{count}} pole pasuje",

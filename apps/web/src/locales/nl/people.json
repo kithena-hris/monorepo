@@ -2328,6 +2328,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Wis de zoekopdracht of toon Alle velden om elk veld te zien.",
   "settings.field-registry.confidential": "Vertrouwelijk",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Vertrouwelijk of versleuteld: nooit gedeeld met de assistent.",
+  "settings.field-registry.core": "Kernveld",
   "settings.field-registry.count_fields_match_one": "{{count}} veld komt overeen",
   "settings.field-registry.count_fields_match_other": "{{count}} velden komen overeen",
   "settings.field-registry.drag_a_row_to_reorder_click": "{{count}} · sleep een rij om de volgorde te wijzigen · klik op Gevraagd of Assistent om het hier te wijzigen",

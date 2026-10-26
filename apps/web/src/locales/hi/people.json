@@ -2350,6 +2350,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "हर फ़ील्ड देखने के लिए खोज साफ़ करें, या सभी फ़ील्ड दिखाएँ।",
   "settings.field-registry.confidential": "गोपनीय",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "गोपनीय या एन्क्रिप्टेड: असिस्टेंट के साथ कभी शेयर नहीं होता।",
+  "settings.field-registry.core": "मूल",
   "settings.field-registry.count_fields_match_one": "{{count}} फ़ील्ड मेल खाता है",
   "settings.field-registry.count_fields_match_other": "{{count}} फ़ील्ड मेल खाते हैं",
   "settings.field-registry.drag_a_row_to_reorder_click": "{{count}} · क्रम बदलने के लिए पंक्ति खींचें · यहीं बदलने के लिए पूछा गया या असिस्टेंट पर क्लिक करें",

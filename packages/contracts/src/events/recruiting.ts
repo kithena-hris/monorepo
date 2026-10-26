@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { asContact, asIdentity, asInternal, asPublic, policy } from '../classification.js';
+import { asContact, asFinancial, asIdentity, asInternal, asPublic, policy } from '../classification.js';
 import { defineEvent } from '../event.js';
 import { activityRecorded } from './activity.js';
 import { CalendarDate, Instant, LegalEntityId, Money } from '../primitives.js';
@@ -189,6 +189,18 @@ export const CandidateHired = defineEvent(
     pay: z.object({
       base: Money,
       frequency: z.enum(['year', 'month', 'hour']).register(policy, asInternal()),
+      /** The rest of the offer's pay, for the record's Compensation fields; null when none. */
+      variableTarget: Money.nullable().default(null),
+      signOnBonus: Money.nullable().default(null),
+      relocation: Money.nullable().default(null),
+      /** A description and a number of units, never priced. */
+      equity: z
+        .object({
+          description: z.string().max(500).register(policy, asFinancial()),
+          units: z.int().nonnegative().register(policy, asFinancial()),
+        })
+        .nullable()
+        .default(null),
     }),
     benefits: z.array(
       z.object({

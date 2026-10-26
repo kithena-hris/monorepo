@@ -2558,6 +2558,7 @@
   "settings.field-registry.clear_the_search_or_show_all": "Очистите поиск или включите «Все поля», чтобы увидеть все поля.",
   "settings.field-registry.confidential": "Конфиденциально",
   "settings.field-registry.confidential_or_encrypted_never_shared_with": "Конфиденциальное или зашифрованное: никогда не передаётся ассистенту.",
+  "settings.field-registry.core": "Основное",
   "settings.field-registry.count_fields_match_few": "Совпадают {{count}} поля",
   "settings.field-registry.count_fields_match_many": "Совпадают {{count}} полей",
   "settings.field-registry.count_fields_match_one": "Совпадает {{count}} поле",

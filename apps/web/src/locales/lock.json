@@ -17456,7 +17456,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34538,7 +34539,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -51620,7 +51622,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -68702,7 +68705,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -86161,7 +86165,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -103620,7 +103625,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -120702,7 +120708,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -138161,7 +138168,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -155243,7 +155251,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -173079,7 +173088,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -190538,7 +190548,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -208374,7 +208385,8 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -225456,6 +225468,7 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983"
   }
 }
