@@ -658,5 +658,17 @@
   "notice.webhook_disabled.subject": {
     "text": "{{company}}: a People webhook was turned off",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "push.in_company": {
+    "text": "In {{company}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/application/inbox-delivery.ts: a \"body\" value. Filled in: {{company}}."
+  },
+  "push.inbox_task": {
+    "text": "Something needs you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/application/inbox-delivery.ts: a \"title\" value."
+  },
+  "push.inbox_update": {
+    "text": "An update for you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/application/inbox-delivery.ts: a \"title\" value."
   }
 }

@@ -166,5 +166,8 @@
   "notice.webhook_disabled.footer": "Enviat per Kithena perquè aquesta adreça és el contacte d’avisos d’un punt de connexió de webhook a Persones de {{company}}.",
   "notice.webhook_disabled.heading": "Hem deixat d’enviar a un dels teus webhooks",
   "notice.webhook_disabled.lede": "Fa 24 hores que cap enviament a {{host}} no funciona, així que Kithena ha desactivat aquest punt de connexió. Els esdeveniments que es generin mentre estigui desactivat no s’hi envien. Quan s’hagi arreglat el receptor, torna’l a activar i repeteix l’enviament que va fallar.",
-  "notice.webhook_disabled.subject": "{{company}}: s’ha desactivat un webhook de Persones"
+  "notice.webhook_disabled.subject": "{{company}}: s’ha desactivat un webhook de Persones",
+  "push.in_company": "A {{company}}",
+  "push.inbox_task": "Una cosa et necessita",
+  "push.inbox_update": "Una novetat per a tu"
 }

@@ -4,10 +4,14 @@
  * for the Inbox's email, behind the internal token. Null when identity cannot
  * be asked or has none, and the defaults then apply.
  */
-export function identityChoices(config: { readonly baseUrl: string; readonly token: string }) {
+export function identityChoices(
+  config: { readonly baseUrl: string; readonly token: string },
+  /** `notifications`, or `push`: the devices a person turned push on for. */
+  name = 'notifications',
+) {
   return async (tenantId: string, accountId: string): Promise<unknown> => {
     const url = new URL(
-      `/api/internal/tenants/${encodeURIComponent(tenantId)}/accounts/${encodeURIComponent(accountId)}/preferences/notifications`,
+      `/api/internal/tenants/${encodeURIComponent(tenantId)}/accounts/${encodeURIComponent(accountId)}/preferences/${name}`,
       config.baseUrl,
     );
     const response = await fetch(url, {

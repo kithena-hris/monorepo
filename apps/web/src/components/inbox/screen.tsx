@@ -38,6 +38,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
   ToastProvider,
 } from '@reach/ui';
@@ -120,8 +122,8 @@ const LANE: Readonly<Record<Exclude<Filter, 'all'>, Shown['lane']>> = {
 const FILTER_LABEL: Readonly<Record<Filter, () => string>> = {
   all: () => t('components.inbox.screen.filter_all', 'All'),
   todo: () => t('components.inbox.screen.filter_needs_you', 'Needs you'),
-  requests: () => t('components.inbox.screen.filter_waiting', 'Waiting on others'),
-  updates: () => t('components.inbox.screen.filter_fyi', 'For your information'),
+  requests: () => t('components.inbox.screen.filter_waiting_short', 'Waiting'),
+  updates: () => t('components.inbox.screen.filter_updates', 'Updates'),
 };
 
 const SECTION_LABEL: Readonly<Record<SectionKey, () => string>> = {
@@ -297,7 +299,42 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
           value={search}
           onValueChange={setSearch}
           variant="field"
+          placeholder={t('components.inbox.screen.search_your_inbox', 'Search your Inbox')}
         />
+        {feed && read.modules.length > 1 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {source === null ? (
+                <Button
+                  variant="secondary"
+                  startIcon={<icons.filter aria-hidden />}
+                  aria-label={t('components.inbox.screen.filter_by_module', 'Filter by module')}
+                />
+              ) : (
+                <Button variant="secondary" startIcon={<icons.filter aria-hidden />}>
+                  {moduleName(source)}
+                </Button>
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup
+                value={source ?? 'all'}
+                onValueChange={(v) => {
+                  go(view, { source: v === 'all' ? null : v });
+                }}
+              >
+                <DropdownMenuRadioItem value="all">
+                  {t('components.inbox.screen.every_module', 'Every module')}
+                </DropdownMenuRadioItem>
+                {read.modules.map((m) => (
+                  <DropdownMenuRadioItem key={m} value={m}>
+                    {moduleName(m)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -360,7 +397,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
             onValueChange={(v) => {
               if (v !== '') go(v as View);
             }}
-            className="min-w-0 flex-1"
+            className="min-w-0"
           >
             {FILTERS.map((f) => {
               const n = f === 'all' ? counts.fresh : counts[f];
@@ -371,31 +408,6 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
               );
             })}
           </ChipGroup>
-          {read.modules.length > 1 ? (
-            <Select
-              value={source ?? 'all'}
-              onValueChange={(v) => {
-                go(view, { source: v === 'all' ? null : v });
-              }}
-            >
-              <SelectTrigger
-                aria-label={t('components.inbox.screen.source', 'Source')}
-                className="w-auto"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {t('components.inbox.screen.every_module', 'Every module')}
-                </SelectItem>
-                {read.modules.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {moduleName(m)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
         </div>
       ) : view === 'done' ? (
         <Select
@@ -775,7 +787,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
       >
         <ListDetail
           className="min-h-0 flex-1"
-          listWidth="28rem"
+          listWidth="30rem"
           splitFrom="lg"
           listLabel={viewLabel}
           detailLabel={t('components.inbox.screen.item', 'Item')}

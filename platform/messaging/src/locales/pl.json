@@ -170,5 +170,8 @@
   "notice.webhook_disabled.footer": "Wysłane przez Kithena, ponieważ ten adres jest kontaktem alarmowym dla punktu końcowego webhooka w module Pracownicy w {{company}}.",
   "notice.webhook_disabled.heading": "Wstrzymaliśmy wysyłanie do jednego z webhooków",
   "notice.webhook_disabled.lede": "Od 24 godzin żadna wysyłka do {{host}} się nie powiodła, więc Kithena wyłączyła ten punkt końcowy. Zdarzenia z okresu wyłączenia nie są do niego wysyłane. Po naprawie odbiornika włącz go ponownie i powtórz nieudane doręczenie.",
-  "notice.webhook_disabled.subject": "{{company}}: wyłączono webhook modułu Pracownicy"
+  "notice.webhook_disabled.subject": "{{company}}: wyłączono webhook modułu Pracownicy",
+  "push.in_company": "W {{company}}",
+  "push.inbox_task": "Coś czeka na Ciebie",
+  "push.inbox_update": "Aktualność dla Ciebie"
 }

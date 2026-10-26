@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
@@ -28,6 +29,9 @@ import { companyProfile } from './message/infrastructure/company-language.js';
 import { inEnglish } from './message/application/company-language.js';
 import { languageRoutes } from './message/http/language-routes.js';
 import { identityChoices } from './message/infrastructure/identity-choices.js';
+import { pushTo } from './message/application/push.js';
+import { expoPush } from './message/infrastructure/expo-push.js';
+import { sendWebPush } from './message/infrastructure/web-push.js';
 
 /**
  * Where the service is assembled.
@@ -36,6 +40,21 @@ import { identityChoices } from './message/infrastructure/identity-choices.js';
  * file knows about more than one slice, everything else declares what it needs.
  * `main.ts` starts a server; this decides what the server is.
  */
+/** Kithena's Web Push keys from the environment: both halves, or no browser push. */
+export function vapidFrom(env: NodeJS.ProcessEnv): Pick<Config, 'vapid'> {
+  const publicKey = env['PUSH_VAPID_PUBLIC_KEY'];
+  const privateKey = env['PUSH_VAPID_PRIVATE_KEY'];
+  return publicKey && privateKey
+    ? {
+        vapid: {
+          publicKey,
+          privateKey,
+          subject: env['PUSH_SUBJECT'] ?? 'mailto:admin@kithena.com',
+        },
+      }
+    : {};
+}
+
 export interface Config {
   /**
    * A local mailbox, if one is running. `smtp://localhost:1025` is Mailpit,
@@ -147,6 +166,15 @@ export interface Config {
   /** Where candidates' replies arrive (Resend receiving), and Recruiting, which owns the thread. */
   readonly inboundDomain?: string | undefined;
   readonly recruitingUrl?: string | undefined;
+  /**
+   * Kithena's Web Push key pair (VAPID, base64url) and who to reach about it.
+   * Absent, browsers get no push; phones still do, through Expo.
+   */
+  readonly vapid?: {
+    readonly publicKey: string;
+    readonly privateKey: string;
+    readonly subject: string;
+  };
 }
 
 export type RequestHandler = (
@@ -406,12 +434,39 @@ export function compose(config: Config): RequestHandler {
   if (choices === undefined) {
     logger.info({ reason: 'no INTERNAL_API_URL' }, 'Inbox email follows the default settings');
   }
+  // Pushes to the devices a person turned it on for, kept with their account.
+  const vapid = config.vapid;
+  const push =
+    config.identityUrl !== undefined && config.identityUrl !== '' && config.identityToken
+      ? pushTo({
+          devices: identityChoices(
+            { baseUrl: config.identityUrl, token: config.identityToken },
+            'push',
+          ),
+          ...(vapid === undefined
+            ? {}
+            : {
+                web: (device, message) =>
+                  sendWebPush(device, message, vapid, {
+                    urgency: message.urgent ? 'high' : 'normal',
+                    topic: createHash('sha256')
+                      .update(message.tag)
+                      .digest('base64url')
+                      .slice(0, 32),
+                  }),
+              }),
+          expo: expoPush(),
+        })
+      : undefined;
+  if (vapid === undefined) logger.info({ reason: 'no PUSH_VAPID_*' }, 'browsers get no push');
   const notices = noticeRoutes({
     sendNotice: notice,
     deliverInbox: deliverInbox({
       sendNotice: notice,
       ...(choices === undefined ? {} : { choices }),
       ...(digests === undefined ? {} : { digests }),
+      ...(push === undefined ? {} : { push }),
+      ...(language === undefined ? {} : { language }),
     }),
     internalToken: [
       config.noticeToken ?? '',
@@ -447,6 +502,7 @@ export function compose(config: Config): RequestHandler {
       config.onboardingToken ?? '',
       config.performanceToken ?? '',
     ],
+    ...(push === undefined ? {} : { push }),
   });
 
   const languages = languageRoutes({

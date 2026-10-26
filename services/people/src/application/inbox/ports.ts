@@ -220,5 +220,7 @@ export interface InboxNotifier {
     itemPath: string,
     /** What makes a retry the same message. */
     dedupeKey: string,
+    /** The item's own name for a push to their devices: a document's file name. */
+    about?: string,
   ): Promise<void>;
 }

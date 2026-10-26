@@ -1,6 +1,8 @@
 import { ok, type Result } from '@kithena/domain-kit';
 
 import { INBOX_TASK_TOPICS, type InboxTaskTopic, type InboxUpdateTopic } from '../domain/notice.js';
+import { inEnglish, type CompanyLanguage } from './company-language.js';
+import type { Push } from './push.js';
 import type { SendNotice, SendNoticeRequest } from './send-notice.js';
 
 /**
@@ -59,6 +61,39 @@ const ROW: Readonly<Record<InboxUpdateTopic, Exclude<keyof EmailChoices, 'task'>
   calendar: 'calendars',
 };
 
+/** Whether each kind reaches the person's devices: the `phone` switches, by the same rows. */
+export interface PushChoices {
+  readonly task: boolean;
+  readonly decided: boolean;
+  readonly documents: boolean;
+  readonly team: boolean;
+  readonly calendars: boolean;
+}
+
+export const DEFAULT_PUSH: PushChoices = {
+  task: true,
+  decided: true,
+  documents: false,
+  team: false,
+  calendars: false,
+};
+
+const on = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean' ? v : fallback);
+
+export function pushChoicesOf(value: unknown): PushChoices {
+  const v = (value ?? {}) as {
+    tasks?: { asked?: { phone?: unknown } };
+    updates?: Record<string, { phone?: unknown } | undefined>;
+  };
+  return {
+    task: on(v.tasks?.asked?.phone, DEFAULT_PUSH.task),
+    decided: on(v.updates?.['decided']?.phone, DEFAULT_PUSH.decided),
+    documents: on(v.updates?.['documents']?.phone, DEFAULT_PUSH.documents),
+    team: on(v.updates?.['team']?.phone, DEFAULT_PUSH.team),
+    calendars: on(v.updates?.['calendars']?.phone, DEFAULT_PUSH.calendars),
+  };
+}
+
 /** The channel for one notice, by its kind and topic. */
 export function channelFor(
   choices: EmailChoices,
@@ -95,6 +130,10 @@ export interface InboxDeliveryDeps {
   readonly choices?: (tenantId: string, accountId: string) => Promise<unknown>;
   /** Where digest updates wait; absent, an update for the digest is sent now. */
   readonly digests?: DigestStore;
+  /** The person's devices; absent, nothing is pushed. */
+  readonly push?: Push;
+  /** The company's language, for a push that carries no title of the item's. */
+  readonly language?: CompanyLanguage;
 }
 
 export type InboxRequest = SendNoticeRequest & {
@@ -103,6 +142,13 @@ export type InboxRequest = SendNoticeRequest & {
     | { readonly kind: 'inbox_update'; readonly topic: InboxUpdateTopic };
   /** Whose settings to follow; absent, the defaults. */
   readonly accountId?: string | undefined;
+  /**
+   * What a push says of the item: its own title, or only its name for a line
+   * under the notice's heading ("Something needs you" over "Contract.pdf").
+   */
+  readonly preview?:
+    | { readonly title: string | null; readonly body: string | null }
+    | undefined;
 };
 
 export type InboxOutcome =
@@ -116,6 +162,29 @@ export function deliverInbox(deps: InboxDeliveryDeps) {
       deps.choices === undefined || request.accountId === undefined
         ? null
         : await deps.choices(request.tenantId, request.accountId).catch(() => null);
+    // The devices hear of it whatever the email does: each is its own switch.
+    if (deps.push !== undefined && request.accountId !== undefined) {
+      const task = request.notice.kind === 'inbox_task';
+      const pushes = pushChoicesOf(stored);
+      if (task ? pushes.task : pushes[ROW[request.notice.topic]]) {
+        const { t } = await (deps.language ?? inEnglish)(request.tenantId);
+        await deps
+          .push(request.tenantId, request.accountId, {
+            title:
+              request.preview?.title ??
+              (task
+                ? t('push.inbox_task', 'Something needs you')
+                : t('push.inbox_update', 'An update for you')),
+            body:
+              request.preview?.body ??
+              t('push.in_company', 'In {{company}}', { company: request.companyName }),
+            url: request.url,
+            tag: request.dedupeKey,
+            urgent: task,
+          })
+          .catch(() => 0);
+      }
+    }
     const chosen = channelFor(choicesOf(stored), request.notice);
     if (chosen === 'off') return ok({ outcome: 'skipped' as const });
     if (chosen === 'digest' && deps.digests !== undefined) {

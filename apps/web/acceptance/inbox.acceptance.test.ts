@@ -364,7 +364,7 @@ describe('The Inbox', () => {
     if (shots !== undefined) {
       mkdirSync(shots, { recursive: true });
       await page.screenshot({ path: `${shots}/inbox-desk.png` });
-      const first = page.getByRole('list').getByRole('link').first();
+      const first = page.locator('main section').getByRole('link').first();
       if ((await first.count()) > 0) {
         await first.click();
         await page.getByRole('article').waitFor();
@@ -374,6 +374,10 @@ describe('The Inbox', () => {
       await page.goto(`${stack.shell}/inbox`);
       await page.getByRole('heading', { name: 'Inbox', level: 1 }).waitFor();
       await page.screenshot({ path: `${shots}/inbox-phone.png`, fullPage: true });
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.goto(`${stack.shell}/settings/notifications`);
+      await page.getByRole('heading', { name: 'Push notifications on this device' }).waitFor();
+      await page.screenshot({ path: `${shots}/notifications-desk.png` });
     }
     await priya.close();
   });

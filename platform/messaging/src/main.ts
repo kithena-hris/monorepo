@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
-import { compose } from './composition.js';
+import { compose, vapidFrom } from './composition.js';
 
 /**
  * The messaging service.
@@ -102,6 +102,7 @@ const routes = compose({
   cronSecret: process.env['CRON_SECRET'],
   inboundDomain: process.env['INBOUND_DOMAIN'],
   recruitingUrl: process.env['RECRUITING_URL'],
+  ...vapidFrom(process.env),
 });
 
 const server = createServer((request, response) => {

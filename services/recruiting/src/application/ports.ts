@@ -1016,6 +1016,10 @@ export interface Mailer {
     readonly parts?: MailParts;
     /** A calendar invitation (`invite.ics`): Gmail and Outlook draw it as one, with Add to calendar. */
     readonly attachments?: readonly MailAttachment[];
+    /** A member's account, for a push to their devices; a candidate has none. */
+    readonly accountId?: string;
+    /** Something for them to do, pushed at once, rather than news. */
+    readonly urgent?: boolean;
   }): Promise<void>;
   /**
    * The company's language and Recruiting's words in it: every email is

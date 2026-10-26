@@ -90,3 +90,43 @@ describe('Inbox email, as the person chose', () => {
     expect(choicesOf('nonsense').team).toBe('off');
   });
 });
+
+describe('a push to the person’s devices', () => {
+  const pushed: { accountId: string; title: string; urgent: boolean }[] = [];
+  const deliver = (stored: unknown) =>
+    deliverInbox({
+      sendNotice: () => Promise.resolve(ok({ messageId: 'm' })),
+      choices: () => Promise.resolve(stored),
+      push: (_tenant, accountId, message) => {
+        pushed.push({ accountId, title: message.title, urgent: message.urgent });
+        return Promise.resolve(1);
+      },
+    });
+  const account = '00000000-0000-4000-8000-0000000000a1';
+
+  it('goes with a task in the item’s own words, whatever the email does', async () => {
+    pushed.length = 0;
+    await deliver({ tasks: { asked: { email: 'off' } } })({
+      ...base,
+      accountId: account,
+      notice: { kind: 'inbox_task', topic: 'time_off_approval' },
+      preview: { title: 'Approve Adam’s time off', body: '3 days in December' },
+    });
+    expect(pushed).toEqual([
+      { accountId: account, title: 'Approve Adam’s time off', urgent: true },
+    ]);
+  });
+
+  it('follows each kind’s phone switch: documents only when turned on, nothing without an account', async () => {
+    pushed.length = 0;
+    const update = { kind: 'inbox_update', topic: 'document_shared' } as const;
+    await deliver(null)({ ...base, accountId: account, notice: update });
+    await deliver({ updates: { documents: { phone: true } } })({
+      ...base,
+      accountId: account,
+      notice: update,
+    });
+    await deliver(null)({ ...base, notice: { kind: 'inbox_task', topic: 'time_off_approval' } });
+    expect(pushed).toEqual([{ accountId: account, title: 'An update for you', urgent: false }]);
+  });
+});

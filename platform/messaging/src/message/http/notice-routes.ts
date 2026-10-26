@@ -33,6 +33,13 @@ const NoticeRequest = z.object({
   dedupeKey: z.string().min(1).max(200),
   /** The Inbox's: whose notification settings to follow. */
   accountId: z.uuid().optional(),
+  /** The Inbox's: what a push to the person's devices says, the item's own title. */
+  preview: z
+    .object({
+      title: z.string().min(1).max(200).nullable().default(null),
+      body: z.string().min(1).max(300).nullable().default(null),
+    })
+    .optional(),
   notice: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('inbox_task'), topic: z.enum(INBOX_TASK_TOPICS) }),
     z.object({ kind: z.literal('inbox_update'), topic: z.enum(INBOX_UPDATE_TOPICS) }),
@@ -114,7 +121,7 @@ export function noticeRoutes({ sendNotice, deliverInbox, internalToken }: Notice
       });
     }
 
-    const { accountId, ...asked } = parsed.data;
+    const { accountId, preview, ...asked } = parsed.data;
     const notice = asked.notice;
     if (
       asked.attachment !== undefined &&
@@ -131,6 +138,7 @@ export function noticeRoutes({ sendNotice, deliverInbox, internalToken }: Notice
         ...asked,
         notice,
         ...(accountId === undefined ? {} : { accountId }),
+        ...(preview === undefined ? {} : { preview }),
       });
       if (!routed.ok) {
         const reason = refusalOf(routed.error.path?.[0]);

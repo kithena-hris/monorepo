@@ -162,5 +162,8 @@
   "notice.webhook_disabled.footer": "Verstuurd door Kithena omdat dit adres het meldingscontact is voor een webhook-eindpunt in Medewerkers van {{company}}.",
   "notice.webhook_disabled.heading": "We sturen niet meer naar een van je webhooks",
   "notice.webhook_disabled.lede": "Al 24 uur is niets wat naar {{host}} is gestuurd gelukt, dus heeft Kithena dat eindpunt uitgezet. Gebeurtenissen die ontstaan terwijl het uit staat, worden er niet naartoe gestuurd. Zet het eindpunt weer aan zodra de ontvanger is gerepareerd, en speel de mislukte levering opnieuw af.",
-  "notice.webhook_disabled.subject": "{{company}}: een webhook in Medewerkers is uitgezet"
+  "notice.webhook_disabled.subject": "{{company}}: een webhook in Medewerkers is uitgezet",
+  "push.in_company": "Bij {{company}}",
+  "push.inbox_task": "Iets heeft je nodig",
+  "push.inbox_update": "Een update voor je"
 }

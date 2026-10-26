@@ -162,5 +162,8 @@
   "notice.webhook_disabled.footer": "Gesendet von Kithena, weil diese Adresse die Warnkontaktadresse eines Webhook-Endpunkts im Personalbereich von {{company}} ist.",
   "notice.webhook_disabled.heading": "Wir haben das Senden an einen Ihrer Webhooks gestoppt",
   "notice.webhook_disabled.lede": "Seit 24 Stunden ist keine Sendung an {{host}} gelungen, daher hat Kithena diesen Endpunkt abgeschaltet. Ereignisse, die währenddessen entstehen, werden nicht an ihn gesendet. Sobald der Empfänger repariert ist, schalten Sie den Endpunkt wieder ein und wiederholen die fehlgeschlagene Zustellung.",
-  "notice.webhook_disabled.subject": "{{company}}: Ein Personal-Webhook wurde abgeschaltet"
+  "notice.webhook_disabled.subject": "{{company}}: Ein Personal-Webhook wurde abgeschaltet",
+  "push.in_company": "Bei {{company}}",
+  "push.inbox_task": "Etwas braucht Sie",
+  "push.inbox_update": "Eine Neuigkeit für Sie"
 }

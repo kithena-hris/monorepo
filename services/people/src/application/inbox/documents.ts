@@ -182,8 +182,9 @@ export async function sendDocument(
             kind: 'inbox_task',
             topic: input.mode === 'sign' ? 'document_sign' : 'document_acknowledge',
           },
-      `/inbox/${keep ? 'updates' : 'todo'}?item=${encodeURIComponent(`people:document:${document.id}`)}`,
+      `/inbox?item=${encodeURIComponent(`people:document:${document.id}`)}`,
       `document/${document.id}/sent`,
+      document.name,
     );
   }
   return sent;
@@ -198,6 +199,7 @@ function returned(deps: ScreenDeps, tenantId: string, document: SentDocument): v
     { kind: 'inbox_update', topic: 'document_returned' },
     `/inbox?item=${encodeURIComponent(`people:returned:${document.id}`)}`,
     `document/${document.id}/returned`,
+    document.name,
   );
 }
 
@@ -339,6 +341,7 @@ export async function signDocument(
           { kind: 'inbox_task', topic: 'document_countersign' },
           `/inbox?item=${encodeURIComponent(`people:countersign:${document.id}`)}`,
           `document/${document.id}/countersign`,
+          document.name,
         );
       }
     }

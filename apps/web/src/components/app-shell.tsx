@@ -359,6 +359,17 @@ function useShortcutsFor({
   const router = useRouter();
   const pathname = usePathname();
   const commands = useScreenCommands();
+  // A push arrived (`public/push-sw.js`): the bell and the Inbox catch up now, not on the next visit.
+  useEffect(() => {
+    const worker = 'serviceWorker' in navigator ? navigator.serviceWorker : null;
+    const heard = (event: MessageEvent<unknown>): void => {
+      if ((event.data as { type?: unknown } | null)?.type === 'kithena:push') router.refresh();
+    };
+    worker?.addEventListener('message', heard);
+    return () => {
+      worker?.removeEventListener('message', heard);
+    };
+  }, [router]);
   // Shown as chosen at once; the server's answer replaces it, or a refusal restores it.
   const [prefs, setPrefs] = useState(saved);
   useEffect(() => {

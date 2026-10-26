@@ -207,6 +207,10 @@
     "text": "That did not save; try again",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
   },
+  "app.app.settings.notifications.actions.this_browser_did_not_give_a_subscription": {
+    "text": "This browser did not give a subscription Kithena can push to",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
+  },
   "app.app.settings.notifications.actions.those_settings_are_not_ones_kithena_knows": {
     "text": "Those settings are not ones Kithena knows",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
@@ -2785,22 +2789,26 @@
   },
   "components.inbox.screen.every_module": {
     "text": "Every module",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <SelectItem>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuRadioItem>."
   },
   "components.inbox.screen.filter_all": {
     "text": "All",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"all\" value."
   },
-  "components.inbox.screen.filter_fyi": {
-    "text": "For your information",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"updates\" value."
+  "components.inbox.screen.filter_by_module": {
+    "text": "Filter by module",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>."
   },
   "components.inbox.screen.filter_needs_you": {
     "text": "Needs you",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"todo\" value."
   },
-  "components.inbox.screen.filter_waiting": {
-    "text": "Waiting on others",
+  "components.inbox.screen.filter_updates": {
+    "text": "Updates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"updates\" value."
+  },
+  "components.inbox.screen.filter_waiting_short": {
+    "text": "Waiting",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"requests\" value."
   },
   "components.inbox.screen.finished_tasks_decided_requests_and_older": {
@@ -2887,6 +2895,10 @@
     "text": "Search done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the label of <SearchField>."
   },
+  "components.inbox.screen.search_your_inbox": {
+    "text": "Search your Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the placeholder of <SearchField>."
+  },
   "components.inbox.screen.section_fyi": {
     "text": "For your information",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"fyi\" value."
@@ -2918,10 +2930,6 @@
   "components.inbox.screen.snooze_puts_a_task_away": {
     "text": "Snooze puts a task away until the day you pick; it comes back as new.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
-  },
-  "components.inbox.screen.source": {
-    "text": "Source",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <SelectTrigger>."
   },
   "components.inbox.screen.start_with_whats_new": {
     "text": "Start with what is new",
@@ -3174,6 +3182,38 @@
   "components.people-screen.the_upload_did_not_go_through_try_the_upload_did_not_go_through": {
     "text": "The upload did not go through; try again",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
+  },
+  "components.push-device.blocked": {
+    "text": "Notifications are blocked for Kithena in this browser. Allow them in the site settings, then come back.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardDescription>."
+  },
+  "components.push-device.not_turned_on": {
+    "text": "Not turned on",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: the title of <Alert>."
+  },
+  "components.push-device.on": {
+    "text": "On",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <Badge>."
+  },
+  "components.push-device.push_on_this_device": {
+    "text": "Push notifications on this device",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardTitle>."
+  },
+  "components.push-device.this_browser_cannot": {
+    "text": "This browser cannot receive push notifications from Kithena. On a phone, the Kithena app can.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardDescription>."
+  },
+  "components.push-device.turn_off": {
+    "text": "Turn off on this device",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <Button>."
+  },
+  "components.push-device.turn_on": {
+    "text": "Turn on push notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <Button>."
+  },
+  "components.push-device.what_reaches_this_device": {
+    "text": "What you route to your phone below reaches this device too, the moment it arrives, even with Kithena closed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardDescription>."
   },
   "components.remote-screen.is_unavailable": {
     "text": "{{area}} is unavailable",
