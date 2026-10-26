@@ -1528,7 +1528,8 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     expect(plan.steps.map((s) => s.title)).toEqual(
       expect.arrayContaining([
         'Employment Type → Employment type; added Full-time and Part-time',
-        'Work Arrangement → Work model',
+        // Work Arrangement's values are all People's own already: nothing to add, no step.
+        'Pay Frequency → Pay frequency; added Monthly (14 payments)',
         '5 people already left (offboarded from their termination date); 2 are serving notice (offboarding scheduled); 3 are on leave',
       ]),
     );
