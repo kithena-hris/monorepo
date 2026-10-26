@@ -1,5 +1,5 @@
 import { ok, type Result } from '@kithena/domain-kit';
-import type { InboxItem } from '@kithena/contracts';
+import type { DocumentsInboxDetail, InboxItem } from '@kithena/contracts';
 
 import { audienceOf } from '../domain/acknowledge/campaign.js';
 import { canOpen, canShare } from '../domain/access/access.js';
@@ -59,6 +59,13 @@ export async function documentsInbox(
           due: r.dueOn,
           link: `/documents/people/${caller.personId}`,
           message: null,
+          detail: {
+            kind: 'request',
+            requestId: r.id,
+            personId: caller.personId,
+            typeKey: r.typeKey,
+            typeName: (types.get(r.typeKey)?.name ?? r.typeKey).slice(0, 120),
+          } satisfies DocumentsInboxDetail,
         });
       }
     }
@@ -93,10 +100,12 @@ export async function documentsInbox(
                 : t('inbox.inbox.signed_your_turn', '{{names}} signed. Your turn to sign.', {
                     names: signed.join(', '),
                   });
-            return [turn, env.message === '' ? null : env.message]
-              .filter((x) => x !== null)
-              .join(' ')
-              .slice(0, 400) || null;
+            return (
+              [turn, env.message === '' ? null : env.message]
+                .filter((x) => x !== null)
+                .join(' ')
+                .slice(0, 400) || null
+            );
           })(),
           from:
             sender === undefined ? null : { name: sender.displayName, personId: sender.personId },
@@ -134,6 +143,11 @@ export async function documentsInbox(
           due: c.dueOn,
           link: `/documents/d/${doc.id}`,
           message: null,
+          detail: {
+            kind: 'acknowledge',
+            campaignId: c.id,
+            documentId: doc.id,
+          } satisfies DocumentsInboxDetail,
         });
       }
     }
@@ -160,6 +174,11 @@ export async function documentsInbox(
         at: r.createdAt,
         link: `/documents/d/${doc.id}`,
         message: null,
+        detail: {
+          kind: 'access',
+          requestId: r.id,
+          documentId: doc.id,
+        } satisfies DocumentsInboxDetail,
       });
     }
     return ok({ items });

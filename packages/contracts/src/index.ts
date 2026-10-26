@@ -32,6 +32,7 @@ export * from './signup-questions.js';
 export * from './assistant/index.js';
 export * from './inbox/index.js';
 export * from './documents/primitives.js';
+export * from './documents/inbox.js';
 export * from './events/documents.js';
 export * from './recruiting/primitives.js';
 export * from './recruiting/terms.js';

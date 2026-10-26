@@ -29,7 +29,10 @@ import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
 import type { Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
 import { MuteDialog } from './dialogs';
+import { DocumentsBody } from './detail-documents';
+import { OnboardingBody } from './detail-onboarding';
 import { PeopleBody } from './detail-people';
+import { PerformanceBody } from './detail-performance';
 import { RecruitingBody } from './detail-recruiting';
 import { TimeOffBody } from './detail-timeoff';
 import { t } from '../../lib/t';
@@ -394,6 +397,39 @@ export function InboxDetail({
       />
     ) : item.module === 'recruiting' ? (
       <RecruitingBody
+        item={item}
+        now={now}
+        zone={zone}
+        act={act}
+        asking={asking}
+        setAsking={setAsking}
+        sendingBack={sendingBack}
+        setSendingBack={setSendingBack}
+      />
+    ) : item.module === 'documents' ? (
+      <DocumentsBody
+        item={item}
+        now={now}
+        zone={zone}
+        act={act}
+        asking={asking}
+        setAsking={setAsking}
+        sendingBack={sendingBack}
+        setSendingBack={setSendingBack}
+      />
+    ) : item.module === 'onboarding' ? (
+      <OnboardingBody
+        item={item}
+        now={now}
+        zone={zone}
+        act={act}
+        asking={asking}
+        setAsking={setAsking}
+        sendingBack={sendingBack}
+        setSendingBack={setSendingBack}
+      />
+    ) : item.module === 'performance' ? (
+      <PerformanceBody
         item={item}
         now={now}
         zone={zone}
