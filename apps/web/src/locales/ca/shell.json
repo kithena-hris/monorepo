@@ -674,6 +674,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "On t’arriben les tasques i novetats. La safata d’entrada sempre ho té tot.",
   "components.inbox.rows.for": "Per a {{role}}",
   "components.inbox.rows.is_on_it": "{{value}} hi està",
+  "components.inbox.rows.needs_you": "Et necessita",
   "components.inbox.rows.new": "Nou",
   "components.inbox.rows.replies_many": "{{count}} respostes",
   "components.inbox.rows.replies_one": "{{count}} resposta",

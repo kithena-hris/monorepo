@@ -37,6 +37,11 @@ export function RowBadges({
           {t('components.inbox.rows.new', 'New')}
         </Badge>
       ) : null}
+      {fresh && item.lane === 'task' ? (
+        <Badge size="sm" tone="accent">
+          {t('components.inbox.rows.needs_you', 'Needs you')}
+        </Badge>
+      ) : null}
       <Badge size="sm" variant="outline">
         {item.area === null
           ? moduleName(item.module)

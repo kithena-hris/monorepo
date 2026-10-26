@@ -706,6 +706,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Куда приходят задачи и обновления. Во входящих всегда есть всё.",
   "components.inbox.rows.for": "Для: {{role}}",
   "components.inbox.rows.is_on_it": "Этим занимается {{value}}",
+  "components.inbox.rows.needs_you": "Ждёт вас",
   "components.inbox.rows.new": "Новое",
   "components.inbox.rows.replies_few": "{{count}} ответа",
   "components.inbox.rows.replies_many": "{{count}} ответов",

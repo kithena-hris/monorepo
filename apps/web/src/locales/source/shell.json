@@ -2707,6 +2707,10 @@
     "text": "{{value}} is on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{value}}."
   },
+  "components.inbox.rows.needs_you": {
+    "text": "Needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
+  },
   "components.inbox.rows.new": {
     "text": "New",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."

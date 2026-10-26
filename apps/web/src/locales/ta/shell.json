@@ -660,6 +660,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "உங்கள் பணிகளும் புதுப்பிப்புகளும் உங்களை அடையும் இடம். இன்பாக்ஸில் எப்போதும் அனைத்தும் இருக்கும்.",
   "components.inbox.rows.for": "{{role}} க்காக",
   "components.inbox.rows.is_on_it": "{{value}} இதில் இருக்கிறார்",
+  "components.inbox.rows.needs_you": "உங்களுக்காக",
   "components.inbox.rows.new": "புதியது",
   "components.inbox.rows.replies_one": "{{count}} பதில்",
   "components.inbox.rows.replies_other": "{{count}} பதில்கள்",

@@ -661,6 +661,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "आपके काम और अपडेट आप तक कहाँ पहुँचते हैं। इनबॉक्स में हमेशा सब कुछ होता है।",
   "components.inbox.rows.for": "{{role}} के लिए",
   "components.inbox.rows.is_on_it": "{{value}} इस पर हैं",
+  "components.inbox.rows.needs_you": "आपकी ज़रूरत",
   "components.inbox.rows.new": "नया",
   "components.inbox.rows.replies_one": "{{count}} जवाब",
   "components.inbox.rows.replies_other": "{{count}} जवाब",

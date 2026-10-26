@@ -681,6 +681,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Onde lhe chegam as tarefas e atualizações. A caixa de entrada tem sempre tudo.",
   "components.inbox.rows.for": "Para {{role}}",
   "components.inbox.rows.is_on_it": "{{value}} está a tratar disso",
+  "components.inbox.rows.needs_you": "Precisa de si",
   "components.inbox.rows.new": "Novo",
   "components.inbox.rows.replies_many": "{{count}} respostas",
   "components.inbox.rows.replies_one": "{{count}} resposta",

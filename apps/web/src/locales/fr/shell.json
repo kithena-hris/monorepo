@@ -665,6 +665,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Où vos tâches et mises à jour vous parviennent. La boîte de réception a toujours tout.",
   "components.inbox.rows.for": "Pour {{role}}",
   "components.inbox.rows.is_on_it": "{{value}} s’en occupe",
+  "components.inbox.rows.needs_you": "Vous attend",
   "components.inbox.rows.new": "Nouveau",
   "components.inbox.rows.replies_many": "{{count}} réponses",
   "components.inbox.rows.replies_one": "{{count}} réponse",

@@ -701,6 +701,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Gdzie docierają Twoje zadania i aktualizacje. Skrzynka zawsze ma wszystko.",
   "components.inbox.rows.for": "Dla: {{role}}",
   "components.inbox.rows.is_on_it": "Zajmuje się tym: {{value}}",
+  "components.inbox.rows.needs_you": "Czeka na Ciebie",
   "components.inbox.rows.new": "Nowe",
   "components.inbox.rows.replies_few": "{{count}} odpowiedzi",
   "components.inbox.rows.replies_many": "{{count}} odpowiedzi",

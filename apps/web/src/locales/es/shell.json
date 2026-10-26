@@ -678,6 +678,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Dónde te llegan tus tareas y novedades. La bandeja de entrada siempre lo tiene todo.",
   "components.inbox.rows.for": "Para {{role}}",
   "components.inbox.rows.is_on_it": "{{value}} está con ello",
+  "components.inbox.rows.needs_you": "Te necesita",
   "components.inbox.rows.new": "Nuevo",
   "components.inbox.rows.replies_many": "{{count}} respuestas",
   "components.inbox.rows.replies_one": "{{count}} respuesta",

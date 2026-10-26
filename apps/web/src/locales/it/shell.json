@@ -669,6 +669,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Dove ti raggiungono attività e aggiornamenti. La posta in arrivo ha sempre tutto.",
   "components.inbox.rows.for": "Per {{role}}",
   "components.inbox.rows.is_on_it": "Se ne occupa {{value}}",
+  "components.inbox.rows.needs_you": "Ha bisogno di te",
   "components.inbox.rows.new": "Nuovo",
   "components.inbox.rows.replies_many": "{{count}} risposte",
   "components.inbox.rows.replies_one": "{{count}} risposta",

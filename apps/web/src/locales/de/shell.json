@@ -650,6 +650,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Wo Ihre Aufgaben und Neuigkeiten Sie erreichen. Der Posteingang hat immer alles.",
   "components.inbox.rows.for": "Für {{role}}",
   "components.inbox.rows.is_on_it": "{{value}} ist dran",
+  "components.inbox.rows.needs_you": "Braucht Sie",
   "components.inbox.rows.new": "Neu",
   "components.inbox.rows.replies_one": "{{count}} Antwort",
   "components.inbox.rows.replies_other": "{{count}} Antworten",

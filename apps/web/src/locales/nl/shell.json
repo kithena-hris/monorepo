@@ -645,6 +645,7 @@
   "components.inbox.notification-settings.where_your_tasks_and_updates_reach": "Waar je taken en updates je bereiken. De inbox heeft altijd alles.",
   "components.inbox.rows.for": "Voor {{role}}",
   "components.inbox.rows.is_on_it": "{{value}} is ermee bezig",
+  "components.inbox.rows.needs_you": "Heeft je nodig",
   "components.inbox.rows.new": "Nieuw",
   "components.inbox.rows.replies_one": "{{count}} reactie",
   "components.inbox.rows.replies_other": "{{count}} reacties",

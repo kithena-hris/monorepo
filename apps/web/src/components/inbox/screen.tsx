@@ -158,6 +158,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [readHere, setReadHere] = useState<ReadonlySet<string>>(new Set());
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const [sorted, setSorted] = useState(false);
   const [dialog, setDialog] = useState<
     | { readonly kind: 'bulk'; readonly decision: 'approve' | 'decline' }
     | {
@@ -184,8 +185,10 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
     updates: items.filter((i) => i.unread && i.lane === 'update').length,
   };
   const feed = view !== 'snoozed' && view !== 'done';
+  // Where each sits is as it was when the page came: opening one here does not move it.
+  // Mark all seen sorts them again, as asked.
   const shown = filtered(
-    items.filter((i) =>
+    (sorted ? items : read.items).filter((i) =>
       view === 'done'
         ? i.lane === 'done'
         : view === 'snoozed'
@@ -290,7 +293,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
     <div className="flex flex-col gap-2.5 border-b border-border p-3">
       <div className="flex items-center gap-2">
         <SearchField
-          className="min-w-0 flex-1"
+          className="min-w-40 flex-1"
           label={
             view === 'done'
               ? t('components.inbox.screen.search_done', 'Search done')
@@ -376,6 +379,8 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
         {view === 'done' || view === 'snoozed' ? null : (
           <Button
             variant="ghost"
+            // Under a finger a row is swiped, not ticked.
+            className="touch:hidden"
             onClick={() => {
               setSelecting((s) => !s);
               setChecked(new Set());
@@ -557,56 +562,60 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
     />
   );
 
-  const row = (i: Shown, inNew = false): JSX.Element => (
-    <InboxRow
-      key={i.id}
-      item={i}
-      now={now}
-      zone={zone}
-      href={`${path(view)}${query({ item: i.id, source, q: search, outcome })}`}
-      selected={i.id === selectedId}
-      selecting={selecting}
-      checked={checked.has(i.id)}
-      fresh={inNew}
-      onCheck={(on) => {
-        setChecked((was) => {
-          const n = new Set(was);
-          if (on) n.add(i.id);
-          else n.delete(i.id);
-          return n;
-        });
-      }}
-      onOpen={() => {
-        openItem(i);
-      }}
-      {...(i.lane === 'update'
-        ? {
-            swipe: [
-              {
-                label: i.unread
-                  ? t('components.inbox.screen.read', 'Read')
-                  : t('components.inbox.screen.unread', 'Unread'),
-                tone: 'accent' as const,
-                onSelect: () => {
-                  if (i.unread) setReadHere((was) => new Set([...was, i.id]));
-                  start(async () => {
-                    await markRead([i.id], i.unread);
-                  });
+  const current = new Map(items.map((i) => [i.id, i]));
+  const row = (placed: Shown, inNew = false): JSX.Element => {
+    const i = current.get(placed.id) ?? placed;
+    return (
+      <InboxRow
+        key={i.id}
+        item={i}
+        now={now}
+        zone={zone}
+        href={`${path(view)}${query({ item: i.id, source, q: search, outcome })}`}
+        selected={i.id === selectedId}
+        selecting={selecting}
+        checked={checked.has(i.id)}
+        fresh={inNew}
+        onCheck={(on) => {
+          setChecked((was) => {
+            const n = new Set(was);
+            if (on) n.add(i.id);
+            else n.delete(i.id);
+            return n;
+          });
+        }}
+        onOpen={() => {
+          openItem(i);
+        }}
+        {...(i.lane === 'update'
+          ? {
+              swipe: [
+                {
+                  label: i.unread
+                    ? t('components.inbox.screen.read', 'Read')
+                    : t('components.inbox.screen.unread', 'Unread'),
+                  tone: 'accent' as const,
+                  onSelect: () => {
+                    if (i.unread) setReadHere((was) => new Set([...was, i.id]));
+                    start(async () => {
+                      await markRead([i.id], i.unread);
+                    });
+                  },
                 },
-              },
-              {
-                label: t('components.inbox.screen.done', 'Done'),
-                onSelect: () => {
-                  start(async () => {
-                    await moveToDone([i.id]);
-                  });
+                {
+                  label: t('components.inbox.screen.done', 'Done'),
+                  onSelect: () => {
+                    start(async () => {
+                      await moveToDone([i.id]);
+                    });
+                  },
                 },
-              },
-            ],
-          }
-        : {})}
-    />
-  );
+              ],
+            }
+          : {})}
+      />
+    );
+  };
 
   const entry = (e: Entry, inNew: boolean): JSX.Element | JSX.Element[] =>
     e.kind === 'item' ? (
@@ -645,8 +654,10 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
           variant="ghost"
           size="sm"
           onClick={() => {
-            markSeen(fresh.map((i) => i.id));
+            setReadHere((was) => new Set([...was, ...fresh.map((i) => i.id)]));
+            setSorted(true);
             start(async () => {
+              await markRead(fresh.map((i) => i.id));
               await markAllRead();
             });
           }}
