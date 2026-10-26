@@ -1366,6 +1366,7 @@ async function hireFromOffer(
           statutory: benefitId.startsWith('statutory:'),
         })),
         startDate: version.startDate,
+        jobTitle: job.title,
         managerId: manager,
         orgUnitId: null,
         locationId: job.locationIds[0] ?? null,

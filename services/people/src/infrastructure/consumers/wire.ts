@@ -104,9 +104,10 @@ export async function startConsumers(
   // refused the whole hire; nothing was cancelled then.
   const recruiting = broker.consumer({ groupId: 'people-recruiting-3' });
   await consume(recruiting, [CandidateHired.topic], handle);
-  // Recruiting's hires once more, for the signature alone: hires made before
-  // the company had a signature field get the contract's (`hireSignatures`).
-  const signatures = broker.consumer({ groupId: 'people-hire-signatures' });
+  // Recruiting's hires once more, for what is empty: hires made before the
+  // company had the fields get the contract's signature, terms and pay
+  // (`hireSignatures`). `-2`: from the start again, for the core fields.
+  const signatures = broker.consumer({ groupId: 'people-hire-signatures-2' });
   const hires = hiresOf(env);
   await consume(
     signatures,

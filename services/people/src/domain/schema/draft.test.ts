@@ -203,6 +203,34 @@ describe("a tenant's own attribute", () => {
   });
 });
 
+describe('a sealed attribute', () => {
+  const sealed = (over: Partial<AttributeDefinitionInput>): AttributeDefinitionInput => ({
+    ...attribute,
+    key: 'pay',
+    origin: 'tenant',
+    requiredness: { mode: 'never' },
+    encrypted: true,
+    classification: {
+      classification: 'confidential',
+      piiKind: 'financial',
+      exportable: true,
+      aiEligible: false,
+    },
+    ...over,
+  });
+
+  it('keeps a dated history when it is money: a raise is dated, and sealed', () => {
+    const money = sealed({ dataType: 'money', typeConfig: { kind: 'money' }, effectiveDated: true });
+    expect(draft().addAttribute(money).ok).toBe(true);
+  });
+
+  it('keeps no dated history of anything else sealed', () => {
+    const text = sealed({ dataType: 'text', typeConfig: { kind: 'text' }, effectiveDated: true });
+    const added = draft().addAttribute(text);
+    expect(!added.ok && added.error.code).toBe('NOT_ENCRYPTABLE');
+  });
+});
+
 describe('a required attribute', () => {
   it('cannot be invisible to everyone who owns it', () => {
     // A field required of an employee who cannot see it is a task they cannot

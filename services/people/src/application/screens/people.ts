@@ -272,7 +272,8 @@ export async function ownRecord(
 ): Promise<Result<OwnRecord>> {
   const version = await deps.service.schemas.current(tx, asking.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
-  const view = await deps.service.access.read(tx, { ...asking, personId });
+  // The record's own screen: pay as its amount, to whoever may see it.
+  const view = await deps.service.access.read(tx, { ...asking, personId, amounts: true });
   if (!view.ok) return view;
   const people = await named(
     deps,
@@ -1226,10 +1227,15 @@ export async function historyView(
     const view = await deps.service.access.read(tx, {
       ...asking,
       personId: id.value,
+      amounts: true,
       ...(asOf === null ? {} : { asOf }),
     });
     if (!view.ok) return view;
-    const history = await deps.service.access.history(tx, { ...asking, personId: id.value });
+    const history = await deps.service.access.history(tx, {
+      ...asking,
+      personId: id.value,
+      amounts: true,
+    });
     if (!history.ok) return history;
     // The name as it is now, whatever date the record is read as of.
     const now =

@@ -249,12 +249,35 @@ export interface Secrets {
     tx: PostgresJsDatabase,
     where: { tenantId: string; personId: string; attributeKey: string },
     plaintext: string,
+    /** The dated change this is, for a sealed value with a history (a salary). */
+    historyId?: string | null,
   ): Promise<{ readonly last4: string | null }>;
   list(
     tx: PostgresJsDatabase,
     tenantId: string,
     personId: string,
-  ): Promise<readonly { readonly attributeKey: string; readonly last4: string | null }[]>;
+  ): Promise<
+    readonly {
+      readonly attributeKey: string;
+      readonly last4: string | null;
+      readonly historyId?: string | null;
+    }[]
+  >;
+  /**
+   * One dated change of a sealed value with a history, kept by its history
+   * row. Absent, a sealed value keeps no history (its rows say only that it changed).
+   */
+  putDated?(
+    tx: PostgresJsDatabase,
+    where: { tenantId: string; personId: string; attributeKey: string; historyId: string },
+    plaintext: string,
+  ): Promise<void>;
+  /** Those dated changes' plaintexts, by history row. */
+  revealDated?(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    historyIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string>>;
   /**
    * `list` for a page of people in one query, by person: what a list of a
    * thousand reads instead of a thousand `list`s. Absent, `list` per person.

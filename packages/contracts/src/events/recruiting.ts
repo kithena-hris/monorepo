@@ -210,6 +210,8 @@ export const CandidateHired = defineEvent(
       }),
     ),
     startDate: CalendarDate,
+    /** The job's title, for the record's; null on a hire made before it was carried. */
+    jobTitle: z.string().max(200).nullable().default(null).register(policy, asPublic()),
     managerId: memberId().nullable(),
     orgUnitId: ref().nullable(),
     locationId: ref().nullable(),
