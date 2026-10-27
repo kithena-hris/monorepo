@@ -25,6 +25,11 @@ const FRAME = {
  * whether a smooth scroll lands.
  */
 const coarse = matchMedia('(pointer: coarse)').matches;
+// A shared runner's WebKit draws a window-scrolled page several times slower
+// than a developer's machine: the flow must still work there, in its own time
+// (the same allowance as `completeness.browser.test.tsx`).
+const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+const slow = import.meta.env['CI_RUN'] === true && webkit;
 const PAGE = 50;
 /** A desk row's height: the table's `estimateRowHeight`. */
 const ROW = 57;
@@ -232,37 +237,41 @@ afterEach(() => {
 });
 
 describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => {
-  it('asks for page two at once and the next at the midpoint, each cursor once, columns still', async () => {
-    const { asked, onLoadMore } = pages();
-    directory({ onLoadMore });
-    // A page ahead from the start: nobody has scrolled.
-    await vi.waitFor(() => {
+  it(
+    'asks for page two at once and the next at the midpoint, each cursor once, columns still',
+    { timeout: slow ? 90_000 : 15_000 },
+    async () => {
+      const { asked, onLoadMore } = pages();
+      directory({ onLoadMore });
+      // A page ahead from the start: nobody has scrolled.
+      await vi.waitFor(() => {
+        expect(asked).toEqual(['50']);
+      });
+      const box = screen.getByRole('region', { name: 'People' });
+      await vi.waitFor(() => {
+        expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+      });
+      const widths = () =>
+        [...box.querySelectorAll('thead th')].map((th) => th.getBoundingClientRect().width);
+      const before = widths();
+      // A third of the way down a hundred: not yet.
+      window.scrollTo(0, tableTop(box) + box.scrollHeight * 0.3 - window.innerHeight);
+      await frame();
       expect(asked).toEqual(['50']);
-    });
-    const box = screen.getByRole('region', { name: 'People' });
-    await vi.waitFor(() => {
-      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
-    });
-    const widths = () =>
-      [...box.querySelectorAll('thead th')].map((th) => th.getBoundingClientRect().width);
-    const before = widths();
-    // A third of the way down a hundred: not yet.
-    window.scrollTo(0, tableTop(box) + box.scrollHeight * 0.3 - window.innerHeight);
-    await frame();
-    expect(asked).toEqual(['50']);
-    // Past halfway: the next page, once, however often the scroll fires.
-    window.scrollTo(0, tableTop(box) + box.scrollHeight * 0.55);
-    await frame();
-    window.scrollBy(0, 10);
-    await frame();
-    await vi.waitFor(() => {
-      expect(asked).toEqual(['50', '100']);
-    });
-    await vi.waitFor(() => {
-      expect(box.scrollHeight).toBeGreaterThan(PAGE * 3 * 50);
-    });
-    expect(widths()).toEqual(before);
-  });
+      // Past halfway: the next page, once, however often the scroll fires.
+      window.scrollTo(0, tableTop(box) + box.scrollHeight * 0.55);
+      await frame();
+      window.scrollBy(0, 10);
+      await frame();
+      await vi.waitFor(() => {
+        expect(asked).toEqual(['50', '100']);
+      });
+      await vi.waitFor(() => {
+        expect(box.scrollHeight).toBeGreaterThan(PAGE * 3 * 50);
+      });
+      expect(widths()).toEqual(before);
+    },
+  );
 
   it('opens on the first person, and Show in list brings their row back smoothly and focuses it', async () => {
     const { onLoadMore } = pages();
@@ -295,7 +304,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
   // timeout leaves a slow runner four times the throttled figure.
   it(
     'never shows a blank frame in a fast fling, with pages still arriving',
-    { timeout: 30_000 },
+    { timeout: slow ? 180_000 : 30_000 },
     async () => {
       const { onLoadMore } = pages();
       directory({ onLoadMore });
@@ -328,21 +337,27 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
   // WebKit, inside the page's container: a fling that rendered the last rows
   // in one go laid the table out short for a pass, and the box clamped its
   // place to that, back to the top. Chromium waits for the final layout.
-  it('keeps its place when a fling lands on the last rows at once', async () => {
-    const { onLoadMore } = pages();
-    directory({ onLoadMore });
-    const box = screen.getByRole('region', { name: 'People' });
-    await vi.waitFor(() => {
-      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
-    });
-    const end = document.documentElement.scrollHeight - window.innerHeight;
-    for (const to of [end, 300, tableTop(box) + 70 * ROW]) {
-      window.scrollTo(0, to);
-      await frame();
-      await frame();
-      expect(window.scrollY).toBeGreaterThanOrEqual(Math.min(to, end) - 1);
-    }
-  });
+  it(
+    'keeps its place when a fling lands on the last rows at once',
+    { timeout: slow ? 90_000 : 15_000 },
+    async () => {
+      const { onLoadMore } = pages();
+      directory({ onLoadMore });
+      const box = screen.getByRole('region', { name: 'People' });
+      await vi.waitFor(() => {
+        expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+      });
+      const end = document.documentElement.scrollHeight - window.innerHeight;
+      for (const to of [end, 300, tableTop(box) + 70 * ROW]) {
+        window.scrollTo(0, to);
+        await frame();
+        await frame();
+        // What the page was, should it not hold: the table's height and what holds it.
+        const said = `at ${String(window.scrollY)} of ${String(document.documentElement.scrollHeight)}, table ${String(Math.round(box.getBoundingClientRect().height))} held at ${box.style.minHeight || 'nothing'}, ${String(box.querySelectorAll('tr[data-row-id]').length)} rows drawn`;
+        expect(window.scrollY, said).toBeGreaterThanOrEqual(Math.min(to, end) - 1);
+      }
+    },
+  );
 
   it('says its keys under the list, on plain rows', async () => {
     const { onLoadMore } = pages();
