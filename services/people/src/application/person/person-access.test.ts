@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { failure, err, ok } from '@kithena/domain-kit';
+import { failure, err, fixedClock, ok } from '@kithena/domain-kit';
 import { PersonHired } from '@kithena/contracts';
 
 import { UTC_CALENDAR, type TenantCalendar } from '../../domain/org/calendar.js';
@@ -1451,5 +1451,41 @@ describe('a salary', () => {
     // Somebody who may not see it reads nothing of it.
     const manager = await people.read(tx, { ...asking(marco), personId: ADA });
     expect(manager.ok && manager.value.attributes['base_salary']).toBeUndefined();
+  });
+
+  it('comes into force on its day from its own sealed copy, once', async () => {
+    const store = inMemoryPeople([versionOf(3, [sealedSalary])]);
+    store.seed(ADA, { account: ADA_ACCOUNT });
+    const today = personAccess(store.deps);
+    await today.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { base_salary: eur(6_000_000) },
+      effectiveFrom: '2026-06-01',
+    });
+    await today.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { base_salary: eur(7_000_000) },
+      effectiveFrom: '2027-01-01',
+    });
+    const read = async (people: typeof today) => {
+      const view = await people.read(tx, { ...asking(hr), personId: ADA, amounts: true });
+      return view.ok ? view.value.attributes['base_salary'] : undefined;
+    };
+    const on = { tenantId: TENANT, personId: ADA, correlationId: '00000000-0000-4000-8000-0000000000c2' };
+
+    // Not yet: nothing comes into force before its day.
+    expect(await today.bringIntoForce(tx, on)).toMatchObject(ok({ applied: 0 }));
+    expect(await read(today)).toEqual(eur(6_000_000));
+
+    // The day comes.
+    const january = personAccess({ ...store.deps, clock: fixedClock('2027-01-01T09:00:00.000Z') });
+    expect(await january.bringIntoForce(tx, on)).toMatchObject(ok({ applied: 1 }));
+    expect(await read(january)).toEqual(eur(7_000_000));
+    // Opened from its sealed copy: no plaintext was kept on the way.
+    expect(store.history.every((h) => h.value === null)).toBe(true);
+    // A rerun moves nothing.
+    expect(await january.bringIntoForce(tx, on)).toMatchObject(ok({ applied: 0 }));
   });
 });
