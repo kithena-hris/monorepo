@@ -597,6 +597,9 @@ function useFlyout() {
   const openAtTouch = useRef<boolean | null>(null);
   // Focus handed back on close must not open it again.
   const returning = useRef(false);
+  // Pressed with a mouse: put away, and not out again until the pointer has
+  // left the item, or it would cover the page the press went to.
+  const pressed = useRef(false);
 
   const clear = (): void => {
     if (timer.current !== null) clearTimeout(timer.current);
@@ -633,12 +636,13 @@ function useFlyout() {
     },
     anchorProps: {
       onPointerEnter: (event: { pointerType: string }): void => {
-        if (event.pointerType === 'mouse') later(true, FLYOUT_OPEN_MS);
+        if (event.pointerType === 'mouse' && !pressed.current) later(true, FLYOUT_OPEN_MS);
       },
       // Not while the keyboard is in it: a pointer drifting off must not take
       // the sections out from under the focus.
       onPointerLeave: (event: { pointerType: string; currentTarget: Element }): void => {
         if (event.pointerType !== 'mouse') return;
+        pressed.current = false;
         if (event.currentTarget.contains(document.activeElement)) return;
         later(false, FLYOUT_CLOSE_MS);
       },
@@ -659,14 +663,21 @@ function useFlyout() {
       'aria-controls': open ? contentId : undefined,
       onPointerDown: (event: { pointerType: string }): void => {
         openAtTouch.current = event.pointerType === 'mouse' ? null : open;
+        // The focus a mouse press brings is not a reason to open it.
+        if (event.pointerType === 'mouse') pressed.current = true;
       },
       onFocus: (): void => {
-        if (!returning.current) show();
+        if (!returning.current && !pressed.current) show();
       },
       onClick: (event: { preventDefault: () => void }): void => {
         if (openAtTouch.current === false) {
           event.preventDefault();
           show();
+        } else if (openAtTouch.current === null) {
+          // A press that goes somewhere: the page it opens is the answer.
+          pressed.current = true;
+          clear();
+          setOpen(false);
         }
         openAtTouch.current = null;
       },

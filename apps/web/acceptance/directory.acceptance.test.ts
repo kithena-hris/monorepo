@@ -159,11 +159,12 @@ describe('what the browser already holds', () => {
       await page.waitForLoadState('networkidle');
     };
     await openAdam();
-    // People's sections fly out of its icon in the rail.
+    // People's sections fly out of its icon in the rail, as the pointer comes onto it.
+    await page.mouse.move(900, 600);
     await page
       .getByRole('navigation', { name: 'Areas' })
       .getByRole('link', { name: 'People', exact: true })
-      .focus();
+      .hover();
     await page
       .getByRole('navigation', { name: 'People sections' })
       .getByRole('link', { name: 'Directory' })

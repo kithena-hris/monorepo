@@ -155,12 +155,13 @@ export const peopleItem = (page: Page): Locator =>
     .getByRole('link', { name: 'People', exact: true });
 
 /**
- * People's own navigation: its sections, flown out of its icon in the rail.
- * Focus opens them, as the pointer resting on it would.
+ * People's own navigation: its sections, flown out of its icon in the rail as
+ * the pointer comes onto it (from off it: a press puts them away until it leaves).
  */
 export async function sections(page: Page): Promise<Locator> {
   await page.waitForLoadState('networkidle');
-  await peopleItem(page).focus();
+  await page.mouse.move(900, 600);
+  await peopleItem(page).hover();
   const list = page.getByRole('navigation', { name: 'People sections' });
   await list.waitFor();
   return list;

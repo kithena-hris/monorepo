@@ -315,8 +315,10 @@ describe('Moving between Time Off’s sections and tabs', () => {
         .getByRole('link', { name: named(name) });
     const moves: [string, number][] = [];
     const move = async (link: ReturnType<typeof sidebar>, to: RegExp): Promise<void> => {
-      // A section is out of sight until its area's icon is hovered.
+      // A section is out of sight until its area's icon is hovered: from off it,
+      // since a press on the icon puts its sections away until the pointer leaves.
       if ((await link.count()) === 0) {
+        await page.mouse.move(900, 600);
         await page
           .getByRole('navigation', { name: 'Areas' })
           .getByRole('link', { name: 'Time off', exact: true })

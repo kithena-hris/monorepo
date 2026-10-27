@@ -893,6 +893,8 @@ export function DataTable<T extends TableRow>({
     scrollMargin: margin,
     // Rendered with the frame, not inside each scroll event (`virtual-list.tsx`).
     useFlushSync: false,
+    // On the server and before the first measure: a window's worth of rows, not none.
+    initialRect: UNMEASURED,
   });
   const inBox = useVirtualizer({
     count: virtualized && !page ? items.length : 0,
