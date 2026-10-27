@@ -1689,7 +1689,6 @@
   "record.attribute-input.no_matches": "பொருத்தங்கள் இல்லை.",
   "record.attribute-input.nobody_by_that_name": "அந்தப் பெயரில் யாரும் இல்லை.",
   "record.attribute-input.nothing_to_choose_from": "தேர்ந்தெடுக்க எதுவும் இல்லை",
-  "record.attribute-input.or": "அல்லது",
   "record.attribute-input.required": "{{label}} (தேவை)",
   "record.attribute-input.required_and_not_provided_yet": "தேவை, இன்னும் வழங்கப்படவில்லை.",
   "record.attribute-input.type_a_name": "பெயரைத் தட்டச்சு செய்யவும்",

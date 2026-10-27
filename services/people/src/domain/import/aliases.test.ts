@@ -35,6 +35,11 @@ describe('the usual names for the core fields', () => {
     ['Last working day', 'last_working_day'],
     ['Termination Reason', 'leaving_reason'],
     ['Eligible for Rehire', 'eligible_for_rehire'],
+    // The core fields every company has: never the work email, never a field of its own.
+    ['Personal email', 'personal_email'],
+    ['Probation End Date', 'probation_end'],
+    ['Contract End Date', 'contract_end'],
+    ['Standard Weekly Hours', 'weekly_hours'],
   ])('%s is %s', (header, key) => {
     expect(aliasOf(header)).toBe(key);
   });
@@ -42,7 +47,6 @@ describe('the usual names for the core fields', () => {
   it.each([
     'T-shirt size',
     'Cost centre',
-    'Personal email',
     'Emergency contact email',
     'Name',
     // People keeps no leave record: these stay fields of their own.

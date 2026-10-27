@@ -210,6 +210,14 @@ const fillable = (f: RecordField): boolean =>
  * goes: now, or on a day. What is filled in here is on the sign-up page for
  * the hire to confirm; only what changed is saved, a section at a time.
  */
+/** What an invitation cannot go without: who it is for, where it goes, who employs them. */
+const NEEDED_TO_INVITE: ReadonlySet<string> = new Set([
+  'given_name',
+  'family_name',
+  'work_email',
+  'legal_entity_id',
+]);
+
 function SetUpDialog({
   name,
   sections,
@@ -298,7 +306,13 @@ function SetUpDialog({
               {fields.map((field) => (
                 <AttributeInput
                   key={field.key}
-                  field={field}
+                  // Asked of HR here only what an invitation cannot go without;
+                  // the rest is filled in now or later, by HR or by them.
+                  field={{
+                    ...field,
+                    required: field.required && NEEDED_TO_INVITE.has(field.key),
+                    missing: false,
+                  }}
                   value={draft[field.key] ?? null}
                   onChange={(next) => {
                     setDraft((d) => ({ ...d, [field.key]: next }));

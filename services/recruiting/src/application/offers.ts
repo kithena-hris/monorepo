@@ -1370,6 +1370,10 @@ async function hireFromOffer(
         managerId: manager,
         orgUnitId: null,
         locationId: job.locationIds[0] ?? null,
+        locationName:
+          job.locationIds[0] === undefined
+            ? null
+            : ((await ctx.tx.locations.get(job.locationIds[0]))?.name ?? null),
         legalEntityId: job.entityId,
         conditions: prehire.conditions.map((c) => ({ kind: c.kind, state: c.state })),
         signature:

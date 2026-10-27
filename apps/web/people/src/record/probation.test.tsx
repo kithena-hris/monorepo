@@ -32,8 +32,12 @@ describe('a probation end', () => {
         <AttributeInput field={probation} value={null} onChange={onChange} />
       </StartDate>,
     );
-    await fast().type(screen.getByRole('spinbutton', { name: 'Length of probation' }), '6');
+    const user = fast();
+    await user.type(screen.getByRole('spinbutton', { name: 'Length of probation' }), '6');
     expect(onChange).toHaveBeenLastCalledWith('2027-05-01');
+    // Stepped up a month, as the + does.
+    await user.keyboard('{ArrowUp}');
+    expect(onChange).toHaveBeenLastCalledWith('2027-06-01');
   });
 
   it('is only typed where the start is not known', () => {

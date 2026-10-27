@@ -1742,7 +1742,6 @@
   "record.attribute-input.no_matches": "Aucun résultat.",
   "record.attribute-input.nobody_by_that_name": "Personne de ce nom.",
   "record.attribute-input.nothing_to_choose_from": "Rien à choisir",
-  "record.attribute-input.or": "ou",
   "record.attribute-input.required": "{{label}} (obligatoire)",
   "record.attribute-input.required_and_not_provided_yet": "Obligatoire, et pas encore renseigné.",
   "record.attribute-input.type_a_name": "Saisissez un nom",

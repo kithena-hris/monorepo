@@ -47,7 +47,7 @@ import { retakeEvidence } from '../application/person/flagged.js';
 import { drizzlePendingChangeStore } from '../application/person/pending-store.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { foldSections } from '../application/schema/fold-sections.js';
-import { pickedFields } from '../application/schema/picked-fields.js';
+import { foldStandIns, pickedFields } from '../application/schema/picked-fields.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -402,7 +402,19 @@ export async function startBackground(
   jobs.push(
     every(24 * HOUR, () =>
       forEachTenant('picked-fields', async (tenantId) => {
-        const done = await inTenant(tenantId, (scope) => picked(scope.tx, tenantId, randomUUID()));
+        // A company's own field that means a core one: its values onto the core field first.
+        const fold =
+          access === null
+            ? { copied: 0, done: false }
+            : await foldStandIns({ access, schemas: drizzleSchemaVersions() })(
+                (work) => inTenant(tenantId, (scope) => work(scope.tx)),
+                tenantId,
+                randomUUID(),
+              );
+        if (fold.copied > 0) logger.info({ tenantId, copied: fold.copied }, 'stand-in values moved');
+        const done = await inTenant(tenantId, (scope) =>
+          picked(scope.tx, tenantId, randomUUID(), fold.done),
+        );
         if (!done.ok) logger.warn({ tenantId, code: done.error.code }, 'picked fields not set');
         else if (done.value.version !== null)
           logger.info({ tenantId, version: done.value.version }, 'picked fields set');

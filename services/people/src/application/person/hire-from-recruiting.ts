@@ -10,6 +10,7 @@ import { ok } from '@kithena/domain-kit';
 import type * as z from 'zod';
 
 import type { PersonAccess } from './person-access.js';
+import type { Calendars } from '../org/org.js';
 import type { SchemaVersions } from './ports.js';
 import { SYSTEM_VIEWER } from './subject.js';
 import { valueSchemaFor } from './values.js';
@@ -94,12 +95,39 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
 export function hiresFromRecruiting(
   access: Pick<PersonAccess, 'create' | 'list' | 'discard' | 'update'>,
   schemas: Pick<SchemaVersions, 'current'>,
+  more: {
+    /** The company's offices, to find the job's by name when Recruiting made it. */
+    readonly calendars?: Pick<Calendars, 'load'>;
+    /** The core fields, there before a hire is written into them (`pickedFields`). */
+    readonly ensure?: (tx: PostgresJsDatabase, tenantId: string) => Promise<void>;
+  } = {},
 ): HiresFromRecruiting {
   const asking = (event: EventEnvelope) => ({
     tenantId: event.tenantId,
     viewer: SYSTEM_VIEWER,
     correlationId: event.correlationId,
   });
+  /**
+   * Everything the hire says, with the job's office as People knows it: the
+   * same location, else one of the same name; none when People has neither.
+   */
+  const attributesFor = async (
+    tx: PostgresJsDatabase,
+    event: Hired,
+  ): Promise<Record<string, unknown>> => {
+    const { location_id: _asSent, ...rest } = attributesOf(event.payload);
+    if (more.calendars === undefined) return attributesOf(event.payload);
+    const offices = [...(await more.calendars.load(tx, event.tenantId)).locations.values()].filter(
+      (l) => l.archived !== true,
+    );
+    const wanted = event.payload.locationName?.trim().toLocaleLowerCase('en');
+    const office =
+      offices.find((l) => l.id === event.payload.locationId) ??
+      (wanted === undefined || wanted === ''
+        ? undefined
+        : offices.find((l) => l.name.trim().toLocaleLowerCase('en') === wanted));
+    return office === undefined ? rest : { ...rest, location_id: office.id };
+  };
   /** Whoever holds this work email, in one of `statuses`; HR's read, so the status is on the answer. */
   const holder = async (
     tx: PostgresJsDatabase,
@@ -121,6 +149,7 @@ export function hiresFromRecruiting(
   };
 
   const filled: HiresFromRecruiting['filled'] = async (tx, event) => {
+    await more.ensure?.(tx, event.tenantId);
     const version = await schemas.current(tx, event.tenantId);
     if (version === null) return { outcome: 'ignored', code: 'NOT_PUBLISHED' };
     const found = await holder(tx, event, event.payload.candidate.email, ON_THE_BOOKS);
@@ -135,7 +164,7 @@ export function hiresFromRecruiting(
     const starting = NOT_STARTED.includes(found.value.status ?? '');
     const changes = Object.fromEntries([
       ...(starting
-        ? Object.entries(attributesOf(event.payload)).filter(([key, value]) => {
+        ? Object.entries(await attributesFor(tx, event)).filter(([key, value]) => {
             const definition = live.find((a) => a.key === key);
             return (
               definition !== undefined &&
@@ -161,6 +190,7 @@ export function hiresFromRecruiting(
   return {
     filled,
     async hired(tx, event) {
+      await more.ensure?.(tx, event.tenantId);
       const version = await schemas.current(tx, event.tenantId);
       if (version === null) return { outcome: 'ignored', code: 'NOT_PUBLISHED' };
       const already = await holder(tx, event, event.payload.candidate.email, ON_THE_BOOKS);
@@ -176,7 +206,7 @@ export function hiresFromRecruiting(
       const signatureField = live.find((a) => a.dataType === 'signature');
       const attributes = {
         ...Object.fromEntries(
-          Object.entries(attributesOf(event.payload)).filter(([key]) => defined.has(key)),
+          Object.entries(await attributesFor(tx, event)).filter(([key]) => defined.has(key)),
         ),
         ...(signatureField === undefined || (event.payload.signature ?? null) === null
           ? {}
