@@ -97,15 +97,14 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
 /** A candidate's own details (`CandidateDetails`) by People's keys: only what they gave. */
 function detailsOf(d: Hired['payload']['details']): Record<string, unknown> {
   if (d === null) return {};
-  return Object.fromEntries(
-    [
-      ['preferred_name', d.preferredName],
-      ['date_of_birth', d.dateOfBirth],
-      ['personal_email', d.personalEmail],
-      ['mobile_phone', d.mobilePhone],
-      ['home_address', d.homeAddress],
-    ].filter(([, v]) => v !== null && v !== ''),
-  );
+  const given: readonly (readonly [string, unknown])[] = [
+    ['preferred_name', d.preferredName],
+    ['date_of_birth', d.dateOfBirth],
+    ['personal_email', d.personalEmail],
+    ['mobile_phone', d.mobilePhone],
+    ['home_address', d.homeAddress],
+  ];
+  return Object.fromEntries(given.filter(([, v]) => v !== null && v !== ''));
 }
 
 export function hiresFromRecruiting(
