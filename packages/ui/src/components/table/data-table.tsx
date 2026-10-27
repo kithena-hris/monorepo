@@ -1139,7 +1139,9 @@ export function DataTable<T extends TableRow>({
     const check = (): void => {
       if ('checkVisibility' in el && !el.checkVisibility()) return;
       const box = el.getBoundingClientRect();
-      if (box.bottom - window.innerHeight < ahead(box.height)) endReached.current?.();
+      // Not once the reader is past it: a list with more below it would grow under them.
+      if (box.bottom > 0 && box.bottom - window.innerHeight < ahead(box.height))
+        endReached.current?.();
     };
     check();
     window.addEventListener('scroll', check, { passive: true });
