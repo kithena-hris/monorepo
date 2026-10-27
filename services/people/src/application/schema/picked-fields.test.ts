@@ -5,7 +5,7 @@ import { CORE_PACK, DEPARTMENT_FIELD } from '../../country-packs/core.js';
 import { SchemaDraft, type Attribute } from '../../domain/schema/draft.js';
 import type { PublishSchema } from './publish-schema.js';
 import type { DraftWriter, SchemaRepository } from './schema-repository.js';
-import { pickedFields } from './picked-fields.js';
+import { pickedFields, standIns } from './picked-fields.js';
 
 const clock = {
   instant: () => '2026-10-18T10:00:00.000Z',
@@ -109,5 +109,33 @@ describe('departments and managers picked, never typed', () => {
     expect(c.now().attribute('department')?.deprecatedAt).toBeNull();
     // A typed stand-in for the manager goes whatever: Manager is always there to pick.
     expect(c.now().attribute('manager_employee_number')?.deprecatedAt).not.toBeNull();
+  });
+});
+
+describe('a company field that means a core one', () => {
+  const core = () => {
+    const d = SchemaDraft.rehydrate([], []);
+    for (const s of CORE_PACK.sections) d.addSection(s);
+    for (const a of CORE_PACK.attributes) d.addAttribute(a);
+    return d;
+  };
+  const own = (key: string, label: string, dataType: 'date' | 'text') =>
+    ({
+      ...CORE_PACK.attributes.find((a) => a.key === 'probation_end'),
+      key,
+      label: { default: label, translations: {} },
+      dataType,
+      typeConfig: dataType === 'date' ? { kind: 'date', range: 'any' } : { kind: 'text' },
+      origin: 'tenant',
+    }) as Parameters<SchemaDraft['addAttribute']>[0];
+
+  it('is found by the name an import gives it, when it holds the same kind of value', () => {
+    const d = core();
+    expect(d.addAttribute(own('probation_end_date', 'Probation End Date', 'date')).ok).toBe(true);
+    expect(d.addAttribute(own('contract_end_date', 'Contract End Date', 'text')).ok).toBe(true);
+    // A date beside a date folds; text beside a date is left alone.
+    expect(standIns(d.liveAttributes()).map(({ own: o, core: c }) => [o.key, c.key])).toEqual([
+      ['probation_end_date', 'probation_end'],
+    ]);
   });
 });

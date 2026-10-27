@@ -128,6 +128,9 @@ export interface PeopleTermsFields {
   readonly probation_end: string | null;
   readonly working_pattern: 'full_time' | 'part_time';
   readonly fte: string;
+  /** Hours a week, to two places: 2250 minutes is `37.5`. */
+  readonly weekly_hours: string;
+  readonly hybrid_days_onsite: number | null;
   readonly notice_period_employee: string;
   readonly notice_period_employer: string;
   readonly collective_agreement: string | null;
@@ -149,6 +152,9 @@ export function toPeopleTerms(terms: ResolvedTerms): PeopleTermsFields {
     probation_end: terms.probationEnd,
     working_pattern: terms.workingPattern,
     fte: terms.fte,
+    // In hundredths of an hour first, a whole number, so `37.5` prints as itself.
+    weekly_hours: String(Math.round((terms.weeklyMinutes * 5) / 3) / 100),
+    hybrid_days_onsite: terms.hybridDaysOnsite,
     notice_period_employee: lengthText(terms.noticeEmployee),
     notice_period_employer: lengthText(terms.noticeEmployer),
     collective_agreement:

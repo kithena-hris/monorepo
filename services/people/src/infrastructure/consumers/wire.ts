@@ -13,7 +13,13 @@ import { tenantRoles } from '../../application/roles/roles.js';
 import { drizzleRoleStore } from '../drizzle-role-store.js';
 import { drizzleCompletenessStore } from '../drizzle-completeness-store.js';
 import { drizzleOrgStore } from '../drizzle-org-store.js';
-import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-repository.js';
+import {
+  drizzleDraftWriter,
+  drizzlePeopleFacts,
+  drizzleSchemaRepository,
+} from '../drizzle-schema-repository.js';
+import { pickedFields } from '../../application/schema/picked-fields.js';
+import { publishSchema } from '../../application/schema/publish-schema.js';
 import { openFgaFrom } from '../openfga.js';
 import { roleReportFrom } from '../role-report.js';
 import { signupReportFrom } from '../signup-report.js';
@@ -106,8 +112,9 @@ export async function startConsumers(
   await consume(recruiting, [CandidateHired.topic], handle);
   // Recruiting's hires once more, for what is empty: hires made before the
   // company had the fields get the contract's signature, terms and pay
-  // (`hireSignatures`). `-2`: from the start again, for the core fields.
-  const signatures = broker.consumer({ groupId: 'people-hire-signatures-2' });
+  // (`hireSignatures`). `-3`: from the start again, for the core fields, every
+  // contract term and the job's office found by name.
+  const signatures = broker.consumer({ groupId: 'people-hire-signatures-3' });
   const hires = hiresOf(env);
   await consume(
     signatures,
@@ -151,7 +158,35 @@ async function consume(
 /** Recruiting's hires through the write path; absent without the keys it needs. */
 function hiresOf(env: NodeJS.ProcessEnv): HiresFromRecruiting | undefined {
   const access = accessFrom(env);
-  return access === null ? undefined : hiresFromRecruiting(access, drizzleSchemaVersions());
+  if (access === null) return undefined;
+  const org = drizzleOrgStore();
+  const schema = drizzleSchemaRepository();
+  const peopleBase = (env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
+  // The core fields a hire is written into, there before the first one in each
+  // company: what the daily run adds (`pickedFields`), once per company here.
+  const picked = pickedFields({
+    schema,
+    draft: drizzleDraftWriter(),
+    publisher: publishSchema({
+      schema,
+      people: drizzlePeopleFacts(),
+      clock: systemClock,
+      newEventId: uuidv7,
+      calendars: org,
+    }),
+    clock: systemClock,
+    artifactUrl: (version: number) => `${peopleBase}/v1/schema/versions/${String(version)}`,
+    departments: async (tx, tenantId) => (await org.orgUnits(tx, tenantId)).length,
+  });
+  const ensured = new Set<string>();
+  return hiresFromRecruiting(access, drizzleSchemaVersions(), {
+    calendars: org,
+    ensure: async (tx, tenantId) => {
+      if (ensured.has(tenantId)) return;
+      const done = await picked(tx, tenantId, uuidv7());
+      if (done.ok) ensured.add(tenantId);
+    },
+  });
 }
 
 /**

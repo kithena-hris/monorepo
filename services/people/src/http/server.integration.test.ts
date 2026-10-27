@@ -1264,16 +1264,26 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     expect(
       columns
         .filter((x) =>
-          ['Date of Birth', 'Personal Email', 'Mobile Phone', 'FTE', 'Job Title'].includes(
-            x.header,
-          ),
+          [
+            'Date of Birth',
+            'Personal Email',
+            'Mobile Phone',
+            'Probation End Date',
+            'FTE',
+            'Contract End Date',
+            'Standard Weekly Hours',
+            'Job Title',
+          ].includes(x.header),
         )
         .map((x) => [x.header, x.status, x.key]),
     ).toEqual([
       ['Date of Birth', 'mapped', 'date_of_birth'],
       ['Personal Email', 'mapped', 'personal_email'],
       ['Mobile Phone', 'mapped', 'mobile_phone'],
+      ['Probation End Date', 'mapped', 'probation_end'],
+      ['Contract End Date', 'mapped', 'contract_end'],
       ['FTE', 'mapped', 'fte'],
+      ['Standard Weekly Hours', 'mapped', 'weekly_hours'],
       ['Job Title', 'mapped', 'job_title'],
     ]);
     expect(view.blocked).toBeNull();
@@ -1350,7 +1360,6 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     });
     expect(of('Annual Base Salary').field.dataType).toBe('money');
     for (const h of [
-      'Standard Weekly Hours',
       'Annual Leave Balance (days)',
       'Sick Leave Balance (days)',
     ]) {
@@ -1451,7 +1460,6 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     expect(owner(personal)).toEqual(personal.map((h) => [h, 'ask']));
     const employment = [
       'Work Phone',
-      'Contract End Date',
       'Shift',
       'FLSA Status',
       'Annual Base Salary',
@@ -1561,11 +1569,12 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       columns: { existing: number; created: number; kithena: number; leftOut: number };
     }>(c.graph, { ...step, proposals }, 'meridian-run');
     expect(done).toMatchObject({ created: 100, blocked: 0, held: 0 });
-    // 21 to People's own (employment type, work model, Department, the four
+    // 24 to People's own (employment type, work model, Department, the four
     // lifecycle columns and the core fields — date of birth, personal email,
-    // mobile, FTE, job title, pay frequency — among them), 81 new, 2 ids, and Manager Employee Number
+    // mobile, probation and contract end, FTE, weekly hours, job title, pay
+    // frequency — among them), 78 new, 2 ids, and Manager Employee Number
     // left out: the manager is read from Manager Email.
-    expect(done.columns).toEqual({ existing: 21, created: 81, kithena: 2, leftOut: 1 });
+    expect(done.columns).toEqual({ existing: 24, created: 78, kithena: 2, leftOut: 1 });
 
     // The requests: one per person, listing every detail asked of them that
     // the file left empty; none for anybody who has left, nor per field.

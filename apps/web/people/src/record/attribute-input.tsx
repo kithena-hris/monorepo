@@ -10,6 +10,7 @@ import {
   FieldLabel,
   InlineCell,
   Input,
+  NumberField,
   PhoneField,
   Select,
   SelectContent,
@@ -270,7 +271,7 @@ export function periodEnd(start: string, count: number, unit: PeriodUnit): strin
   return day(new Date(Date.UTC(y, m - 1 + count, Math.min(d, last) - 1)));
 }
 
-/** "6 months after the start date": the date it lands on, set as it is typed. */
+/** "6 months after the start date": the date it lands on, set as it is stepped or typed. */
 function AfterStart({
   start,
   disabled,
@@ -280,13 +281,13 @@ function AfterStart({
   readonly disabled: boolean;
   readonly onChange: (value: string) => void;
 }): JSX.Element {
-  const [count, setCount] = useState('');
+  const [count, setCount] = useState<number | null>(null);
   const [unit, setUnit] = useState<PeriodUnit>('months');
-  const set = (nextCount: string, nextUnit: PeriodUnit) => {
+  const set = (nextCount: number | null, nextUnit: PeriodUnit) => {
     setCount(nextCount);
     setUnit(nextUnit);
-    const n = Number(nextCount);
-    if (Number.isInteger(n) && n > 0 && n <= 1000) onChange(periodEnd(start, n, nextUnit));
+    if (nextCount !== null && Number.isInteger(nextCount) && nextCount > 0 && nextCount <= 1000)
+      onChange(periodEnd(start, nextCount, nextUnit));
   };
   const units: Record<PeriodUnit, string> = {
     days: t('record.attribute-input.days', 'days'),
@@ -294,18 +295,19 @@ function AfterStart({
     months: t('record.attribute-input.months', 'months'),
   };
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-fg-muted text-sm">{t('record.attribute-input.or', 'or')}</span>
-      <Input
-        type="number"
-        inputMode="numeric"
-        min={1}
-        className="w-20"
-        aria-label={t('record.attribute-input.length_of_probation', 'Length of probation')}
+    <div className="flex flex-wrap items-end gap-2">
+      <NumberField
+        className="w-40"
+        size="sm"
+        label={t('record.attribute-input.length_of_probation', 'Length of probation')}
         value={count}
+        min={1}
+        max={1000}
+        step={1}
+        precision={0}
         disabled={disabled}
-        onChange={(e) => {
-          set(e.target.value, unit);
+        onChange={(next) => {
+          set(next, unit);
         }}
       />
       <Select
@@ -315,10 +317,7 @@ function AfterStart({
           set(count, next as PeriodUnit);
         }}
       >
-        <SelectTrigger
-          className="w-32"
-          aria-label={t('record.attribute-input.unit', 'Unit')}
-        >
+        <SelectTrigger className="w-32" size="sm" aria-label={t('record.attribute-input.unit', 'Unit')}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -329,7 +328,7 @@ function AfterStart({
           ))}
         </SelectContent>
       </Select>
-      <span className="text-fg-muted text-sm">
+      <span className="text-fg-muted pb-2 text-sm">
         {t('record.attribute-input.after_the_start_on', 'after the start, {{date}}', {
           date: longDate(start),
         })}

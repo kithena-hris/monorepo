@@ -99,6 +99,20 @@ const ALIASES: Readonly<Record<string, readonly string[]>> = {
     'employment category',
   ],
   work_model: ['work model', 'work arrangement', 'work mode', 'workplace type', 'remote status'],
+  // The core fields every company has (`CORE_PACK`): a file's own name for one lands on it.
+  personal_email: ['personal email', 'personal email address', 'private email', 'home email'],
+  mobile_phone: ['mobile phone', 'mobile', 'mobile number', 'cell phone', 'cell'],
+  contract_start: ['contract start date', 'contract start'],
+  contract_end: ['contract end date', 'contract end', 'fixed term end date'],
+  probation_end: ['probation end date', 'probation end', 'end of probation', 'probation ends'],
+  weekly_hours: [
+    'weekly hours',
+    'standard weekly hours',
+    'contracted hours',
+    'hours per week',
+    'contracted weekly hours',
+  ],
+  fte: ['fte', 'full time equivalent'],
 };
 
 /** "E-mail address" and "e_mail address" are one header; "Employee #" is "employee number". */

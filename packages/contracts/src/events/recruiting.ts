@@ -215,6 +215,8 @@ export const CandidateHired = defineEvent(
     managerId: memberId().nullable(),
     orgUnitId: ref().nullable(),
     locationId: ref().nullable(),
+    /** The office's name, for People to find its own when the job's location is Recruiting's. */
+    locationName: z.string().max(200).nullable().default(null).register(policy, asPublic()),
     legalEntityId: LegalEntityId,
     conditions: z.array(z.object({ kind: ConditionKind, state: ConditionState })),
     /** The signature they signed the contract with, for their record; null when signed elsewhere. */

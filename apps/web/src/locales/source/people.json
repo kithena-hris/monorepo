@@ -6857,7 +6857,7 @@
   },
   "record.attribute-input.length_of_probation": {
     "text": "Length of probation",
-    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: the aria-label of <Input>."
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: the label of <NumberField>."
   },
   "record.attribute-input.missing": {
     "text": "Missing",
@@ -6882,10 +6882,6 @@
   "record.attribute-input.nothing_to_choose_from": {
     "text": "Nothing to choose from",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AttributeControl: the placeholder of <SelectValue>."
-  },
-  "record.attribute-input.or": {
-    "text": "or",
-    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: text inside <span>."
   },
   "record.attribute-input.required": {
     "text": "{{label}} (required)",

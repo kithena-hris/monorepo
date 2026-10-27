@@ -92,6 +92,8 @@ describe('ResolvedTerms maps onto People’s employment terms fields', () => {
       probation_end: '2027-04-30',
       working_pattern: 'full_time',
       fte: '1.0',
+      weekly_hours: '40',
+      hybrid_days_onsite: 2,
       notice_period_employee: '4 weeks',
       notice_period_employer: '4 weeks',
       collective_agreement: null,
@@ -101,6 +103,11 @@ describe('ResolvedTerms maps onto People’s employment terms fields', () => {
       non_compete_months: null,
       mobility_clause: false,
     });
+  });
+
+  it('writes weekly hours to two places', () => {
+    expect(toPeopleTerms({ ...terms, weeklyMinutes: 2250 }).weekly_hours).toBe('37.5');
+    expect(toPeopleTerms({ ...terms, weeklyMinutes: 1000 }).weekly_hours).toBe('16.67');
   });
 
   it('refuses an FTE that is not a decimal between 0 and 1', () => {
