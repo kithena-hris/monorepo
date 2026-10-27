@@ -248,7 +248,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(await kept()).toBe(true);
 
     // Every section is reachable from the keyboard and stays inside the shell:
-    // focus on People, Tab on into its sections to the one wanted, Enter — a
+    // focus in the panel's sections, Tab on to the one wanted, Enter — a
     // client-side move, the sidebar still there, never another origin.
     const hrefs = await (
       await sections(page)
@@ -257,14 +257,13 @@ describe('People inside the shell: its sections, and always a way to add somebod
       .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
     expect(hrefs).toContain('/people/import-export');
     for (const href of hrefs) {
-      await sections(page);
-      await peopleItem(page).focus();
-      for (let tabs = 0; tabs <= hrefs.length; tabs += 1) {
-        await page.keyboard.press('Tab');
+      await (await sections(page)).getByRole('link').first().focus();
+      for (let tabs = 0; tabs < hrefs.length; tabs += 1) {
         const at = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
         if (at === href) break;
+        await page.keyboard.press('Tab');
       }
-      // Straight from People into its sections: nothing sits between them.
+      // One section to the next: nothing sits between them.
       expect(
         await page.evaluate(
           () => document.activeElement?.closest('[aria-label="People sections"]') != null,

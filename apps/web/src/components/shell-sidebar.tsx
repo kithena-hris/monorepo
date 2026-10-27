@@ -52,18 +52,42 @@ export interface Presses {
 }
 
 /**
- * Every page one press from the sidebar, fetched as the pointer enters it or
+ * Every page one press from the sidebar, fetched as the pointer moves in it or
  * the keyboard comes into it: by the time a press lands, its page is here.
- * Once per page per half minute, the time a fetched page is kept.
+ *
+ * One page at a time, each when the browser is idle, so the page you are on
+ * is never made to wait for the ones you might go to; and once per page per
+ * half minute, the time a fetched page is kept. On movement rather than on
+ * entering: a sidebar drawn under a resting pointer is not a hand reaching for it.
  */
-export function useWarmSidebar(warm: (href: string) => void): (event: { currentTarget: Element }) => void {
+export function useWarmSidebar(
+  warm: (href: string) => void,
+): (event: { currentTarget: Element }) => void {
   const warmed = useRef(new Map<string, number>());
+  const queue = useRef<string[]>([]);
+  const running = useRef(false);
   useEffect(() => {
     const seen = warmed.current;
+    const waiting = queue.current;
     return () => {
       seen.clear();
+      waiting.length = 0;
     };
   }, []);
+  const next = (): void => {
+    const href = queue.current.shift();
+    if (href === undefined) {
+      running.current = false;
+      return;
+    }
+    warm(href);
+    const later = (): void => {
+      next();
+    };
+    if (typeof window.requestIdleCallback === 'function')
+      window.requestIdleCallback(later, { timeout: 1000 });
+    else window.setTimeout(later, 150);
+  };
   return (event) => {
     const nav = event.currentTarget.closest('nav') ?? event.currentTarget;
     const now = Date.now();
@@ -73,7 +97,11 @@ export function useWarmSidebar(warm: (href: string) => void): (event: { currentT
       const last = warmed.current.get(href);
       if (last !== undefined && now - last < 30_000) continue;
       warmed.current.set(href, now);
-      warm(href);
+      queue.current.push(href);
+    }
+    if (!running.current && queue.current.length > 0) {
+      running.current = true;
+      next();
     }
   };
 }
@@ -97,7 +125,7 @@ export function SidebarRail({
   return (
     <div
       className="flex min-h-0 flex-1 flex-col gap-1"
-      onPointerEnter={onIntent}
+      onPointerMove={onIntent}
       onFocus={onIntent}
     >
       <Nav label={tr('components.shell-sidebar.search', 'Search')}>
@@ -226,7 +254,7 @@ export function SidebarPanel({
   return (
     <div
       className="flex min-h-0 flex-1 flex-col px-2 pt-5 pb-3"
-      onPointerEnter={onIntent}
+      onPointerMove={onIntent}
       onFocus={onIntent}
     >
       <h2 className="px-2.5 pb-3 text-lg leading-tight font-semibold break-words text-fg">

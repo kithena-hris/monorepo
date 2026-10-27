@@ -312,15 +312,22 @@ describe('the sidebar: a rail of areas, a panel of the current one’s sections'
     }
   });
 
-  it('fetches the pages it leads to as the pointer comes into it, once', () => {
+  it('fetches the pages it leads to as the pointer moves in it, one at a time, once', () => {
+    vi.useFakeTimers();
     router.prefetch.mockClear();
     renderShell({ hr: false, admin: false, finance: false });
     const panel = screen.getByRole('navigation', { name: 'Time off sections' });
-    fireEvent.pointerEnter(panel.parentElement ?? panel);
+    fireEvent.pointerMove(panel.parentElement ?? panel);
+    // The first now, the rest as the browser idles.
+    expect(router.prefetch.mock.calls).toHaveLength(1);
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    vi.useRealTimers();
     const fetched = router.prefetch.mock.calls.map(([href]) => href as string);
     expect(fetched).toEqual(expect.arrayContaining(['/time-off/overview', '/time-off/calendar/month', '/inbox']));
     const count = fetched.length;
-    fireEvent.pointerEnter(panel.parentElement ?? panel);
+    fireEvent.pointerMove(panel.parentElement ?? panel);
     expect(router.prefetch.mock.calls).toHaveLength(count);
   });
 });
