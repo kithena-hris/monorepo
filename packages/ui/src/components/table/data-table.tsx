@@ -1251,7 +1251,9 @@ export function DataTable<T extends TableRow>({
         page && !wide && 'overflow-visible [--reach-table-top:var(--reach-sticky-top,0px)]',
         containerClassName,
       )}
-      {...(virtualized && !page
+      // The window's extent too, when it scrolls the table: WebKit clamps it the same way.
+      pageScroll={page}
+      {...(virtualized
         ? {
             contentHeight:
               headHeight +

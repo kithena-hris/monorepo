@@ -1064,6 +1064,8 @@ function usePlace({
     const root = wrapper.current;
     if (root === null) return undefined;
     let frame = 0;
+    // Frames left to wait for the rows at a new place to be drawn (`measure`).
+    let waits = 0;
     let settle: ReturnType<typeof setTimeout> | undefined;
     const measure = (): void => {
       frame = 0;
@@ -1077,6 +1079,13 @@ function usePlace({
         const r = el.getBoundingClientRect();
         return r.bottom > top + 1 && r.top < window.innerHeight;
       });
+      // A jump far down can land before the rows there are drawn (WebKit): look again,
+      // for a few frames, rather than read the place as the top.
+      if (seen.length === 0 && waits > 0) {
+        waits -= 1;
+        frame = requestAnimationFrame(measure);
+        return;
+      }
       const id = (el: HTMLElement | undefined) =>
         el?.dataset['rowId'] ?? el?.dataset['personId'] ?? '';
       const index = new Map(latest.current.map((p, i) => [p.id, i]));
@@ -1093,12 +1102,13 @@ function usePlace({
       }, 250);
     };
     const onScroll = (): void => {
+      waits = 10;
       if (frame === 0) frame = requestAnimationFrame(measure);
     };
-    // Capture: the page may scroll in the shell's own container rather than the window.
-    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    // Capturing, so a box scrolling inside the page is heard as well as the window.
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
     return () => {
-      document.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('scroll', onScroll, { capture: true });
       cancelAnimationFrame(frame);
       clearTimeout(settle);
     };

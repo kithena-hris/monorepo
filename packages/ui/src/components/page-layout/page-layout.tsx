@@ -1184,21 +1184,6 @@ function useStuckHeader(enabled: boolean): {
     const scroller = scrollerOf(el);
     const parent = el.parentElement;
     let frame = 0;
-    const measure = (): void => {
-      // `offsetTop` from the header itself: sticky is positioned, so it is the row's offset parent.
-      const nextLift = Math.max((row.current?.offsetTop ?? STUCK_PAD_PX) - STUCK_PAD_PX, 0);
-      setLift((l) => (Math.abs(l - nextLift) < 1 ? l : nextLift));
-      const p = about.current;
-      if (p !== null) {
-        const h = p.offsetHeight + parseFloat(getComputedStyle(p).marginTop || '0');
-        setAboutHeight((a) => (a !== null && Math.abs(a - h) < 1 ? a : h));
-      }
-      const { stuck: isStuck, aboutHeight: folded } = state.current;
-      parent?.style.setProperty(
-        '--reach-sticky-top',
-        `${String(el.offsetHeight - nextLift - (isStuck ? 0 : (folded ?? 0)))}px`,
-      );
-    };
     const check = (): void => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
@@ -1211,17 +1196,35 @@ function useStuckHeader(enabled: boolean): {
         setStuck(el.getBoundingClientRect().top <= top - state.current.lift + 1);
       });
     };
+    const measure = (): void => {
+      // `offsetTop` from the header itself: sticky is positioned, so it is the row's offset parent.
+      const nextLift = Math.max((row.current?.offsetTop ?? STUCK_PAD_PX) - STUCK_PAD_PX, 0);
+      setLift((l) => (Math.abs(l - nextLift) < 1 ? l : nextLift));
+      const p = about.current;
+      if (p !== null) {
+        const h = p.offsetHeight + parseFloat(getComputedStyle(p).marginTop || '0');
+        setAboutHeight((a) => (a !== null && Math.abs(a - h) < 1 ? a : h));
+      }
+      // A size change can carry it to or off the top with no scroll to say so.
+      check();
+      const { stuck: isStuck, aboutHeight: folded } = state.current;
+      parent?.style.setProperty(
+        '--reach-sticky-top',
+        `${String(el.offsetHeight - nextLift - (isStuck ? 0 : (folded ?? 0)))}px`,
+      );
+    };
     measure();
     check();
     const resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     resized?.observe(el);
     if (about.current !== null) resized?.observe(about.current);
-    document.addEventListener('scroll', check, { capture: true, passive: true });
+    // Capturing, so a box that scrolls the header (a modal page) is heard as well as the window.
+    window.addEventListener('scroll', check, { capture: true, passive: true });
     window.addEventListener('resize', check);
     return () => {
       cancelAnimationFrame(frame);
       resized?.disconnect();
-      document.removeEventListener('scroll', check, { capture: true });
+      window.removeEventListener('scroll', check, { capture: true });
       window.removeEventListener('resize', check);
       parent?.style.removeProperty('--reach-sticky-top');
     };

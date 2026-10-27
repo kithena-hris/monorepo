@@ -61,6 +61,12 @@ export interface TableProps extends ComponentPropsWithoutRef<'table'> {
    * Chromium waits for the final layout to clamp, which is why it never showed.
    */
   contentHeight?: number;
+  /**
+   * The window scrolls the table, not its box (`DataTable scroll="page"`).
+   * `contentHeight` then holds the box's height in the page, so what follows
+   * the table cannot ride up during WebKit's short pass and clamp the window.
+   */
+  pageScroll?: boolean;
 }
 
 export function Table({
@@ -71,11 +77,14 @@ export function Table({
   bare = false,
   dense = false,
   contentHeight,
+  pageScroll = false,
   ...props
 }: TableProps): JSX.Element {
+  const holds = pageScroll && contentHeight !== undefined;
   return (
     <div
       ref={containerRef}
+      style={holds ? { minHeight: contentHeight } : undefined}
       // `tabIndex` and a role: a scroll container that only a mouse can scroll
       // is unreachable from the keyboard, and axe is right to flag it. With
       // these, the region is focusable and the arrow keys scroll it.
@@ -97,11 +106,11 @@ export function Table({
         // and the table itself by its shadow, the same as every other card.
         !bare && 'rounded-lg bg-surface shadow-sm',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-        contentHeight !== undefined && 'relative',
+        contentHeight !== undefined && !holds && 'relative',
         containerClassName,
       )}
     >
-      {contentHeight === undefined ? null : (
+      {contentHeight === undefined || holds ? null : (
         <div
           aria-hidden
           className="pointer-events-none absolute start-0 top-0 w-px"
