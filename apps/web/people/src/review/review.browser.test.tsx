@@ -30,7 +30,9 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 // machine, twice the room in WebKit, and on CI the flow without the clock.
 const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 const room = import.meta.env['CI_RUN'] === true ? Number.POSITIVE_INFINITY : webkit ? 2 : 1;
-const SCALE_TIMEOUT = 60_000;
+// The window scrolls the lists, and a shared runner's WebKit draws a frame of
+// a page that long in about a second: the flow there gets the time it takes.
+const SCALE_TIMEOUT = import.meta.env['CI_RUN'] === true && webkit ? 240_000 : 60_000;
 
 const N = 5_000;
 const minutesAgo = (i: number): string =>
