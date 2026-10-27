@@ -1004,16 +1004,15 @@ const CARD_HEIGHT = 190;
  * (AI3, MA2): the first row in view goes into the address as it settles, so
  * Back (or a reload) loads as many pages as it takes and returns to it; the
  * last row in view is the counter's "150 of 388", and once it is halfway
- * through what is loaded the next page is asked for. The table scrolls in a
- * box of its own (the region it names); cards and the phone's list scroll the
- * page.
+ * through what is loaded the next page is asked for. The window scrolls the
+ * table, the cards and the phone's list alike.
  */
 const personName = (p: DirectoryPerson): string => p.name;
 
 function usePlace({
   wrapper,
   rows,
-  window: pageScrolls,
+  rowHeight,
   place,
   onPlaceChange,
   loadMore,
@@ -1022,7 +1021,8 @@ function usePlace({
 }: {
   readonly wrapper: { readonly current: HTMLDivElement | null };
   readonly rows: readonly DirectoryPerson[];
-  readonly window: boolean;
+  /** A row's height, to get near a row not yet drawn. */
+  readonly rowHeight: number;
   readonly place: number | null;
   readonly onPlaceChange: ((row: number | null) => void) | undefined;
   readonly loadMore: (() => void) | undefined;
@@ -1060,9 +1060,6 @@ function usePlace({
   latest.current = rows;
   const more = useRef(loadMore);
   more.current = loadMore;
-  const box = (): HTMLElement | null =>
-    pageScrolls ? null : (wrapper.current?.querySelector<HTMLElement>('[role="region"]') ?? null);
-
   useEffect(() => {
     const root = wrapper.current;
     if (root === null) return undefined;
@@ -1070,28 +1067,29 @@ function usePlace({
     let settle: ReturnType<typeof setTimeout> | undefined;
     const measure = (): void => {
       frame = 0;
-      const scroller = box();
-      const edge = scroller?.getBoundingClientRect() ?? { top: 0, bottom: window.innerHeight };
-      const head = scroller?.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+      // In view: under the page's sticky header and the table's pinned one, above the window's foot.
+      const top =
+        (Number.parseFloat(getComputedStyle(root).getPropertyValue('--reach-sticky-top')) || 0) +
+        (root.querySelector('thead')?.getBoundingClientRect().height ?? 0);
       const seen = [
         ...root.querySelectorAll<HTMLElement>('[data-row-id], [data-person-id]'),
       ].filter((el) => {
         const r = el.getBoundingClientRect();
-        return r.bottom > edge.top + head + 1 && r.top < edge.bottom;
+        return r.bottom > top + 1 && r.top < window.innerHeight;
       });
       const id = (el: HTMLElement | undefined) =>
         el?.dataset['rowId'] ?? el?.dataset['personId'] ?? '';
       const index = new Map(latest.current.map((p, i) => [p.id, i]));
-      const top = index.get(id(seen[0])) ?? 0;
-      const last = index.get(id(seen.at(-1))) ?? top;
-      setAt({ top, last });
+      const first = index.get(id(seen[0])) ?? 0;
+      const last = index.get(id(seen.at(-1))) ?? first;
+      setAt({ top: first, last });
       // ponytail: halfway through what is loaded keeps up to twice what was read
       // loaded; a fixed lookahead (one page past the reader) if pages get expensive.
       if (seen.length > 0 && (last + 1) * 2 >= latest.current.length) more.current?.();
       clearTimeout(settle);
       // Noted once the scroll settles, rewriting this entry: a scroll is not a step Back undoes.
       settle = setTimeout(() => {
-        if (restore.current === null) tell.current?.(top > 0 ? top + 1 : null);
+        if (restore.current === null) tell.current?.(first > 0 ? first + 1 : null);
       }, 250);
     };
     const onScroll = (): void => {
@@ -1104,7 +1102,7 @@ function usePlace({
       cancelAnimationFrame(frame);
       clearTimeout(settle);
     };
-  }, [pageScrolls]);
+  }, []);
 
   // Back to a place: as many pages as it takes, then the row.
   useEffect(() => {
@@ -1121,13 +1119,9 @@ function usePlace({
       wrapper.current?.querySelector<HTMLElement>(
         `[data-row-id="${CSS.escape(id)}"], [data-person-id="${CSS.escape(id)}"]`,
       );
-    const scroller = box();
     // A virtualized list mounts the row only once it is near: get there first.
-    if (scroller !== null) scroller.scrollTop = to * ROW_HEIGHT;
-    else {
-      const top = (wrapper.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
-      window.scrollTo({ top: top + to * PHONE_ROW });
-    }
+    const top = (wrapper.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
+    window.scrollTo({ top: top + to * rowHeight });
     requestAnimationFrame(() => {
       find()?.scrollIntoView({ block: 'start' });
     });
@@ -1135,12 +1129,7 @@ function usePlace({
 
   const toTop = (): void => {
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const scroller = box();
-    if (scroller === null) {
-      wrapper.current?.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' });
-    } else {
-      scroller.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
-    }
+    window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
     setAt({ top: 0, last: 0 });
     tell.current?.(null);
   };
@@ -1302,7 +1291,7 @@ function Body({
   const placed = usePlace({
     wrapper,
     rows: loaded.rows,
-    window: coarse || view === 'cards',
+    rowHeight: coarse || view === 'cards' ? PHONE_ROW : ROW_HEIGHT,
     place,
     onPlaceChange,
     loadMore: loaded.loadMore,
@@ -1871,16 +1860,16 @@ function Body({
     />
   );
   // Where the reader is in a list that keeps loading, and the way back: at
-  // the list's own top corner, never over the quick look beside it.
+  // the list's own top corner, never over the quick look beside it. Before the
+  // table, in a sticky line of no height, so it rides under the table's pinned
+  // header as the page scrolls.
   const pill =
-    onLoadMore === undefined ? null : (
-      <PlacePill
-        place={placed}
-        total={state.total}
-        className={
-          coarse || view === 'cards' ? 'fixed end-4 bottom-40 z-20' : 'absolute end-4.5 top-15 z-10'
-        }
-      />
+    onLoadMore === undefined ? null : coarse || view === 'cards' ? (
+      <PlacePill place={placed} total={state.total} className="fixed end-4 bottom-40 z-20" />
+    ) : (
+      <div className="sticky top-[calc(var(--reach-sticky-top,0px)+3.75rem)] z-30 h-0">
+        <PlacePill place={placed} total={state.total} className="absolute end-4.5 top-0" />
+      </div>
     );
   const profileKeys = keysOf('row.edit', keys);
   const previewKeys = keysOf('list.preview', keys);
@@ -2228,8 +2217,8 @@ function Body({
           // the page's sticky header.
           <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] gap-4">
             <div className="relative min-w-0">
-              {table}
               {pill}
+              {table}
             </div>
             <QuickLook
               className="sticky top-[calc(var(--reach-sticky-top,0px)+1rem)] self-start"
@@ -2330,8 +2319,8 @@ function Body({
           </div>
         ) : (
           <>
-            {table}
             {pill}
+            {table}
           </>
         )}
       </div>
