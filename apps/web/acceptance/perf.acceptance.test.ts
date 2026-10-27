@@ -508,11 +508,17 @@ const link = (page: Page, href: string): Locator => page.locator(`a[href="${href
  */
 async function reach(page: Page, target: Locator): Promise<boolean> {
   if ((await target.count()) > 0) return true;
-  const areas = page.getByRole('navigation', { name: 'Areas' }).getByRole('link');
-  for (let i = 0; i < (await areas.count()); i += 1) {
+  // The icons, read with every flyout away: an open one adds its own links to the rail's.
+  await page.mouse.move(900, 600);
+  await page.waitForTimeout(150);
+  const rail = page.getByRole('navigation', { name: 'Areas' });
+  const hrefs = await rail
+    .getByRole('link')
+    .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+  for (const href of hrefs) {
     // From off the rail: a press on an icon keeps its sections away until the pointer leaves.
     await page.mouse.move(900, 600);
-    await areas.nth(i).hover();
+    await rail.locator(`a[href="${href}"]`).first().hover();
     await page.waitForTimeout(150);
     if ((await target.count()) > 0) return true;
   }
