@@ -39,6 +39,7 @@ import {
 } from './shared';
 import type { Card as CardData, PipelineData, ScreenProps } from './types';
 import { t } from './i18n';
+import { useMoveFollowUps } from './move-follow-ups';
 
 /**
  * R10, a job's pipeline (design R10–R10d): a board by stage or a table, the
@@ -287,6 +288,7 @@ function pipelineColumns(
 export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   const view = props.search?.['view'] === 'table' ? 'table' : 'board';
   const act = useAct(props);
+  const followUps = useMoveFollowUps(act);
   const [rejecting, setRejecting] = useState<Rejecting | null>(null);
   const [found, setFound] = useState<readonly Rediscovered[] | null>(null);
   const [undo, setUndo] = useState<{
@@ -379,7 +381,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
         const previous = at > 0 ? order[at - 1] : undefined;
         const following = at >= 0 ? order[at + 1] : undefined;
         // The step's interviews are planned with the job, so entering it asks nothing.
-        const move = (card: CardData, to: string): void => {
+        const move = (card: CardData, to: string, startDate?: string): void => {
           const stage = data.stages.find((s) => s.id === to);
           if (stage === undefined) return;
           setPlaced((held) => ({ ...held, [card.applicationId]: to }));
@@ -387,7 +389,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             'MoveApplication',
             {
               applicationId: card.applicationId,
-              input: { to },
+              input: { to, ...(startDate === undefined ? {} : { startDate }) },
             },
             (answer) => {
               const moved = answer as {
@@ -403,12 +405,16 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   applicationId: card.applicationId,
                   moveId: moved.moveId,
                 });
+              followUps.moved(answer);
               // Arriving at the offer stage drafted the offer from the job: open it, filled in.
               if (moved.opensOffer && moved.offerId != null)
                 props.onFilter?.({ offer: moved.offerId });
             },
-            () => {
+            (code) => {
               unplace(card.applicationId);
+              return followUps.refused(code, card.name, (date) => {
+                move(card, to, date);
+              });
             },
           );
         };
@@ -428,6 +434,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
         };
         return (
           <div className="flex flex-col gap-3">
+            {followUps.dialogs}
             <PageHeader
               title={data.job.title}
               meta={

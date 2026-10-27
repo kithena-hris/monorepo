@@ -2,6 +2,7 @@
   "interviews.rated_1_4_with_labelled_anchors": "Rated 1–4 with labeled anchors. No midpoint.",
   "interviews.summarise_the_scorecards": "Summarize the scorecards",
   "job-terms.no_benefits_in_the_catalogue": "No benefits in the catalog",
+  "move.cancel_interviews_about": "They moved past a step whose interview is still booked. Canceling tells the candidate and the panel, and takes it off their calendars.",
   "settings-editors.a_licence_the_right_to_work": "A license, the right to work: what the law needs for this job.",
   "settings.catalogue": "Catalog"
 }

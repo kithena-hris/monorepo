@@ -81,6 +81,7 @@ import type {
   ScreenProps,
 } from './types';
 import { t as tr } from './i18n';
+import { useMoveFollowUps } from './move-follow-ups';
 
 /**
  * R11, R12, a candidate (design R11–R12): one record across applications.
@@ -446,7 +447,10 @@ function ContractCard({
 }: {
   readonly name: string;
   /** Their details: never asked (null), waiting on them, or what they gave. */
-  readonly details: { readonly state: 'open' } | { readonly state: 'answered'; readonly given: CandidateDetails } | null;
+  readonly details:
+    | { readonly state: 'open' }
+    | { readonly state: 'answered'; readonly given: CandidateDetails }
+    | null;
   readonly asking: boolean;
   readonly onAsk: () => void;
   readonly onOpen: () => void;
@@ -455,28 +459,28 @@ function ContractCard({
   const address = given?.homeAddress ?? null;
   return (
     <Card padded className="flex flex-col gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <IconTile tone="accent">
-          <icons.document aria-hidden />
-        </IconTile>
-        <div className="min-w-0">
-          <p className="font-semibold">
-            {tr('candidate.prepare_the_contract_title', 'Prepare the contract')}
-          </p>
-          <p className="text-sm text-fg-muted">
-            {tr(
-              'candidate.prepare_the_contract_hint',
-              '{{name}} accepted the offer. Kithena drafts the contract from it and the law of the employing entity; you check every fact and send it to {{name}} to sign.',
-              { name },
-            )}
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <IconTile tone="accent">
+            <icons.document aria-hidden />
+          </IconTile>
+          <div className="min-w-0">
+            <p className="font-semibold">
+              {tr('candidate.prepare_the_contract_title', 'Prepare the contract')}
+            </p>
+            <p className="text-sm text-fg-muted">
+              {tr(
+                'candidate.prepare_the_contract_hint',
+                '{{name}} accepted the offer. Kithena drafts the contract from it and the law of the employing entity; you check every fact and send it to {{name}} to sign.',
+                { name },
+              )}
+            </p>
+          </div>
         </div>
+        <Button onClick={onOpen} startIcon={<icons.document aria-hidden />}>
+          {tr('candidate.prepare_the_contract', 'Prepare the contract')}
+        </Button>
       </div>
-      <Button onClick={onOpen} startIcon={<icons.document aria-hidden />}>
-        {tr('candidate.prepare_the_contract', 'Prepare the contract')}
-      </Button>
-    </div>
       {/* What only they know, asked before the contract: it states them for them to check, and People takes them. */}
       {given === null ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
@@ -494,7 +498,12 @@ function ContractCard({
                 )}
           </p>
           {details?.state === 'open' ? null : (
-            <Button size="sm" loading={asking} onClick={onAsk} startIcon={<icons.email aria-hidden />}>
+            <Button
+              size="sm"
+              loading={asking}
+              onClick={onAsk}
+              startIcon={<icons.email aria-hidden />}
+            >
               {tr('candidate.ask_for_their_details', 'Ask for their details')}
             </Button>
           )}
@@ -508,23 +517,44 @@ function ContractCard({
             items={[
               ...(given.preferredName === null
                 ? []
-                : [{ label: tr('candidate.details_preferred_name', 'Preferred name'), value: given.preferredName }]),
+                : [
+                    {
+                      label: tr('candidate.details_preferred_name', 'Preferred name'),
+                      value: given.preferredName,
+                    },
+                  ]),
               ...(given.dateOfBirth === null
                 ? []
-                : [{ label: tr('candidate.details_date_of_birth', 'Date of birth'), value: day(given.dateOfBirth) }]),
+                : [
+                    {
+                      label: tr('candidate.details_date_of_birth', 'Date of birth'),
+                      value: day(given.dateOfBirth),
+                    },
+                  ]),
               ...(address === null
                 ? []
                 : [
                     {
                       label: tr('candidate.details_home_address', 'Home address'),
-                      value: [address.line1, address.line2, [address.postcode, address.city].filter(Boolean).join(' '), address.subdivision, address.country]
+                      value: [
+                        address.line1,
+                        address.line2,
+                        [address.postcode, address.city].filter(Boolean).join(' '),
+                        address.subdivision,
+                        address.country,
+                      ]
                         .filter((x) => x !== null && x !== '')
                         .join(', '),
                     },
                   ]),
               ...(given.personalEmail === null
                 ? []
-                : [{ label: tr('candidate.details_personal_email', 'Personal email'), value: given.personalEmail }]),
+                : [
+                    {
+                      label: tr('candidate.details_personal_email', 'Personal email'),
+                      value: given.personalEmail,
+                    },
+                  ]),
               ...(given.mobilePhone === null
                 ? []
                 : [{ label: tr('candidate.details_mobile', 'Mobile'), value: given.mobilePhone }]),
@@ -1493,6 +1523,33 @@ export function Spotlight({
       showOffer((drafted as { id: string }).id);
     });
   };
+  const followUps = useMoveFollowUps(act);
+  const sendMove = (to: string, message: ComposedEmail | null, startDate?: string): void => {
+    act.run(
+      'MoveApplication',
+      {
+        applicationId: chosen.applicationId,
+        input: { to, message, ...(startDate === undefined ? {} : { startDate }) },
+      },
+      (answer) => {
+        setMoving(null);
+        followUps.moved(answer);
+        const moved = answer as {
+          opensOffer?: boolean;
+          offerId?: string | null;
+        } | null;
+        // Arriving at the offer stage drafted the offer from the job: open it, filled in, over this page.
+        if (moved?.opensOffer === true && moved.offerId != null) showOffer(moved.offerId);
+      },
+      (code) => {
+        const asked = followUps.refused(code, name, (date) => {
+          sendMove(to, message, date);
+        });
+        if (asked === 'asked') setMoving(null);
+        return asked;
+      },
+    );
+  };
   const askMove = (to: string): void => {
     const target = chosen.stages.find((s) => s.id === to);
     if (target === undefined || to === chosen.stageId) return;
@@ -2038,6 +2095,7 @@ export function Spotlight({
 
   const dialogs = (
     <>
+      {followUps.dialogs}
       <Dialog
         open={moving !== null}
         onOpenChange={(open) => {
@@ -2088,26 +2146,7 @@ export function Spotlight({
               }
               onClick={() => {
                 if (moving === null) return;
-                act.run(
-                  'MoveApplication',
-                  {
-                    applicationId: chosen.applicationId,
-                    input: {
-                      to: moving.to,
-                      message: moveEmailing ? moveMessage : null,
-                    },
-                  },
-                  (answer) => {
-                    setMoving(null);
-                    const moved = answer as {
-                      opensOffer?: boolean;
-                      offerId?: string | null;
-                    } | null;
-                    // Arriving at the offer stage drafted the offer from the job: open it, filled in, over this page.
-                    if (moved?.opensOffer === true && moved.offerId != null)
-                      showOffer(moved.offerId);
-                  },
-                );
+                sendMove(moving.to, moveEmailing ? moveMessage : null);
               }}
             >
               {moveEmailing

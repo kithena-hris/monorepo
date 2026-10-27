@@ -8,7 +8,7 @@ import {
   type LaunchCountry,
   type PersonId,
 } from '@kithena/contracts';
-import type { Clock } from '@kithena/domain-kit';
+import type { Clock, PendingEvent } from '@kithena/domain-kit';
 import { expect } from 'vitest';
 import * as z from 'zod';
 
@@ -1588,8 +1588,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(read.setting.contract?.terms?.contractType).toEqual(expect.any(String));
     expect(read.setting.contract?.rules.length).toBeGreaterThan(0);
   });
-  // Hired by hand on the board needs an accepted offer, whose terms the hire carries.
-  await as('ada', async (ctx) => {
+  // Hired by hand on the board with no accepted offer: HR is asked when they start.
+  const hiredId = await as('ada', async (ctx) => {
     const stages = await ctx.tx.jobs.stages(
       (await ctx.tx.applications.get(applied.applicationId))?.jobId ?? '',
     );
@@ -1597,7 +1597,45 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     if (hiredStage.length !== stages.length) await ctx.tx.jobs.setStages(jobId, hiredStage);
     const to = hiredStage.find((s) => s.category === 'hired')?.id ?? '';
     const early = await moveOrHire(ctx, applied.applicationId, to, null);
-    expect(early.ok ? null : early.error.code).toBe('HIRE_NEEDS_ACCEPTED_OFFER');
+    expect(early.ok ? null : early.error.code).toBe('HIRE_NEEDS_START_DATE');
+    return to;
+  });
+  // Given the start date it is a hire in full with no offer behind it: rolled back, as the offer goes on below.
+  const handed: PendingEvent[] = [];
+  const rollback = new Error('rolled back');
+  await expect(
+    uow.run(tenantId, async (tx) => {
+      const watched = {
+        ...tx,
+        outbox: {
+          publish: (events: readonly PendingEvent[]) => {
+            handed.push(...events);
+            return tx.outbox.publish(events);
+          },
+        },
+      };
+      const ctx = await contextOf(deps, watched, callerOf('ada'));
+      value(
+        await moveOrHire(
+          ctx,
+          applied.applicationId,
+          hiredId,
+          null,
+          CalendarDate.parse('2026-12-01'),
+        ),
+      );
+      expect((await ctx.tx.applications.get(applied.applicationId))?.outcome).toBe('hired');
+      expect((await ctx.tx.prehires.get(applied.applicationId))?.startDate).toBe('2026-12-01');
+      throw rollback;
+    }),
+  ).rejects.toBe(rollback);
+  expect(handed.find((e) => e.eventName === 'recruiting.candidate.hired')?.payload).toMatchObject({
+    offerId: null,
+    terms: null,
+    pay: null,
+    startDate: '2026-12-01',
+    jobTitle: expect.any(String),
+    country: place.country,
   });
   // Accepted with the company's host known, as identity announces it: the team's email opens the contract there.
   await uow.run(tenantId, (tx) =>

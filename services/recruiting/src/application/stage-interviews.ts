@@ -48,3 +48,27 @@ export async function interviewOnEntry(
   }
   await selfScheduleLink(ctx, applicationId, plan.key, {}, [], {}, setting);
 }
+
+/**
+ * Interviews still booked at steps a move went past: the screen asks whether
+ * to cancel them, since the candidate has moved beyond them. Not cancelled
+ * here: someone may still want to meet them.
+ */
+export async function leftBehind(
+  ctx: Ctx,
+  applicationId: string,
+  to: string,
+): Promise<{ id: string; title: string; startsAt: string }[]> {
+  const app = await ctx.tx.applications.get(applicationId);
+  if (app === null) return [];
+  const stages = await ctx.tx.jobs.stages(app.jobId);
+  const at = stages.findIndex((s) => s.id === to);
+  const plan = await ctx.tx.jobs.plan(app.jobId);
+  return (await ctx.tx.interviews.forApplication(applicationId)).flatMap((i) => {
+    const planned = plan.find((p) => p.key === i.planKey);
+    const step = stages.findIndex((s) => s.id === planned?.stageId);
+    return i.state === 'scheduled' && planned !== undefined && step !== -1 && step < at
+      ? [{ id: i.id, title: planned.title, startsAt: i.startsAt }]
+      : [];
+  });
+}

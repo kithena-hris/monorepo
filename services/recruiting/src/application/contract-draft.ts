@@ -9,13 +9,14 @@ import {
   type ContractFacts,
   type Particular,
 } from '../domain/contract/particulars.js';
-import { latest } from '../domain/offer/offer.js';
+import { latest, type Offer } from '../domain/offer/offer.js';
 import { write, type PromptSpec } from './ai.js';
 import { everyCatalogue } from './catalogue.js';
 import { mailWords, notFound, type Ctx } from './context.js';
 import { generalSettings } from './setup.js';
 import { editableOffer, resolvedTermsOf } from './offers.js';
 import { detailsOf } from './requests.js';
+import type { JobRecord } from './ports.js';
 
 /**
  * The contract, drafted (Recruiting PRD §21.1): the statutory particulars of
@@ -74,7 +75,15 @@ async function settingOf(ctx: Ctx, offerId: string) {
   if (!loaded.ok) return loaded;
   if (offer.state !== 'accepted')
     return err(failure('NOT_ACCEPTED', 'A contract is drafted from an accepted offer'));
-  const { job, candidate } = loaded.value;
+  return settingFor(ctx, offer, loaded.value.job, loaded.value.candidate);
+}
+
+async function settingFor(
+  ctx: Ctx,
+  offer: Offer,
+  job: JobRecord,
+  candidate: { readonly name: string },
+) {
   const version = latest(offer);
   const terms = await resolvedTermsOf(ctx, offer, job, version.startDate);
   if (!terms.ok) return terms;
@@ -121,6 +130,24 @@ async function settingOf(ctx: Ctx, offerId: string) {
     particulars: particularsFor(facts(employer, candidate.name)),
     masked: particularsFor(facts(EMPLOYER, EMPLOYEE)),
   });
+}
+
+/**
+ * What a contract of this offer states, for the offer assistant: every
+ * particular with its value, the parties masked and nothing the candidate
+ * gave about themselves. Null while a term is not lawful.
+ */
+export async function offerParticulars(
+  ctx: Ctx,
+  offer: Offer,
+  job: JobRecord,
+): Promise<readonly Particular[] | null> {
+  const setting = await settingFor(ctx, offer, job, { name: EMPLOYEE });
+  return setting.ok
+    ? setting.value.masked.filter(
+        (p) => p.key !== 'employee_address' && p.key !== 'employee_details',
+      )
+    : null;
 }
 
 export async function draftContract(ctx: Ctx, offerId: string): Promise<Result<ContractDraft>> {

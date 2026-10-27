@@ -1,6 +1,13 @@
 import * as z from 'zod';
 
-import { asContact, asFinancial, asIdentity, asInternal, asPublic, policy } from '../classification.js';
+import {
+  asContact,
+  asFinancial,
+  asIdentity,
+  asInternal,
+  asPublic,
+  policy,
+} from '../classification.js';
 import { defineEvent } from '../event.js';
 import { activityRecorded } from './activity.js';
 import { CalendarDate, Instant, LegalEntityId, Money } from '../primitives.js';
@@ -14,6 +21,7 @@ import {
   ConditionState,
   InterviewId,
   JobId,
+  LaunchCountry,
   OfferId,
   PrehireCancelReason,
   PublicationTarget,
@@ -22,6 +30,7 @@ import {
   RequisitionId,
   StageCategory,
   StageId,
+  WorkMode,
 } from '../recruiting/primitives.js';
 import { ResolvedTerms } from '../recruiting/terms.js';
 
@@ -183,28 +192,33 @@ export const CandidateHired = defineEvent(
     candidateId: CandidateId,
     applicationId: ApplicationId,
     jobId: JobId,
-    offerId: OfferId,
-    offerVersion: z.int().positive().register(policy, asInternal()),
+    /** The accepted offer and its version; null when HR placed them in Hired with no offer. */
+    offerId: OfferId.nullable().default(null),
+    offerVersion: z.int().positive().nullable().default(null).register(policy, asInternal()),
     candidate: CandidateContact,
     /** What they told the company before the contract; null when they were not asked. */
     details: CandidateDetails.nullable().default(null),
-    terms: ResolvedTerms,
-    pay: z.object({
-      base: Money,
-      frequency: z.enum(['year', 'month', 'hour']).register(policy, asInternal()),
-      /** The rest of the offer's pay, for the record's Compensation fields; null when none. */
-      variableTarget: Money.nullable().default(null),
-      signOnBonus: Money.nullable().default(null),
-      relocation: Money.nullable().default(null),
-      /** A description and a number of units, never priced. */
-      equity: z
-        .object({
-          description: z.string().max(500).register(policy, asFinancial()),
-          units: z.int().nonnegative().register(policy, asFinancial()),
-        })
-        .nullable()
-        .default(null),
-    }),
+    /** The contract's terms and the offer's pay; null on a hire made with no offer. */
+    terms: ResolvedTerms.nullable().default(null),
+    pay: z
+      .object({
+        base: Money,
+        frequency: z.enum(['year', 'month', 'hour']).register(policy, asInternal()),
+        /** The rest of the offer's pay, for the record's Compensation fields; null when none. */
+        variableTarget: Money.nullable().default(null),
+        signOnBonus: Money.nullable().default(null),
+        relocation: Money.nullable().default(null),
+        /** A description and a number of units, never priced. */
+        equity: z
+          .object({
+            description: z.string().max(500).register(policy, asFinancial()),
+            units: z.int().nonnegative().register(policy, asFinancial()),
+          })
+          .nullable()
+          .default(null),
+      })
+      .nullable()
+      .default(null),
     benefits: z.array(
       z.object({
         /** The catalogue's id: a library one (`lib:…`), a statutory one (`statutory:…`) or a company's. */
@@ -221,6 +235,9 @@ export const CandidateHired = defineEvent(
     /** The office's name, for People to find its own when the job's location is Recruiting's. */
     locationName: z.string().max(200).nullable().default(null).register(policy, asPublic()),
     legalEntityId: LegalEntityId,
+    /** The employing entity's country and the job's work mode, for a hire with no terms to say them. */
+    country: LaunchCountry.nullable().default(null),
+    workMode: WorkMode.nullable().default(null),
     conditions: z.array(z.object({ kind: ConditionKind, state: ConditionState })),
     /** The signature they signed the contract with, for their record; null when signed elsewhere. */
     /** As its JSON text (`SignatureMark`), the form People keeps a signature in. */
