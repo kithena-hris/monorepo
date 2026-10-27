@@ -4,6 +4,7 @@ import * as z from 'zod';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 import {
   CalendarDate,
+  CandidateDetails,
   ConditionKind,
   Instant,
   InboxAnswer,
@@ -80,6 +81,7 @@ import {
   closeAsk,
   proposeSlots,
   requestChange,
+  requestDetails,
   requestInformation,
 } from '../application/requests.js';
 import {
@@ -1386,6 +1388,17 @@ export const ROUTES: readonly Route[] = [
     run: (ctx, { params, body }) => requestInformation(ctx, params.applicationId, body),
   }),
   route({
+    name: 'requestCandidateDetails',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/details-requests`,
+    summary:
+      'R11: once the offer is accepted, ask the candidate for what only they know before the contract',
+    params: z.object({ applicationId: Id }),
+    body: z.object({}),
+    status: 201,
+    run: (ctx, { params }) => requestDetails(ctx, params.applicationId),
+  }),
+  route({
     name: 'bookFromAsk',
     method: 'POST',
     path: `${V1}/applications/{applicationId}/asks/{askId}/book`,
@@ -2401,7 +2414,11 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/public/{company}/me/asks/{askId}`,
     summary: 'J6: pick one of the times offered, or answer what was asked',
     params: z.object({ company: text(63), askId: Id }),
-    body: z.object({ time: Instant.nullable(), text: text(4000).nullable() }),
+    body: z.object({
+      time: Instant.nullable(),
+      text: text(4000).nullable(),
+      details: CandidateDetails.nullable().default(null),
+    }),
     public: true,
     run: (ctx, { params, body, headers }) =>
       asCandidate(ctx, headers, (id) => answerAsk(ctx, id, params.askId, body)),

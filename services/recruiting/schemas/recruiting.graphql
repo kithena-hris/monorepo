@@ -329,6 +329,15 @@ type Mutation {
   """Remove an email or letter template no stage sends"""
   removeTemplate(id: String!, idempotencyKey: String!): JSON
   """
+  R11: once the offer is accepted, ask the candidate for what only they know before the contract
+  """
+  requestCandidateDetails(
+    applicationId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """
   R11: ask the candidate for something; it lands on their page and in their inbox at once
   """
   requestInformation(

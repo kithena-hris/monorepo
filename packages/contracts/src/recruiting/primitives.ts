@@ -8,6 +8,7 @@ import {
   asPublic,
   policy,
 } from '../classification.js';
+import { PostalAddress } from '../address.js';
 import { keySchema } from '../people/primitives.js';
 
 /**
@@ -183,6 +184,26 @@ export const CandidateContact = z.object({
   phone: z.string().max(40).nullable().register(policy, asContact()),
 });
 export type CandidateContact = z.infer<typeof CandidateContact>;
+
+/**
+ * What only the candidate knows and their record needs, asked after they
+ * accept the offer and before the contract (Recruiting's details request):
+ * stated in the contract for them to check, and handed to People with the
+ * hire. Each may be left out; the contract and the record say what was given.
+ */
+export const CandidateDetails = z.object({
+  preferredName: z.string().trim().max(100).nullable().register(policy, asIdentity()),
+  dateOfBirth: z.iso.date().nullable().register(policy, asIdentity()),
+  personalEmail: z.email().max(254).nullable().register(policy, asContact()),
+  /** International, `+` and the country code first: what People keeps. */
+  mobilePhone: z
+    .string()
+    .regex(/^\+[1-9]\d{6,14}$/u, 'an international number, +country code first')
+    .nullable()
+    .register(policy, asContact()),
+  homeAddress: PostalAddress.nullable(),
+});
+export type CandidateDetails = z.infer<typeof CandidateDetails>;
 
 /** A note's or a message's text: never on an event, here for the views. */
 export const RecruitingText = z.string().max(20_000).register(policy, asFreeText());

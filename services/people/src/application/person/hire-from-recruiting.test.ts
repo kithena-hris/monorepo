@@ -31,6 +31,20 @@ const hired = {
     offerId: '00000000-0000-4000-8000-0000000000d4',
     offerVersion: 1,
     candidate: { givenName: 'Yuki', familyName: 'Tanaka', email: 'Yuki@Example.com', phone: null },
+    details: {
+      preferredName: null,
+      dateOfBirth: '1994-03-08',
+      personalEmail: null,
+      mobilePhone: null,
+      homeAddress: {
+        country: 'ES',
+        line1: 'Calle Mayor 5',
+        line2: null,
+        city: 'Madrid',
+        subdivision: '28',
+        postcode: '28013',
+      },
+    },
     terms: {
       country: 'ES',
       region: null,
@@ -123,6 +137,16 @@ describe('a hire Recruiting made', () => {
       employment_type: 'permanent',
       probation_end: '2027-05-02',
       fte: '1.0000',
+      // What they gave before the contract.
+      date_of_birth: '1994-03-08',
+      home_address: {
+        country: 'ES',
+        line1: 'Calle Mayor 5',
+        line2: null,
+        city: 'Madrid',
+        subdivision: '28',
+        postcode: '28013',
+      },
       // The offer's pay, for the Compensation fields.
       base_salary: { amountMinor: 4_200_000, currency: 'EUR' },
       pay_basis: 'year',

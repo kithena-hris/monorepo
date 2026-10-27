@@ -551,6 +551,10 @@
     "text": "Ask for the reference",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, References: text inside <Button>."
   },
+  "candidate.ask_for_their_details": {
+    "text": "Ask for their details",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <Button>."
+  },
   "candidate.ask_the_candidate_for_something": {
     "text": "Ask the candidate for something",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogTitle>."
@@ -638,6 +642,38 @@
   "candidate.details": {
     "text": "Details",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
+  },
+  "candidate.details_date_of_birth": {
+    "text": "Date of birth",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: the items of <KeyValues>."
+  },
+  "candidate.details_given": {
+    "text": "Their details, for the contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>."
+  },
+  "candidate.details_hint": {
+    "text": "Ask {{name}} for what only they know (date of birth, home address, how to reach them) before you send the contract. It states them for {{name}} to check, and their record starts with them.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>. Filled in: {{name}}."
+  },
+  "candidate.details_home_address": {
+    "text": "Home address",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: the items of <KeyValues>."
+  },
+  "candidate.details_mobile": {
+    "text": "Mobile",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: the items of <KeyValues>."
+  },
+  "candidate.details_personal_email": {
+    "text": "Personal email",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: the items of <KeyValues>."
+  },
+  "candidate.details_preferred_name": {
+    "text": "Preferred name",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: the items of <KeyValues>."
+  },
+  "candidate.details_waiting": {
+    "text": "Waiting on {{name}}’s details: date of birth, home address and how to reach them.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>. Filled in: {{name}}."
   },
   "candidate.draft": {
     "text": "Draft",
@@ -4358,6 +4394,10 @@
   "journey.corrected": {
     "text": "Corrected: {{reason}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. journey.tsx, Journey: the title of <Badge>. Filled in: {{reason}}."
+  },
+  "journey.details_given": {
+    "text": "Given, for the contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. journey.tsx: text built in code."
   },
   "journey.email_sent": {
     "text": "Email sent",

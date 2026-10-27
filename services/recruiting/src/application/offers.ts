@@ -78,6 +78,7 @@ import { generalSettings } from './setup.js';
 import type { ApplicationRecord, Candidate, JobRecord } from './ports.js';
 import { reportingOf } from './requisitions.js';
 import { signedInLink } from './intake.js';
+import { detailsOf } from './requests.js';
 
 /**
  * Offers to the hire (PRD §18, §21, REC-054, REC-055, REC-058): composed on
@@ -1352,6 +1353,7 @@ async function hireFromOffer(
           email: candidate.email,
           phone: candidate.phone,
         },
+        details: await detailsOf(ctx, app.id),
         terms: terms.value,
         pay: {
           base: { amountMinor: version.pay.baseMinor, currency: version.pay.currency },

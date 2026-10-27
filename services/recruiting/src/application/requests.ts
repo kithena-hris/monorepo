@@ -1,5 +1,5 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { Instant } from '@kithena/contracts';
+import type { CandidateDetails, Instant } from '@kithena/contracts';
 
 import { may } from '../domain/access/access.js';
 import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
@@ -141,6 +141,68 @@ export async function proposeSlots(
   return ok(ask);
 }
 
+/**
+ * The team asks a candidate who accepted the offer for what only they know
+ * and their record needs (`CandidateDetails`), before the contract: it
+ * states them for the candidate to check, and People takes them with the
+ * hire. One open at a time; once the contract is out, it is too late to ask.
+ */
+export async function requestDetails(ctx: Ctx, applicationId: string): Promise<Result<Ask>> {
+  const { t } = await mailWords(ctx);
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'candidate.message')) return err(forbidden());
+  const offer = (await ctx.tx.offers.forApplication(applicationId)).find(
+    (o) => o.state === 'accepted',
+  );
+  if (offer === undefined)
+    return err(failure('NOT_ACCEPTED', 'Their details are asked once they accept the offer'));
+  const contract = await ctx.tx.contracts.forOffer(offer.id);
+  if (contract !== null && (contract.state === 'out_for_signature' || contract.state === 'signed'))
+    return err(failure('CONTRACT_SENT', 'The contract is already out; ask before it is sent'));
+  const open = (await asksOf(ctx, applicationId)).find(
+    (a) => a.kind === 'details' && a.state === 'open',
+  );
+  if (open !== undefined) return ok(open);
+  const label = t('email.requests.details_label', 'Your details for the contract');
+  const ask = await saveAsk(ctx, newAsk(ctx, applicationId, { kind: 'details', label }));
+  const { candidate } = loaded.value;
+  const settings = await generalSettings(ctx);
+  await sendNow(
+    ctx,
+    candidate,
+    applicationId,
+    t('email.requests.details_subject', '{{companyName}} needs a few details for your contract', {
+      companyName: settings.companyName,
+    }),
+    t(
+      'email.requests.details_body',
+      'Hello {{name}},\n\nBefore your contract is drawn up, {{companyName}} needs a few details only you know: your date of birth, your home address and how to reach you. The contract states them for you to check before you sign.\n\nYour page:\n{{link}}',
+      {
+        name: candidate.name.split(' ')[0] ?? candidate.name,
+        companyName: settings.companyName,
+        link: await portalLink(ctx, candidate.id),
+      },
+    ),
+    {
+      heading: t('email.requests.details_heading', 'A few details for your contract'),
+      facts: [{ label: t('email.requests.about', 'About'), value: label }],
+    },
+  );
+  return ok(ask);
+}
+
+/** What the candidate gave in their latest answered details request; null when never asked or not yet answered. */
+export async function detailsOf(
+  ctx: Ctx,
+  applicationId: string,
+): Promise<CandidateDetails | null> {
+  const answered = (await asksOf(ctx, applicationId)).filter(
+    (a) => a.kind === 'details' && a.state === 'answered',
+  );
+  return answered.at(-1)?.answer?.details ?? null;
+}
+
 /** The team asks the candidate for something: a document, a date, an answer. */
 export async function requestInformation(
   ctx: Ctx,
@@ -229,7 +291,11 @@ export async function answerAsk(
   ctx: Ctx,
   candidateId: string,
   askId: string,
-  input: { readonly time: Instant | null; readonly text: string | null },
+  input: {
+    readonly time: Instant | null;
+    readonly text: string | null;
+    readonly details?: CandidateDetails | null;
+  },
 ): Promise<Result<Ask>> {
   const { t } = await mailWords(ctx);
   const found = await askOfCandidate(ctx, candidateId, askId);
@@ -237,6 +303,35 @@ export async function answerAsk(
   const { ask, loaded } = found;
   const settings = await generalSettings(ctx);
   const text = input.text?.trim() === '' ? null : (input.text ?? null);
+  if (ask.kind === 'details') {
+    const details = input.details ?? null;
+    if (details === null) return err(failure('DETAILS_REQUIRED', 'Fill in your details'));
+    const done = await saveAsk(ctx, {
+      ...ask,
+      state: 'answered',
+      answeredAt: ctx.at,
+      answer: { time: null, text: null, details },
+    });
+    await tellTeam(
+      ctx,
+      loaded,
+      ask.by,
+      t('email.requests.details_given_subject', '{{name}} gave their details', {
+        name: loaded.candidate.name,
+      }),
+      t(
+        'email.requests.details_given_body',
+        '{{name}} gave their details for the contract for {{job}}. The contract states them for them to check.\n\n{{link}}',
+        {
+          name: loaded.candidate.name,
+          job: await jobTitle(ctx, loaded),
+          link: await candidateLink(ctx, loaded),
+        },
+      ),
+      `ask-details:${ask.id}`,
+    );
+    return ok(done);
+  }
   if (ask.kind === 'slots' && input.time !== null) {
     if (!ask.times.includes(input.time))
       return err(failure('NOT_OFFERED', 'Choose one of the times offered'));

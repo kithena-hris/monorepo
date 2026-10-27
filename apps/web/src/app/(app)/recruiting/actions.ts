@@ -60,6 +60,7 @@ const WRITES = new Set<OperationName>([
   'ProposeSlots',
   'DraftAgenda',
   'RequestInformation',
+  'RequestCandidateDetails',
   'CloseAsk',
   'BookFromAsk',
   'RequestMoreTimes',
