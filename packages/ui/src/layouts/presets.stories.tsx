@@ -928,3 +928,96 @@ export const ThreeLevels: Story = {
     );
   },
 };
+
+/**
+ * The sidebar in two columns: a rail of areas that never moves, and a panel
+ * of the current area's sections beside it.
+ */
+export const RailAndPanel: Story = {
+  name: 'Rail and panel',
+  args: { preset: 'sidebar', sidebarCollapse: { mode: 'rail', defaultCollapsed: false } },
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          "`sidebarRail` splits the sidebar into where you are and what you can do there. The rail holds every area as an icon, named by its tooltip; the panel beside it holds only the current area's sections, so it never needs to scroll, and its names wrap (`NavItem wrap`) rather than being cut short.",
+          '',
+          "Collapsing puts the panel away and leaves the rail: the destinations never move, and neither does the collapse control under the mark. With the panel away, an area's sections fly out from its icon (`useSidebarPanel()` says which state the rail is in).",
+          '',
+          'A press is marked at once (`NavItem pending`): a spinner where the count was, `aria-busy` on the link, until the page arrives.',
+        ].join('\n'),
+      },
+    },
+  },
+  render: function RailAndPanelStory(args) {
+    const [area, setArea] = useState('people');
+    const [section, setSection] = useState('directory');
+    const sections = [
+      { id: 'directory', label: 'Directory', icon: Users },
+      { id: 'org', label: 'Organisation chart and reporting lines', icon: House },
+      { id: 'imports', label: 'Imports', icon: Menu, badge: '3' },
+      { id: 'payroll', label: 'Payroll exports', icon: Wallet },
+    ];
+    return (
+      <PageLayout
+        {...args}
+        sidebarHeader={<Avatar size="md" shape="rounded" name="Northwind" />}
+        sidebarRail={
+          <Nav label="Areas">
+            <NavList className="gap-1">
+              {nav.map((item) => (
+                <NavItem
+                  key={item.id}
+                  href="#"
+                  icon={<item.icon />}
+                  current={item.id === area}
+                  pending={item.id === 'payroll'}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setArea(item.id);
+                  }}
+                  {...(item.badge === undefined ? {} : { badge: item.badge })}
+                >
+                  {item.label}
+                </NavItem>
+              ))}
+            </NavList>
+          </Nav>
+        }
+        sidebar={
+          <div className="flex flex-col px-3 pt-5">
+            <h2 className="px-2.5 pb-3 text-lg font-semibold">
+              {nav.find((n) => n.id === area)?.label}
+            </h2>
+            <Nav label="People sections">
+              <NavList className="gap-0.5">
+                {sections.map((s) => (
+                  <NavItem
+                    key={s.id}
+                    href="#"
+                    level={2}
+                    wrap
+                    icon={<s.icon />}
+                    current={s.id === section}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setSection(s.id);
+                    }}
+                    {...(s.badge === undefined
+                      ? {}
+                      : { badge: <Badge size="sm">{s.badge}</Badge> })}
+                  >
+                    {s.label}
+                  </NavItem>
+                ))}
+              </NavList>
+            </Nav>
+          </div>
+        }
+        contentClassName="p-6 touch:p-4"
+      >
+        <PageHeader title="Directory" description="Everybody at Northwind, as of today." />
+      </PageLayout>
+    );
+  },
+};

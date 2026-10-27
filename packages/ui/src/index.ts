@@ -551,6 +551,7 @@ export {
   Toolbar,
   usePageHeaderFrame,
   useRailCollapsed,
+  useSidebarPanel,
 } from './components/page-layout/page-layout';
 export type {
   PageHeaderFrameProps,

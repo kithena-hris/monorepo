@@ -19,11 +19,7 @@ import {
   DropdownMenuTrigger,
   filterCommands,
   KbdShortcut,
-  Nav,
-  NavItem,
-  NavList,
   PageLayout,
-  Separator,
   TabBar,
   TabBarItem,
   TooltipProvider,
@@ -55,8 +51,9 @@ import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { switchLanguage, useLanguage } from '../lib/i18n';
 import { languageCookie, LANGUAGES } from '../lib/languages';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
-import { useInAppLinks, useWarmPages } from '../lib/links';
-import { AREAS as REMOTES, firstUnder, matchPath } from '../lib/remotes';
+import { prefetchPage, useInAppLinks, useWarmPages } from '../lib/links';
+import { warmRemotes } from './remote-screen';
+import { AREAS as REMOTES, currentPlace, firstUnder, matchPath, type Place } from '../lib/remotes';
 import {
   DEFAULT_PREFS,
   adjacentPage,
@@ -71,7 +68,15 @@ import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { InboxCount, InboxToasts, useInboxTodo } from './inbox/bell';
 import type { InboxPeek } from '../lib/inbox/peek';
-import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
+import { countOf, iconOf } from './people-nav';
+import {
+  SidebarPanel,
+  SidebarRail,
+  useWarmSidebar,
+  type Presses,
+  type ShellArea,
+  type ShellSection,
+} from './shell-sidebar';
 import { RemoteSlot } from './remote-slot';
 import {
   Shortcuts,
@@ -288,6 +293,179 @@ function areasFor(entitlements: readonly string[]): typeof AREAS {
 /** An area owns its whole subtree; home owns only itself. */
 function isCurrent(href: string, pathname: string): boolean {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** How long a press may wait for its page before it is loaded the ordinary way. */
+const PRESS_FALLBACK_MS = 8000;
+
+/**
+ * The areas as the sidebar draws them (`shell-sidebar.tsx`): each with where a
+ * press goes, its sections and its settings, and which is current, on the
+ * address the press is going to (`here`) so the panel turns at once.
+ */
+function shellAreas({
+  areas,
+  shell,
+  here,
+  inbox,
+  hint,
+  people,
+  timeOff,
+}: {
+  readonly areas: typeof AREAS;
+  readonly shell: ShellData;
+  readonly here: string;
+  readonly inbox: JSX.Element;
+  readonly hint: (path: string) => JSX.Element | undefined;
+  readonly people: boolean;
+  readonly timeOff: boolean;
+}): { readonly areas: ShellArea[]; readonly settings: ShellArea; readonly current: ShellArea } {
+  const exact = (path: string): ShellSection['current'] => here === path;
+  const placed = (
+    places: readonly Place[],
+    counts: Readonly<Record<string, number>>,
+    at: string | null,
+  ): ShellSection[] => {
+    const current = currentPlace(places, at);
+    return places.map((p) => ({
+      path: p.path,
+      label: p.label,
+      icon: iconOf(p.icon),
+      current: p === current,
+      ...countOf(counts, p.path),
+    }));
+  };
+  const remoteFor = (href: string) => {
+    const area = Object.values(REMOTES).find((r) => r.home === href);
+    return area === undefined ? undefined : { area, nav: shell.remotes?.[area.name] };
+  };
+  const list: ShellArea[] = areas
+    .filter((a) => a.built)
+    .map((a): ShellArea => {
+      const base = {
+        key: a.href,
+        label: a.label,
+        icon: a.icon,
+        current: isCurrent(a.href, here),
+        shortcut: hint(a.href),
+      };
+      if (a.href === '/') {
+        return {
+          ...base,
+          href: '/',
+          sections: [
+            { path: '/', label: a.label, icon: <icons.home aria-hidden />, current: exact('/') },
+            ...(people
+              ? [
+                  {
+                    path: '/people/me',
+                    label: tr('components.app-shell.your_profile', 'Your profile'),
+                    icon: <icons.person aria-hidden />,
+                    current: exact('/people/me'),
+                  },
+                ]
+              : []),
+            ...(timeOff
+              ? [
+                  {
+                    path: '/time-off/overview',
+                    label: tr('components.app-shell.your_time_off', 'Your time off'),
+                    icon: <icons.leave aria-hidden />,
+                    current: exact('/time-off/overview'),
+                  },
+                ]
+              : []),
+          ],
+        };
+      }
+      if (a.href === '/inbox') {
+        const views: [string, string, keyof typeof icons][] = [
+          ['/inbox', tr('components.app-shell.inbox_all', 'Everything'), 'inbox'],
+          ['/inbox/todo', tr('components.app-shell.inbox_needs_you', 'Needs you'), 'flagged'],
+          ['/inbox/requests', tr('components.app-shell.inbox_waiting', 'Waiting on others'), 'pending'],
+          ['/inbox/updates', tr('components.app-shell.inbox_updates', 'Updates'), 'notifications'],
+          ['/inbox/snoozed', tr('components.app-shell.inbox_snoozed', 'Snoozed'), 'scheduled'],
+          ['/inbox/done', tr('components.app-shell.inbox_done', 'Done'), 'success'],
+        ];
+        return {
+          ...base,
+          href: '/inbox',
+          badge: inbox,
+          sections: views.map(([path, label, icon]) => {
+            const Icon = icons[icon];
+            return { path, label, icon: <Icon aria-hidden />, current: exact(path) };
+          }),
+        };
+      }
+      const isPeople = a.href === '/people';
+      const remote = remoteFor(a.href);
+      const places = isPeople ? shell.sections : (remote?.nav?.sections ?? []);
+      const settings = isPeople ? shell.settings : (remote?.nav?.settings ?? []);
+      const at = isCurrent(a.href, here)
+        ? (matchPath((isPeople ? shell.routes : remote?.nav?.routes) ?? [], here)?.path ?? null)
+        : null;
+      const settingsHome = remote?.area.settings;
+      return {
+        ...base,
+        href: firstUnder(places, a.href) ?? a.href,
+        sections: placed(places, (isPeople ? shell.counts : remote?.nav?.counts) ?? {}, at),
+        settings:
+          settings[0] === undefined
+            ? undefined
+            : {
+                path: settings[0].path,
+                current: settingsHome !== undefined && isCurrent(settingsHome, here),
+              },
+      };
+    });
+  // Settings is an area of its own, at the rail's foot: its panel lists every module's.
+  const modules = list.flatMap((a) =>
+    a.settings === undefined
+      ? []
+      : [{ path: a.settings.path, label: a.label, icon: a.icon, current: a.settings.current }],
+  );
+  const settings: ShellArea = {
+    key: '/settings',
+    label: tr('components.app-shell.settings', 'Settings'),
+    icon: <icons.settings aria-hidden />,
+    href: '/settings',
+    current: isCurrent('/settings', here),
+    shortcut: hint('/settings'),
+    sections: [
+      {
+        path: '/settings',
+        label: tr('components.app-shell.settings_general', 'Company'),
+        icon: <icons.company aria-hidden />,
+        current: exact('/settings'),
+      },
+      ...modules,
+      {
+        path: '/settings/notifications',
+        label: tr('components.app-shell.settings_notifications', 'Notifications'),
+        icon: <icons.notifications aria-hidden />,
+        current: exact('/settings/notifications'),
+      },
+      {
+        path: '/settings/shortcuts',
+        label: tr('components.app-shell.keyboard_shortcuts', 'Keyboard shortcuts'),
+        icon: <icons.shortcuts aria-hidden />,
+        current: exact('/settings/shortcuts'),
+      },
+      ...(shell.roles.admin
+        ? [
+            {
+              path: '/settings/activity',
+              label: tr('components.app-shell.settings_activity', 'Activity log'),
+              icon: <icons.history aria-hidden />,
+              current: here.startsWith('/settings/activity'),
+            },
+          ]
+        : []),
+    ],
+  };
+  const current =
+    (settings.current ? settings : list.find((a) => a.current)) ?? list[0] ?? settings;
+  return { areas: list, settings, current };
 }
 
 /** What their access is called, for the line under their name. */
@@ -546,8 +724,28 @@ export function AppShell({
   // The item pressed is marked at once, while its page is still on its way;
   // the address catching up (or going elsewhere) ends it. Remembered with the
   // address it was pressed from, so no effect has to clear it.
-  const [pressed, setPressed] = useState<{ href: string; from: string } | null>(null);
-  const here = pressed !== null && pressed.from === pathname ? pressed.href : pathname;
+  const [pressed, setPressed] = useState<{ path: string; from: string } | null>(null);
+  const here = pressed !== null && pressed.from === pathname ? pressed.path : pathname;
+  // A press whose page never came (a navigation the router dropped) is loaded
+  // the ordinary way rather than leaving the press looking ignored.
+  useEffect(() => {
+    if (pressed === null || pressed.from !== pathname) return;
+    const late = window.setTimeout(() => {
+      window.location.assign(pressed.path);
+    }, PRESS_FALLBACK_MS);
+    return () => {
+      window.clearTimeout(late);
+    };
+  }, [pressed, pathname]);
+  const presses: Presses = useMemo(
+    () => ({
+      pending: (path) => pressed !== null && pressed.from === pathname && pressed.path === path,
+      press: (path) => {
+        if (path !== pathname) setPressed({ path, from: pathname });
+      },
+    }),
+    [pressed, pathname],
+  );
   const role = roleOf(shell.roles);
   // Which of People's routes the address is, to mark its section: the shell is
   // drawn once, by the layout, so it reads that from the address rather than
@@ -555,53 +753,6 @@ export function AppShell({
   const route = isCurrent('/people', pathname)
     ? (matchPath(shell.routes, pathname)?.path ?? null)
     : null;
-  /**
-   * A remote area by its home, and which of its routes the address is while
-   * you are in it. An area with one section has nothing to list under its
-   * item: the item is the section.
-   */
-  const remoteOf = (href: string) => {
-    const remote = shell.remotes?.[Object.values(REMOTES).find((r) => r.home === href)?.name ?? ''];
-    if (remote === undefined || remote.sections.length < 2) return null;
-    return {
-      ...remote,
-      route: isCurrent(href, pathname) ? (matchPath(remote.routes, pathname)?.path ?? null) : null,
-    };
-  };
-  // Every area's sections inline under its item while you are in it (V2), as
-  // People's: Time Off, Documents, Recruiting, Onboarding and Performance alike.
-  const inlineSubnav = (href: string, label: string) => {
-    const remote = remoteOf(href);
-    if (remote === null) return {};
-    return {
-      subnav: (
-        <PeopleSubnav
-          sections={remote.sections}
-          route={remote.route}
-          counts={remote.counts ?? {}}
-          label={tr('components.app-shell.sections', '{{label}} sections', { label })}
-        />
-      ),
-      expanded: isCurrent(href, here),
-    };
-  };
-  // The same sections as the collapsed rail's flyout (V8), as People's are.
-  const railFlyout = (href: string, label: string) => {
-    const remote = remoteOf(href);
-    if (remote === null) return {};
-    return {
-      flyout: (
-        <PeopleSections
-          title={label}
-          home={href}
-          sections={remote.sections}
-          route={remote.route}
-          counts={remote.counts ?? {}}
-        />
-      ),
-      flyoutSize: 'compact' as const,
-    };
-  };
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const keys = useShortcutsFor({
@@ -636,6 +787,26 @@ export function AppShell({
     [shell.routes, remotes],
   );
   useInAppLinks(isPage);
+  const router = useRouter();
+  const warmSidebar = useWarmSidebar(
+    useCallback(
+      (href: string) => {
+        if (!isPage(new URL(href, window.location.origin).pathname)) return;
+        prefetchPage(router, href);
+        warmRemotes();
+      },
+      [isPage, router],
+    ),
+  );
+  const navAreas = shellAreas({
+    areas,
+    shell,
+    here,
+    inbox: <InboxCount inbox={inbox} />,
+    hint,
+    people: entitlements.includes('module.people'),
+    timeOff: areas.some((a) => a.href === '/time-off' && a.built),
+  });
   // The other tabs of this page's place, fetched whole once it has settled.
   const warmAreas = useMemo(
     () => [
@@ -681,13 +852,18 @@ export function AppShell({
           mark is decoration beside a name that says whose it is, and in the
           rail, where the name is hidden, the link's label still does.
         */
+            /*
+          The company's own mark, never ours, at the top of the rail: its logo
+          where it has uploaded one, its initials where it has not. One link
+          home, named for the company, in both states of the sidebar.
+        */
             sidebarHeader={
               <Link
                 href="/"
                 aria-label={tr('components.app-shell.home_2', '{{companyName}}, home', {
                   companyName,
                 })}
-                className="flex min-w-0 flex-1 items-center gap-2.5"
+                className="flex rounded-[0.75rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
               >
                 <Avatar
                   size="md"
@@ -699,153 +875,27 @@ export function AppShell({
                   name={companyName}
                   aria-hidden
                 />
-                <span
-                  data-rail-label=""
-                  className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
-                >
-                  {companyName}
-                </span>
               </Link>
             }
-            sidebar={
-              <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
-                {/* Under the logo, before any area: search (the command palette, every
-                    page and anybody they may read), then the areas. What is waiting for
-                    them is the Inbox, with its count beside its name. */}
-                <Nav label={tr('components.app-shell.search', 'Search')}>
-                  <NavList>
-                    <NavItem
-                      asChild
-                      icon={<icons.search aria-hidden />}
-                      shortcut={
-                        <KbdShortcut
-                          keys={keys.table.find((s) => s.id === 'palette')?.keys ?? []}
-                        />
-                      }
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaletteOpen(true);
-                        }}
-                      >
-                        {tr('components.app-shell.search', 'Search')}
-                      </button>
-                    </NavItem>
-                  </NavList>
-                </Nav>
-                <Nav
-                  label={tr('components.app-shell.areas', 'Areas')}
-                  className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
-                >
-                  <NavList>
-                    {areas.map((area) =>
-                      area.built ? (
-                        <NavItem
-                          key={area.label}
-                          asChild
-                          icon={area.icon}
-                          current={isCurrent(area.href, here)}
-                          shortcut={hint(area.href)}
-                          {...(area.href === '/inbox'
-                            ? { badge: <InboxCount inbox={inbox} /> }
-                            : {})}
-                          {...(area.href === '/people' && shell.sections.length > 0
-                            ? {
-                                // Inline while you are in People (V2); from the
-                                // collapsed rail, the same six as a flyout (V8).
-                                subnav: (
-                                  <PeopleSubnav
-                                    sections={shell.sections}
-                                    route={route}
-                                    counts={shell.counts}
-                                  />
-                                ),
-                                expanded: isCurrent(area.href, here),
-                                flyout: (
-                                  <PeopleSections
-                                    sections={shell.sections}
-                                    route={route}
-                                    counts={shell.counts}
-                                  />
-                                ),
-                                flyoutSize: 'compact' as const,
-                              }
-                            : {
-                                // Every other area with sections: inline while you
-                                // are in it, and from the collapsed rail as a flyout.
-                                ...inlineSubnav(area.href, area.label),
-                                ...railFlyout(area.href, area.label),
-                              })}
-                        >
-                          {/* Where the area's address redirects (`firstUnder`, as the
-                              server does), so a press is one round trip, not two:
-                              every remote's, by its home, not only those with a
-                              subnav. */}
-                          <Link
-                            href={
-                              (firstUnder(
-                                area.href === '/people'
-                                  ? shell.sections
-                                  : (shell.remotes?.[
-                                      Object.values(REMOTES).find((r) => r.home === area.href)
-                                        ?.name ?? ''
-                                    ]?.sections ?? []),
-                                area.href,
-                              ) ?? area.href) as Route
-                            }
-                            onClick={() => {
-                              setPressed({ href: area.href, from: pathname });
-                            }}
-                          >
-                            {area.label}
-                          </Link>
-                        </NavItem>
-                      ) : (
-                        <NavItem
-                          key={area.label}
-                          icon={area.icon}
-                          // Not yet built. Disabled rather than absent, and not a
-                          // link at all — no `href` — as the account menu's item
-                          // and `g t` are not: a link that 404s is worse than one
-                          // that says "not yet".
-                          aria-disabled
-                          tabIndex={-1}
-                          className="opacity-60"
-                        >
-                          {area.label}
-                        </NavItem>
-                      ),
-                    )}
-                  </NavList>
-                </Nav>
-
-                {/* Pinned: settings and the person stay reachable however long the list above grows. */}
-                <div className="mt-auto flex shrink-0 flex-col gap-2">
-                  <Separator className="mx-1.5 my-1 group-data-[collapsed]/sidebar:hidden" />
-                  <Nav label={tr('components.app-shell.account', 'Account')}>
-                    <NavList>
-                      <NavItem
-                        asChild
-                        icon={<Settings />}
-                        current={isCurrent('/settings', pathname)}
-                        shortcut={hint('/settings')}
-                      >
-                        <Link href="/settings">
-                          {tr('components.app-shell.settings', 'Settings')}
-                        </Link>
-                      </NavItem>
-                    </NavList>
-                  </Nav>
-                  {/* The clock (Time Off's, TOF-059), above the person; not in the rail, where it has no room. */}
-                  {slots.length === 0 ? null : (
-                    <div className="flex flex-col gap-2 group-data-[collapsed]/sidebar:hidden">
-                      {slots.map((s) => (
-                        <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
-                      ))}
-                    </div>
-                  )}
+            // Where you are: every area, always, as an icon named by its tooltip.
+            sidebarRail={
+              <SidebarRail
+                areas={navAreas.areas}
+                settings={navAreas.settings}
+                search={{
+                  onOpen: () => {
+                    setPaletteOpen(true);
+                  },
+                  shortcut: (() => {
+                    const k = keys.table.find((x) => x.id === 'palette')?.keys;
+                    return k === undefined || k.length === 0 ? undefined : <KbdShortcut keys={k} />;
+                  })(),
+                }}
+                presses={presses}
+                onIntent={warmSidebar}
+                account={
                   <PersonMenu
+                    compact
                     person={person}
                     subtitle={
                       person.viewing == null
@@ -861,8 +911,26 @@ export function AppShell({
                     dark={dark}
                     onTheme={setTheme}
                   />
-                </div>
-              </div>
+                }
+              />
+            }
+            // What you can do there: the current area's sections, never scrolled, never cut short.
+            sidebar={
+              <SidebarPanel
+                area={navAreas.current}
+                presses={presses}
+                onIntent={warmSidebar}
+                foot={
+                  slots.length === 0 ? null : (
+                    // The clock (Time Off's, TOF-059), at the panel's foot.
+                    <div className="flex flex-col gap-2">
+                      {slots.map((s) => (
+                        <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
+                      ))}
+                    </div>
+                  )
+                }
+              />
             }
           >
             <InboxToasts inbox={inbox} />
@@ -1216,7 +1284,10 @@ function PersonMenu({
   timeOff,
   dark,
   onTheme,
+  compact = false,
 }: {
+  /** In the rail: the avatar alone, its name in the menu it opens. */
+  compact?: boolean;
   person: AppShellProps['person'];
   subtitle: string;
   companyName: string;
@@ -1234,19 +1305,30 @@ function PersonMenu({
   const viewKeys = shownKeys(table.find((s) => s.id === 'view-as')?.keys, prefs.characterKeys);
   return (
     <DropdownMenu openOnHover>
-      <DropdownMenuTrigger className="hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-2.5 rounded-md p-2.5 text-left shadow-[inset_0_0_0_1px_var(--reach-color-border)] focus-visible:outline-2 focus-visible:outline-offset-2 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:p-1 group-data-[collapsed]/sidebar:shadow-none">
+      <DropdownMenuTrigger
+        aria-label={compact ? person.name : undefined}
+        className={
+          compact
+            ? 'hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center justify-center rounded-[0.75rem] p-1 focus-visible:outline-2 focus-visible:outline-offset-2'
+            : 'hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-2.5 rounded-md p-2.5 text-left shadow-[inset_0_0_0_1px_var(--reach-color-border)] focus-visible:outline-2 focus-visible:outline-offset-2 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:p-1 group-data-[collapsed]/sidebar:shadow-none'
+        }
+      >
         <Avatar name={person.name} size="md" />
-        <span data-rail-label="" className="min-w-0 flex-1 group-data-[collapsed]/sidebar:hidden">
-          <span className="block truncate text-sm font-semibold">{person.name}</span>
-          {subtitle === '' ? null : (
-            <span className="text-fg-muted block truncate text-xs">{subtitle}</span>
-          )}
-        </span>
-        <icons.expand
-          aria-hidden
-          data-rail-label=""
-          className="text-fg-subtle size-4 shrink-0 group-data-[collapsed]/sidebar:hidden"
-        />
+        {compact ? null : (
+          <>
+            <span data-rail-label="" className="min-w-0 flex-1 group-data-[collapsed]/sidebar:hidden">
+              <span className="block truncate text-sm font-semibold">{person.name}</span>
+              {subtitle === '' ? null : (
+                <span className="text-fg-muted block truncate text-xs">{subtitle}</span>
+              )}
+            </span>
+            <icons.expand
+              aria-hidden
+              data-rail-label=""
+              className="text-fg-subtle size-4 shrink-0 group-data-[collapsed]/sidebar:hidden"
+            />
+          </>
+        )}
       </DropdownMenuTrigger>
 
       {/* Out to the right like the navigation's flyouts, its foot level with the trigger's. */}

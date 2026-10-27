@@ -2,6 +2,15 @@
 
 The tenant app draws only from Reach (`packages/ui`): its tokens, components and motion. This file records how screens compose Reach, not a second system. When a screen needs something Reach lacks, Reach gets a variant first.
 
+## The sidebar
+
+- **Two columns** (`shell-sidebar.tsx`, Reach's `PageLayout sidebarRail`): a rail of areas that never moves (the company's mark, the collapse control under it, Search, every area as an icon named by its tooltip, then Settings and you at the foot), and a panel beside it with the current area's name and its sections. Where you are is the rail; what you can do there is the panel.
+- **Collapsed**, the panel goes and the rail stays; an area's sections fly out from its icon. The collapse control is in the same place in both states.
+- **Never scrolls, never cuts a word**: the rail holds one icon per area, the panel only one area's sections, and section names wrap (`NavItem wrap`).
+- **No keys on rows**: shortcuts live in the rail's tooltips, the search palette and the help sheet.
+- **Every area has a panel**: Home (Home, your profile, your time off), Inbox (Everything, Needs you, Waiting on others, Updates, Snoozed, Done), each module's sections with its settings at the panel's foot, and Settings (Company, each module, Notifications, Keyboard shortcuts, Activity log). Time Off's clock sits at the panel's foot.
+- **A press is never ignored**: the item is marked on its way at once (`NavItem pending`) and the panel turns to its area before the page arrives; every page the sidebar leads to is fetched as the pointer or keyboard comes into it; a press whose page has not come after 8 seconds is loaded the ordinary way.
+
 ## Headers stay lean
 
 - A page header holds a title, its status as `meta`, at most one primary action (`variant="primary"`), at most one secondary decision, and a `MoreMenu` (`apps/web/recruiting/src/shared.tsx`) for everything else.

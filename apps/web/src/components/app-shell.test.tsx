@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ComponentPropsWithoutRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 let pathname = '/time-off/overview';
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  refresh: vi.fn(),
+  replace: vi.fn(),
+  prefetch: vi.fn(),
+}));
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => router,
   usePathname: () => pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -34,6 +40,7 @@ vi.mock('../app/(app)/time-off/actions', () => ({ punch, correctPunch: vi.fn() }
  * presses the pill as the clock would.
  */
 vi.mock('./remote-screen', () => ({
+  warmRemotes: vi.fn(),
   RemoteScreen: (props: {
     name: string;
     slot?: string;
@@ -121,7 +128,7 @@ function renderShell(
 }
 
 const sections = () =>
-  within(screen.getByRole('list', { name: 'Time off sections' }))
+  within(screen.getByRole('navigation', { name: 'Time off sections' }))
     .getAllByRole('link')
     .map((a) => a.textContent);
 
@@ -129,7 +136,7 @@ describe('Time off in the shell', () => {
   it('lists an employee’s sections under Time off, without Insights, the current one marked', () => {
     renderShell({ hr: false, admin: false, finance: false });
     expect(sections()).toEqual(['Overview', 'Calendar', 'My requests', 'Attendance']);
-    const list = within(screen.getByRole('list', { name: 'Time off sections' }));
+    const list = within(screen.getByRole('navigation', { name: 'Time off sections' }));
     expect(list.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
     expect(list.getByRole('link', { name: 'My requests' }).getAttribute('href')).toBe(
       '/time-off/requests/upcoming',
@@ -156,7 +163,7 @@ describe('Time off in the shell', () => {
       'Attendance1 waiting',
       'Insights',
     ]);
-    const list = within(screen.getByRole('list', { name: 'Time off sections' }));
+    const list = within(screen.getByRole('navigation', { name: 'Time off sections' }));
     expect(list.getByRole('link', { name: /^Requests/ }).getAttribute('href')).toBe(
       '/time-off/approvals/waiting',
     );
@@ -181,7 +188,7 @@ describe('Time off in the shell', () => {
     pathname = '/time-off/approvals/decided';
     renderShell({ hr: true, admin: false, finance: false });
     expect(sections()).toEqual(['Overview', 'Calendar', 'Requests', 'Attendance', 'Insights']);
-    const requests = within(screen.getByRole('list', { name: 'Time off sections' })).getByRole(
+    const requests = within(screen.getByRole('navigation', { name: 'Time off sections' })).getByRole(
       'link',
       { name: 'Requests' },
     );
@@ -255,5 +262,65 @@ describe('the clock in the top bar (TOF-059)', () => {
       </AppShell>,
     );
     expect(screen.queryByRole('button', { name: /TopBarClock/ })).toBeNull();
+  });
+});
+
+describe('the sidebar: a rail of areas, a panel of the current one’s sections', () => {
+  it('names the area you are in over its sections, and every area in the rail', () => {
+    renderShell({ hr: false, admin: false, finance: false });
+    expect(screen.getByRole('heading', { name: 'Time off' })).toBeTruthy();
+    const areas = within(screen.getByRole('navigation', { name: 'Areas' }));
+    expect(areas.getAllByRole('link').map((a) => a.textContent)).toEqual([
+      'Home',
+      'Inbox',
+      'Time off',
+      'People',
+    ]);
+    // Search and Settings stay in the rail, whichever area is open.
+    expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
+    expect(
+      within(screen.getByRole('navigation', { name: 'Account' })).getByRole('link', {
+        name: 'Settings',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('turns the panel at a press and says the page is on its way, then loads it the ordinary way if it never comes', () => {
+    vi.useFakeTimers();
+    const assign = vi.fn();
+    const real = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { assign, origin: 'http://localhost', href: real.href, pathname: real.pathname },
+    });
+    try {
+      renderShell({ hr: false, admin: false, finance: false });
+      const home = within(screen.getByRole('navigation', { name: 'Areas' })).getByRole('link', {
+        name: 'Home',
+      });
+      fireEvent.click(home);
+      expect(home.getAttribute('aria-busy')).toBe('true');
+      // The panel is Home's at once, not when the page arrives.
+      expect(screen.getByRole('heading', { name: 'Home' })).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(8000);
+      });
+      expect(assign).toHaveBeenCalledWith('/');
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: real });
+      vi.useRealTimers();
+    }
+  });
+
+  it('fetches the pages it leads to as the pointer comes into it, once', () => {
+    router.prefetch.mockClear();
+    renderShell({ hr: false, admin: false, finance: false });
+    const panel = screen.getByRole('navigation', { name: 'Time off sections' });
+    fireEvent.pointerEnter(panel.parentElement ?? panel);
+    const fetched = router.prefetch.mock.calls.map(([href]) => href as string);
+    expect(fetched).toEqual(expect.arrayContaining(['/time-off/overview', '/time-off/calendar/month', '/inbox']));
+    const count = fetched.length;
+    fireEvent.pointerEnter(panel.parentElement ?? panel);
+    expect(router.prefetch.mock.calls).toHaveLength(count);
   });
 });

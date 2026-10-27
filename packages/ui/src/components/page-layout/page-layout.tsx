@@ -133,6 +133,11 @@ export type PageRailCollapse =
 
 interface RailState {
   collapsed: boolean;
+  /**
+   * Beside a `sidebarRail`: whether the panel of sections next to it is open.
+   * The rail's items fly their sections out only when it is not.
+   */
+  panel?: boolean;
 }
 
 /** The collapsed rail's width, and the width a drag has to pass to open it. */
@@ -197,6 +202,14 @@ export const RailContext = createContext<RailState>({ collapsed: false });
 /** True when the surrounding rail is collapsed to icons. */
 export function useRailCollapsed(): boolean {
   return useContext(RailContext).collapsed;
+}
+
+/**
+ * Inside a `sidebarRail`: whether the panel beside it is open. Undefined
+ * anywhere else.
+ */
+export function useSidebarPanel(): boolean | undefined {
+  return useContext(RailContext).panel;
 }
 
 /**
@@ -315,6 +328,18 @@ export interface PageLayoutProps
    * the rail is collapsed: keep what survives at 3.5rem to a mark.
    */
   sidebarHeader?: ReactNode;
+  /**
+   * The sidebar in two columns: this, a narrow rail of destinations that is
+   * always there (icons, each named by its tooltip), and `sidebar` beside it
+   * as a panel of the current destination's sections.
+   *
+   * Collapsing puts the panel away and leaves the rail, so the destinations
+   * never move. `sidebarHeader` (the mark) tops the rail, the collapse control
+   * sits under it in both states, and `sidebarCollapse` should be `rail`.
+   * Inside it every `NavItem` is an icon (`RailContext`), and
+   * `useSidebarPanel()` says whether the panel beside it is open.
+   */
+  sidebarRail?: ReactNode;
   /** Secondary rail: activity, help, a detail summary. Rendered as `<aside>`; hidden while the layout is narrower than 80rem (`@7xl/page`). */
   aside?: ReactNode;
   /** Status strip at the bottom of the page flow. Rendered as `<footer>`. */
@@ -364,6 +389,7 @@ export function PageLayout({
   banner,
   sidebar,
   sidebarHeader,
+  sidebarRail,
   aside,
   footer,
   bottomBar,
@@ -498,7 +524,10 @@ export function PageLayout({
               sidebarState.enabled &&
                 sidebarCollapse.mode === 'rail' &&
                 sidebarState.collapsed &&
+                !sidebarRail &&
                 '@min-[40rem]/page:w-19',
+              // Two columns side by side: the rail, and the panel beside it.
+              sidebarRail && '@min-[40rem]/page:flex-row',
               sidebarState.enabled &&
                 sidebarCollapse.mode === 'hidden' &&
                 sidebarState.collapsed &&
@@ -509,57 +538,110 @@ export function PageLayout({
             // navigation the user can plainly see.
             inert={sidebarCollapse.mode === 'hidden' && sidebarState.collapsed ? true : undefined}
           >
-            <RailContext value={{ collapsed: sidebarState.collapsed }}>
-              {/*
-                The column, and its own scroll container. `overflow-x-hidden`
-                matters as much as the duration: without it the labels spill
-                across the content while the width moves. It is here rather
-                than on the nav so the edge handle can stand across the border.
-              */}
-              <div className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden">
+            {sidebarRail ? (
+              <>
                 {/*
-                One row, holding whatever the caller pinned at the top and the
-                collapse control at its end.
-
-                Rendered whenever either exists, so a sidebar with no header is
-                unchanged and one with a header no longer pays for a strip of
-                chrome above it.
-              */}
-                {(sidebarHeader ??
-                (sidebarState.enabled &&
-                  !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed))) ? (
-                  // The brand at the eye's starting point with the collapse
-                  // button beside it. As a rail the two stack, the expand button
-                  // directly under the mark: the control never moves.
-                  <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 px-5 pt-4.5 pb-2 group-data-[collapsed]/sidebar:flex-col group-data-[collapsed]/sidebar:gap-1 group-data-[collapsed]/sidebar:px-2 group-data-[collapsed]/sidebar:pb-3">
-                    <div className="flex min-h-8 min-w-0 flex-1 items-center group-data-[collapsed]/sidebar:justify-center">
-                      {sidebarHeader}
-                    </div>
-                    {sidebarState.enabled &&
-                    !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
-                      <RailToggle
-                        side="start"
-                        controls={sidebarId}
-                        collapsed={sidebarState.collapsed}
-                        onToggle={sidebarState.toggle}
-                        label={t('components.page-layout.page-layout.sidebar', 'sidebar')}
-                        shortcut={sidebarShortcut}
-                        className="shrink-0"
-                      />
+                  The rail: the mark, the collapse control under it in both
+                  states (it never moves), then the caller's destinations. Its
+                  items are icons whatever the panel does.
+                */}
+                <RailContext value={{ collapsed: true, panel: !sidebarState.collapsed }}>
+                  <div className="flex w-19 shrink-0 flex-col items-stretch gap-1 overflow-x-hidden px-2.5 pt-4 pb-3">
+                    {sidebarHeader ? (
+                      <div className="flex min-h-10 items-center justify-center">
+                        {sidebarHeader}
+                      </div>
                     ) : null}
+                    {sidebarState.enabled ? (
+                      <div className="flex justify-center pb-1">
+                        <RailToggle
+                          side="start"
+                          controls={`${sidebarId}-panel`}
+                          collapsed={sidebarState.collapsed}
+                          onToggle={sidebarState.toggle}
+                          label={t('components.page-layout.page-layout.sidebar', 'sidebar')}
+                          shortcut={sidebarShortcut}
+                        />
+                      </div>
+                    ) : null}
+                    <div className="flex min-h-0 flex-1 flex-col">{sidebarRail}</div>
                   </div>
-                ) : null}
+                </RailContext>
                 {/*
-                `min-h-0` so this can be shorter than its content and let the
-                caller scroll a region inside it, rather than growing the column
-                and pushing anything pinned to the bottom out of reach.
-              */}
-                <div className="min-h-0 flex-1">{sidebar}</div>
-              </div>
-            </RailContext>
-            {sidebarCollapse.mode === 'rail' ? (
-              <RailEdge nav={nav} collapsed={sidebarState.collapsed} onSet={sidebarState.set} />
-            ) : null}
+                  The panel: its width eases to nothing on collapse, its content
+                  held at full width inside so nothing reflows on the way. Out of
+                  the tab order and the accessibility tree while put away.
+                */}
+                <div
+                  id={`${sidebarId}-panel`}
+                  inert={sidebarState.collapsed ? true : undefined}
+                  className={cn(
+                    'flex min-h-0 flex-col overflow-hidden border-s border-border bg-surface',
+                    sidebarState.collapsed ? 'w-0 border-s-0 opacity-0' : 'w-64 opacity-100',
+                    sidebarState.settled &&
+                      'transition-[width,opacity] duration-[240ms] ease-standard motion-reduce:transition-none',
+                  )}
+                >
+                  <RailContext value={{ collapsed: false }}>
+                    <div className="flex min-h-0 w-64 flex-1 flex-col">{sidebar}</div>
+                  </RailContext>
+                </div>
+              </>
+            ) : (
+              <>
+                <RailContext value={{ collapsed: sidebarState.collapsed }}>
+                  {/*
+                  The column, and its own scroll container. `overflow-x-hidden`
+                  matters as much as the duration: without it the labels spill
+                  across the content while the width moves. It is here rather
+                  than on the nav so the edge handle can stand across the border.
+                */}
+                  <div className="flex min-h-0 w-full flex-1 flex-col overflow-x-hidden">
+                    {/*
+                  One row, holding whatever the caller pinned at the top and the
+                  collapse control at its end.
+
+                  Rendered whenever either exists, so a sidebar with no header is
+                  unchanged and one with a header no longer pays for a strip of
+                  chrome above it.
+                */}
+                    {(sidebarHeader ??
+                    (sidebarState.enabled &&
+                      !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed))) ? (
+                      // The brand at the eye's starting point with the collapse
+                      // button beside it. As a rail the two stack, the expand button
+                      // directly under the mark: the control never moves.
+                      <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 px-5 pt-4.5 pb-2 group-data-[collapsed]/sidebar:flex-col group-data-[collapsed]/sidebar:gap-1 group-data-[collapsed]/sidebar:px-2 group-data-[collapsed]/sidebar:pb-3">
+                        <div className="flex min-h-8 min-w-0 flex-1 items-center group-data-[collapsed]/sidebar:justify-center">
+                          {sidebarHeader}
+                        </div>
+                        {sidebarState.enabled &&
+                        !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
+                          <RailToggle
+                            side="start"
+                            controls={sidebarId}
+                            collapsed={sidebarState.collapsed}
+                            onToggle={sidebarState.toggle}
+                            label={t('components.page-layout.page-layout.sidebar', 'sidebar')}
+                            shortcut={sidebarShortcut}
+                            className="shrink-0"
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {/*
+                  `min-h-0` so this can be shorter than its content and let the
+                  caller scroll a region inside it, rather than growing the column
+                  and pushing anything pinned to the bottom out of reach.
+                */}
+                    <div className="min-h-0 flex-1">{sidebar}</div>
+                  </div>
+                </RailContext>
+                {sidebarCollapse.mode === 'rail' ? (
+                  <RailEdge nav={nav} collapsed={sidebarState.collapsed} onSet={sidebarState.set} />
+                ) : null}
+              </>
+            )}
           </nav>
         ) : null}
 

@@ -24,6 +24,7 @@ import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
 import { Badge } from '../badge/badge';
 import { RailContext, useRailCollapsed } from '../page-layout/page-layout';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
+import { Spinner } from '../spinner/spinner';
 import { Tooltip } from '../tooltip/tooltip';
 import { t } from '../../lib/i18n';
 
@@ -238,6 +239,17 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
    * in the link's name: the keys are a hint, not what the link is called.
    */
   shortcut?: ReactNode;
+  /**
+   * The press has been taken and its page is on its way. Marked at once, so a
+   * press never looks ignored while a slow page arrives: a spinner where the
+   * count or chevron sits (over the icon in a rail), and `aria-busy`.
+   */
+  pending?: boolean;
+  /**
+   * The label wraps onto a second line rather than being cut short: a panel
+   * of sections, where a translated name runs long and every word matters.
+   */
+  wrap?: boolean;
 }
 
 // A primary item is a 44px row of 15px type, the sidebar's own scale; the
@@ -264,6 +276,8 @@ export function NavItem({
   subnav,
   expanded = false,
   shortcut,
+  pending = false,
+  wrap = false,
   ...props
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
@@ -306,7 +320,15 @@ export function NavItem({
 
   const inside = (
     <>
-      {icon ? (
+      {/* In a rail the icon is the whole item: taken, it gives way to the spinner. */}
+      {icon && asIcon && pending ? (
+        <span
+          aria-hidden
+          className="flex size-[18px] shrink-0 items-center justify-center text-fg-muted"
+        >
+          <Spinner size="sm" />
+        </span>
+      ) : icon ? (
         <span
           aria-hidden
           className={cn(
@@ -373,10 +395,19 @@ export function NavItem({
           data-rail-label=""
           className={cn('flex min-w-0 flex-1 items-center gap-2', asIcon && 'sr-only')}
         >
-          <span className="min-w-0 truncate">{label}</span>
-          {badge && !asIcon ? <span className="shrink-0">{badge}</span> : null}
+          <span className={cn('min-w-0', wrap ? 'py-2 leading-snug break-words' : 'truncate')}>
+            {label}
+          </span>
+          {badge && !asIcon && !pending ? <span className="shrink-0">{badge}</span> : null}
         </span>
       )}
+
+      {/* Taken, and on its way: where the count was, or over the icon in a rail. */}
+      {pending && !asIcon ? (
+        <span aria-hidden className="flex shrink-0 items-center text-fg-muted">
+          <Spinner size="xs" />
+        </span>
+      ) : null}
 
       {/* In a compact menu the count ends the row, where a list puts it. */}
       {badge && !asIcon && described && compact ? (
@@ -389,7 +420,7 @@ export function NavItem({
        * A count still has to reach someone using the rail. It becomes a dot on
        * the icon, and the number stays in the accessible name.
        */}
-      {badge && asIcon ? (
+      {badge && asIcon && !pending ? (
         <span
           aria-hidden
           className="absolute end-2 top-2 size-1.5 rounded-full bg-accent ring-2 ring-surface"
@@ -429,6 +460,7 @@ export function NavItem({
     <Comp
       // `aria-current` is the state. The background is the reminder.
       aria-current={page ? 'page' : undefined}
+      aria-busy={pending || undefined}
       aria-describedby={described && !asIcon ? describedBy : undefined}
       className={cn(
         // A filled, rounded row, so the current item reads as a place the

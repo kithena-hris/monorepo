@@ -221,3 +221,36 @@ describe('<TertiaryNav orientation="horizontal">', () => {
     expect(tabs.getByRole('link', { name: 'Completeness88' })).toHaveAttribute('href', '/c');
   });
 });
+
+describe('<NavItem pending>', () => {
+  it('says a press was taken while its page is on its way, in place of the count', () => {
+    render(
+      <Nav label="Areas">
+        <NavList>
+          <NavItem asChild pending badge="3">
+            <FrameworkLink href="/inbox">Inbox</FrameworkLink>
+          </NavItem>
+        </NavList>
+      </Nav>,
+    );
+    const link = screen.getByRole('link', { name: 'Inbox' });
+    expect(link).toHaveAttribute('aria-busy', 'true');
+    expect(within(link).queryByText('3')).toBeNull();
+  });
+});
+
+describe('<NavItem wrap>', () => {
+  it('lets a long name wrap rather than cutting it short', () => {
+    render(
+      <Nav label="Sections">
+        <NavList>
+          <NavItem asChild wrap level={2}>
+            <FrameworkLink href="/x">Plantillas de formularios de evaluación</FrameworkLink>
+          </NavItem>
+        </NavList>
+      </Nav>,
+    );
+    const label = screen.getByText('Plantillas de formularios de evaluación');
+    expect(label.className).not.toContain('truncate');
+  });
+});
