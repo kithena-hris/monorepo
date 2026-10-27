@@ -1021,3 +1021,86 @@ export const RailAndPanel: Story = {
     );
   },
 };
+
+/**
+ * The rail alone: every area an icon, its sections flying out of it, and one
+ * scroll, the window's, with the page's header sticking at the top.
+ */
+export const RailAlone: Story = {
+  name: 'Rail alone, one scroll',
+  args: { preset: 'sidebar' },
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          '`sidebarRail` with no `sidebar`: the rail is the whole sidebar, fixed while the page scrolls. Hover, focus or tap an area and its sections fly out over the page (`NavItem flyout`), so the page keeps its whole width.',
+          '',
+          "The window is the one scroll. The page's `PageHeader` sticks: its breadcrumb rides away, its description folds, and the title, status and actions stay. What sticks under it reads `--reach-sticky-top`.",
+        ].join('\n'),
+      },
+    },
+  },
+  render: function RailAloneStory(args) {
+    const sections = ['Directory', 'Organisation chart', 'Imports', 'Payroll exports'];
+    return (
+      <PageLayout
+        {...args}
+        sidebarHeader={<Avatar size="md" shape="rounded" name="Northwind" />}
+        sidebarRail={
+          <Nav label="Areas">
+            <NavList className="gap-1">
+              {nav.map((item) => (
+                <NavItem
+                  key={item.id}
+                  href="#"
+                  icon={<item.icon />}
+                  current={item.id === 'people'}
+                  flyout={
+                    <Nav label={`${item.label} sections`}>
+                      <p className="px-2.5 pt-1.5 pb-2 text-md font-semibold">{item.label}</p>
+                      <NavList className="gap-0.5">
+                        {sections.map((s, i) => (
+                          <NavItem key={s} href="#" level={2} wrap current={i === 0}>
+                            {s}
+                          </NavItem>
+                        ))}
+                      </NavList>
+                    </Nav>
+                  }
+                >
+                  {item.label}
+                </NavItem>
+              ))}
+            </NavList>
+          </Nav>
+        }
+        contentClassName="px-(--reach-page-gutter) py-6 [--reach-page-gutter:1.5rem]"
+      >
+        <div className="flex flex-col gap-6">
+          <PageHeader
+            title="Directory"
+            meta={<Badge size="sm">48 people</Badge>}
+            description="Everybody at Northwind, as of today."
+            actions={<Button variant="primary">Add person</Button>}
+          />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Team</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 48 }, (_, i) => (
+                <TableRow key={i}>
+                  <TableCell>Person {i + 1}</TableCell>
+                  <TableCell>{i % 2 === 0 ? 'Engineering' : 'Operations'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </PageLayout>
+    );
+  },
+};

@@ -202,6 +202,45 @@ describe('<PageLayout sidebarRail>', () => {
   });
 });
 
+describe('<PageLayout sidebarRail> alone', () => {
+  function Areas(): JSX.Element {
+    return <span>{useSidebarPanel() ? 'panel open' : 'panel closed'}</span>;
+  }
+
+  it('is the whole sidebar: no panel, no collapse control, its items flying out', () => {
+    render(
+      <TooltipProvider>
+        <PageLayout preset="sidebar" sidebarHeader={<span>Acme</span>} sidebarRail={<Areas />}>
+          Content
+        </PageLayout>
+      </TooltipProvider>,
+    );
+    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
+    expect(screen.getByText('panel closed')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /sidebar$/ })).toBeNull();
+    expect(document.querySelector('[id$="-panel"]')).toBeNull();
+  });
+});
+
+describe('<PageHeader sticky>', () => {
+  it('sticks at a page’s size, publishes what it leaves on screen, and not in a panel', () => {
+    const { container } = render(
+      <div>
+        <PageHeader title="Directory" description="Everybody, as of today." />
+      </div>,
+    );
+    const header = screen.getByRole('heading', { level: 1 }).closest('.sticky');
+    expect(header).not.toBeNull();
+    // Its parent carries the height for a table's header or a toolbar to stick under.
+    expect(
+      (container.firstElementChild as HTMLElement).style.getPropertyValue('--reach-sticky-top'),
+    ).toMatch(/px$/);
+
+    render(<PageHeader title="Panel" size="md" />);
+    expect(screen.getByRole('heading', { name: 'Panel' }).closest('.sticky')).toBeNull();
+  });
+});
+
 describe('<PageHeader touchBarActions>', () => {
   it('lifts actions into the phone bar without changing their order at a desk', () => {
     render(

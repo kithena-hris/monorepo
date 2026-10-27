@@ -153,7 +153,7 @@ const CARD = {
    * The header's cells stop being sticky one by one; the header as a whole
    * sticks instead, opaque, over the cards.
    */
-  head: 'touch:block touch:[&_th]:static! touch:[&_th]:bg-transparent! touch:[&_th]:shadow-none! touch:[[data-sticky-header]_&]:sticky touch:[[data-sticky-header]_&]:top-0 touch:[[data-sticky-header]_&]:z-20 touch:[[data-sticky-header]_&]:bg-surface',
+  head: 'touch:block touch:[&_th]:static! touch:[&_th]:bg-transparent! touch:[&_th]:shadow-none! touch:[[data-sticky-header]_&]:sticky touch:[[data-sticky-header]_&]:top-(--reach-table-top,0px) touch:[[data-sticky-header]_&]:z-20 touch:[[data-sticky-header]_&]:bg-surface',
   headRow: 'touch:flex touch:flex-wrap touch:items-center touch:gap-2 touch:px-4 touch:py-2.5',
   row: 'touch:relative touch:flex touch:flex-wrap touch:items-center touch:gap-x-3.5 touch:gap-y-1 touch:py-3.5 touch:pe-4',
   /** Start padding clearing 0, 1 or 2 leading controls (grip, checkbox). */
@@ -502,11 +502,11 @@ export interface DataTableProps<T extends TableRow> {
   empty?: ReactNode;
   stickyHeader?: boolean;
   /**
-   * The page's list: the table takes the height left under what is above it
-   * (`page-fill`, never taller than the window), its header pins, only the
-   * rows on screen are drawn and `onEndReached` fires near its end. What a
-   * directory, a queue or a log is; `stickyHeader` and the height classes in
-   * one word, so every such list is sized the same.
+   * The page's list: the window scrolls it (`scroll="page"`), its header
+   * pins under the page's sticky header, only the rows on screen are drawn
+   * and `onEndReached` fires as the page nears its end. What a directory, a
+   * queue or a log is; `stickyHeader` and page scrolling in one word, so
+   * every such list behaves the same and no page has a second scroll.
    */
   fill?: boolean;
   /**
@@ -590,7 +590,7 @@ export function DataTable<T extends TableRow>({
   empty = t('components.table.data-table.nothing_to_show', 'Nothing to show.'),
   fill = false,
   stickyHeader = fill,
-  scroll = 'self',
+  scroll = fill ? 'page' : 'self',
   dense = false,
   containerClassName,
   className,
@@ -1225,8 +1225,7 @@ export function DataTable<T extends TableRow>({
         onEndReached !== undefined && !page && 'overscroll-y-contain',
         // Not a scroll container at all: the header pins to the window, which
         // a box that scrolls, even one that never needs to, would stop.
-        page && 'overflow-visible',
-        fill && 'page-fill max-h-dvh min-h-64',
+        page && 'overflow-visible [--reach-table-top:var(--reach-sticky-top,0px)]',
         containerClassName,
       )}
       {...(virtualized && !page

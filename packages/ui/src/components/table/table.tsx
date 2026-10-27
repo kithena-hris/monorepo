@@ -137,7 +137,9 @@ export function TableHeader({
         // (`z-10`): glass let the rows show through as they passed under it,
         // and a pinned body cell at the header's own `z-10` came later in the
         // document and painted over it.
-        '[[data-sticky-header]_&_th]:sticky [[data-sticky-header]_&_th]:top-0 [[data-sticky-header]_&_th]:z-20',
+        // `--reach-table-top`: zero in a box of its own, under the page's sticky
+        // header when the window scrolls the table (`DataTable scroll="page"`).
+        '[[data-sticky-header]_&_th]:sticky [[data-sticky-header]_&_th]:top-(--reach-table-top,0px) [[data-sticky-header]_&_th]:z-20',
         '[[data-sticky-header]_&_th]:bg-surface',
         '[[data-sticky-header]_&_th]:shadow-[inset_0_-1px_0_var(--reach-color-border)]',
         className,

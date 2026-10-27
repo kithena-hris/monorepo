@@ -19,6 +19,7 @@ import {
   useRef,
   useState,
   type ComponentPropsWithoutRef,
+  type CSSProperties,
   type JSX,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -47,14 +48,12 @@ import { t } from '../../lib/i18n';
  *
  * ### What the layout guarantees
  *
- * - Exactly one scroll container. `main`. A page with two scrollbars is a
- *   page where the user cannot find the bottom.
- * - A page whose content scrolls a region of its own — a long table — marks
- *   that region `page-fill`. The layout then holds to the window's height and
- *   the region takes exactly what is left (`base.css`), so the region is the
- *   one scroll rather than a second one inside the page's. Nothing else
- *   changes for a page that does not.
- * - `header` and `bottomBar` are sticky and do not scroll away.
+ * - Exactly one scroll: the window's. A page with two scrollbars is a page
+ *   where the user cannot find the bottom, so a long table grows the page
+ *   (`DataTable fill`) rather than scrolling a box of its own, and the
+ *   sidebar stays where it is while the page moves under it.
+ * - `header`, `bottomBar` and a page's own `PageHeader` are sticky and do not
+ *   scroll away.
  * - Safe-area insets are applied where each edge actually needs them.
  * - Landmarks: one `<header>`, one `<nav>`, one `<main>`, one
  *   `<aside>` and one `<footer>`, so a screen-reader user can jump between
@@ -74,7 +73,7 @@ import { t } from '../../lib/i18n';
  * Explicit rows cost nothing and cannot be arranged wrongly by an absent
  * sibling.
  */
-const layout = cva('grid min-h-dvh bg-canvas has-[.page-fill]:h-dvh', {
+const layout = cva('grid min-h-dvh bg-canvas', {
   variants: {
     preset: {
       /** Header over content. Settings, a wizard, a detail page. */
@@ -338,6 +337,10 @@ export interface PageLayoutProps
    * sits under it in both states, and `sidebarCollapse` should be `rail`.
    * Inside it every `NavItem` is an icon (`RailContext`), and
    * `useSidebarPanel()` says whether the panel beside it is open.
+   *
+   * With no `sidebar`, the rail is the whole sidebar: no panel and no
+   * collapse control, and each item's `flyout` (its sections) comes out of it
+   * on hover, focus or a tap, over the page rather than beside it.
    */
   sidebarRail?: ReactNode;
   /** Secondary rail: activity, help, a detail summary. Rendered as `<aside>`; hidden while the layout is narrower than 80rem (`@7xl/page`). */
@@ -399,7 +402,10 @@ export function PageLayout({
   children,
   ...props
 }: PageLayoutProps): JSX.Element {
-  const hasSidebar = Boolean(sidebar) && preset !== 'stacked' && preset !== 'focused';
+  const hasSidebar =
+    Boolean(sidebar ?? sidebarRail) && preset !== 'stacked' && preset !== 'focused';
+  // The rail alone: its items fly their sections out, and there is nothing to collapse.
+  const railOnly = Boolean(sidebarRail) && !sidebar;
   const hasAside = Boolean(aside) && preset === 'sidebar-aside';
 
   const sidebarId = useId();
@@ -545,14 +551,16 @@ export function PageLayout({
                   states (it never moves), then the caller's destinations. Its
                   items are icons whatever the panel does.
                 */}
-                <RailContext value={{ collapsed: true, panel: !sidebarState.collapsed }}>
+                <RailContext
+                  value={{ collapsed: true, panel: !railOnly && !sidebarState.collapsed }}
+                >
                   <div className="flex w-15 shrink-0 flex-col items-stretch gap-1 overflow-x-hidden px-2 pt-4 pb-3">
                     {sidebarHeader ? (
                       <div className="flex min-h-10 items-center justify-center">
                         {sidebarHeader}
                       </div>
                     ) : null}
-                    {sidebarState.enabled ? (
+                    {sidebarState.enabled && !railOnly ? (
                       <div className="flex justify-center pb-1">
                         <RailToggle
                           side="start"
@@ -572,20 +580,24 @@ export function PageLayout({
                   held at full width inside so nothing reflows on the way. Out of
                   the tab order and the accessibility tree while put away.
                 */}
-                <div
-                  id={`${sidebarId}-panel`}
-                  inert={sidebarState.collapsed ? true : undefined}
-                  className={cn(
-                    'flex min-h-0 flex-col overflow-hidden border-s border-border bg-surface',
-                    sidebarState.collapsed ? 'invisible w-0 border-s-0 opacity-0' : 'w-47 opacity-100',
-                    sidebarState.settled &&
-                      'transition-[width,opacity,visibility] duration-[240ms] ease-standard motion-reduce:transition-none',
-                  )}
-                >
-                  <RailContext value={{ collapsed: false }}>
-                    <div className="flex min-h-0 w-47 flex-1 flex-col">{sidebar}</div>
-                  </RailContext>
-                </div>
+                {railOnly ? null : (
+                  <div
+                    id={`${sidebarId}-panel`}
+                    inert={sidebarState.collapsed ? true : undefined}
+                    className={cn(
+                      'flex min-h-0 flex-col overflow-hidden border-s border-border bg-surface',
+                      sidebarState.collapsed
+                        ? 'invisible w-0 border-s-0 opacity-0'
+                        : 'w-47 opacity-100',
+                      sidebarState.settled &&
+                        'transition-[width,opacity,visibility] duration-[240ms] ease-standard motion-reduce:transition-none',
+                    )}
+                  >
+                    <RailContext value={{ collapsed: false }}>
+                      <div className="flex min-h-0 w-47 flex-1 flex-col">{sidebar}</div>
+                    </RailContext>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -647,11 +659,13 @@ export function PageLayout({
 
         <main
           aria-label={contentLabel}
-          // Where a `page-fill` region's column starts (`base.css`).
-          data-page-content=""
           className={cn(
             'row-start-3 min-w-0',
             /*
+             * A sticky `PageHeader` reaches the gutters through
+             * `--reach-page-gutter`: set it in `contentClassName` with the
+             * padding, and the header's material spans the column edge to edge.
+             *
              * `clip`, not `auto`, outside the canvas preset. The grid sizes this
              * row to its content, so the window is what scrolls; `overflow-y-auto`
              * made this element a scroll container that never scrolled, and a
@@ -1113,6 +1127,107 @@ export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, '
    * icon-sized there. At a desk nothing moves.
    */
   touchBarActions?: boolean;
+  /**
+   * Sticks to the top as the page scrolls (the default at `lg`, at a desk):
+   * the breadcrumb rides away above it and the description folds, so what
+   * stays is the title, its `meta`, the actions and the tabs. `false` for a
+   * header inside something smaller than a page.
+   */
+  sticky?: boolean;
+}
+
+/** The room a stuck header keeps above its row (`py-3`). */
+const STUCK_PAD_PX = 12;
+
+/** The element whose scrolling moves this one: the nearest that scrolls, or the window. */
+function scrollerOf(el: HTMLElement): HTMLElement | null {
+  for (let at = el.parentElement; at !== null; at = at.parentElement) {
+    const { overflowY } = getComputedStyle(at);
+    if (overflowY === 'auto' || overflowY === 'scroll') return at;
+  }
+  return null;
+}
+
+/**
+ * A page header that sticks, and knows when it has.
+ *
+ * It rides up by the breadcrumb's height (`top` below zero), so the trail
+ * scrolls away with the page and the title row is what lands at the top. Once
+ * there, the description folds to nothing and the header's margin grows by the
+ * same height in the same motion, so nothing after it moves: the page never
+ * jumps under the reader, and no scroll anchoring can tip it back.
+ *
+ * What it leaves on screen is published as `--reach-sticky-top` on its
+ * parent, for a toolbar or a table's header to stick under it.
+ */
+function useStuckHeader(enabled: boolean): {
+  readonly box: RefObject<HTMLDivElement | null>;
+  readonly row: RefObject<HTMLDivElement | null>;
+  readonly about: RefObject<HTMLParagraphElement | null>;
+  readonly stuck: boolean;
+  readonly lift: number;
+  /** The description's height, once measured: `null` before, and it is `auto`. */
+  readonly aboutHeight: number | null;
+} {
+  const box = useRef<HTMLDivElement | null>(null);
+  const row = useRef<HTMLDivElement | null>(null);
+  const about = useRef<HTMLParagraphElement | null>(null);
+  const [stuck, setStuck] = useState(false);
+  const [lift, setLift] = useState(0);
+  const [aboutHeight, setAboutHeight] = useState<number | null>(null);
+  const state = useRef({ stuck, lift, aboutHeight });
+  state.current = { stuck, lift, aboutHeight };
+
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!enabled || el === null) return;
+    const scroller = scrollerOf(el);
+    const parent = el.parentElement;
+    let frame = 0;
+    const measure = (): void => {
+      // `offsetTop` from the header itself: sticky is positioned, so it is the row's offset parent.
+      const nextLift = Math.max((row.current?.offsetTop ?? STUCK_PAD_PX) - STUCK_PAD_PX, 0);
+      setLift((l) => (Math.abs(l - nextLift) < 1 ? l : nextLift));
+      const p = about.current;
+      if (p !== null) {
+        const h = p.offsetHeight + parseFloat(getComputedStyle(p).marginTop || '0');
+        setAboutHeight((a) => (a !== null && Math.abs(a - h) < 1 ? a : h));
+      }
+      const { stuck: isStuck, aboutHeight: folded } = state.current;
+      parent?.style.setProperty(
+        '--reach-sticky-top',
+        `${String(el.offsetHeight - nextLift - (isStuck ? 0 : (folded ?? 0)))}px`,
+      );
+    };
+    const check = (): void => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        // Under a finger it does not stick (`touch:static`): never stuck there.
+        if (getComputedStyle(el).position !== 'sticky') {
+          setStuck(false);
+          return;
+        }
+        const top = scroller === null ? 0 : scroller.getBoundingClientRect().top;
+        setStuck(el.getBoundingClientRect().top <= top - state.current.lift + 1);
+      });
+    };
+    measure();
+    check();
+    const resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    resized?.observe(el);
+    if (about.current !== null) resized?.observe(about.current);
+    document.addEventListener('scroll', check, { capture: true, passive: true });
+    window.addEventListener('resize', check);
+    return () => {
+      cancelAnimationFrame(frame);
+      resized?.disconnect();
+      document.removeEventListener('scroll', check, { capture: true });
+      window.removeEventListener('resize', check);
+      parent?.style.removeProperty('--reach-sticky-top');
+    };
+  }, [enabled]);
+
+  return { box, row, about, stuck: enabled && stuck, lift, aboutHeight };
 }
 
 /**
@@ -1121,6 +1236,10 @@ export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, '
  * `title` renders an `<h1>`. A page with no `h1`, or with three, is the single
  * most common heading-structure failure, and it is what a screen-reader user
  * lands on first.
+ *
+ * At `lg` it is sticky (`useStuckHeader`): the page scrolls under it, and its
+ * material spans the content column edge to edge when the caller sets
+ * `--reach-page-gutter` to the column's side padding.
  */
 export function PageHeader({
   className,
@@ -1132,9 +1251,13 @@ export function PageHeader({
   tabs,
   size = 'lg',
   touchBarActions = false,
+  sticky = size === 'lg',
+  style,
   ...props
 }: PageHeaderProps): JSX.Element {
   const frame = useContext(PageHeaderFrameContext);
+  const stick = useStuckHeader(sticky);
+  const folding = stick.aboutHeight !== null;
   const trail = breadcrumb ?? frame.breadcrumb;
   const own = actions ?? null;
   const framed = frame.actions ?? null;
@@ -1181,10 +1304,38 @@ export function PageHeader({
         a side panel is narrow on any monitor.
       */}
       <div
+        ref={stick.box}
+        data-stuck={stick.stuck || undefined}
+        // The heavier material, as the app's own top bar: the page scrolls under it.
+        data-material={stick.stuck ? 'chrome' : undefined}
+        style={
+          sticky
+            ? ({
+                top: -stick.lift,
+                // What the description gave up, kept below, so nothing after it moves.
+                '--reach-header-fold': `${String(stick.stuck ? (stick.aboutHeight ?? 0) : 0)}px`,
+                ...style,
+              } as CSSProperties)
+            : style
+        }
         className={cn(
           '@container flex flex-col gap-3',
+          sticky && [
+            // Under a finger it scrolls away with the page, as a phone's large title does.
+            'sticky z-20',
+            bar ? 'touch:relative' : 'touch:static',
+            // Its own room above and below, given back by its margins, so at
+            // rest it sits where it did; none of it under a finger.
+            '-mt-3 mb-[calc(var(--reach-header-fold)-0.75rem)] py-3 touch:m-0 touch:p-0',
+            // Edge to edge across the content column, the gutters included.
+            'mx-[calc(var(--reach-page-gutter,0px)*-1)] px-[var(--reach-page-gutter,0px)]',
+            'border-b border-transparent',
+            'transition-[background-color,border-color,box-shadow,margin] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+            'data-stuck:border-glass-line data-stuck:bg-surface',
+            'data-stuck:backdrop-blur-material data-stuck:backdrop-saturate-(--reach-material-saturate) data-stuck:supports-[backdrop-filter]:bg-glass',
+          ],
           // The bar the lifted actions sit in: the breadcrumb's, or one of their own.
-          bar && 'touch:relative',
+          bar && !sticky && 'touch:relative',
           bar && !trail && 'touch:pt-12',
           // Pending: the page's own body after the header is put away, and the
           // skeleton below stands in for it, in the page's own gap.
@@ -1194,7 +1345,7 @@ export function PageHeader({
         {...props}
       >
         {trail}
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div ref={stick.row} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1
@@ -1213,11 +1364,29 @@ export function PageHeader({
               {meta}
             </div>
             {description ? (
-              // A measure, not a width: past ~65 characters the eye loses the
-              // start of the next line.
-              <p className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted">
-                {description}
-              </p>
+              // Folds away while the header is stuck; its height is measured,
+              // so the fold is a motion rather than a jump.
+              <div
+                aria-hidden={stick.stuck || undefined}
+                style={
+                  folding
+                    ? { height: stick.stuck ? 0 : (stick.aboutHeight ?? undefined) }
+                    : undefined
+                }
+                className={cn(
+                  sticky &&
+                    'overflow-hidden transition-[height,opacity] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+                  stick.stuck && 'opacity-0',
+                )}
+              >
+                {/* A measure, not a width: past ~65 characters the eye loses the start of the next line. */}
+                <p
+                  ref={stick.about}
+                  className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted"
+                >
+                  {description}
+                </p>
+              </div>
             ) : null}
           </div>
           {allActions ? (
@@ -1338,7 +1507,8 @@ export function Toolbar({
       className={cn(
         'flex flex-col gap-2',
         sticky &&
-          'sticky top-14 z-20 -mx-4 bg-canvas/95 px-4 py-2 backdrop-blur-material-thin sm:-mx-6 sm:px-6',
+          // Under the page's sticky header, wherever it ends (`PageHeader`).
+          'sticky top-(--reach-sticky-top,0px) z-20 -mx-4 bg-canvas/95 px-4 py-2 backdrop-blur-material-thin sm:-mx-6 sm:px-6',
         className,
       )}
       {...props}

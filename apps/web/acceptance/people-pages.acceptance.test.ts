@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { Page } from 'playwright';
 
 import { ADMIN, EMPLOYEE, TENANT } from './stack';
-import { browser, eventually, person, signedIn, stack, useStack } from './people-harness';
+import { browser, eventually, person, sections, signedIn, stack, useStack } from './people-harness';
 
 /**
  * People's pages as Acme's HR and staff use them: the overview, Insights'
@@ -475,10 +475,7 @@ describe('Import & export, as the server sends it', () => {
           t0: performance.now(),
         };
       });
-      await from
-        .getByRole('navigation', { name: 'People sections' })
-        .getByRole('link', { name: 'Import & export' })
-        .click();
+      await (await sections(from)).getByRole('link', { name: 'Import & export' }).click();
       await landed(from);
       moves.push(await timings(from));
       await from.close();
@@ -554,7 +551,7 @@ describe('Moving between People’s sections, tabs and views', () => {
     // A place's name, whatever its count says beside it when something waits there.
     const named = (name: string) => new RegExp(`^${name}`);
     const sidebar = (name: string) =>
-      // The rail's areas and the panel's sections alike.
+      // The rail's areas and the sections flown out of them alike.
       page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: named(name) });
     const tab = (section: string, name: string) =>
       page
@@ -562,6 +559,14 @@ describe('Moving between People’s sections, tabs and views', () => {
         .getByRole('link', { name: named(name) });
     const moves: [string, number][] = [];
     const move = async (link: ReturnType<typeof sidebar>, to: RegExp): Promise<void> => {
+      // A section is out of sight until its area's icon is hovered.
+      if ((await link.count()) === 0) {
+        await page
+          .getByRole('navigation', { name: 'Areas' })
+          .getByRole('link', { name: 'People', exact: true })
+          .hover();
+        await link.first().waitFor();
+      }
       await link.first().hover();
       await page.waitForTimeout(150);
       const start = performance.now();

@@ -27,8 +27,7 @@ export default async function SignedInLayout({
 }: {
   children: ReactNode;
 }): Promise<JSX.Element> {
-  const { person, entitlements, company, logoUrl, shell, sidebarCollapsed, shortcuts } =
-    await signedIn();
+  const { person, entitlements, company, logoUrl, shell, shortcuts } = await signedIn();
   // The Inbox's counts and first rows, started now and not waited for: the
   // bell and the red number stream in after the page (INB-036).
   const inbox = inboxPeek().catch(() => EMPTY_PEEK);
@@ -43,7 +42,6 @@ export default async function SignedInLayout({
         logoUrl={logoUrl}
         entitlements={entitlements}
         shell={shell}
-        sidebarCollapsed={sidebarCollapsed}
         shortcuts={shortcuts}
         slots={slots}
         inbox={inbox}

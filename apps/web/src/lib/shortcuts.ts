@@ -373,18 +373,6 @@ export const SHORTCUTS: readonly Shortcut[] = [
     fixed: true,
   },
   {
-    id: 'sidebar',
-    group: 'Everywhere',
-    get label(): string {
-      return t('lib.shortcuts.collapse_or_expand_the_sidebar', 'Collapse or expand the sidebar');
-    },
-    get does(): string {
-      return t('lib.shortcuts.collapses_the_sidebar', 'collapses the sidebar');
-    },
-    keys: ['mod+\\'],
-    fixed: true,
-  },
-  {
     id: 'assistant',
     group: 'Everywhere',
     get label(): string {

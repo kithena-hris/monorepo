@@ -307,7 +307,7 @@ describe('Moving between Time Off’s sections and tabs', () => {
 
     const named = (name: string) => new RegExp(`^${name}`);
     const sidebar = (name: string) =>
-      // The rail's areas and the panel's sections alike.
+      // The rail's areas and the sections flown out of them alike.
       page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: named(name) });
     const tab = (section: string, name: string) =>
       page
@@ -315,6 +315,14 @@ describe('Moving between Time Off’s sections and tabs', () => {
         .getByRole('link', { name: named(name) });
     const moves: [string, number][] = [];
     const move = async (link: ReturnType<typeof sidebar>, to: RegExp): Promise<void> => {
+      // A section is out of sight until its area's icon is hovered.
+      if ((await link.count()) === 0) {
+        await page
+          .getByRole('navigation', { name: 'Areas' })
+          .getByRole('link', { name: 'Time off', exact: true })
+          .hover();
+        await link.first().waitFor();
+      }
       const href = (await link.first().getAttribute('href')) ?? '';
       await link.first().hover();
       // The rest on the link fetches the page it leads to.

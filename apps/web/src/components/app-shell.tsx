@@ -63,14 +63,12 @@ import {
   isCharacterKey,
   type ShortcutPrefs,
 } from '../lib/shortcuts';
-import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { InboxCount, InboxToasts, useInboxTodo } from './inbox/bell';
 import type { InboxPeek } from '../lib/inbox/peek';
 import { countOf, iconOf } from './people-nav';
 import {
-  SidebarPanel,
   SidebarRail,
   useWarmSidebar,
   type Presses,
@@ -109,17 +107,15 @@ const SignOut = icons.signOut;
 const ThemeDark = icons.themeDark;
 
 /**
- * The signed-in shell: the sidebar with search and the bell under the logo,
- * its People menu, the assistant in the bottom corner, and a tab bar where
- * there is no room for a sidebar.
+ * The signed-in shell: the rail of areas, the assistant in the bottom corner,
+ * and a tab bar where there is no room for a rail.
  *
- * `PageLayout` owns the grid, the collapsed rail (its buttons, its edge, the
- * `⌘\` shortcut and remembering it on this device) and `Nav` owns the list
- * semantics. People's sections sit inline under its item while you are in
- * People; in the collapsed rail they are its flyout. Where the layout is too
- * narrow for a sidebar (a 640px container, never the window's) the tab bar
- * takes over: Home, Time off, People, Inbox and Me, the way every app on a
- * phone already works. Time off's sections sit under its item the same way.
+ * `PageLayout` owns the grid and the one scroll, the window's; the rail stays
+ * where it is while the page moves. Each area's sections fly out of its icon
+ * on hover, focus or a tap (`shell-sidebar.tsx`), so no column of sections
+ * takes the page's width. Where the layout is too narrow for a rail (a 640px
+ * container, never the window's) the tab bar takes over: Home, Time off,
+ * People, Inbox and Me, the way every app on a phone already works.
  */
 export interface AppShellProps {
   readonly person: {
@@ -143,13 +139,6 @@ export interface AppShellProps {
   readonly entitlements: readonly string[];
   /** People's places, counts and notices for this person (`shellData`). */
   readonly shell?: ShellData;
-  /**
-   * Whether this device keeps the sidebar collapsed, read from its cookie on
-   * the server (`sidebarCollapsed`), so the first paint is already the rail
-   * or the full sidebar. `undefined`: never chosen, and a narrow layout starts
-   * as the rail.
-   */
-  readonly sidebarCollapsed?: boolean | undefined;
   /** This person's keyboard shortcuts, as identity keeps them (`ShortcutPrefs`). */
   readonly shortcuts?: ShortcutPrefs;
   /** What the company's remotes draw in the chrome (`lib/slots.ts`): Time Off's clock. */
@@ -311,6 +300,7 @@ function shellAreas({
   hint,
   people,
   timeOff,
+  foot,
 }: {
   readonly areas: typeof AREAS;
   readonly shell: ShellData;
@@ -319,7 +309,9 @@ function shellAreas({
   readonly hint: (path: string) => JSX.Element | undefined;
   readonly people: boolean;
   readonly timeOff: boolean;
-}): { readonly areas: ShellArea[]; readonly settings: ShellArea; readonly current: ShellArea } {
+  /** What a module's remote pins in the chrome, by its name: Time Off's clock. */
+  readonly foot: (remote: string) => ReactNode;
+}): { readonly areas: ShellArea[]; readonly settings: ShellArea } {
   const exact = (path: string): ShellSection['current'] => here === path;
   const placed = (
     places: readonly Place[],
@@ -382,7 +374,11 @@ function shellAreas({
         const views: [string, string, keyof typeof icons][] = [
           ['/inbox', tr('components.app-shell.inbox_all', 'Everything'), 'inbox'],
           ['/inbox/todo', tr('components.app-shell.inbox_needs_you', 'Needs you'), 'flagged'],
-          ['/inbox/requests', tr('components.app-shell.inbox_waiting', 'Waiting on others'), 'pending'],
+          [
+            '/inbox/requests',
+            tr('components.app-shell.inbox_waiting', 'Waiting on others'),
+            'pending',
+          ],
           ['/inbox/updates', tr('components.app-shell.inbox_updates', 'Updates'), 'notifications'],
           ['/inbox/snoozed', tr('components.app-shell.inbox_snoozed', 'Snoozed'), 'scheduled'],
           ['/inbox/done', tr('components.app-shell.inbox_done', 'Done'), 'success'],
@@ -416,6 +412,7 @@ function shellAreas({
                 path: settings[0].path,
                 current: settingsHome !== undefined && isCurrent(settingsHome, here),
               },
+        foot: remote === undefined ? null : foot(remote.area.name),
       };
     });
   // Settings is an area of its own, at the rail's foot: its panel lists every module's.
@@ -463,9 +460,7 @@ function shellAreas({
         : []),
     ],
   };
-  const current =
-    (settings.current ? settings : list.find((a) => a.current)) ?? list[0] ?? settings;
-  return { areas: list, settings, current };
+  return { areas: list, settings };
 }
 
 /** What their access is called, for the line under their name. */
@@ -708,7 +703,6 @@ export function AppShell({
   logoUrl = null,
   entitlements,
   shell = EMPTY_SHELL,
-  sidebarCollapsed,
   shortcuts = DEFAULT_PREFS,
   slots = [],
   inbox,
@@ -806,6 +800,16 @@ export function AppShell({
     hint,
     people: entitlements.includes('module.people'),
     timeOff: areas.some((a) => a.href === '/time-off' && a.built),
+    foot: (remote) => {
+      const pinned = slots.filter((s) => s.area === remote);
+      return pinned.length === 0 ? null : (
+        <div className="flex flex-col gap-2">
+          {pinned.map((s) => (
+            <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
+          ))}
+        </div>
+      );
+    },
   });
   // The other tabs of this page's place, fetched whole once it has settled.
   const warmAreas = useMemo(
@@ -829,19 +833,12 @@ export function AppShell({
         <TooltipProvider>
           <PageLayout
             preset="sidebar"
-            // Collapsed or not is remembered on this device, in a cookie the
-            // server reads; with nothing remembered, a layout under 1024px starts
-            // as the rail.
-            sidebarCollapse={{
-              mode: 'rail',
-              ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
-              onCollapsedChange: rememberSidebar,
-            }}
             bottomBar={<MobileTabs areas={areas} inbox={inbox} />}
             bottomBarVariant="floating"
             // Where the sidebar is (a 40rem container), the tab bar is not.
             bottomBarClassName="@min-[40rem]/page:hidden"
-            contentClassName="relative px-4 pt-3 pb-28 @min-[40rem]/page:px-10 @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12"
+            // The gutter is a variable too, so a page's sticky header spans it edge to edge.
+            contentClassName="relative px-(--reach-page-gutter) pt-3 pb-28 [--reach-page-gutter:1rem] @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12 @min-[40rem]/page:[--reach-page-gutter:2.5rem]"
             /*
           The company's own, never ours: its logo where it has uploaded one,
           its initials where it has not.
@@ -877,7 +874,8 @@ export function AppShell({
                 />
               </Link>
             }
-            // Where you are: every area, always, as an icon named by its tooltip.
+            // The sidebar is the rail alone: every area as an icon, fixed while the
+            // page scrolls, its sections flying out on hover, focus or a tap.
             sidebarRail={
               <SidebarRail
                 areas={navAreas.areas}
@@ -911,24 +909,6 @@ export function AppShell({
                     dark={dark}
                     onTheme={setTheme}
                   />
-                }
-              />
-            }
-            // What you can do there: the current area's sections, never scrolled, never cut short.
-            sidebar={
-              <SidebarPanel
-                area={navAreas.current}
-                presses={presses}
-                onIntent={warmSidebar}
-                foot={
-                  slots.length === 0 ? null : (
-                    // The clock (Time Off's, TOF-059), at the panel's foot.
-                    <div className="flex flex-col gap-2">
-                      {slots.map((s) => (
-                        <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
-                      ))}
-                    </div>
-                  )
                 }
               />
             }
@@ -1153,21 +1133,6 @@ function SearchPalette({
         },
       },
       {
-        id: 'sidebar',
-        label: tr(
-          'components.app-shell.collapse_or_expand_the_sidebar',
-          'Collapse or expand the sidebar',
-        ),
-        group: 'Actions',
-        icon: iconOf('menu'),
-        ...keysOfId('sidebar'),
-        onSelect: () => {
-          // ponytail: `PageLayout` owns the rail and answers ⌘\; the palette presses
-          // it rather than holding a second copy of that state.
-          window.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', ctrlKey: true }));
-        },
-      },
-      {
         id: 'help',
         label: tr('components.app-shell.show_keyboard_shortcuts', 'Show keyboard shortcuts'),
         group: 'Actions',
@@ -1316,7 +1281,10 @@ function PersonMenu({
         <Avatar name={person.name} size="md" />
         {compact ? null : (
           <>
-            <span data-rail-label="" className="min-w-0 flex-1 group-data-[collapsed]/sidebar:hidden">
+            <span
+              data-rail-label=""
+              className="min-w-0 flex-1 group-data-[collapsed]/sidebar:hidden"
+            >
               <span className="block truncate text-sm font-semibold">{person.name}</span>
               {subtitle === '' ? null : (
                 <span className="text-fg-muted block truncate text-xs">{subtitle}</span>
@@ -1650,14 +1618,6 @@ function endViewing(): void {
 /** A shortcut's keys as a hint shows them: none once single keys are off. */
 function shownKeys(keys: readonly string[] | undefined, characterKeys: boolean): readonly string[] {
   return keys === undefined || (!characterKeys && keys.some(isCharacterKey)) ? [] : keys;
-}
-
-/**
- * Remembers the person's choice for the server's next render. A year, like
- * any preference; `Lax`, because it only shapes the page.
- */
-function rememberSidebar(collapsed: boolean): void {
-  document.cookie = `${SIDEBAR_COOKIE}=${collapsed ? 'collapsed' : 'expanded'}; path=/; max-age=31536000; samesite=lax`;
 }
 
 /**

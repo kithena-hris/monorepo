@@ -1810,12 +1810,10 @@ function Body({
       columnWidths={widths.widths}
       onColumnWidthsChange={widths.choose}
       activeRowId={peek}
-      // Infinite: the table scrolls in a box of its own, the next page
-      // loads near the end, and past 100 rows only what is on screen is
-      // mounted (Reach's `auto`). The box is the height the window has left
-      // (`page-fill`), so it is the page's one scroll; a window too short for
-      // it scrolls as well, rather than hiding the rest. Outside a layout
-      // that fills, it is at most the window's height.
+      // Infinite: the window scrolls it, the next page loads as the page
+      // nears its end, and past 100 rows only what is on screen is mounted
+      // (Reach's `auto`). Its header pins under the page's, so the page has
+      // one scroll.
       estimateRowHeight={57}
       fill
       {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
@@ -2226,15 +2224,15 @@ function Body({
       )}
       <div ref={wrapper} className="relative">
         {peeked !== null && view === 'list' && !coarse ? (
-          // One row, the table's: the height the page gives it, which the
-          // card beside it does not stretch to.
-          <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] grid-rows-[minmax(0,1fr)] gap-4">
+          // The table grows the page; the card beside it rides along under
+          // the page's sticky header.
+          <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] gap-4">
             <div className="relative min-w-0">
               {table}
               {pill}
             </div>
             <QuickLook
-              className="max-h-full self-start overflow-y-auto"
+              className="sticky top-[calc(var(--reach-sticky-top,0px)+1rem)] self-start"
               // Its keys are the list's, said once under the list.
               hideHints
               media={
