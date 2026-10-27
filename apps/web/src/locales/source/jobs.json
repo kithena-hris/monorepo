@@ -1895,6 +1895,14 @@
     "text": "Close",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
   },
+  "components.asks.details_sent": {
+    "text": "Sent. Your contract will state them for you to check before you sign.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: the onClick of <Button>."
+  },
+  "components.asks.details_title": {
+    "text": "{{name}} needs a few details for your contract",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{name}}."
+  },
   "components.asks.needs_you": {
     "text": "Needs you",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeList: the trailing of <Badge>."
@@ -1917,6 +1925,10 @@
   },
   "components.asks.send_my_answer": {
     "text": "Send my answer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
+  },
+  "components.asks.send_my_details": {
+    "text": "Send my details",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
   },
   "components.asks.sent_thank_you": {
@@ -1966,6 +1978,58 @@
   "components.asks.you_offered_times_other": {
     "text": "You offered {{count}} times for: {{label}}",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{count}}, {{label}}. Plural: the words for any other {{count}}."
+  },
+  "components.details-form.choose_a_country": {
+    "text": "Choose a country",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: the placeholder of <SelectValue>."
+  },
+  "components.details-form.city": {
+    "text": "Town or city",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.country": {
+    "text": "Country",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.date_of_birth": {
+    "text": "Date of birth",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: the label of <DatePicker>."
+  },
+  "components.details-form.home_address": {
+    "text": "Home address",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <legend>."
+  },
+  "components.details-form.line2": {
+    "text": "Flat, floor or building (optional)",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.mobile": {
+    "text": "Mobile",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.personal_email": {
+    "text": "Personal email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.postcode": {
+    "text": "Postcode",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.preferred_name": {
+    "text": "Preferred name",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.preferred_name_hint": {
+    "text": "If you go by another first name.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldDescription>."
+  },
+  "components.details-form.street": {
+    "text": "Street and number",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <FieldLabel>."
+  },
+  "components.details-form.why": {
+    "text": "Your contract states these for you to check before you sign, and your employee record starts with them.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/details-form.tsx, DetailsForm: text inside <p>."
   },
   "components.job-ad.a_preview_nobody_can_apply_from": {
     "text": "A preview: nobody can apply from here.",

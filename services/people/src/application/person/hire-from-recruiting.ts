@@ -71,6 +71,8 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
     family_name: capitalisedName(payload.candidate.familyName),
     work_email: payload.candidate.email,
     ...(payload.candidate.phone === null ? {} : { mobile_phone: payload.candidate.phone }),
+    // What they gave before the contract, and checked in it: theirs over anything above.
+    ...detailsOf(payload.details ?? null),
     ...(payload.jobTitle === null ? {} : { job_title: payload.jobTitle }),
     ...(payload.managerId === null ? {} : { manager_id: payload.managerId }),
     ...(payload.orgUnitId === null ? {} : { org_unit_id: payload.orgUnitId }),
@@ -90,6 +92,20 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
       : { equity: `${String(payload.pay.equity.units)} × ${payload.pay.equity.description}` }),
     ...Object.fromEntries(Object.entries(terms).filter(([, v]) => v !== null)),
   };
+}
+
+/** A candidate's own details (`CandidateDetails`) by People's keys: only what they gave. */
+function detailsOf(d: Hired['payload']['details']): Record<string, unknown> {
+  if (d === null) return {};
+  return Object.fromEntries(
+    [
+      ['preferred_name', d.preferredName],
+      ['date_of_birth', d.dateOfBirth],
+      ['personal_email', d.personalEmail],
+      ['mobile_phone', d.mobilePhone],
+      ['home_address', d.homeAddress],
+    ].filter(([, v]) => v !== null && v !== ''),
+  );
 }
 
 export function hiresFromRecruiting(

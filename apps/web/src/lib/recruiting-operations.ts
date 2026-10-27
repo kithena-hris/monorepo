@@ -182,6 +182,11 @@ export const OPERATIONS = {
   ProposeSlots: write('ProposeSlots', 'proposeSlots', ...ID('applicationId')),
   DraftAgenda: write('DraftAgenda', 'draftAgenda', ...ID('applicationId')),
   RequestInformation: write('RequestInformation', 'requestInformation', ...ID('applicationId')),
+  RequestCandidateDetails: write(
+    'RequestCandidateDetails',
+    'requestCandidateDetails',
+    ...ID('applicationId'),
+  ),
   CloseAsk: write('CloseAsk', 'closeAsk', ...two('applicationId', 'askId'), false),
   BookFromAsk: write('BookFromAsk', 'bookFromAsk', ...two('applicationId', 'askId')),
   RequestMoreTimes: write('RequestMoreTimes', 'requestMoreTimes', ...two('applicationId', 'askId')),

@@ -1689,7 +1689,6 @@
   "record.attribute-input.no_matches": "कोई मेल नहीं।",
   "record.attribute-input.nobody_by_that_name": "इस नाम का कोई नहीं।",
   "record.attribute-input.nothing_to_choose_from": "चुनने को कुछ नहीं",
-  "record.attribute-input.or": "या",
   "record.attribute-input.required": "{{label}} (ज़रूरी)",
   "record.attribute-input.required_and_not_provided_yet": "ज़रूरी है, और अभी नहीं दिया गया।",
   "record.attribute-input.type_a_name": "नाम टाइप करें",

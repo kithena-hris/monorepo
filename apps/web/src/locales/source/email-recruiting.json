@@ -679,6 +679,30 @@
     "text": " could not make any of the times offered.",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"value2\" value."
   },
+  "email.requests.details_body": {
+    "text": "Hello {{name}},\n\nBefore your contract is drawn up, {{companyName}} needs a few details only you know: your date of birth, your home address and how to reach you. The contract states them for you to check before you sign.\n\nYour page:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{companyName}}, {{link}}."
+  },
+  "email.requests.details_given_body": {
+    "text": "{{name}} gave their details for the contract for {{job}}. The contract states them for them to check.\n\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{job}}, {{link}}."
+  },
+  "email.requests.details_given_subject": {
+    "text": "{{name}} gave their details",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}."
+  },
+  "email.requests.details_heading": {
+    "text": "A few details for your contract",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"heading\" value."
+  },
+  "email.requests.details_label": {
+    "text": "Your details for the contract",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code."
+  },
+  "email.requests.details_subject": {
+    "text": "{{companyName}} needs a few details for your contract",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{companyName}}."
+  },
   "email.requests.hello_for_your_application_to_asks": {
     "text": "Hello {{value}},\n\nFor your application to {{value2}}, {{companyName}} asks:\n\n{{label}}{{value3}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{value}}, {{value2}}, {{companyName}}, {{label}}, {{value3}}."

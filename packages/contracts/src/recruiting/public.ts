@@ -9,7 +9,7 @@ import {
   policy,
 } from '../classification.js';
 import { CalendarDate, Instant } from '../primitives.js';
-import { JobId, LaunchCountry, PublicationTarget, WorkMode } from './primitives.js';
+import { CandidateDetails, JobId, LaunchCountry, PublicationTarget, WorkMode } from './primitives.js';
 
 /**
  * What Kithena Jobs reads and what the public API takes (Recruiting PRD §10,
@@ -209,7 +209,9 @@ export const CandidatePage = z.object({
       requests: z.array(
         z.object({
           id: z.uuid().register(policy, asPublic()),
-          kind: z.enum(['slots', 'info', 'change', 'availability']).register(policy, asInternal()),
+          kind: z
+            .enum(['slots', 'info', 'change', 'availability', 'details'])
+            .register(policy, asInternal()),
           label: z.string().max(200).register(policy, asInternal()),
           detail: z.string().max(4000).nullable().register(policy, asFreeText()),
           createdAt: Instant,
@@ -222,6 +224,8 @@ export const CandidatePage = z.object({
             .object({
               time: Instant.nullable(),
               text: z.string().max(4000).nullable().register(policy, asFreeText()),
+              /** `details`: what they gave, shown back to them to change before the contract. */
+              details: CandidateDetails.nullable().optional(),
             })
             .nullable(),
         }),

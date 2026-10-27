@@ -743,7 +743,7 @@ export interface KitData {
 export interface Ask {
   readonly id: string;
   readonly applicationId: string;
-  readonly kind: 'slots' | 'info' | 'change' | 'availability';
+  readonly kind: 'slots' | 'info' | 'change' | 'availability' | 'details';
   readonly createdAt: string;
   readonly by: string | null;
   readonly planKey: string | null;
@@ -758,7 +758,28 @@ export interface Ask {
   readonly interviewId: string | null;
   readonly state: 'open' | 'answered' | 'closed';
   readonly answeredAt: string | null;
-  readonly answer: { readonly time: string | null; readonly text: string | null } | null;
+  readonly answer: {
+    readonly time: string | null;
+    readonly text: string | null;
+    /** `details`: what the candidate gave before the contract. */
+    readonly details?: CandidateDetails | null;
+  } | null;
+}
+
+/** What only the candidate knows, asked before the contract (`CandidateDetails` in contracts). */
+export interface CandidateDetails {
+  readonly preferredName: string | null;
+  readonly dateOfBirth: string | null;
+  readonly personalEmail: string | null;
+  readonly mobilePhone: string | null;
+  readonly homeAddress: {
+    readonly country: string;
+    readonly line1: string;
+    readonly line2: string | null;
+    readonly city: string;
+    readonly subdivision: string | null;
+    readonly postcode: string | null;
+  } | null;
 }
 
 export interface ScheduleData {

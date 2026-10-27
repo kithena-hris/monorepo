@@ -72,7 +72,14 @@ import { AskList } from './interviews';
 import { Journey } from './journey';
 import { OfferModal } from './offers';
 import { RejectDialog, type Rejecting } from './reject-dialog';
-import type { CandidateData, CandidatesData, OfferData, PoolsData, ScreenProps } from './types';
+import type {
+  CandidateData,
+  CandidateDetails,
+  CandidatesData,
+  OfferData,
+  PoolsData,
+  ScreenProps,
+} from './types';
 import { t as tr } from './i18n';
 
 /**
@@ -432,13 +439,23 @@ function OfferCard({
  */
 function ContractCard({
   name,
+  details,
+  asking,
+  onAsk,
   onOpen,
 }: {
   readonly name: string;
+  /** Their details: never asked (null), waiting on them, or what they gave. */
+  readonly details: { readonly state: 'open' } | { readonly state: 'answered'; readonly given: CandidateDetails } | null;
+  readonly asking: boolean;
+  readonly onAsk: () => void;
   readonly onOpen: () => void;
 }): JSX.Element {
+  const given = details?.state === 'answered' ? details.given : null;
+  const address = given?.homeAddress ?? null;
   return (
-    <Card padded className="flex flex-wrap items-center justify-between gap-4">
+    <Card padded className="flex flex-col gap-4">
+    <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3">
         <IconTile tone="accent">
           <icons.document aria-hidden />
@@ -459,6 +476,62 @@ function ContractCard({
       <Button onClick={onOpen} startIcon={<icons.document aria-hidden />}>
         {tr('candidate.prepare_the_contract', 'Prepare the contract')}
       </Button>
+    </div>
+      {/* What only they know, asked before the contract: it states them for them to check, and People takes them. */}
+      {given === null ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <p className="text-sm text-fg-muted">
+            {details?.state === 'open'
+              ? tr(
+                  'candidate.details_waiting',
+                  'Waiting on {{name}}’s details: date of birth, home address and how to reach them.',
+                  { name },
+                )
+              : tr(
+                  'candidate.details_hint',
+                  'Ask {{name}} for what only they know (date of birth, home address, how to reach them) before you send the contract. It states them for {{name}} to check, and their record starts with them.',
+                  { name },
+                )}
+          </p>
+          {details?.state === 'open' ? null : (
+            <Button size="sm" loading={asking} onClick={onAsk} startIcon={<icons.email aria-hidden />}>
+              {tr('candidate.ask_for_their_details', 'Ask for their details')}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 border-t border-border pt-4">
+          <p className="text-sm font-semibold">
+            {tr('candidate.details_given', 'Their details, for the contract')}
+          </p>
+          <KeyValues
+            items={[
+              ...(given.preferredName === null
+                ? []
+                : [{ label: tr('candidate.details_preferred_name', 'Preferred name'), value: given.preferredName }]),
+              ...(given.dateOfBirth === null
+                ? []
+                : [{ label: tr('candidate.details_date_of_birth', 'Date of birth'), value: day(given.dateOfBirth) }]),
+              ...(address === null
+                ? []
+                : [
+                    {
+                      label: tr('candidate.details_home_address', 'Home address'),
+                      value: [address.line1, address.line2, [address.postcode, address.city].filter(Boolean).join(' '), address.subdivision, address.country]
+                        .filter((x) => x !== null && x !== '')
+                        .join(', '),
+                    },
+                  ]),
+              ...(given.personalEmail === null
+                ? []
+                : [{ label: tr('candidate.details_personal_email', 'Personal email'), value: given.personalEmail }]),
+              ...(given.mobilePhone === null
+                ? []
+                : [{ label: tr('candidate.details_mobile', 'Mobile'), value: given.mobilePhone }]),
+            ]}
+          />
+        </div>
+      )}
     </Card>
   );
 }
@@ -1694,6 +1767,20 @@ export function Spotlight({
           {mayOffer && stage?.category === 'contract' && accepted !== undefined ? (
             <ContractCard
               name={name}
+              details={(() => {
+                const asked = chosen.asks.filter((x) => x.kind === 'details');
+                const answered = asked.findLast((x) => x.state === 'answered');
+                if (answered?.answer?.details != null)
+                  return { state: 'answered' as const, given: answered.answer.details };
+                return asked.some((x) => x.state === 'open') ? { state: 'open' as const } : null;
+              })()}
+              asking={act.pending}
+              onAsk={() => {
+                act.run('RequestCandidateDetails', {
+                  applicationId: chosen.applicationId,
+                  input: {},
+                });
+              }}
               onOpen={() => {
                 go(`/recruiting/offers/${accepted.id}/contract`);
               }}

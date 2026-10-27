@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { countryRules, type CandidateDetails, type PostalAddress } from '@kithena/contracts';
 
 import {
   contractFigures,
@@ -14,6 +15,7 @@ import { everyCatalogue } from './catalogue.js';
 import { mailWords, notFound, type Ctx } from './context.js';
 import { generalSettings } from './setup.js';
 import { editableOffer, resolvedTermsOf } from './offers.js';
+import { detailsOf } from './requests.js';
 
 /**
  * The contract, drafted (Recruiting PRD §21.1): the statutory particulars of
@@ -87,9 +89,15 @@ async function settingOf(ctx: Ctx, offerId: string) {
       .map((b) => b.names[language] ?? b.names['en'] ?? Object.values(b.names)[0] ?? b.key),
     ...(version.extraBenefits ?? []),
   ];
+  // What they gave before the contract: their address where the law asks for one, and all of it to check.
+  const given = await detailsOf(ctx, offer.applicationId);
   const facts = (employer: string, employee: string): ContractFacts => ({
     employer: { name: employer, address: null },
-    employee: { name: employee, address: null },
+    employee: {
+      name: employee,
+      address: given?.homeAddress == null ? null : addressText(given.homeAddress),
+      details: given === null ? null : detailsText(given),
+    },
     role: job.title,
     placeOfWork:
       terms.value.workMode === 'remote'
@@ -217,4 +225,29 @@ export async function reviseContract(
     toConfirm: toConfirm(named),
     figures: contractFigures(named, particulars),
   });
+}
+
+/** A postal address on one line: street, town and postcode, region, country. */
+export function addressText(a: PostalAddress): string {
+  return [
+    a.line1,
+    a.line2,
+    [a.postcode, a.city].filter(Boolean).join(' '),
+    a.subdivision,
+    countryRules(a.country)?.name ?? a.country,
+  ]
+    .filter((part) => part !== null && part !== '')
+    .join(', ');
+}
+
+/** What a candidate gave, in the contract's words: only what they gave. */
+export function detailsText(d: CandidateDetails): string | null {
+  const parts = [
+    d.preferredName === null ? null : `known as ${d.preferredName}`,
+    d.dateOfBirth === null ? null : `born ${d.dateOfBirth}`,
+    d.homeAddress === null ? null : `living at ${addressText(d.homeAddress)}`,
+    d.personalEmail === null ? null : `personal email ${d.personalEmail}`,
+    d.mobilePhone === null ? null : `mobile ${d.mobilePhone}`,
+  ].filter((p): p is string => p !== null);
+  return parts.length === 0 ? null : parts.join('; ');
 }

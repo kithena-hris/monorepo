@@ -1674,7 +1674,6 @@
   "record.attribute-input.no_matches": "Geen resultaten.",
   "record.attribute-input.nobody_by_that_name": "Niemand met die naam.",
   "record.attribute-input.nothing_to_choose_from": "Niets om uit te kiezen",
-  "record.attribute-input.or": "of",
   "record.attribute-input.required": "{{label}} (verplicht)",
   "record.attribute-input.required_and_not_provided_yet": "Verplicht en nog niet opgegeven.",
   "record.attribute-input.type_a_name": "Typ een naam",

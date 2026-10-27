@@ -1,4 +1,4 @@
-import type { Instant } from '@kithena/contracts';
+import type { CandidateDetails, Instant } from '@kithena/contracts';
 
 import type { Ctx } from './context.js';
 
@@ -20,7 +20,8 @@ export interface Agenda {
 export interface Ask {
   readonly id: string;
   readonly applicationId: string;
-  readonly kind: 'slots' | 'info' | 'change' | 'availability';
+  /** `details`: what only they know and their record needs, asked after the offer is accepted. */
+  readonly kind: 'slots' | 'info' | 'change' | 'availability' | 'details';
   readonly createdAt: Instant;
   /** Who asked, when the team did; null when the candidate did. */
   readonly by: string | null;
@@ -38,7 +39,12 @@ export interface Ask {
   readonly state: 'open' | 'answered' | 'closed';
   readonly answeredAt: Instant | null;
   /** The time chosen (`slots`), or what the candidate wrote. */
-  readonly answer: { readonly time: Instant | null; readonly text: string | null } | null;
+  readonly answer: {
+    readonly time: Instant | null;
+    readonly text: string | null;
+    /** `details`: what they gave, for the contract and their record. */
+    readonly details?: CandidateDetails | null;
+  } | null;
   /** `slots`, `availability`: who runs the interview, as chosen on the Schedule screen. */
   readonly interviewerIds?: readonly string[];
   /** `availability`: who chooses a time from it, in their Inbox (the recruiter who sent the link). */

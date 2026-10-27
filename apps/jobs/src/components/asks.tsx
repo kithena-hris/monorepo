@@ -25,6 +25,7 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import { publicApi } from '../lib/browser-api';
+import { DetailsForm, detailsOf, draftOf, type DetailsDraft } from './details-form';
 import { t as tr } from '../lib/i18n';
 
 /**
@@ -44,7 +45,7 @@ export interface Notice {
   /** Where to act: the company's slug and the token for its page. */
   readonly company: { readonly slug: string; readonly name: string; readonly token: string };
   readonly application: Application;
-  readonly kind: 'slots' | 'info' | 'interview' | 'offer' | 'answered' | 'closed';
+  readonly kind: 'slots' | 'info' | 'details' | 'interview' | 'offer' | 'answered' | 'closed';
   readonly title: string;
   readonly detail: string | null;
   readonly at: string;
@@ -140,7 +141,13 @@ export function noticesOf(
                     'Choose a time for your {{toLowerCase}}',
                     { toLowerCase: r.label.toLowerCase() },
                   )
-                : tr('components.asks.asks', '{{name}} asks: {{label}}', {
+                : r.kind === 'details'
+                  ? tr(
+                      'components.asks.details_title',
+                      '{{name}} needs a few details for your contract',
+                      { name: company.name },
+                    )
+                  : tr('components.asks.asks', '{{name}} asks: {{label}}', {
                     name: company.name,
                     label: r.label,
                   }),
@@ -205,6 +212,7 @@ export function noticesOf(
 const ICON: Readonly<Record<Notice['kind'], keyof typeof icons>> = {
   slots: 'calendar',
   info: 'help',
+  details: 'document',
   interview: 'meeting',
   offer: 'agreement',
   answered: 'success',
@@ -223,6 +231,7 @@ export function NoticeDialog({
 }): JSX.Element {
   const [time, setTime] = useState<string>('');
   const [text, setText] = useState('');
+  const [details, setDetails] = useState<DetailsDraft>(() => draftOf(null));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const r = notice?.request;
@@ -316,6 +325,9 @@ export function NoticeDialog({
               </p>
             </>
           ) : null}
+          {r?.kind === 'details' && r.state === 'open' ? (
+            <DetailsForm value={details} onChange={setDetails} />
+          ) : null}
           {r?.kind === 'info' && r.state === 'open' ? (
             <Field required>
               <FieldLabel>{r.label}</FieldLabel>
@@ -397,6 +409,24 @@ export function NoticeDialog({
               {time === 'none'
                 ? tr('components.asks.ask_for_other_times', 'Ask for other times')
                 : tr('components.asks.book_this_time', 'Book this time')}
+            </Button>
+          ) : null}
+          {r?.kind === 'details' && r.state === 'open' ? (
+            <Button
+              loading={pending}
+              disabled={details.dateOfBirth === null && detailsOf(details).homeAddress === null}
+              onClick={() => {
+                send(
+                  `/me/asks/${r.id}`,
+                  { time: null, text: null, details: detailsOf(details) },
+                  tr(
+                    'components.asks.details_sent',
+                    'Sent. Your contract will state them for you to check before you sign.',
+                  ),
+                );
+              }}
+            >
+              {tr('components.asks.send_my_details', 'Send my details')}
             </Button>
           ) : null}
           {r?.kind === 'info' && r.state === 'open' ? (

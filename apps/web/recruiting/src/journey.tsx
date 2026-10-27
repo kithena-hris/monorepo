@@ -77,7 +77,8 @@ function askText(a: Application['asks'][number]): string {
       },
       { count: a.times.length, label },
     );
-  if (a.kind === 'info') return tr('journey.asked', 'Asked: {{label}}', { label: a.label });
+  if (a.kind === 'info' || a.kind === 'details')
+    return tr('journey.asked', 'Asked: {{label}}', { label: a.label });
   return tr('journey.asked_to_move', 'The candidate asked to move the {{label}}', { label });
 }
 
@@ -85,6 +86,7 @@ function askDetail(a: Application['asks'][number]): string | null {
   if (a.answer?.time != null)
     return tr('journey.chose', 'Chose {{time}}', { time: when(a.answer.time) });
   if (a.answer?.text != null) return a.answer.text;
+  if (a.answer?.details != null) return tr('journey.details_given', 'Given, for the contract');
   if (a.state === 'open') return tr('journey.waiting_on_the_candidate', 'Waiting on the candidate');
   if (a.closedBecause === 'replaced') return tr('journey.replaced', 'Replaced by new times');
   if (a.closedBecause === 'more_times') return tr('journey.more_times', 'More times asked for');
@@ -111,7 +113,7 @@ function moments(data: CandidateData, app: Application, now: number): Moment[] {
     ...app.asks.map((a): Moment => ({
       key: `a:${a.id}`,
       at: a.createdAt,
-      icon: a.kind === 'info' ? 'help' : 'calendar',
+      icon: a.kind === 'info' ? 'help' : a.kind === 'details' ? 'document' : 'calendar',
       text: askText(a),
       detail: askDetail(a),
     })),

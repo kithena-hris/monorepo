@@ -16,7 +16,12 @@ import type { CalendarDate, LaunchCountry, ResolvedTerms, TermLength } from '@ki
 
 export interface ContractFacts {
   readonly employer: { readonly name: string; readonly address: string | null };
-  readonly employee: { readonly name: string; readonly address: string | null };
+  readonly employee: {
+    readonly name: string;
+    readonly address: string | null;
+    /** What they told the company before the contract (`CandidateDetails`), in words; null when not asked. */
+    readonly details?: string | null;
+  };
   readonly role: string;
   readonly placeOfWork: string | null;
   readonly terms: ResolvedTerms;
@@ -63,7 +68,8 @@ export type ParticularKey =
   | 'overtime_status'
   | 'conditions'
   | 'non_compete'
-  | 'governing_law';
+  | 'governing_law'
+  | 'employee_details';
 
 export interface Particular {
   readonly key: ParticularKey;
@@ -285,7 +291,16 @@ export function particularsFor(facts: ContractFacts): Particular[] {
       value: `the law of ${c}${terms.region === null ? '' : ` (${terms.region})`}`,
     },
   ];
-  return out.filter((p): p is Particular => p !== null);
+  // What the employee gave before the contract, stated for them to check as they sign.
+  const given =
+    facts.employee.details == null
+      ? null
+      : {
+          key: 'employee_details' as const,
+          law: 'as the employee gave them before the contract',
+          value: facts.employee.details,
+        };
+  return [...out, given].filter((p): p is Particular => p !== null);
 }
 
 /** What a draft still asks a person to confirm: each `[[TO CONFIRM: …]]`, in order. */

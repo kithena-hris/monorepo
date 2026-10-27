@@ -1860,7 +1860,6 @@
   "record.attribute-input.no_matches": "Ничего не найдено.",
   "record.attribute-input.nobody_by_that_name": "Нет никого с таким именем.",
   "record.attribute-input.nothing_to_choose_from": "Не из чего выбрать",
-  "record.attribute-input.or": "или",
   "record.attribute-input.required": "{{label}} (обязательно)",
   "record.attribute-input.required_and_not_provided_yet": "Обязательно и ещё не указано.",
   "record.attribute-input.type_a_name": "Введите имя",

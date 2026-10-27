@@ -789,7 +789,7 @@ function AskRow({
           },
           { count: ask.times.length, label: ask.label.toLowerCase() },
         )
-      : ask.kind === 'info'
+      : ask.kind === 'info' || ask.kind === 'details'
         ? tr('interviews.asked', 'Asked: {{label}}', { label: ask.label })
         : ask.kind === 'availability'
           ? tr(

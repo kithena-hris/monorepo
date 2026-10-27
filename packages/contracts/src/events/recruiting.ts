@@ -8,6 +8,7 @@ import {
   ApplicationId,
   ApplicationSource,
   CandidateContact,
+  CandidateDetails,
   CandidateId,
   ConditionKind,
   ConditionState,
@@ -185,6 +186,8 @@ export const CandidateHired = defineEvent(
     offerId: OfferId,
     offerVersion: z.int().positive().register(policy, asInternal()),
     candidate: CandidateContact,
+    /** What they told the company before the contract; null when they were not asked. */
+    details: CandidateDetails.nullable().default(null),
     terms: ResolvedTerms,
     pay: z.object({
       base: Money,
