@@ -944,8 +944,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
         run: |
-          # The agent can be online a moment before sshd accepts.
-          for _ in $(seq 1 12); do ssh -o ConnectTimeout=10 vm true && break; sleep 5; done
+          # The agent can be online a moment before sshd accepts, and Systems
+          # Manager can still say `Online` from before a stop it has not noticed
+          # yet: a VM woken from idle took over a minute to take a session
+          # (TargetNotConnected). Five minutes, as the wake step allows.
+          for _ in $(seq 1 60); do ssh -o ConnectTimeout=10 vm true && break; sleep 5; done
           # `migrations/` replaced whole, so the copy is exactly this commit's.
           ssh vm 'mkdir -p kithena && rm -rf kithena/migrations'
           scp -q -r deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
@@ -2372,8 +2375,8 @@ jobs:
             echo "::warning::rolling $name back to $previous"
             # No registry login needed: `deploy.sh` pulls only an image the VM
             # does not have, and it keeps the one each service was on before.
-            # The agent can be online a moment before sshd accepts.
-            for _ in $(seq 1 12); do ssh -o ConnectTimeout=10 vm true && break; sleep 5; done
+            # The agent can be online a moment before sshd accepts (five minutes, as the deploy waits).
+            for _ in $(seq 1 60); do ssh -o ConnectTimeout=10 vm true && break; sleep 5; done
             # shellcheck disable=SC2029 # the image is meant to expand here
             ssh vm sudo bash kithena/deploy.sh production "$name" "$previous"
             rolled+=("$name -> $previous")
