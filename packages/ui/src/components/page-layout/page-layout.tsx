@@ -1371,11 +1371,7 @@ export function PageHeader({
               // so the fold is a motion rather than a jump.
               <div
                 aria-hidden={stick.stuck || undefined}
-                style={
-                  folding
-                    ? { height: stick.stuck ? 0 : (stick.aboutHeight ?? undefined) }
-                    : undefined
-                }
+                style={folding ? { height: stick.stuck ? 0 : stick.aboutHeight } : undefined}
                 className={cn(
                   sticky &&
                     'overflow-hidden transition-[height,opacity] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
