@@ -294,7 +294,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
         expect(inView('p0')).toBe(true);
         expect(document.querySelector('tr[data-row-id="p0"]')).toHaveFocus();
       },
-      { timeout: 3000 },
+      { timeout: slow ? 20_000 : 3000 },
     );
   });
 
@@ -406,7 +406,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     expect(pill.top - head).toBeLessThan(80);
   });
 
-  it('jumps instead under reduced motion', async () => {
+  it('jumps instead under reduced motion', { timeout: slow ? 60_000 : 15_000 }, async () => {
     const real = window.matchMedia.bind(window);
     // Reduced motion asked for: answered by a query that always matches.
     vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
@@ -424,9 +424,12 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     await userEvent.click(within(look).getByRole('button', { name: 'Show in list' }));
     // At once, not over the next few hundred milliseconds.
     expect(window.scrollY).toBeLessThan(tableTop(box) + window.innerHeight);
-    await vi.waitFor(() => {
-      expect(document.querySelector('tr[data-row-id="p0"]')).toHaveFocus();
-    });
+    await vi.waitFor(
+      () => {
+        expect(document.querySelector('tr[data-row-id="p0"]')).toHaveFocus();
+      },
+      { timeout: slow ? 20_000 : 1000 },
+    );
     expect(inView('p0')).toBe(true);
   });
 });
