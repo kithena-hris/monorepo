@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { failure, err, ok } from '@kithena/domain-kit';
+import { failure, err, fixedClock, ok } from '@kithena/domain-kit';
 import { PersonHired } from '@kithena/contracts';
 
 import { UTC_CALENDAR, type TenantCalendar } from '../../domain/org/calendar.js';
@@ -1387,5 +1387,105 @@ describe('an employee number', () => {
       changes: { employee_number: '00001' },
     });
     expect(!same.ok && same.error.code).toBe('NOTHING_CHANGED');
+  });
+});
+
+describe('a salary', () => {
+  const sealedSalary = define({
+    key: 'base_salary',
+    dataType: 'money',
+    typeConfig: { kind: 'money' },
+    visibility: ['self', 'hr', 'finance'],
+    ownership: ['hr', 'finance'],
+    effectiveDated: true,
+    encrypted: true,
+    classification: {
+      classification: 'confidential',
+      piiKind: 'financial',
+      exportable: true,
+      aiEligible: false,
+    },
+  });
+  const eur = (amountMinor: number) => ({ amountMinor, currency: 'EUR' });
+
+  it('keeps its history sealed, raise by raise, and reads in full to HR', async () => {
+    const store = inMemoryPeople([versionOf(3, [sealedSalary])]);
+    store.seed(ADA, { account: ADA_ACCOUNT });
+    const people = personAccess(store.deps);
+    const raise = (amountMinor: number, effectiveFrom: string) =>
+      people.update(tx, {
+        ...asking(hr),
+        personId: ADA,
+        changes: { base_salary: eur(amountMinor) },
+        effectiveFrom,
+      });
+
+    expect((await raise(5_500_000, '2026-01-01')).ok).toBe(true);
+    expect((await raise(6_000_000, '2026-06-01')).ok).toBe(true);
+    // Agreed now, paid from January: in force then, not today.
+    expect((await raise(7_000_000, '2027-01-01')).ok).toBe(true);
+
+    const read = await people.read(tx, { ...asking(hr), personId: ADA, amounts: true });
+    expect(read.ok && read.value.attributes['base_salary']).toEqual(eur(6_000_000));
+    // Anywhere else (approvals, lists) it stays its last four.
+    const elsewhere = await people.read(tx, { ...asking(hr), personId: ADA });
+    expect(elsewhere.ok && Object.keys(elsewhere.value.attributes['base_salary'] ?? {})).toEqual([
+      'last4',
+    ]);
+    // History never holds a plaintext; its sealed copies are opened for HR.
+    expect(store.history.every((h) => h.value === null)).toBe(true);
+    const history = await people.history(tx, { ...asking(hr), personId: ADA, amounts: true });
+    expect(history.ok && history.value.map((e) => [e.effectiveFrom, e.value])).toEqual([
+      ['2026-01-01', eur(5_500_000)],
+      ['2026-06-01', eur(6_000_000)],
+      ['2027-01-01', eur(7_000_000)],
+    ]);
+    const asOf = await people.read(tx, {
+      ...asking(hr),
+      personId: ADA,
+      asOf: '2026-03-01',
+      amounts: true,
+    });
+    expect(asOf.ok && asOf.value.attributes['base_salary']).toEqual(eur(5_500_000));
+
+    // Somebody who may not see it reads nothing of it.
+    const manager = await people.read(tx, { ...asking(marco), personId: ADA });
+    expect(manager.ok && manager.value.attributes['base_salary']).toBeUndefined();
+  });
+
+  it('comes into force on its day from its own sealed copy, once', async () => {
+    const store = inMemoryPeople([versionOf(3, [sealedSalary])]);
+    store.seed(ADA, { account: ADA_ACCOUNT });
+    const today = personAccess(store.deps);
+    await today.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { base_salary: eur(6_000_000) },
+      effectiveFrom: '2026-06-01',
+    });
+    await today.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { base_salary: eur(7_000_000) },
+      effectiveFrom: '2027-01-01',
+    });
+    const read = async (people: typeof today) => {
+      const view = await people.read(tx, { ...asking(hr), personId: ADA, amounts: true });
+      return view.ok ? view.value.attributes['base_salary'] : undefined;
+    };
+    const on = { tenantId: TENANT, personId: ADA, correlationId: '00000000-0000-4000-8000-0000000000c2' };
+
+    // Not yet: nothing comes into force before its day.
+    expect(await today.bringIntoForce(tx, on)).toMatchObject(ok({ applied: 0 }));
+    expect(await read(today)).toEqual(eur(6_000_000));
+
+    // The day comes.
+    const january = personAccess({ ...store.deps, clock: fixedClock('2027-01-01T09:00:00.000Z') });
+    expect(await january.bringIntoForce(tx, on)).toMatchObject(ok({ applied: 1 }));
+    expect(await read(january)).toEqual(eur(7_000_000));
+    // Opened from its sealed copy: no plaintext was kept on the way.
+    expect(store.history.every((h) => h.value === null)).toBe(true);
+    // A rerun moves nothing.
+    expect(await january.bringIntoForce(tx, on)).toMatchObject(ok({ applied: 0 }));
   });
 });

@@ -131,6 +131,9 @@ export function inMemoryPeople(
   const history: (HistoryEntry & { personId: string })[] = [];
   const events: PendingEvent[] = [];
   const secrets = new Map<string, string>();
+  /** Which dated change each sealed value in force is, and every dated change's plaintext. */
+  const heldFrom = new Map<string, string | null>();
+  const dated = new Map<string, string>();
   const reviews: IdentifierReview[] = [];
   let ids = 0;
   const periods = new Map<string, EmploymentPeriodRow>();
@@ -290,16 +293,31 @@ export function inMemoryPeople(
       },
     },
     secrets: {
-      put(_tx, where, plaintext) {
+      put(_tx, where, plaintext, historyId = null) {
         secrets.set(`${where.personId}:${where.attributeKey}`, plaintext);
+        heldFrom.set(`${where.personId}:${where.attributeKey}`, historyId);
         return Promise.resolve({ last4: lastFour(plaintext) });
       },
       list: (_tx, _tenant, personId) =>
         Promise.resolve(
           [...secrets.entries()]
             .filter(([k]) => k.startsWith(`${personId}:`))
-            .map(([k, v]) => ({ attributeKey: k.slice(personId.length + 1), last4: lastFour(v) })),
+            .map(([k, v]) => ({
+              attributeKey: k.slice(personId.length + 1),
+              last4: lastFour(v),
+              historyId: heldFrom.get(k) ?? null,
+            })),
         ),
+      putDated(_tx, where, plaintext) {
+        dated.set(where.historyId, plaintext);
+        return Promise.resolve();
+      },
+      revealDated: (_tx, _tenant, historyIds) =>
+        Promise.resolve(
+          new Map(historyIds.flatMap((id) => (dated.has(id) ? [[id, dated.get(id) ?? '']] : []))),
+        ),
+      reveal: (_tx, where) =>
+        Promise.resolve(secrets.get(`${where.personId}:${where.attributeKey}`) ?? null),
       listMany: (_tx, _tenant, personIds) =>
         Promise.resolve(
           new Map(

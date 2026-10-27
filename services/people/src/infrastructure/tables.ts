@@ -220,11 +220,26 @@ export const personSecret = people.table(
     ciphertext: encrypted('ciphertext').notNull(),
     keyId: text('key_id').notNull(),
     last4: text('last4'),
+    /** Which dated change (`person_secret_dated`) this is; null for a value with no history. */
+    historyId: uuid('history_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('person_secret_pk_idx').on(t.tenantId, t.personId, t.attributeKey)],
 );
+
+/** One sealed dated change, by its history row (20261027090000): a salary's history. */
+export const personSecretDated = people.table('person_secret_dated', {
+  tenantId: uuid('tenant_id').notNull(),
+  historyId: uuid('history_id').notNull(),
+  personId: uuid('person_id').notNull(),
+  attributeKey: text('attribute_key').notNull(),
+  ciphertext: encrypted('ciphertext').notNull(),
+  keyId: text('key_id').notNull(),
+  last4: text('last4'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const attributeUnique = people.table(
   'attribute_unique',

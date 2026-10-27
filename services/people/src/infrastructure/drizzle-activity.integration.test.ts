@@ -40,6 +40,7 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260927190000_people_settings_activity.sql',
     '20260927200200_people_settings_activity_detail.sql',
+    '20261027090000_people_secret_dated.sql',
   ]) {
     const text = await readFile(new URL(`../../../../migrations/${file}`, import.meta.url), 'utf8');
     await admin.execute(sql.raw(text));

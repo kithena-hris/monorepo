@@ -69,6 +69,7 @@ const hired = {
     },
     benefits: [],
     startDate: '2026-11-02',
+    jobTitle: null,
     managerId: null,
     orgUnitId: null,
     locationId: null,
@@ -174,6 +175,30 @@ describe('a hire Recruiting made', () => {
     expect(JSON.parse(String(row?.fields.custom['my_signature']))).toEqual(mark);
   });
 
+  it('fills a hire not started yet from the hire, leaving what HR set', async () => {
+    const title = define({ key: 'job_title', effectiveDated: true });
+    const store = inMemoryPeople([
+      versionOf(1, [define({ key: 'given_name' }), define({ key: 'family_name' }), email, probation, title]),
+    ]);
+    const access = personAccess({ ...store.deps, relations: withSupport(store.deps.relations) });
+    const hires = hiresFromRecruiting(access, store.deps.schemas);
+    // Hired before the hire carried the job's title, and before probation was set.
+    const early = {
+      ...hired,
+      payload: { ...hired.payload, terms: { ...hired.payload.terms, probationEnd: null } },
+    };
+    await hires.hired(tx, early as never);
+    const replayed = { ...hired, payload: { ...hired.payload, jobTitle: 'Payroll Specialist' } };
+    expect(await hires.filled(tx, replayed as never)).toEqual({ outcome: 'applied' });
+    const [row] = [...store.rows.values()];
+    expect(row?.fields.custom).toMatchObject({
+      job_title: 'Payroll Specialist',
+      probation_end: '2027-05-02',
+    });
+    // Once filled, a replay changes nothing.
+    expect(await hires.filled(tx, replayed as never)).toEqual({ outcome: 'unchanged' });
+  });
+
   it('fills an empty signature of somebody already hired, and creates nobody', async () => {
     const mark = { kind: 'typed', text: 'Yuki Tanaka', style: 'flowing' } as const;
     const store = inMemoryPeople([
@@ -188,14 +213,14 @@ describe('a hire Recruiting made', () => {
     const hires = hiresFromRecruiting(access, store.deps.schemas);
     const signed = { ...hired, payload: { ...hired.payload, signature: JSON.stringify(mark) } };
     // Nobody under the email yet, as for a hire since cancelled: nothing is created.
-    expect(await hires.signed(tx, signed as never)).toEqual({ outcome: 'unchanged' });
+    expect(await hires.filled(tx, signed as never)).toEqual({ outcome: 'unchanged' });
     expect(store.rows.size).toBe(0);
     // Hired before the company kept a signature: the replay fills it, once.
     await hires.hired(tx, hired as never);
-    expect(await hires.signed(tx, signed as never)).toEqual({ outcome: 'applied' });
+    expect(await hires.filled(tx, signed as never)).toEqual({ outcome: 'applied' });
     const [row] = [...store.rows.values()];
     expect(JSON.parse(String(row?.fields.custom['my_signature']))).toEqual(mark);
-    expect(await hires.signed(tx, signed as never)).toEqual({ outcome: 'unchanged' });
+    expect(await hires.filled(tx, signed as never)).toEqual({ outcome: 'unchanged' });
   });
 
   it('leaves out a value the schema refuses, for HR to fill in, rather than refusing the hire', async () => {

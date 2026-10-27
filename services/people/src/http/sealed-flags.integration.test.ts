@@ -109,6 +109,7 @@ beforeAll(async () => {
     '20260927161000_people_person_photo.sql',
     '20260927170000_people_detail_request.sql',
     '20260927180000_people_files.sql',
+    '20261027090000_people_secret_dated.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -154,6 +155,8 @@ beforeAll(async () => {
           dataType: 'money',
           typeConfig: { kind: 'money' },
           encrypted: true,
+          // A raise is dated, sealed change by change.
+          effectiveDated: true,
           visibility: ['self', 'finance'],
           ownership: ['finance'],
           requiresApproval: true,
@@ -225,6 +228,13 @@ async function inbox(account: string, roles: string[]): Promise<{ body: string; 
   return { body, item };
 }
 
+const TWO_MONTHS_ON = (() => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1))
+    .toISOString()
+    .slice(0, 10);
+})();
+
 describe('flags on sealed pay (PEO-145)', () => {
   it('tells a decider who may read it the percentage, tells anybody else nothing, and writes neither amount anywhere', async () => {
     const asked = await fetch(`${base}/v1/people/${TOM}`, {
@@ -232,7 +242,8 @@ describe('flags on sealed pay (PEO-145)', () => {
       headers: headers(NORA, ['hr', 'finance'], 'raise'),
       body: JSON.stringify({
         attributes: { base_salary: { amountMinor: AFTER, currency: 'EUR' } },
-        effectiveFrom: '2026-12-01',
+        // Two months on, whatever today is: clear of this month's payroll.
+        effectiveFrom: TWO_MONTHS_ON,
       }),
     });
     expect(asked.status).toBe(200);

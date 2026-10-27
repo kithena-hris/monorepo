@@ -3,7 +3,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { logger } from '@kithena/telemetry';
 
 import { keysFrom, open, rewrap, seal, staticKeyRing, type KeyRing } from './envelope.js';
-import { personSecret } from './tables.js';
+import { personSecret, personSecretDated } from './tables.js';
 import type { InTenantTransaction } from './unit-of-work.js';
 
 /**
@@ -30,6 +30,8 @@ export interface StoredSecret {
   readonly attributeKey: string;
   readonly last4: string | null;
   readonly keyId: string;
+  /** The dated change in force, for a sealed value with a history. */
+  readonly historyId?: string | null;
 }
 
 /** What this writes to, when it writes anything. Never a value. */
@@ -49,7 +51,27 @@ export interface SecretStore {
     tx: PostgresJsDatabase,
     where: { tenantId: string; personId: string; attributeKey: string },
     plaintext: string,
+    /** The dated change this is, for a sealed value with a history. */
+    historyId?: string | null,
   ): Promise<StoredSecret>;
+
+  /**
+   * One dated change of a sealed value with a history (a salary), kept by its
+   * history row: what `revealDated` reads back for the history and for a
+   * change dated ahead coming into force.
+   */
+  putDated(
+    tx: PostgresJsDatabase,
+    where: { tenantId: string; personId: string; attributeKey: string; historyId: string },
+    plaintext: string,
+  ): Promise<void>;
+
+  /** The plaintexts of these dated changes, by history row, for those who may read them. */
+  revealDated(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    historyIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string>>;
 
   /** What a profile screen shows: which attributes exist, and their last four. */
   list(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<readonly StoredSecret[]>;
@@ -95,7 +117,7 @@ export interface SecretStore {
 
 export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): SecretStore {
   return {
-    async put(tx, where, plaintext) {
+    async put(tx, where, plaintext, historyId = null) {
       const sealed = seal(plaintext, ring);
 
       await tx
@@ -107,6 +129,7 @@ export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): Secret
           ciphertext: sealed.ciphertext,
           keyId: sealed.keyId,
           last4: sealed.last4,
+          historyId,
         })
         .onConflictDoUpdate({
           target: [personSecret.tenantId, personSecret.personId, personSecret.attributeKey],
@@ -114,6 +137,7 @@ export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): Secret
             ciphertext: sealed.ciphertext,
             keyId: sealed.keyId,
             last4: sealed.last4,
+            historyId,
             updatedAt: new Date(),
           },
         });
@@ -134,12 +158,49 @@ export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): Secret
       return { attributeKey: where.attributeKey, last4: sealed.last4, keyId: sealed.keyId };
     },
 
+    async putDated(tx, where, plaintext) {
+      const sealed = seal(plaintext, ring);
+      await tx.insert(personSecretDated).values({
+        tenantId: where.tenantId,
+        historyId: where.historyId,
+        personId: where.personId,
+        attributeKey: where.attributeKey,
+        ciphertext: sealed.ciphertext,
+        keyId: sealed.keyId,
+        last4: sealed.last4,
+      });
+      logger?.info(
+        { attributeKey: where.attributeKey, personId: where.personId, keyId: sealed.keyId },
+        'dated secret stored',
+      );
+    },
+
+    async revealDated(tx, tenantId, historyIds) {
+      if (historyIds.length === 0) return new Map();
+      const rows = await tx
+        .select({
+          historyId: personSecretDated.historyId,
+          ciphertext: personSecretDated.ciphertext,
+          keyId: personSecretDated.keyId,
+        })
+        .from(personSecretDated)
+        .where(
+          and(
+            eq(personSecretDated.tenantId, tenantId),
+            inArray(personSecretDated.historyId, [...historyIds]),
+          ),
+        );
+      logger?.info({ count: rows.length }, 'dated secrets revealed');
+      return new Map(rows.map((row) => [row.historyId, open(row, ring)]));
+    },
+
     async list(tx, tenantId, personId) {
       const rows = await tx
         .select({
           attributeKey: personSecret.attributeKey,
           last4: personSecret.last4,
           keyId: personSecret.keyId,
+          historyId: personSecret.historyId,
         })
         .from(personSecret)
         .where(and(eq(personSecret.tenantId, tenantId), eq(personSecret.personId, personId)));
@@ -242,6 +303,33 @@ export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): Secret
               eq(personSecret.tenantId, tenantId),
               eq(personSecret.personId, personId),
               eq(personSecret.attributeKey, row.attributeKey),
+            ),
+          );
+        rewrapped += 1;
+      }
+
+      // A salary's history, under the same key.
+      const dated = await tx
+        .select({
+          historyId: personSecretDated.historyId,
+          ciphertext: personSecretDated.ciphertext,
+          keyId: personSecretDated.keyId,
+        })
+        .from(personSecretDated)
+        .where(
+          and(eq(personSecretDated.tenantId, tenantId), eq(personSecretDated.personId, personId)),
+        );
+      for (const row of dated) {
+        const next = rewrap(row, ring);
+        if (next.keyId === row.keyId) continue;
+        // eslint-disable-next-line no-await-in-loop -- in sequence, as above
+        await tx
+          .update(personSecretDated)
+          .set({ ciphertext: next.ciphertext, keyId: next.keyId, updatedAt: new Date() })
+          .where(
+            and(
+              eq(personSecretDated.tenantId, tenantId),
+              eq(personSecretDated.historyId, row.historyId),
             ),
           );
         rewrapped += 1;

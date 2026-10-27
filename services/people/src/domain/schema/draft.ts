@@ -677,19 +677,19 @@ const ENCRYPTABLE = new Set([
 ]);
 
 /**
- * Whether a field can be stored encrypted: a type sealed as a whole string,
- * and a single current value. A choice or a reference is what a screen
- * filters and joins on, a file is not a string, and an effective-dated field
- * keeps a history of values that a seal of one value would not cover.
+ * Whether a field can be stored encrypted: a type sealed as a whole string.
+ * A choice or a reference is what a screen filters and joins on, and a file
+ * is not a string. Money may also keep a dated history, each change sealed on
+ * its own (`people.person_secret_dated`), because pay is paid back from its
+ * history; anything else sealed holds one current value.
  */
-/** Whether a field could be stored encrypted: its type and its history allow it. */
 export function encryptable(a: Pick<AttributeDefinition, 'dataType' | 'effectiveDated'>): boolean {
-  return ENCRYPTABLE.has(a.dataType) && !a.effectiveDated;
+  return ENCRYPTABLE.has(a.dataType) && (!a.effectiveDated || a.dataType === 'money');
 }
 
 function checkEncryptable(a: AttributeDefinition): Result<void> {
   if (!a.encrypted) return ok(undefined);
-  if (!ENCRYPTABLE.has(a.dataType) || a.effectiveDated) {
+  if (!encryptable(a)) {
     return err(
       failure(
         'NOT_ENCRYPTABLE',

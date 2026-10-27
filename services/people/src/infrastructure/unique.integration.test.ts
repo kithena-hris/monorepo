@@ -75,6 +75,7 @@ beforeAll(async () => {
     '20260924220200_people_employment_period.sql',
     '20260924150000_people_unique_hash.sql',
     '20260924350000_people_unique_key_lookup.sql',
+    '20261027090000_people_secret_dated.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

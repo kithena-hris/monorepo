@@ -549,10 +549,11 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
 }
 
 /**
- * The signatures of hires People made before the company had a signature
- * field, read from Recruiting's hires again under a group of its own: only
- * an empty signature field is filled, nobody is created, so replaying a hire
- * that was since cancelled brings nobody back (`HiresFromRecruiting.signed`).
+ * What hires People made before the company had the fields for it, read from
+ * Recruiting's hires again under a group of its own: only empty fields are
+ * filled (the signature, and a hire not started yet the job, the terms and
+ * the pay), nobody is created, so replaying a hire that was since cancelled
+ * brings nobody back (`HiresFromRecruiting.filled`).
  */
 export function hireSignatures(
   deps: Pick<ConsumerDeps, 'inTenant' | 'hires'>,
@@ -565,7 +566,7 @@ export function hireSignatures(
     if (!event) return 'rejected';
     const { hires } = deps;
     if (!hires) return 'ignored';
-    const done = await deps.inTenant(event.tenantId, ({ tx }) => hires.signed(tx, event));
+    const done = await deps.inTenant(event.tenantId, ({ tx }) => hires.filled(tx, event));
     return done.outcome;
   };
 }

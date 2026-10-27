@@ -296,7 +296,8 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     dataType: 'text',
     typeConfig: { kind: 'text' },
   }),
-  field({ ...pay, ...money, key: 'base_salary', label: 'Base salary', order: 0 }),
+  // A raise is a dated fact (Appendix A), each change sealed on its own.
+  field({ ...pay, ...money, key: 'base_salary', label: 'Base salary', order: 0, effectiveDated: true }),
   // What the base salary is quoted per, as the offer states it.
   {
     ...choiceField('pay_basis', { sectionKey: 'compensation', order: 1 }, [
@@ -330,7 +331,14 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     dataType: 'number',
     typeConfig: { kind: 'number', min: 1, max: 14, decimals: 0 },
   }),
-  field({ ...pay, ...money, key: 'variable_pay_target', label: 'Variable pay target', order: 4 }),
+  field({
+    ...pay,
+    ...money,
+    key: 'variable_pay_target',
+    label: 'Variable pay target',
+    order: 4,
+    effectiveDated: true,
+  }),
   field({ ...pay, ...money, key: 'sign_on_bonus', label: 'Sign-on bonus', order: 5 }),
   field({ ...pay, ...money, key: 'relocation_allowance', label: 'Relocation allowance', order: 6 }),
   field({

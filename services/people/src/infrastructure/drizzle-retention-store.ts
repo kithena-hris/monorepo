@@ -4,7 +4,7 @@ import { outboxTable, publish } from '@kithena/db-kit';
 
 import type { RetentionAttribute, RetentionStore } from '../application/retention/anonymise.js';
 import { publishedAttributes } from './policy-registry.js';
-import { attributeUnique, person, personSecret } from './tables.js';
+import { attributeUnique, person, personSecret, personSecretDated } from './tables.js';
 
 const outbox = outboxTable('people');
 
@@ -193,6 +193,16 @@ export function drizzleRetentionStore(): RetentionStore {
             eq(personSecret.tenantId, tenantId),
             eq(personSecret.personId, personId),
             inArray(personSecret.attributeKey, [...keys]),
+          ),
+        );
+      // And a salary's history, change by change.
+      await tx
+        .delete(personSecretDated)
+        .where(
+          and(
+            eq(personSecretDated.tenantId, tenantId),
+            eq(personSecretDated.personId, personId),
+            inArray(personSecretDated.attributeKey, [...keys]),
           ),
         );
 

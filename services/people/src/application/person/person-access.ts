@@ -212,7 +212,14 @@ export interface HiredExisting {
 }
 
 export interface PersonAccess {
-  read(tx: Tx, asking: On<{ readonly asOf?: string }>): Promise<Result<PersonView>>;
+  read(
+    tx: Tx,
+    asking: On<{
+      readonly asOf?: string;
+      /** Sealed pay as its amount to whoever may see it (`readsInFull`): the record's own screens. */
+      readonly amounts?: boolean;
+    }>,
+  ): Promise<Result<PersonView>>;
   list(
     tx: Tx,
     asking: Asking & {
@@ -264,7 +271,7 @@ export interface PersonAccess {
   ): Promise<Result<PersonView>>;
   history(
     tx: Tx,
-    asking: On<{ readonly attributeKey?: string }>,
+    asking: On<{ readonly attributeKey?: string; readonly amounts?: boolean }>,
   ): Promise<Result<readonly HistoryEntry[]>>;
   /** A correction to a field that requires approval is held: `{ held }`, and nothing is written. */
   correct(
@@ -629,6 +636,15 @@ export const REPORTS_TO = 'manager_id';
 
 /** An id no person has, for asking what the viewer may see tenant-wide. */
 const NOBODY = '00000000-0000-0000-0000-000000000000';
+
+/** Pay kept as sealed text: People's own equity field. */
+const PAY_AS_TEXT: ReadonlySet<string> = new Set(['equity']);
+
+/** Sealed pay, read in full by whoever may see it; any other sealed value is its last four. */
+const readsInFull = (d: AttributeDefinition, relations: ViewerRelations): boolean =>
+  d.encrypted &&
+  (d.dataType === 'money' || (d.origin === 'core' && PAY_AS_TEXT.has(d.key))) &&
+  visibleTo(d, relations);
 
 /** The scheme an entity numbers its people under until HR sets its own: 00001, 00002… */
 const DEFAULT_SCHEME = { prefix: '', digits: 5, start: 1 } as const;
@@ -1203,6 +1219,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     asOf?: string,
     /** This person's sealed values, read already with the rest of a page's (`listMany`). */
     held?: readonly { readonly attributeKey: string; readonly last4: string | null }[],
+    /** Sealed pay as its amount, for those who may see it: the record's own screens ask. */
+    amounts = false,
   ): Promise<PersonView> {
     const definitions = version.document.attributes;
     const values = new Map(Object.entries(person.values));
@@ -1214,16 +1232,44 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       for (const s of held ?? (await deps.secrets.list(tx, asking.tenantId, person.snapshot.id))) {
         values.set(s.attributeKey, { last4: s.last4 } satisfies SealedValue);
       }
+      // Pay is read in full by whoever may see it, on one person's record: sealed
+      // at rest, not from HR. An identifier stays its last four (`revealIdentifier`).
+      if (amounts && held === undefined && asOf === undefined && deps.secrets.reveal) {
+        for (const d of sealed.filter((x) => readsInFull(x, relations))) {
+          const plaintext = await deps.secrets.reveal(tx, {
+            tenantId: asking.tenantId,
+            personId: person.snapshot.id,
+            attributeKey: d.key,
+          });
+          if (plaintext !== null) values.set(d.key, d.dataType === 'money' ? (JSON.parse(plaintext) as unknown) : plaintext);
+        }
+      }
     }
 
     // `asOf` replays history for what is dated; the rest has no "as of".
     if (asOf !== undefined) {
       const history = await deps.people.history(tx, asking.tenantId, person.snapshot.id);
+      const sealedAsOf = new Map<string, string>();
       for (const d of definitions) {
-        if (!d.effectiveDated || d.encrypted) continue;
+        if (!d.effectiveDated) continue;
         const entry = valueAsOf(history, d.key, asOf);
+        if (d.encrypted) {
+          if (entry !== undefined && amounts && readsInFull(d, relations))
+            sealedAsOf.set(entry.id, d.key);
+          else values.delete(d.key);
+          continue;
+        }
         if (entry === undefined || entry.value === null) values.delete(d.key);
         else values.set(d.key, entry.value);
+      }
+      const opened =
+        sealedAsOf.size === 0 || !deps.secrets.revealDated
+          ? new Map<string, string>()
+          : await deps.secrets.revealDated(tx, asking.tenantId, [...sealedAsOf.keys()]);
+      for (const [id, key] of sealedAsOf) {
+        const plaintext = opened.get(id);
+        if (plaintext === undefined) values.delete(key);
+        else values.set(key, JSON.parse(plaintext) as unknown);
       }
     }
 
@@ -1339,6 +1385,48 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       scopeId,
       value: claimText(definition, value),
     });
+  }
+
+  /**
+   * A sealed value with a history (a salary) whose change dated ahead has
+   * come: the value in force becomes that change's, opened from its own
+   * sealed copy. How many moved.
+   */
+  async function sealedIntoForce(
+    tx: Tx,
+    tenantId: string,
+    personId: string,
+    definitions: readonly AttributeDefinition[],
+    history: readonly HistoryEntry[],
+    day: string,
+  ): Promise<number> {
+    if (definitions.length === 0 || !deps.secrets.revealDated) return 0;
+    const held = new Map(
+      (await deps.secrets.list(tx, tenantId, personId)).map((s) => [s.attributeKey, s.historyId]),
+    );
+    const due = definitions.flatMap((d) => {
+      const entry = valueAsOf(history, d.key, day);
+      return entry !== undefined && entry.id !== held.get(d.key) ? [entry] : [];
+    });
+    const opened = await deps.secrets.revealDated(
+      tx,
+      tenantId,
+      due.map((e) => e.id),
+    );
+    let moved = 0;
+    for (const entry of due) {
+      const plaintext = opened.get(entry.id);
+      if (plaintext === undefined) continue;
+      // eslint-disable-next-line no-await-in-loop -- a handful of fields, one person
+      await deps.secrets.put(
+        tx,
+        { tenantId, personId, attributeKey: entry.attributeKey },
+        plaintext,
+        entry.id,
+      );
+      moved += 1;
+    }
+    return moved;
   }
 
   /**
@@ -1652,11 +1740,20 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
       if (definition.encrypted) {
         const plaintext = typeof value === 'string' ? value : JSON.stringify(value);
-        await deps.secrets.put(
-          tx,
-          { tenantId: asking.tenantId, personId: person.snapshot.id, attributeKey: definition.key },
-          plaintext,
-        );
+        const where = {
+          tenantId: asking.tenantId,
+          personId: person.snapshot.id,
+          attributeKey: definition.key,
+        };
+        // A salary keeps its history sealed, change by change: the value in
+        // force moves only when this change is the one in force today.
+        if (definition.effectiveDated && deps.secrets.putDated) {
+          await deps.secrets.putDated(tx, { ...where, historyId: id }, plaintext);
+          if (valueAsOf([...existing, ...history], definition.key, day)?.id !== id) continue;
+          await deps.secrets.put(tx, where, plaintext, id);
+          continue;
+        }
+        await deps.secrets.put(tx, where, plaintext);
         continue;
       }
 
@@ -2645,7 +2742,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
     async read(
       tx: Tx,
-      asking: Asking & { readonly personId: string; readonly asOf?: string },
+      asking: Asking & { readonly personId: string; readonly asOf?: string; readonly amounts?: boolean },
     ): Promise<Result<PersonView>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
@@ -2653,7 +2750,9 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!person) return err(PersonNotFound());
       const relations = await relationsOf(tx, asking, asking.personId);
       if (!mayRead(asking, person, relations)) return err(PersonNotFound());
-      return ok(await view(tx, asking, person, version, relations, asking.asOf));
+      return ok(
+        await view(tx, asking, person, version, relations, asking.asOf, undefined, asking.amounts),
+      );
     },
 
     async readMany(tx, asking) {
@@ -2889,7 +2988,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     /** Dated facts, for the attributes this viewer may read now; a sealed one's without values. */
     async history(
       tx: Tx,
-      asking: Asking & { readonly personId: string; readonly attributeKey?: string },
+      asking: Asking & {
+        readonly personId: string;
+        readonly attributeKey?: string;
+        readonly amounts?: boolean;
+      },
     ): Promise<Result<readonly HistoryEntry[]>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
@@ -2908,7 +3011,21 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.personId,
         asking.attributeKey,
       );
-      return ok(readableHistory(version.document.attributes, entries, relations));
+      const readable = readableHistory(version.document.attributes, entries, relations);
+      // A salary's history, each change opened from its own sealed copy.
+      const inFull = new Set<string>(
+        version.document.attributes.filter((d) => readsInFull(d, relations)).map((d) => d.key),
+      );
+      const sealed = readable.filter((e) => inFull.has(e.attributeKey)).map((e) => e.id);
+      if (asking.amounts !== true || sealed.length === 0 || !deps.secrets.revealDated)
+        return ok(readable);
+      const opened = await deps.secrets.revealDated(tx, asking.tenantId, sealed);
+      return ok(
+        readable.map((e) => {
+          const plaintext = opened.get(e.id);
+          return plaintext === undefined ? e : { ...e, value: JSON.parse(plaintext) as unknown };
+        }),
+      );
     },
 
     /**
@@ -3776,6 +3893,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         .map((d) => d.key as string);
       const all = await deps.people.history(tx, tenantId, personId);
       const refused = new Set((await deps.refusals?.refused(tx, tenantId, personId)) ?? []);
+      const sealed = await sealedIntoForce(
+        tx,
+        tenantId,
+        personId,
+        definitions.filter((d) => d.effectiveDated && d.encrypted),
+        all.filter((e) => !refused.has(e.id)),
+        await today(person.values),
+      );
       const asking: SystemAsking = {
         tenantId,
         viewer: { accountId: NOBODY, roles: new Set() },
@@ -3791,7 +3916,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           ...Object.fromEntries(here.map((e) => [e.attributeKey, e.value])),
         });
         const due = arrived(history, keys, day, person.values);
-        if (due.length === 0) return ok({ day, applied: 0 });
+        if (due.length === 0) return ok({ day, applied: sealed });
 
         const byKey = new Map(definitions.map((d) => [d.key as string, d]));
         const aggregate = Person.rehydrate(person.snapshot);
@@ -3910,7 +4035,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           });
           if (!written.ok) return written;
         }
-        return ok({ day, applied: due.length });
+        return ok({ day, applied: due.length + sealed });
       }
     },
   };

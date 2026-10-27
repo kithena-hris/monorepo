@@ -52,11 +52,13 @@ export interface HiresFromRecruiting {
   ): Promise<{ outcome: Outcome; code?: string; left?: readonly string[] }>;
   cancelled(tx: PostgresJsDatabase, event: Cancelled): Promise<{ outcome: Outcome; code?: string }>;
   /**
-   * Only the signature: whoever is on the books under the work email gets the
-   * contract's in an empty signature field; nobody is created. What a replay
-   * of hires made before the company had a signature field goes through.
+   * Only what is empty: whoever is on the books under the work email gets the
+   * contract's signature in an empty signature field, and a hire not started
+   * yet every empty field the hire fills (a job title, a salary, a probation
+   * end); nobody is created and nothing set is changed. What a replay of hires
+   * made before the company had those fields goes through.
    */
-  signed(tx: PostgresJsDatabase, event: Hired): Promise<{ outcome: Outcome; code?: string }>;
+  filled(tx: PostgresJsDatabase, event: Hired): Promise<{ outcome: Outcome; code?: string }>;
 }
 
 /** Everything the event says, by People's attribute keys. */
@@ -68,6 +70,7 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
     family_name: capitalisedName(payload.candidate.familyName),
     work_email: payload.candidate.email,
     ...(payload.candidate.phone === null ? {} : { mobile_phone: payload.candidate.phone }),
+    ...(payload.jobTitle === null ? {} : { job_title: payload.jobTitle }),
     ...(payload.managerId === null ? {} : { manager_id: payload.managerId }),
     ...(payload.orgUnitId === null ? {} : { org_unit_id: payload.orgUnitId }),
     ...(payload.locationId === null ? {} : { location_id: payload.locationId }),
@@ -117,40 +120,55 @@ export function hiresFromRecruiting(
     );
   };
 
-  const signed: HiresFromRecruiting['signed'] = async (tx, event) => {
-    const signature = event.payload.signature ?? null;
-    if (signature === null) return { outcome: 'ignored' };
+  const filled: HiresFromRecruiting['filled'] = async (tx, event) => {
     const version = await schemas.current(tx, event.tenantId);
-    const field = version?.document.attributes.find(
-      (a) => a.deprecatedAt === null && a.dataType === 'signature',
-    );
-    if (field === undefined) return { outcome: 'ignored', code: 'NO_SIGNATURE_FIELD' };
+    if (version === null) return { outcome: 'ignored', code: 'NOT_PUBLISHED' };
     const found = await holder(tx, event, event.payload.candidate.email, ON_THE_BOOKS);
     if (!found.ok) return { outcome: 'rejected', code: found.error.code };
-    const kept = found.value?.attributes[field.key];
-    if (found.value === null || (kept !== undefined && kept !== null && kept !== '')) {
-      return { outcome: 'unchanged' };
-    }
+    if (found.value === null) return { outcome: 'unchanged' };
+    const held = found.value.attributes;
+    const empty = (key: string) => held[key] === undefined || held[key] === null || held[key] === '';
+    const live = version.document.attributes.filter((a) => a.deprecatedAt === null);
+    const signatureField = live.find((a) => a.dataType === 'signature');
+    const signature = event.payload.signature ?? null;
+    // Somebody already working keeps what they have; a hire not started takes the hire's.
+    const starting = NOT_STARTED.includes(found.value.status ?? '');
+    const changes = Object.fromEntries([
+      ...(starting
+        ? Object.entries(attributesOf(event.payload)).filter(([key, value]) => {
+            const definition = live.find((a) => a.key === key);
+            return (
+              definition !== undefined &&
+              empty(key) &&
+              valueSchemaFor(definition, event.payload.startDate).safeParse(value).success
+            );
+          })
+        : []),
+      ...(signatureField !== undefined && signature !== null && empty(signatureField.key)
+        ? [[signatureField.key, signature] as const]
+        : []),
+    ]);
+    if (Object.keys(changes).length === 0) return { outcome: 'unchanged' };
     const updated = await access.update(tx, {
       ...asking(event),
       applySensitiveWithoutApproval: true,
       personId: found.value.id,
-      changes: { [field.key]: signature },
+      changes,
     });
     return updated.ok ? { outcome: 'applied' } : { outcome: 'rejected', code: updated.error.code };
   };
 
   return {
-    signed,
+    filled,
     async hired(tx, event) {
       const version = await schemas.current(tx, event.tenantId);
       if (version === null) return { outcome: 'ignored', code: 'NOT_PUBLISHED' };
       const already = await holder(tx, event, event.payload.candidate.email, ON_THE_BOOKS);
       if (!already.ok) return { outcome: 'rejected', code: already.error.code };
       if (already.value !== null) {
-        // Already on the books: only an empty signature is the contract's to fill.
-        const filled = await signed(tx, event);
-        return filled.outcome === 'applied' ? filled : { outcome: 'unchanged' };
+        // Already on the books: only what is empty is the hire's to fill.
+        const done = await filled(tx, event);
+        return done.outcome === 'applied' ? done : { outcome: 'unchanged' };
       }
       const live = version.document.attributes.filter((a) => a.deprecatedAt === null);
       const defined = new Set<string>(live.map((a) => a.key));
@@ -197,6 +215,9 @@ export function hiresFromRecruiting(
     },
   };
 }
+
+/** A hire not started yet: their record still takes what the hire says. */
+const NOT_STARTED: readonly string[] = ['pre_hire', 'onboarding'];
 
 /** Somebody a hire would duplicate: anybody not discarded, merged or gone. */
 const ON_THE_BOOKS = ['provisional', 'pre_hire', 'onboarding', 'active', 'on_leave', 'notice'];

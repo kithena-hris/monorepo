@@ -69,8 +69,21 @@ function apply(
     }).ok
       ? number.key
       : null;
+  // A salary keeps its history: a core pay field from before that, dated now.
+  const dated = CORE_PACK.attributes
+    .filter((c) => c.effectiveDated === true)
+    .map((c) => draft.attribute(c.key))
+    .filter(
+      (a) =>
+        a !== undefined &&
+        a.origin === 'core' &&
+        !a.effectiveDated &&
+        draft.updateAttribute(a.key, { effectiveDated: true }).ok,
+    )
+    .map((a) => a?.key ?? null);
   const added = [
     locked,
+    ...dated,
     draft.attribute(DEPARTMENT_FIELD.key) === undefined && draft.addAttribute(DEPARTMENT_FIELD).ok
       ? DEPARTMENT_FIELD.key
       : null,

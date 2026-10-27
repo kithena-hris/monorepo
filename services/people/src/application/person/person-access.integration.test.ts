@@ -150,6 +150,7 @@ beforeAll(async () => {
     '20260924370000_people_directory_search.sql',
     '20260926120000_people_custom_filter.sql',
     '20260927170000_people_detail_request.sql',
+    '20261027090000_people_secret_dated.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
