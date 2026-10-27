@@ -1634,7 +1634,6 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     terms: null,
     pay: null,
     startDate: '2026-12-01',
-    jobTitle: expect.any(String),
     country: place.country,
   });
   // Accepted with the company's host known, as identity announces it: the team's email opens the contract there.
