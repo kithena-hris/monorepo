@@ -160,7 +160,7 @@ describe('what the browser already holds', () => {
     };
     await openAdam();
     await page
-      .getByRole('navigation', { name: 'Areas' })
+      .getByRole('navigation', { name: 'People sections' })
       .getByRole('link', { name: 'Directory' })
       .click();
     await page.waitForURL(/\/people\/directory\//);

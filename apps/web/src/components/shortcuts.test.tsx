@@ -383,7 +383,7 @@ describe('the top of the sidebar: the company, never Kithena', () => {
     );
   const home = () => screen.getByRole('link', { name: 'Acme Robotics, home' });
 
-  it('shows their logo, uncropped, beside their name', () => {
+  it('shows their logo, uncropped, as the link home that names them', () => {
     // jsdom decodes no image; this one has, so Radix mounts it.
     const real = window.Image;
     window.Image = class {
@@ -398,7 +398,8 @@ describe('the top of the sidebar: the company, never Kithena', () => {
       expect(img?.getAttribute('src')).toBe('https://cdn.example/acme.png');
       expect(img?.className).toContain('object-contain');
       expect(home().getAttribute('href')).toBe('/');
-      expect(within(home()).getByText('Acme Robotics')).toBeTruthy();
+      // The rail has room for the mark; the link home says whose it is.
+      expect(home().getAttribute('aria-label')).toBe('Acme Robotics, home');
       expect(document.body.textContent).not.toMatch(/Kithena/);
     } finally {
       window.Image = real;

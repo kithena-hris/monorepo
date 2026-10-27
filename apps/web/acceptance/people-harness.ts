@@ -155,15 +155,12 @@ export const peopleItem = (page: Page): Locator =>
     .getByRole('link', { name: 'People', exact: true });
 
 /**
- * People's own navigation in an expanded sidebar: its sections, listed inline
- * under the People item while you are anywhere in People (V2), and next after
- * it in Tab order. Nothing has to be opened.
+ * People's own navigation in an expanded sidebar: its sections, in the panel
+ * beside the rail while you are anywhere in People. Nothing has to be opened.
  */
 export async function sections(page: Page): Promise<Locator> {
   await page.waitForLoadState('networkidle');
-  const list = page
-    .getByRole('navigation', { name: 'Areas' })
-    .getByRole('list', { name: 'People sections' });
+  const list = page.getByRole('navigation', { name: 'People sections' });
   await list.waitFor();
   return list;
 }

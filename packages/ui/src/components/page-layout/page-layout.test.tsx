@@ -2,7 +2,9 @@ import { TooltipProvider } from '../tooltip/tooltip';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { PageHeader, PageHeaderFrame, PageLayout, railDrag } from './page-layout';
+import type { JSX } from 'react';
+
+import { PageHeader, PageHeaderFrame, PageLayout, railDrag, useSidebarPanel } from './page-layout';
 
 describe('<PageHeaderFrame>', () => {
   it('adds its breadcrumb above the title and its actions after the page’s own', () => {
@@ -150,6 +152,53 @@ describe('<PageLayout> rail', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('<PageLayout sidebarRail>', () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  function Panel(): JSX.Element {
+    return <span>{useSidebarPanel() === undefined ? 'Sections' : 'inside the rail'}</span>;
+  }
+  function Areas(): JSX.Element {
+    return <span>{useSidebarPanel() ? 'panel open' : 'panel closed'}</span>;
+  }
+
+  it('keeps the rail and puts the panel away, out of reach, the control staying put', () => {
+    vi.useFakeTimers();
+    localStorage.setItem('test.rail', 'expanded');
+    render(
+      <TooltipProvider>
+        <PageLayout
+          preset="sidebar"
+          sidebarCollapse={{ mode: 'rail', storageKey: 'test.rail' }}
+          sidebarHeader={<span>Acme</span>}
+          sidebarRail={<Areas />}
+          sidebar={<Panel />}
+        >
+          Content
+        </PageLayout>
+      </TooltipProvider>,
+    );
+    // The panel's own items are not inside a rail; the rail knows the panel is open.
+    expect(screen.getByText('Sections')).toBeInTheDocument();
+    expect(screen.getByText('panel open')).toBeInTheDocument();
+    const panel = screen.getByText('Sections').closest('[id$="-panel"]');
+    expect(panel).not.toHaveAttribute('inert');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    vi.useRealTimers();
+    expect(screen.getByText('panel closed')).toBeInTheDocument();
+    expect(panel).toHaveAttribute('inert');
+    // The mark and the control are still there, in the rail.
+    expect(screen.getByText('Acme')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
   });
 });
 

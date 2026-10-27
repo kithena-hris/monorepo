@@ -71,7 +71,7 @@ function Count({ path, n }: { readonly path: string; readonly n: number }): JSX.
   );
 }
 
-function countOf(counts: Readonly<Record<string, number>>, path: string): { badge?: JSX.Element } {
+export function countOf(counts: Readonly<Record<string, number>>, path: string): { badge?: JSX.Element } {
   const n = counts[path];
   return n === undefined ? {} : { badge: <Count path={path} n={n} /> };
 }

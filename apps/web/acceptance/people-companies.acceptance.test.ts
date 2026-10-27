@@ -84,8 +84,8 @@ describe('People inside the shell: its sections, and always a way to add somebod
       (rows) => rows.length === 1,
     );
 
-    // The shell's sidebar, and People's four sections inline under its item
-    // while you are in People (A1): nothing opens on hover, nothing covers the screen.
+    // The shell's sidebar: a rail of areas, and People's four sections in the
+    // panel beside it while you are in People: nothing opens on hover, nothing covers the screen.
     await page.goto(`${shell}/people/review/waiting`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
@@ -121,17 +121,22 @@ describe('People inside the shell: its sections, and always a way to add somebod
       'page',
     );
     expect(await nav.getByRole('link').count()).toBe(4);
-    // The People item is a place to go, not a menu to open.
+    // The panel beside the rail names the area; the People item is a place to
+    // go, not a menu to open, while its sections are already beside it.
+    expect(await page.getByRole('heading', { name: 'People', exact: true }).isVisible()).toBe(true);
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBeNull();
-    const flyout = page.getByRole('navigation', { name: 'People sections' });
+    // Its sections, as they fly out of its own row in the rail.
+    const flyout = peopleItem(page)
+      .locator('xpath=ancestor::li[1]')
+      .getByRole('navigation', { name: 'People sections' });
     await peopleItem(page).hover();
     await page.waitForTimeout(300);
     expect(await flyout.count()).toBe(0);
 
-    // Collapsed to the rail, the same sections come out beside People on
-    // hover (V8), after a moment, and Escape puts them away.
+    // Collapsed, the panel goes and the rail stays: the same sections come out
+    // beside People on hover, after a moment, and Escape puts them away.
     await page.getByRole('button', { name: 'Collapse sidebar' }).click();
-    await nav.waitFor({ state: 'detached' });
+    await nav.waitFor({ state: 'hidden' });
     await page.mouse.move(900, 600);
     // The rail keeps the mark, and the link its name.
     expect(await brand.locator('img').isVisible()).toBe(true);
@@ -243,7 +248,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(await kept()).toBe(true);
 
     // Every section is reachable from the keyboard and stays inside the shell:
-    // focus on People, Tab on into its sections to the one wanted, Enter — a
+    // focus in the panel's sections, Tab on to the one wanted, Enter — a
     // client-side move, the sidebar still there, never another origin.
     const hrefs = await (
       await sections(page)
@@ -252,14 +257,13 @@ describe('People inside the shell: its sections, and always a way to add somebod
       .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
     expect(hrefs).toContain('/people/import-export');
     for (const href of hrefs) {
-      await sections(page);
-      await peopleItem(page).focus();
-      for (let tabs = 0; tabs <= hrefs.length; tabs += 1) {
-        await page.keyboard.press('Tab');
+      await (await sections(page)).getByRole('link').first().focus();
+      for (let tabs = 0; tabs < hrefs.length; tabs += 1) {
         const at = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
         if (at === href) break;
+        await page.keyboard.press('Tab');
       }
-      // Straight from People into its sections: nothing sits between them.
+      // One section to the next: nothing sits between them.
       expect(
         await page.evaluate(
           () => document.activeElement?.closest('[aria-label="People sections"]') != null,

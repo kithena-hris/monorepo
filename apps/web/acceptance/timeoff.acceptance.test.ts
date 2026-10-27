@@ -307,7 +307,8 @@ describe('Moving between Time Off’s sections and tabs', () => {
 
     const named = (name: string) => new RegExp(`^${name}`);
     const sidebar = (name: string) =>
-      page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name: named(name) });
+      // The rail's areas and the panel's sections alike.
+      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: named(name) });
     const tab = (section: string, name: string) =>
       page
         .getByRole('navigation', { name: `${section} tabs` })

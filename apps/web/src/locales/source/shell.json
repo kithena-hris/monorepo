@@ -795,17 +795,9 @@
     "text": "Who did what in {{moduleName}}, and when. Never the values themselves.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the description of <PageHeader>. Filled in: {{moduleName}}."
   },
-  "components.app-shell.account": {
-    "text": "Account",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <Nav>."
-  },
   "components.app-shell.administrator": {
     "text": "Administrator",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
-  },
-  "components.app-shell.areas": {
-    "text": "Areas",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <Nav>."
   },
   "components.app-shell.collapse_or_expand_the_sidebar": {
     "text": "Collapse or expand the sidebar",
@@ -859,9 +851,33 @@
     "text": "Inbox",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
   },
+  "components.app-shell.inbox_all": {
+    "text": "Everything",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
+  "components.app-shell.inbox_done": {
+    "text": "Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
+  "components.app-shell.inbox_needs_you": {
+    "text": "Needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
+  "components.app-shell.inbox_snoozed": {
+    "text": "Snoozed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
+  "components.app-shell.inbox_updates": {
+    "text": "Updates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
+  "components.app-shell.inbox_waiting": {
+    "text": "Waiting on others",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
   "components.app-shell.keyboard_shortcuts": {
     "text": "Keyboard shortcuts",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuItem>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
   },
   "components.app-shell.keyword_add": {
     "text": "add",
@@ -959,21 +975,25 @@
     "text": "Recruiting",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
   },
-  "components.app-shell.search": {
-    "text": "Search",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <Nav>."
-  },
   "components.app-shell.search_people_and_pages": {
     "text": "Search people and pages",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: the label of <CommandPalette>."
   },
-  "components.app-shell.sections": {
-    "text": "{{label}} sections",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <PeopleSubnav>. Filled in: {{label}}."
-  },
   "components.app-shell.settings": {
     "text": "Settings",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the sidebar of <Link>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
+  },
+  "components.app-shell.settings_activity": {
+    "text": "Activity log",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
+  },
+  "components.app-shell.settings_general": {
+    "text": "Company",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
+  },
+  "components.app-shell.settings_notifications": {
+    "text": "Notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
   },
   "components.app-shell.show_keyboard_shortcuts": {
     "text": "Show keyboard shortcuts",
@@ -1014,6 +1034,14 @@
   "components.app-shell.your_companies": {
     "text": "Your companies",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuLabel>."
+  },
+  "components.app-shell.your_profile": {
+    "text": "Your profile",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
+  },
+  "components.app-shell.your_time_off": {
+    "text": "Your time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
   },
   "components.assistant-panel.answers_with_only_what_you_can": {
     "text": "Answers with only what you can see",
@@ -3438,6 +3466,26 @@
   "components.settings-index.try_another_word_or_browse_the": {
     "text": "Try another word, or browse the areas on the left.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the description of <EmptyState>."
+  },
+  "components.shell-sidebar.account": {
+    "text": "Account",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, SidebarRail: the label of <Nav>."
+  },
+  "components.shell-sidebar.area_sections": {
+    "text": "{{area}} sections",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, RailItem: the label of <Nav>. Filled in: {{area}}."
+  },
+  "components.shell-sidebar.area_settings": {
+    "text": "{{area}} settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, SidebarPanel: the label of <Nav>. Filled in: {{area}}."
+  },
+  "components.shell-sidebar.areas": {
+    "text": "Areas",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, SidebarRail: the label of <Nav>."
+  },
+  "components.shell-sidebar.search": {
+    "text": "Search",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, SidebarRail: the label of <Nav>."
   },
   "components.shortcut-settings.always_this_key": {
     "text": "Always this key",
