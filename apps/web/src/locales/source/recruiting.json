@@ -4499,6 +4499,42 @@
     "text": "Try again",
     "context": "Recruiting: jobs, candidates, interviews, offers. load.tsx, Loaded: the action of <Button>."
   },
+  "move.cancel": {
+    "text": "Cancel",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <Button>."
+  },
+  "move.cancel_interviews": {
+    "text": "Cancel interviews",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <Button>."
+  },
+  "move.cancel_interviews_about": {
+    "text": "They moved past a step whose interview is still booked. Cancelling tells the candidate and the panel, and takes it off their calendars.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <DialogDescription>."
+  },
+  "move.cancel_interviews_title": {
+    "text": "Cancel the interviews they skipped?",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <DialogTitle>."
+  },
+  "move.hire": {
+    "text": "Hire",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <Button>."
+  },
+  "move.hire_title": {
+    "text": "Hire {{name}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <DialogTitle>. Filled in: {{name}}."
+  },
+  "move.hire_without_offer": {
+    "text": "There is no accepted offer to say when they start. Their People record is created as soon as they are hired, from this date.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <DialogDescription>."
+  },
+  "move.keep_interviews": {
+    "text": "Keep them",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <Button>."
+  },
+  "move.start_date": {
+    "text": "Start date",
+    "context": "Recruiting: jobs, candidates, interviews, offers. move-follow-ups.tsx, useMoveFollowUps: text inside <FieldLabel>."
+  },
   "nav./recruiting/agencies.label": {
     "text": "Agencies",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/agencies): its name in the sidebar, the breadcrumb and the menus."

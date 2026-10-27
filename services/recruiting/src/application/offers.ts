@@ -1179,13 +1179,15 @@ export async function uploadSignedContract(
  * R10 on the board or the profile: a move, or, into the hired stage, the
  * hire itself. Hired by hand is hired in full, as by a signed contract: the
  * pre-hire, `recruiting.candidate.hired` for People, the candidate's email
- * and the team's. It needs an accepted offer, whose terms the hire carries.
+ * and the team's. With an accepted offer the hire carries its terms; without
+ * one, HR says when they start and the hire carries who they are and the job.
  */
 export async function moveOrHire(
   ctx: Ctx,
   applicationId: string,
   to: string,
   message: ComposedEmail | null,
+  startDate: CalendarDate | null = null,
 ): Promise<Result<{ moveId: string; opensOffer: boolean }>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
@@ -1197,11 +1199,12 @@ export async function moveOrHire(
   const accepted = (await ctx.tx.offers.forApplication(applicationId)).find(
     (o) => o.state === 'accepted',
   );
-  if (accepted === undefined)
-    return err(
-      failure('HIRE_NEEDS_ACCEPTED_OFFER', 'A candidate is hired once they accept an offer'),
-    );
-  const hired = await hireFromOffer(ctx, accepted.id);
+  if (accepted === undefined && startDate === null)
+    return err(failure('HIRE_NEEDS_START_DATE', 'There is no accepted offer: say when they start'));
+  const hired =
+    accepted === undefined
+      ? await hireByHand(ctx, applicationId, startDate ?? ctx.today)
+      : await hireFromOffer(ctx, accepted.id);
   if (!hired.ok) return hired;
   const after = await ctx.tx.applications.get(applicationId);
   return ok({ moveId: after?.history.at(-1)?.id ?? '', opensOffer: false });
@@ -1252,7 +1255,7 @@ async function placeInContract(ctx: Ctx, app: ApplicationRecord): Promise<Result
  */
 async function placeHire(
   ctx: Ctx,
-  offer: Offer,
+  startDate: CalendarDate,
   app: ApplicationRecord,
   job: JobRecord,
 ): Promise<Result<true>> {
@@ -1266,7 +1269,7 @@ async function placeHire(
     { ...app, ...hired.value.application },
     'hired',
     [hired.value.move],
-    latest(offer).startDate,
+    startDate,
   );
   const filled = hireInto(job);
   if (filled.ok) {
@@ -1317,7 +1320,7 @@ async function hireFromOffer(
   // Hired by hand before the contract came back signed: they are hired once, not twice.
   if (app.outcome === 'hired' && (await ctx.tx.prehires.get(app.id)) !== null) return ok(true);
   if (app.outcome === 'active') {
-    const placed = await placeHire(ctx, offer, app, job);
+    const placed = await placeHire(ctx, latest(offer).startDate, app, job);
     if (!placed.ok) return placed;
   }
   const terms = await resolvedTermsOf(ctx, offer, job, latest(offer).startDate);
@@ -1329,12 +1332,79 @@ async function hireFromOffer(
     ...terms.value.conditions,
     ...(references ? (['references'] as const) : []),
   ];
-  const prehire = openPrehire(app.id, candidate.id, latest(offer).startDate, conditions);
-  await ctx.tx.prehires.save(prehire);
   const version = latest(offer);
+  return handOver(ctx, app, job, candidate, version.startDate, conditions, {
+    offerId: offer.id,
+    offerVersion: version.version,
+    terms: terms.value,
+    pay: {
+      base: { amountMinor: version.pay.baseMinor, currency: version.pay.currency },
+      frequency: version.pay.frequency,
+      variableTarget: amount(version.pay.variableTargetMinor, version.pay.currency),
+      signOnBonus: amount(version.pay.signOnMinor, version.pay.currency),
+      relocation: amount(version.pay.relocationMinor, version.pay.currency),
+      equity: version.pay.equity,
+    },
+    benefits: version.benefitIds.map((benefitId) => ({
+      benefitId,
+      statutory: benefitId.startsWith('statutory:'),
+    })),
+    signature:
+      signatures.find((s) => s.email?.toLowerCase() === candidate.email.toLowerCase())?.mark ??
+      null,
+  });
+}
+
+/**
+ * Dropped into the hired stage by HR with no accepted offer: hired as fully
+ * as by a signed contract, from the start date HR gave. No terms, no pay and
+ * no conditions travel, since nothing agreed them; People fills the record
+ * with who they are and the job, and HR adds the rest there.
+ */
+async function hireByHand(
+  ctx: Ctx,
+  applicationId: string,
+  startDate: CalendarDate,
+): Promise<Result<true>> {
+  const app = await ctx.tx.applications.get(applicationId);
+  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
+  const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+  if (app === null || job === null || candidate === null) return err(notFound('application'));
+  const placed = await placeHire(ctx, startDate, app, job);
+  if (!placed.ok) return placed;
+  return handOver(ctx, app, job, candidate, startDate, [], {
+    offerId: null,
+    offerVersion: null,
+    terms: null,
+    pay: null,
+    benefits: [],
+    signature: null,
+  });
+}
+
+/** The pre-hire opened and `recruiting.candidate.hired` sent, with what the offer gave or nothing. */
+async function handOver(
+  ctx: Ctx,
+  app: ApplicationRecord,
+  job: JobRecord,
+  candidate: Candidate,
+  startDate: CalendarDate,
+  conditions: readonly ConditionKind[],
+  agreed: {
+    readonly offerId: string | null;
+    readonly offerVersion: number | null;
+    readonly terms: ResolvedTerms | null;
+    readonly pay: object | null;
+    readonly benefits: readonly { readonly benefitId: string; readonly statutory: boolean }[];
+    readonly signature: string | null;
+  },
+): Promise<Result<true>> {
+  const prehire = openPrehire(app.id, candidate.id, startDate, conditions);
+  await ctx.tx.prehires.save(prehire);
   const manager =
     (await ctx.tx.jobs.team(job.id)).find((t) => t.role === 'hiring_manager')?.personId ?? null;
   const [given, ...rest] = candidate.name.trim().split(/\s+/u);
+  const entity = await entityFor(ctx, job);
   await publish(
     ctx,
     event(
@@ -1345,8 +1415,8 @@ async function hireFromOffer(
         candidateId: candidate.id,
         applicationId: app.id,
         jobId: job.id,
-        offerId: offer.id,
-        offerVersion: version.version,
+        offerId: agreed.offerId,
+        offerVersion: agreed.offerVersion,
         candidate: {
           givenName: given ?? candidate.name,
           familyName: rest.join(' '),
@@ -1354,20 +1424,10 @@ async function hireFromOffer(
           phone: candidate.phone,
         },
         details: await detailsOf(ctx, app.id),
-        terms: terms.value,
-        pay: {
-          base: { amountMinor: version.pay.baseMinor, currency: version.pay.currency },
-          frequency: version.pay.frequency,
-          variableTarget: amount(version.pay.variableTargetMinor, version.pay.currency),
-          signOnBonus: amount(version.pay.signOnMinor, version.pay.currency),
-          relocation: amount(version.pay.relocationMinor, version.pay.currency),
-          equity: version.pay.equity,
-        },
-        benefits: version.benefitIds.map((benefitId) => ({
-          benefitId,
-          statutory: benefitId.startsWith('statutory:'),
-        })),
-        startDate: version.startDate,
+        terms: agreed.terms,
+        pay: agreed.pay,
+        benefits: agreed.benefits,
+        startDate,
         jobTitle: job.title,
         managerId: manager,
         orgUnitId: null,
@@ -1377,12 +1437,12 @@ async function hireFromOffer(
             ? null
             : ((await ctx.tx.locations.get(job.locationIds[0]))?.name ?? null),
         legalEntityId: job.entityId,
+        country: entity?.country ?? null,
+        workMode: job.workMode,
         conditions: prehire.conditions.map((c) => ({ kind: c.kind, state: c.state })),
-        signature:
-          signatures.find((s) => s.email?.toLowerCase() === candidate.email.toLowerCase())?.mark ??
-          null,
+        signature: agreed.signature,
       },
-      version.startDate,
+      startDate,
     ),
   );
   if (prehire.state === 'conditions_met' && prehire.conditions.length > 0) {
@@ -1396,7 +1456,7 @@ async function hireFromOffer(
       ),
     );
   }
-  await tellSigned(ctx, app, candidate, job, version.startDate);
+  await tellSigned(ctx, app, candidate, job, startDate);
   return ok(true);
 }
 

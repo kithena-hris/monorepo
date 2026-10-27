@@ -74,8 +74,12 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
      * refreshed, since a refresh racing the navigation stays on the old page.
      */
     after?: (data: unknown) => unknown,
-    /** Refused: what was shown ahead of the answer is taken back. */
-    refused?: () => void,
+    /**
+     * Refused: what was shown ahead of the answer is taken back. Given the
+     * refusal's code; `'asked'` when the page asks for what was missing, so
+     * the refusal is not shown as an error too.
+     */
+    refused?: (code: string | undefined) => unknown,
     /** Which button started it, for `busy`; the write's name when absent. */
     key?: string,
   ) => void;
@@ -102,8 +106,7 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
       start(async () => {
         const done = await call(name, variables);
         if (!done.ok) {
-          setError(done.message);
-          refused?.();
+          if (refused?.(done.code) !== 'asked') setError(done.message);
           return;
         }
         if (after?.(done.data) !== 'left') props.onRefresh?.();

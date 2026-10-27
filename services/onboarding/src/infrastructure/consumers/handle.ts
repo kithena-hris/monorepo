@@ -79,7 +79,10 @@ export function onboardingConsumer(deps: Deps): (raw: unknown) => Promise<Outcom
         const event = parse(CandidateHired, raw);
         if (!event) return 'rejected';
         const p = event.payload;
-        const probation = p.terms.probation;
+        const country = p.terms?.country ?? p.country;
+        // No terms, and a job with no legal entity to give the country: nothing to plan from.
+        if (country === null) return 'applied';
+        const probation = p.terms?.probation ?? null;
         const hire: HireIntake = {
           externalId: p.applicationId,
           source: 'recruiting',
@@ -89,13 +92,13 @@ export function onboardingConsumer(deps: Deps): (raw: unknown) => Promise<Outcom
           personId: null,
           managerId: p.managerId,
           startDate: p.startDate,
-          probationEnd: p.terms.probationEnd,
-          country: p.terms.country,
+          probationEnd: p.terms?.probationEnd ?? null,
+          country,
           legalEntityId: p.legalEntityId,
           location: null,
           department: null,
-          workMode: p.terms.workMode,
-          contractType: p.terms.contractType,
+          workMode: p.terms?.workMode ?? p.workMode ?? 'onsite',
+          contractType: p.terms?.contractType ?? null,
           // ponytail: half the probation again, capped at the pack's 6 months; the pack's own rule when it publishes one.
           probationExtensionMonths:
             probation === null

@@ -173,6 +173,20 @@ describe('a hire Recruiting made', () => {
     expect(store.rows.size).toBe(1);
   });
 
+  it('placed in Hired by hand with no offer, is a pre-hire from who they are and the job', async () => {
+    const byHand = {
+      ...hired,
+      payload: { ...hired.payload, offerId: null, offerVersion: null, terms: null, pay: null },
+    };
+    const attributes = attributesOf(byHand.payload as never);
+    expect(attributes).toMatchObject({ given_name: 'Yuki', work_email: 'Yuki@Example.com' });
+    expect(attributes).not.toHaveProperty('base_salary');
+    expect(attributes).not.toHaveProperty('probation_end');
+    const { store, hires } = setup();
+    expect(await hires.hired(tx, byHand as never)).toEqual({ outcome: 'applied' });
+    expect([...store.rows.values()][0]?.snapshot.status).toBe('pre_hire');
+  });
+
   it('is written by the system, an actor the shared contract reads back', async () => {
     const { store, hires } = setup();
     await hires.hired(tx, hired as never);

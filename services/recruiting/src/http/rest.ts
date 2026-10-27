@@ -72,7 +72,7 @@ import {
 import { removeCategory, restoreLibrary, saveCategory } from '../application/catalogue.js';
 import { LogoUpload, describeCompany, saveSettings, uploadLogo } from '../application/company.js';
 import { removeAgreement, saveAgreement } from '../application/agreements.js';
-import { interviewOnEntry } from '../application/stage-interviews.js';
+import { interviewOnEntry, leftBehind } from '../application/stage-interviews.js';
 import { stageWork } from '../application/stage-work.js';
 import { saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
@@ -1040,13 +1040,23 @@ export const ROUTES: readonly Route[] = [
       to: Id,
       /** The composer's words to the candidate, sent at once; none moves quietly. */
       message: ComposedEmail.nullable().default(null),
+      /** Into Hired with no accepted offer: when they start, asked for after `HIRE_NEEDS_START_DATE`. */
+      startDate: CalendarDate.nullable().default(null),
     }),
     run: async (ctx, { params, body }) => {
-      const moved = await moveOrHire(ctx, params.applicationId, body.to, body.message);
+      const moved = await moveOrHire(
+        ctx,
+        params.applicationId,
+        body.to,
+        body.message,
+        body.startDate,
+      );
       if (!moved.ok) return moved;
       const { offerId } = await stageWork(ctx, params.applicationId);
       await interviewOnEntry(ctx, params.applicationId, body.to);
-      return ok({ ...moved.value, offerId });
+      // Interviews at steps the move went past, for the screen to offer to cancel.
+      const scheduled = await leftBehind(ctx, params.applicationId, body.to);
+      return ok({ ...moved.value, offerId, scheduled });
     },
   }),
   route({

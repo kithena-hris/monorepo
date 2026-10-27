@@ -8,6 +8,7 @@ import { publicJob } from './intake.js';
 import type { Model } from './ports.js';
 import { generalSettings } from './setup.js';
 import { mailWords } from './context.js';
+import { offerParticulars } from './contract-draft.js';
 import { offerForCandidate } from './offers.js';
 
 /**
@@ -128,8 +129,8 @@ const OfferAnswer = z.object({ answer: z.string().max(2400), fromSources: z.bool
 
 const OFFER: PromptSpec<z.infer<typeof OfferAnswer>> = {
   feature: 'assistant',
-  version: 'offer-assistant@2',
-  instruction: `You answer a candidate's question about the job offer they were sent, only from what is given: "offer" (its terms as chosen, pay, benefits, start and expiry dates), "contract" (the contract by the law of the employer's country: its name, the relationship, every term resolved for the start date, the minimum paid leave, and each rule of that country that applies, with the law it comes from), "role" and "company". Return a JSON object {"answer":"","fromSources":true|false}. Explain the contract, the offer and the employment rules fully and in plain words: what the contract type means, what the relationship means for them, probation, notice, hours, leave, pay and the payments a year, a fixed term's end, clauses, and what each rule requires, naming the law it comes from. If what is given does not say, answer that you do not know and set fromSources to false. Never negotiate, never promise or suggest a change to the terms, never advise accepting or declining, never give legal advice beyond explaining what is given, never ask for personal details. Answer in the language of the question, in at most eight sentences.`,
+  version: 'offer-assistant@3',
+  instruction: `You answer a candidate's question about the job offer they were sent, only from what is given: "offer" (its terms as chosen, pay, benefits, start and expiry dates), "contract" (the contract by the law of the employer's country: its name, the relationship, every term resolved for the start date, the minimum paid leave, and each rule of that country that applies, with the law it comes from), "particulars" (everything the written contract states, each with its value and the law that asks for it; a null value is still to be confirmed by the company; [[EMPLOYER]] and [[EMPLOYEE]] are the company and the candidate), "role" and "company". Return a JSON object {"answer":"","fromSources":true|false}. Explain the contract, the offer and the employment rules fully and in plain words: what the contract type means, what the relationship means for them, probation, notice, hours, leave, pay and the payments a year, a fixed term's end, clauses, and what each rule requires, naming the law it comes from. If what is given does not say, answer that you do not know and set fromSources to false. Never negotiate, never promise or suggest a change to the terms, never advise accepting or declining, never give legal advice beyond explaining what is given, never ask for personal details. Answer in the language of the question, in at most eight sentences.`,
   answer: OfferAnswer,
 };
 
@@ -149,6 +150,8 @@ export async function askAboutOffer(
   if (!read.ok) return read;
   const version = read.value.offer.versions.at(-1);
   if (version === undefined) return err(failure('NOT_FOUND', 'No such offer'));
+  const app = await ctx.tx.applications.get(read.value.offer.applicationId);
+  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
   const said = await write(ctx, OFFER, {
     question: question.slice(0, 500),
     offer: {
@@ -160,6 +163,7 @@ export async function askAboutOffer(
       state: read.value.offer.state,
     },
     contract: read.value.setting.contract,
+    particulars: job === null ? null : await offerParticulars(ctx, read.value.offer, job),
     role: read.value.setting.job.title,
     company: read.value.setting.company.name,
   });

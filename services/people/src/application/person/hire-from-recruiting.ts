@@ -64,7 +64,9 @@ export interface HiresFromRecruiting {
 
 /** Everything the event says, by People's attribute keys. */
 export function attributesOf(payload: Hired['payload']): Record<string, unknown> {
-  const terms = toPeopleTerms(payload.terms);
+  const { terms: contract, pay } = payload;
+  // Hired by hand with no offer: who they are and the job, and nothing the offer would have said.
+  const terms = contract === null ? {} : toPeopleTerms(contract);
   return {
     // As typed on an application, often in lower case; the record holds it capitalised.
     given_name: capitalisedName(payload.candidate.givenName),
@@ -78,18 +80,20 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
     ...(payload.orgUnitId === null ? {} : { org_unit_id: payload.orgUnitId }),
     ...(payload.locationId === null ? {} : { location_id: payload.locationId }),
     legal_entity_id: payload.legalEntityId,
-    base_salary: payload.pay.base,
-    // What the salary is quoted per; how often payroll pays is HR's to say.
-    pay_basis: payload.pay.frequency,
-    payments_per_year: payload.terms.paymentsPerYear,
-    ...(payload.pay.variableTarget === null
+    ...(pay === null
       ? {}
-      : { variable_pay_target: payload.pay.variableTarget }),
-    ...(payload.pay.signOnBonus === null ? {} : { sign_on_bonus: payload.pay.signOnBonus }),
-    ...(payload.pay.relocation === null ? {} : { relocation_allowance: payload.pay.relocation }),
-    ...(payload.pay.equity === null
-      ? {}
-      : { equity: `${String(payload.pay.equity.units)} × ${payload.pay.equity.description}` }),
+      : {
+          base_salary: pay.base,
+          // What the salary is quoted per; how often payroll pays is HR's to say.
+          pay_basis: pay.frequency,
+          ...(pay.variableTarget === null ? {} : { variable_pay_target: pay.variableTarget }),
+          ...(pay.signOnBonus === null ? {} : { sign_on_bonus: pay.signOnBonus }),
+          ...(pay.relocation === null ? {} : { relocation_allowance: pay.relocation }),
+          ...(pay.equity === null
+            ? {}
+            : { equity: `${String(pay.equity.units)} × ${pay.equity.description}` }),
+        }),
+    ...(contract === null ? {} : { payments_per_year: contract.paymentsPerYear }),
     ...Object.fromEntries(Object.entries(terms).filter(([, v]) => v !== null)),
   };
 }
@@ -171,7 +175,8 @@ export function hiresFromRecruiting(
     if (!found.ok) return { outcome: 'rejected', code: found.error.code };
     if (found.value === null) return { outcome: 'unchanged' };
     const held = found.value.attributes;
-    const empty = (key: string) => held[key] === undefined || held[key] === null || held[key] === '';
+    const empty = (key: string) =>
+      held[key] === undefined || held[key] === null || held[key] === '';
     const live = version.document.attributes.filter((a) => a.deprecatedAt === null);
     const signatureField = live.find((a) => a.dataType === 'signature');
     const signature = event.payload.signature ?? null;
