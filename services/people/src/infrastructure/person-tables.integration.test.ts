@@ -67,6 +67,7 @@ beforeAll(async () => {
     '20260924170100_people_tenant_company.sql',
     '20260924340000_people_person_key_lookup.sql',
     '20260926200000_people_status_idx_skip_scan.sql',
+    '20261027090000_people_secret_dated.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -410,6 +411,24 @@ describe('the secret store', () => {
       'attribute_key',
       'ciphertext',
       'created_at',
+      'history_id',
+      'key_id',
+      'last4',
+      'person_id',
+      'tenant_id',
+      'updated_at',
+    ]);
+    // A salary's history, change by change: sealed the same way.
+    const dated = await admin.execute(sql`
+      SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'people' AND table_name = 'person_secret_dated'
+       ORDER BY column_name
+    `);
+    expect([...dated].map((r) => r['column_name'])).toEqual([
+      'attribute_key',
+      'ciphertext',
+      'created_at',
+      'history_id',
       'key_id',
       'last4',
       'person_id',

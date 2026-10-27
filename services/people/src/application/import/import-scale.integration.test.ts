@@ -164,6 +164,7 @@ async function boot(analyzed: boolean): Promise<Database> {
     '20260924170100_people_tenant_company.sql',
     '20260924340000_people_person_key_lookup.sql',
     '20260926200000_people_status_idx_skip_scan.sql',
+    '20261027090000_people_secret_dated.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

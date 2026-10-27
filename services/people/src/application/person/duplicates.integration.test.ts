@@ -158,6 +158,7 @@ beforeAll(async () => {
     '20260923140000_people_retention.sql',
     '20260926160000_people_scim.sql',
     '20260927143500_people_unmerge.sql',
+    '20261027090000_people_secret_dated.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

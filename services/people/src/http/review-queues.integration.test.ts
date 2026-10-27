@@ -112,6 +112,7 @@ beforeAll(async () => {
       : [
           '20261005140000_people_review_queue_pages.sql',
           '20261005160000_people_pending_change_flag_evidence.sql',
+          '20261027090000_people_secret_dated.sql',
         ]),
   ]) {
     await admin.execute(sql.raw(await migration(file)));
