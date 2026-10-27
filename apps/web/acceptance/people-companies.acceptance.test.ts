@@ -146,7 +146,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     });
     const kept = () => page.evaluate(() => (window as unknown as { kept?: boolean }).kept === true);
 
-    await nav.getByRole('link', { name: 'Directory' }).click();
+    await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory\/list$/);
     await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
     expect(await kept()).toBe(true);
