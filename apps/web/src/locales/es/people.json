@@ -1773,7 +1773,6 @@
   "record.attribute-input.no_matches": "Sin coincidencias.",
   "record.attribute-input.nobody_by_that_name": "Nadie con ese nombre.",
   "record.attribute-input.nothing_to_choose_from": "No hay nada que elegir",
-  "record.attribute-input.or": "o",
   "record.attribute-input.required": "{{label}} (obligatorio)",
   "record.attribute-input.required_and_not_provided_yet": "Obligatorio y aún no indicado.",
   "record.attribute-input.type_a_name": "Escribe un nombre",
