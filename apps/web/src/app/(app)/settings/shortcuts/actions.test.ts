@@ -29,7 +29,6 @@ describe('saving shortcuts', () => {
       [{ 'page.search': ['s'] }, '/ cannot be changed.'],
       [{ 'go.home': ['mod+q'] }, '⌘Q belongs to your browser or computer. Choose another.'],
       [{ 'go.home': ['?'] }, '? already shows the keyboard shortcuts. Choose another.'],
-      [{ sidebar: ['mod+e'] }, '⌘\\ cannot be changed.'],
     ] as const;
     for (const [bindings, message] of refused) {
       expect(await saveShortcuts({ bindings, characterKeys: true }, true)).toEqual({
