@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const writePreference = vi.fn(
-  (): Promise<'saved' | 'view_only' | 'failed'> => Promise.resolve('saved'),
+const writePreference = vi.fn((): Promise<'saved' | 'view_only' | 'failed'> =>
+  Promise.resolve('saved'),
 );
 vi.mock('../../../../lib/preferences', () => ({ writePreference }));
 
