@@ -225,7 +225,7 @@ export function SidebarPanel({
 }): JSX.Element {
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col px-3 pt-5 pb-3"
+      className="flex min-h-0 flex-1 flex-col px-2 pt-5 pb-3"
       onPointerEnter={onIntent}
       onFocus={onIntent}
     >

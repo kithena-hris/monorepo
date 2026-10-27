@@ -326,7 +326,7 @@ export function NavItem({
           aria-hidden
           className="flex size-[18px] shrink-0 items-center justify-center text-fg-muted"
         >
-          <Spinner size="sm" />
+          <Spinner size="sm" label="" role="presentation" />
         </span>
       ) : icon ? (
         <span
@@ -405,7 +405,7 @@ export function NavItem({
       {/* Taken, and on its way: where the count was, or over the icon in a rail. */}
       {pending && !asIcon ? (
         <span aria-hidden className="flex shrink-0 items-center text-fg-muted">
-          <Spinner size="xs" />
+          <Spinner size="xs" label="" role="presentation" />
         </span>
       ) : null}
 

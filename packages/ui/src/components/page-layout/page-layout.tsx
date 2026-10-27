@@ -546,7 +546,7 @@ export function PageLayout({
                   items are icons whatever the panel does.
                 */}
                 <RailContext value={{ collapsed: true, panel: !sidebarState.collapsed }}>
-                  <div className="flex w-19 shrink-0 flex-col items-stretch gap-1 overflow-x-hidden px-2.5 pt-4 pb-3">
+                  <div className="flex w-15 shrink-0 flex-col items-stretch gap-1 overflow-x-hidden px-2 pt-4 pb-3">
                     {sidebarHeader ? (
                       <div className="flex min-h-10 items-center justify-center">
                         {sidebarHeader}
@@ -577,13 +577,13 @@ export function PageLayout({
                   inert={sidebarState.collapsed ? true : undefined}
                   className={cn(
                     'flex min-h-0 flex-col overflow-hidden border-s border-border bg-surface',
-                    sidebarState.collapsed ? 'w-0 border-s-0 opacity-0' : 'w-64 opacity-100',
+                    sidebarState.collapsed ? 'invisible w-0 border-s-0 opacity-0' : 'w-47 opacity-100',
                     sidebarState.settled &&
-                      'transition-[width,opacity] duration-[240ms] ease-standard motion-reduce:transition-none',
+                      'transition-[width,opacity,visibility] duration-[240ms] ease-standard motion-reduce:transition-none',
                   )}
                 >
                   <RailContext value={{ collapsed: false }}>
-                    <div className="flex min-h-0 w-64 flex-1 flex-col">{sidebar}</div>
+                    <div className="flex min-h-0 w-47 flex-1 flex-col">{sidebar}</div>
                   </RailContext>
                 </div>
               </>
