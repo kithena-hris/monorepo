@@ -409,6 +409,7 @@ async function clickToPaint(
   target: Locator,
   shown: { readonly path?: RegExp; readonly selector?: string; readonly text?: RegExp },
 ): Promise<number> {
+  await reach(page, target);
   await onScreen(target).scrollIntoViewIfNeeded();
   await onScreen(target).hover();
   await page.waitForTimeout(400);
@@ -500,6 +501,23 @@ async function scrolling(page: Page, name: string, over: Locator, steps = 30): P
 }
 
 const link = (page: Page, href: string): Locator => page.locator(`a[href="${href}"]:visible`);
+
+/**
+ * Brings `target` on screen when it is an area's section: those fly out of the
+ * area's icon in the rail as the pointer rests on it. False when no area holds it.
+ */
+async function reach(page: Page, target: Locator): Promise<boolean> {
+  if ((await target.count()) > 0) return true;
+  const areas = page.getByRole('navigation', { name: 'Areas' }).getByRole('link');
+  for (let i = 0; i < (await areas.count()); i += 1) {
+    // From off the rail: a press on an icon keeps its sections away until the pointer leaves.
+    await page.mouse.move(900, 600);
+    await areas.nth(i).hover();
+    await page.waitForTimeout(150);
+    if ((await target.count()) > 0) return true;
+  }
+  return false;
+}
 const view = (page: Page, path: string, name: RegExp): Locator =>
   page
     .locator(`a[href^="/people/directory/${path}"]:visible`)
@@ -666,7 +684,7 @@ describe(`Every page at ${String(N)} people`, () => {
       ['requests', '/time-off/requests/upcoming'],
     ] as const) {
       const target = link(page, path);
-      if ((await target.count()) === 0) continue;
+      if (!(await reach(page, target))) continue;
       await clickToPaint(page, `time off → ${name}`, target, { path: new RegExp(path) });
     }
     await context.close();
