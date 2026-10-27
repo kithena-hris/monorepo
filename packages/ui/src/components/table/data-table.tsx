@@ -864,6 +864,27 @@ export function DataTable<T extends TableRow>({
       observer.disconnect();
     };
   }, [page]);
+  /*
+   * Wider than the page: the window scrolls it down and its own box sideways,
+   * since a box that scrolls either way is one the header cannot pin out of.
+   * A table that fits has no box at all, and its header pins under the page's.
+   */
+  const [wide, setWide] = useState(false);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!page || el === null || typeof ResizeObserver === 'undefined') return;
+    const read = (): void => {
+      setWide(el.scrollWidth > el.clientWidth + 1);
+    };
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(el);
+    const table = el.querySelector('table');
+    if (table !== null) observer.observe(table);
+    return () => {
+      observer.disconnect();
+    };
+  }, [page]);
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inPage = useWindowVirtualizer({
     count: virtualized && page ? items.length : 0,
@@ -1225,7 +1246,7 @@ export function DataTable<T extends TableRow>({
         onEndReached !== undefined && !page && 'overscroll-y-contain',
         // Not a scroll container at all: the header pins to the window, which
         // a box that scrolls, even one that never needs to, would stop.
-        page && 'overflow-visible [--reach-table-top:var(--reach-sticky-top,0px)]',
+        page && !wide && 'overflow-visible [--reach-table-top:var(--reach-sticky-top,0px)]',
         containerClassName,
       )}
       {...(virtualized && !page
