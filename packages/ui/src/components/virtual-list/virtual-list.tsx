@@ -12,6 +12,7 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -21,6 +22,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { AHEAD_PX, drawAhead } from '../../lib/draw-ahead';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
 import { ScrollPositionRail } from '../scroll-position/scroll-position-rail';
@@ -316,9 +318,21 @@ export function VirtualList<T>({
   // The overscan is in items, and a grid's virtual rows hold `lanes` of them:
   // counted in rows, eight rows of five cards drew eighty cards nobody could
   // see, each restyled and laid out on every frame a row entered.
+  // Further ahead while the list moves, in the direction it is going
+  // (`drawAhead`), in rows: a grid's row holds `lanes` items.
+  const moving = useRef<{ scrollDirection: 'forward' | 'backward' | null } | null>(null);
+  const rangeExtractor = useMemo(
+    () =>
+      drawAhead(
+        () => moving.current?.scrollDirection ?? null,
+        Math.ceil(AHEAD_PX / (estimateItemHeight + gap)),
+      ),
+    [estimateItemHeight, gap],
+  );
   const options = {
     estimateSize,
     overscan: Math.ceil(overscan / lanes),
+    rangeExtractor,
     initialRect,
     gap,
     useFlushSync: false,
@@ -332,6 +346,9 @@ export function VirtualList<T>({
   });
   const inPage = useWindowVirtualizer({ ...options, count: page ? rows : 0, scrollMargin: margin });
   const virtualizer = page ? inPage : inBox;
+  useLayoutEffect(() => {
+    moving.current = virtualizer;
+  }, [virtualizer]);
 
   const virtualRows = virtualizer.getVirtualItems();
   const offset = page ? margin : 0;

@@ -1,7 +1,7 @@
 import { themePreset } from '@kithena/contracts';
 import { brandRamp } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
@@ -12,7 +12,7 @@ import { I18nProvider } from '../lib/i18n';
 import { loadMessages } from '../lib/messages';
 import { settle } from '../lib/rsc-words';
 import { requestLanguage, serverWords } from '../lib/server-words';
-import { THEME_KEY } from '../lib/theme';
+import { THEME_COLOR, THEME_KEY } from '../lib/theme';
 
 import './globals.css';
 import { MF_IMPORT_MAP } from '../lib/mf-runtime';
@@ -31,6 +31,25 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: { icon: kithenaMarkDataUri, apple: '/apple-touch-icon.png' },
     // Installed on an iPhone, it opens in a window of its own (`app/manifest.ts`).
     appleWebApp: { capable: true, title: 'Kithena', statusBarStyle: 'default' },
+  };
+}
+
+/**
+ * The browser's own chrome in the page's colour: an installed app's title bar
+ * and a phone's status bar. The theme chosen, where one is; with none, the
+ * system's, which the browser answers from the media queries. A choice made
+ * later repaints it at once (`paintThemeColor`).
+ */
+export async function generateViewport(): Promise<Viewport> {
+  const theme = (await cookies()).get(THEME_KEY)?.value;
+  return {
+    themeColor:
+      theme === 'dark' || theme === 'light'
+        ? THEME_COLOR[theme]
+        : [
+            { media: '(prefers-color-scheme: light)', color: THEME_COLOR.light },
+            { media: '(prefers-color-scheme: dark)', color: THEME_COLOR.dark },
+          ],
   };
 }
 

@@ -105,6 +105,32 @@ describe('<DataTable multiSort>', () => {
   });
 });
 
+describe('<DataTable selectable>', () => {
+  it('keeps the list’s place in view when rows are picked, in the selection’s bar', () => {
+    render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        selectable
+        total={1003}
+        onEndReached={() => undefined}
+        bulkActions={() => <button type="button">Export</button>}
+      />,
+    );
+    expect(screen.getByText('Showing 4 of 1,003')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select 1' }));
+    const bar = screen.getByRole('group', { name: '1 selected' });
+    // The same place, now leading the bar: its count and the actions beside it.
+    expect(within(bar).getByText('4 of 1,003')).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(screen.queryByText('Showing 4 of 1,003')).toBeNull();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Clear selection' }));
+    expect(screen.getByText('Showing 4 of 1,003')).toBeInTheDocument();
+  });
+});
+
 describe('describeSorts', () => {
   it('names the columns in order', () => {
     expect(

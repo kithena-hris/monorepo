@@ -537,6 +537,8 @@
   "components.scheduler.scheduler.more": "de plus",
   "components.scheduler.scheduler.to": "{{formatMinutes}} à {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} à {{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{shown}} sur {{total}}",
+  "components.scroll-position.scroll-position-rail.so_far": "{{shown}} pour l’instant",
   "components.scroll-position.scroll-position.all": "Les {{total}} sont affichés",
   "components.scroll-position.scroll-position.back_to_top": "Haut de page",
   "components.scroll-position.scroll-position.of": "{{shown}} sur {{total}} affichés",

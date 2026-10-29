@@ -24,11 +24,17 @@ import { t } from '../../lib/i18n';
 export function BulkBar({
   count,
   onClear,
+  leading,
   children,
   className,
 }: {
   /** How many are selected; the bar is not drawn for none. */
   count: number;
+  /**
+   * What leads the bar, before the count: where the reader is in the list
+   * (`ScrollPositionRail`), so selecting never takes the place away.
+   */
+  leading?: ReactNode;
   onClear: () => void;
   /** The actions, as `Button`s; the bar restyles them for its fill. */
   children: ReactNode;
@@ -44,6 +50,12 @@ export function BulkBar({
       {...PINNED_BAR}
       className={cn('sticky bottom-4 z-20', bulkBarClass, 'motion-safe:animate-pop-in', className)}
     >
+      {leading === undefined ? null : (
+        <>
+          {leading}
+          <span aria-hidden className="mx-2 h-5 w-px bg-fg-on-invert/25" />
+        </>
+      )}
       <span aria-live="polite" className="text-sm font-semibold tabular-nums">
         {count} {t('components.table.bulk-bar.selected_2', 'selected')}
       </span>

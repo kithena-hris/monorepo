@@ -531,8 +531,9 @@ export function NavItem({
                   : flyoutSize === 'compact'
                     ? 'w-[min(21.25rem,calc(100vw-6rem))] rounded-[1.375rem] p-2.5 shadow-xl'
                     : 'w-60 p-2',
-                // Out of the item and back into it, rather than the popover's zoom.
-                'origin-left popover-motion',
+                // Out of the item and back into it, rather than the popover's zoom;
+                // put away for another, gone at once (`useFlyout`).
+                'origin-left popover-motion data-replaced:animate-none!',
               )}
             >
               {/* Its items are not in the rail, even when this one is. */}
@@ -581,6 +582,14 @@ const FLYOUT_OPEN_MS = HOVER_OPEN_MS;
 const FLYOUT_CLOSE_MS = HOVER_CLOSE_MS;
 
 /**
+ * The one flyout out, page-wide. Another opening puts it away at once, with
+ * no way out, so a pointer swept down the rail never shows two: before, each
+ * item kept its own, and the one left closed 80 ms later, then faded, while
+ * the next had already opened 50 ms in.
+ */
+let shown: { readonly close: () => void } | null = null;
+
+/**
  * The state and handlers behind `NavItem`'s `flyout`.
  *
  * The pointer is asked what it is (`pointerType`) at the moment it acts, which
@@ -589,6 +598,8 @@ const FLYOUT_CLOSE_MS = HOVER_CLOSE_MS;
  */
 function useFlyout() {
   const [open, setOpen] = useState(false);
+  // Put away because another opened: gone at once, not faded.
+  const [replaced, setReplaced] = useState(false);
   const contentId = useId();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
@@ -608,19 +619,43 @@ function useFlyout() {
   const later = (next: boolean, ms: number): void => {
     clear();
     timer.current = setTimeout(() => {
-      setOpen(next);
+      apply(next);
     }, ms);
   };
-  useEffect(() => clear, []);
+  // Every open and close goes through here, so there is only ever one out.
+  const self = useRef({
+    close: (): void => {
+      clear();
+      setReplaced(true);
+      setOpen(false);
+    },
+  });
+  const apply = (next: boolean): void => {
+    if (next) {
+      if (shown !== null && shown !== self.current) shown.close();
+      shown = self.current;
+      setReplaced(false);
+    } else if (shown === self.current) {
+      shown = null;
+    }
+    setOpen(next);
+  };
+  useEffect(
+    () => () => {
+      clear();
+      if (shown === self.current) shown = null;
+    },
+    [],
+  );
 
   // Opening now cancels a close the pointer scheduled on its way out.
   const show = (): void => {
     clear();
-    setOpen(true);
+    apply(true);
   };
   const close = (focusTrigger: boolean): void => {
     clear();
-    setOpen(false);
+    apply(false);
     if (focusTrigger) {
       returning.current = true;
       trigger.current?.focus();
@@ -632,11 +667,13 @@ function useFlyout() {
     open,
     setOpen: (next: boolean): void => {
       clear();
-      setOpen(next);
+      apply(next);
     },
     anchorProps: {
       onPointerEnter: (event: { pointerType: string }): void => {
-        if (event.pointerType === 'mouse' && !pressed.current) later(true, FLYOUT_OPEN_MS);
+        // With another already out, at once, as a menu bar moves between menus.
+        if (event.pointerType === 'mouse' && !pressed.current)
+          later(true, shown !== null && shown !== self.current ? 0 : FLYOUT_OPEN_MS);
       },
       // Not while the keyboard is in it: a pointer drifting off must not take
       // the sections out from under the focus.
@@ -652,7 +689,7 @@ function useFlyout() {
         const next = event.relatedTarget;
         if (next instanceof Node && event.currentTarget.contains(next)) return;
         clear();
-        setOpen(false);
+        apply(false);
       },
     },
     triggerProps: {
@@ -677,7 +714,7 @@ function useFlyout() {
           // A press that goes somewhere: the page it opens is the answer.
           pressed.current = true;
           clear();
-          setOpen(false);
+          apply(false);
         }
         openAtTouch.current = null;
       },
@@ -698,6 +735,7 @@ function useFlyout() {
     },
     contentProps: {
       id: contentId,
+      'data-replaced': replaced || undefined,
       ref: content,
       onOpenAutoFocus: (event: Event): void => {
         event.preventDefault();

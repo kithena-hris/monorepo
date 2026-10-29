@@ -65,6 +65,7 @@ import {
 import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+import { AHEAD_PX, drawAhead } from '../../lib/draw-ahead';
 import {
   actionPressed,
   pressed,
@@ -72,7 +73,6 @@ import {
   useShortcutKeys,
   type RowAction,
 } from '../../lib/shortcut-keys';
-import { BulkBar } from './bulk-bar';
 import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
@@ -928,11 +928,23 @@ export function DataTable<T extends TableRow>({
     if (el === null) return;
     return afterLoad((m) => m.lockAxis(el));
   }, []);
+  // Further ahead while the table moves, in the direction it is going
+  // (`drawAhead`): read from whichever virtualizer scrolls it.
+  const moving = useRef<{ scrollDirection: 'forward' | 'backward' | null } | null>(null);
+  const rangeExtractor = useMemo(
+    () =>
+      drawAhead(
+        () => moving.current?.scrollDirection ?? null,
+        Math.ceil(AHEAD_PX / estimateRowHeight),
+      ),
+    [estimateRowHeight],
+  );
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inPage = useWindowVirtualizer({
     count: virtualized && page ? items.length : 0,
     estimateSize,
     overscan: 20,
+    rangeExtractor,
     scrollMargin: margin,
     // Rendered with the frame, not inside each scroll event (`virtual-list.tsx`).
     useFlushSync: false,
@@ -948,6 +960,7 @@ export function DataTable<T extends TableRow>({
     // are plain rows (`SpacerRow`): every row there is loaded, so none of
     // them is drawn as if it were still coming.
     overscan: 20,
+    rangeExtractor,
     // Before its box has a size of its own (on the server, while hydrating,
     // in a box not laid out yet) the table draws the rows a window would
     // show, not a skeleton: the first HTML carries the first rows, and the
@@ -956,6 +969,9 @@ export function DataTable<T extends TableRow>({
     observeElementRect: observeSizedRect,
   });
   const virtualizer = page ? inPage : inBox;
+  useLayoutEffect(() => {
+    moving.current = virtualizer;
+  }, [virtualizer]);
   // The window's virtualizer counts from the top of the page; the spacers count from the body's.
   const offset = page ? margin : 0;
 
@@ -1611,17 +1627,6 @@ export function DataTable<T extends TableRow>({
     </Table>
   );
 
-  const bulkBar = selectable ? (
-    <BulkBar
-      count={picked.size}
-      onClear={() => {
-        setPicked([]);
-      }}
-    >
-      {bulkActions?.(pickedRowObjects)}
-    </BulkBar>
-  ) : null;
-
   return (
     <div className="min-w-0 space-y-3">
       {reorderable && activeSorts.length > 0 ? (
@@ -1655,15 +1660,25 @@ export function DataTable<T extends TableRow>({
         body
       )}
 
-      {/* Under every table, short or long; a selection's bar takes its place while it is up. */}
-      {picked.size === 0 && rows.length > 0 ? (
+      {/* Under every table, short or long; picking rows turns it into the selection's bar. */}
+      {rows.length > 0 ? (
         <ScrollPositionRail
           list={scrollRef}
           loaded={rows.length}
           total={total ?? (onEndReached === undefined ? rows.length : null)}
+          {...(selectable
+            ? {
+                selection: {
+                  count: picked.size,
+                  onClear: () => {
+                    setPicked([]);
+                  },
+                  actions: bulkActions?.(pickedRowObjects),
+                },
+              }
+            : {})}
         />
       ) : null}
-      {bulkBar}
       <span aria-live="polite" className="sr-only">
         {said}
       </span>

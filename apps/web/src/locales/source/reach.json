@@ -2399,6 +2399,14 @@
     "text": "{{name}} to {{name2}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx: text built in code. Filled in: {{name}}, {{name2}}."
   },
+  "components.scroll-position.scroll-position-rail.of": {
+    "text": "{{shown}} of {{total}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position-rail.tsx, Place: text inside <span>. Filled in: {{shown}}, {{total}}."
+  },
+  "components.scroll-position.scroll-position-rail.so_far": {
+    "text": "{{shown}} so far",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position-rail.tsx, Place: text inside <span>. Filled in: {{shown}}."
+  },
   "components.scroll-position.scroll-position.all": {
     "text": "Showing all {{total}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{total}}."

@@ -516,6 +516,8 @@
   "components.scheduler.scheduler.more": "meer",
   "components.scheduler.scheduler.to": "{{formatMinutes}} tot {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} tot {{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{shown}} van {{total}}",
+  "components.scroll-position.scroll-position-rail.so_far": "tot nu toe {{shown}}",
   "components.scroll-position.scroll-position.all": "Alle {{total}} getoond",
   "components.scroll-position.scroll-position.back_to_top": "Terug naar boven",
   "components.scroll-position.scroll-position.of": "{{shown}} van {{total}} getoond",

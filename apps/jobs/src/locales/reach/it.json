@@ -545,6 +545,8 @@
   "components.scheduler.scheduler.more": "altri",
   "components.scheduler.scheduler.to": "dalle {{formatMinutes}} alle {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "da {{name}} a {{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{shown}} di {{total}}",
+  "components.scroll-position.scroll-position-rail.so_far": "{{shown}} finora",
   "components.scroll-position.scroll-position.all": "Tutti i {{total}} mostrati",
   "components.scroll-position.scroll-position.back_to_top": "Torna su",
   "components.scroll-position.scroll-position.of": "{{shown}} di {{total}} mostrati",
