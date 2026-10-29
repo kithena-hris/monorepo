@@ -799,22 +799,3 @@
     }
   }
 }
-
-/**
- * How far down the page the reader is: a hairline across the top of the
- * window, filled by the root's own scroll on the compositor, with no script
- * and nothing to fall behind. Empty where the page does not scroll, and where
- * a browser has no scroll timelines (`PageLayout`).
- */
-@keyframes page-progress {
-  to {
-    transform: scaleX(1);
-  }
-}
-@utility page-progress {
-  transform: scaleX(0);
-  @supports (animation-timeline: scroll()) {
-    animation: page-progress linear both;
-    animation-timeline: scroll(root block);
-  }
-}
