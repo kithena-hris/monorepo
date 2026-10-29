@@ -546,6 +546,8 @@
   "components.scroll-position.scroll-position.back_to_top": "Voltar ao topo",
   "components.scroll-position.scroll-position.of": "{{seen}} de {{total}}",
   "components.scroll-position.scroll-position.of_more": "{{seen}} de {{loaded}}+",
+  "components.scroll-position.shown-count.all": "A mostrar todos os {{total}}",
+  "components.scroll-position.shown-count.of": "A mostrar {{shown}} de {{total}}",
   "components.sheet.sheet.close": "Fechar",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape cancela.",
   "components.shortcuts.key-recorder.none": "Nenhum",

@@ -548,6 +548,8 @@
   "components.scroll-position.scroll-position.back_to_top": "Tornar a dalt",
   "components.scroll-position.scroll-position.of": "{{seen}} de {{total}}",
   "components.scroll-position.scroll-position.of_more": "{{seen}} de {{loaded}}+",
+  "components.scroll-position.shown-count.all": "Es mostren tots {{total}}",
+  "components.scroll-position.shown-count.of": "Es mostren {{shown}} de {{total}}",
   "components.sheet.sheet.close": "Tancar",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escapada cancel·la.",
   "components.shortcuts.key-recorder.none": "Cap",

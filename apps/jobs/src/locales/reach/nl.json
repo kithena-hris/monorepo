@@ -519,6 +519,8 @@
   "components.scroll-position.scroll-position.back_to_top": "Terug naar boven",
   "components.scroll-position.scroll-position.of": "{{seen}} van {{total}}",
   "components.scroll-position.scroll-position.of_more": "{{seen}} van {{loaded}}+",
+  "components.scroll-position.shown-count.all": "Alle {{total}} getoond",
+  "components.scroll-position.shown-count.of": "{{shown}} van {{total}} getoond",
   "components.sheet.sheet.close": "Sluiten",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape annuleert.",
   "components.shortcuts.key-recorder.none": "Geen",
