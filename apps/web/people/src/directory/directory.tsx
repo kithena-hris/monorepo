@@ -42,7 +42,6 @@ import {
   pressed,
   QuickLook,
   type RowAction,
-  ScrollPosition,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
@@ -66,7 +65,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type JSX,
   type ReactNode,
 } from 'react';
@@ -378,8 +376,6 @@ export type DirectoryAsked =
   | { readonly ok: false; readonly message: string };
 
 const ANY = '__any';
-/** `?look=none`: the quick look closed. */
-const NO_LOOK = 'none';
 const PERSON = 'person';
 const COLUMNS_KEY = 'people.directory.columns';
 const WIDTHS_KEY = 'people.directory.widths';
@@ -1002,10 +998,10 @@ const CARD_HEIGHT = 190;
 /**
  * Where the reader is in a list that keeps loading, and the way back
  * (AI3, MA2): the first row in view goes into the address as it settles, so
- * Back (or a reload) loads as many pages as it takes and returns to it; the
- * last row in view is the counter's "150 of 388", and once it is halfway
- * through what is loaded the next page is asked for. The window scrolls the
- * table, the cards and the phone's list alike.
+ * Back (or a reload) loads as many pages as it takes and returns to it, and
+ * once the last row in view is halfway through what is loaded the next page
+ * is asked for. The window scrolls the table, the cards and the phone's list
+ * alike; each draws its own "150 of 388" (Reach's `ScrollPositionRail`).
  */
 const personName = (p: DirectoryPerson): string => p.name;
 
@@ -1028,29 +1024,7 @@ function usePlace({
   readonly loadMore: (() => void) | undefined;
   readonly loading: boolean;
   readonly done: boolean;
-}): Place {
-  // A store rather than state: the place moves on nearly every scroll frame,
-  // and as state it re-rendered the whole directory, table and all, on each.
-  // Only the counter reads it (`PlacePill`).
-  const [at] = useState(() => {
-    let value = { top: 0, last: 0 };
-    const listeners = new Set<() => void>();
-    return {
-      get: () => value,
-      set: (next: { top: number; last: number }) => {
-        if (next.top === value.top && next.last === value.last) return;
-        value = next;
-        for (const listener of listeners) listener();
-      },
-      subscribe: (listener: () => void) => {
-        listeners.add(listener);
-        return () => {
-          listeners.delete(listener);
-        };
-      },
-    };
-  });
-  const setAt = at.set;
+}): void {
   const restore = useRef<number | null>(place !== null && place > 1 ? place - 1 : null);
   const tell = useRef(onPlaceChange);
   tell.current = onPlaceChange;
@@ -1091,7 +1065,6 @@ function usePlace({
       const index = new Map(latest.current.map((p, i) => [p.id, i]));
       const first = index.get(id(seen[0])) ?? 0;
       const last = index.get(id(seen.at(-1))) ?? first;
-      setAt({ top: first, last });
       // ponytail: halfway through what is loaded keeps up to twice what was read
       // loaded; a fixed lookahead (one page past the reader) if pages get expensive.
       if (seen.length > 0 && (last + 1) * 2 >= latest.current.length) more.current?.();
@@ -1136,42 +1109,6 @@ function usePlace({
       find()?.scrollIntoView({ block: 'start' });
     });
   }, [rows.length, loading, done]);
-
-  const toTop = (): void => {
-    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
-    setAt({ top: 0, last: 0 });
-    tell.current?.(null);
-  };
-  return { get: at.get, subscribe: at.subscribe, toTop };
-}
-
-interface Place {
-  readonly get: () => { readonly top: number; readonly last: number };
-  readonly subscribe: (listener: () => void) => () => void;
-  readonly toTop: () => void;
-}
-
-/** "150 of 388" and Back to top, once the reader is past the first row. */
-function PlacePill({
-  place,
-  total,
-  className,
-}: {
-  readonly place: Place;
-  readonly total: number;
-  readonly className: string;
-}): JSX.Element | null {
-  const at = useSyncExternalStore(place.subscribe, place.get, place.get);
-  if (at.top === 0) return null;
-  return (
-    <ScrollPosition onBackToTop={place.toTop} className={className}>
-      {t('directory.directory.of', '{{toLocaleString}} of {{toLocaleString2}}', {
-        toLocaleString: (at.last + 1).toLocaleString(locale()),
-        toLocaleString2: total.toLocaleString(locale()),
-      })}
-    </ScrollPosition>
-  );
 }
 
 /**
@@ -1278,14 +1215,12 @@ function Body({
   const keys = useShortcutKeys();
   const busyId = useId();
   const smart = onAsk !== undefined;
-  // The person the quick look is on, held in the address (`?look=`). Until
-  // somebody chooses (''), the first, so the page opens on a record and the
-  // keyboard starts there; `none` once they close it. A new query starts on
-  // its own first person: the host drops `look` with the old query.
+  // The person the quick look is on, held in the address (`?look=`): nobody
+  // until someone is clicked, so the list has the page's width to itself. A
+  // new query closes it: the host drops `look` with the old query.
   const [held, hold] = useHeld<string>(look, onLookChange, '');
-  const chosen = held === '' ? undefined : held === NO_LOOK ? null : held;
   const setPeek = (id: string | null): void => {
-    hold(id ?? NO_LOOK);
+    hold(id ?? '');
   };
   const [filtersOpen, setFiltersOpen] = useHeld(heldFiltersOpen, onFiltersOpenChange, false);
   const [addOpen, setAddOpen] = useHeld(adding, onAddingChange, false);
@@ -1298,7 +1233,7 @@ function Body({
   const widths = useWidths();
   const loaded = useRows(state.people, next, onLoadMore);
   const wrapper = useRef<HTMLDivElement | null>(null);
-  const placed = usePlace({
+  usePlace({
     wrapper,
     rows: loaded.rows,
     rowHeight: coarse || view === 'cards' ? PHONE_ROW : ROW_HEIGHT,
@@ -1444,11 +1379,8 @@ function Body({
     [shownColumns],
   );
   const rows = loaded.rows;
-  // Somebody this list does not hold (an old link, a new query) is the first person too.
-  const peek =
-    chosen === undefined || (chosen !== null && !rows.some((p) => p.id === chosen))
-      ? (rows[0]?.id ?? null)
-      : chosen;
+  // Somebody this list does not hold (an old link) is nobody.
+  const peek = held !== '' && rows.some((p) => p.id === held) ? held : null;
   const live = useRef({
     peek,
     rows,
@@ -1696,6 +1628,7 @@ function Body({
   }
 
   const peeked = rows.find((p) => p.id === peek) ?? null;
+  const beside = peeked !== null && view === 'list' && !coarse;
   /**
    * The quick look to the person above or below: the one way the selection
    * moves, from the list (focus follows, onto their name) and from the card
@@ -1777,6 +1710,7 @@ function Body({
         estimateItemHeight={PHONE_ROW}
         {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
         loadingMore={loaded.loading}
+        total={state.total}
         renderItem={phoneRow}
       />
     )
@@ -1796,6 +1730,7 @@ function Body({
         className="bg-transparent shadow-none"
         {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
         loadingMore={loaded.loading}
+        total={state.total}
         renderItem={cardOf}
       />
     )
@@ -1816,6 +1751,7 @@ function Body({
       estimateRowHeight={57}
       fill
       {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
+      total={state.total}
       columns={columns}
       rowId={(p) => p.id}
       describeRow={personName}
@@ -1869,18 +1805,6 @@ function Body({
       empty={empty}
     />
   );
-  // Where the reader is in a list that keeps loading, and the way back: at
-  // the list's own top corner, never over the quick look beside it. Before the
-  // table, in a sticky line of no height, so it rides under the table's pinned
-  // header as the page scrolls.
-  const pill =
-    onLoadMore === undefined ? null : coarse || view === 'cards' ? (
-      <PlacePill place={placed} total={state.total} className="fixed end-4 bottom-40 z-20" />
-    ) : (
-      <div className="sticky top-[calc(var(--reach-sticky-top,0px)+3.75rem)] z-30 h-0">
-        <PlacePill place={placed} total={state.total} className="absolute end-4.5 top-0" />
-      </div>
-    );
   const profileKeys = keysOf('row.edit', keys);
   const previewKeys = keysOf('list.preview', keys);
   const selectKeys = keysOf('list.select', keys);
@@ -2222,14 +2146,14 @@ function Body({
         </p>
       )}
       <div ref={wrapper} className="relative">
-        {peeked !== null && view === 'list' && !coarse ? (
-          // The table grows the page; the card beside it rides along under
-          // the page's sticky header.
-          <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] gap-4">
-            <div className="relative min-w-0">
-              {pill}
-              {table}
-            </div>
+        {/*
+          The table has the page's width until somebody is clicked; their card
+          then opens beside it and rides along under the page's sticky header.
+          One tree either way, so opening the card does not draw the table again.
+        */}
+        <div className={beside ? 'grid grid-cols-[minmax(0,1fr)_21.25rem] gap-4' : undefined}>
+          <div className="relative min-w-0">{table}</div>
+          {peeked !== null && beside ? (
             <QuickLook
               className="sticky top-[calc(var(--reach-sticky-top,0px)+1rem)] self-start"
               // Its keys are the list's, said once under the list.
@@ -2326,13 +2250,8 @@ function Body({
                 {t('directory.directory.show_in_list', 'Show in list')}
               </Button>
             </QuickLook>
-          </div>
-        ) : (
-          <>
-            {pill}
-            {table}
-          </>
-        )}
+          ) : null}
+        </div>
       </div>
       {coarse ? null : (
         // The list's keys, and how it loads, in one line under it (C1).

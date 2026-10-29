@@ -477,7 +477,6 @@
   "directory.directory.not": "nicht {{join}}",
   "directory.directory.not_started": "{{notStarted}} noch nicht angefangen",
   "directory.directory.not_understood": "Nicht verstanden: {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} von {{toLocaleString2}}",
   "directory.directory.on_leave": "Abwesend",
   "directory.directory.on_or_after": "am oder nach dem {{longDate}}",
   "directory.directory.on_or_before": "am oder vor dem {{longDate}}",

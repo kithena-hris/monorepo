@@ -273,10 +273,12 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     },
   );
 
-  it('opens on the first person, and Show in list brings their row back smoothly and focuses it', async () => {
+  it('opens a quick look on a click, and Show in list brings their row back smoothly and focuses it', async () => {
     const { onLoadMore } = pages();
     const onOpen = vi.fn();
     directory({ onLoadMore, onOpen });
+    expect(screen.queryByRole('complementary', { name: 'Quick look' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(within(look).getByRole('heading', { name: 'Person 0' })).toBeVisible();
     expect(onOpen).not.toHaveBeenCalled();
@@ -382,24 +384,24 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
   it('keeps the place and Back to top at the list’s top corner, off the quick look', async () => {
     const { onLoadMore } = pages();
     directory({ onLoadMore });
+    await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
     const box = screen.getByRole('region', { name: 'People' });
     await vi.waitFor(() => {
       expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
     });
+    // Nothing until the header pins.
+    expect(screen.queryByRole('button', { name: /Back to top$/ })).toBeNull();
     window.scrollTo(0, tableTop(box) + 40 * ROW);
-    const back = await screen.findByRole('button', { name: 'Back to top' });
+    const back = await screen.findByRole('button', { name: /^\d+ of 1,000\. Back to top$/ });
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(look).not.toContainElement(back);
-    expect(within(look).queryByText(/ of 1,000/)).toBeNull();
-    const pill = screen.getByText(/ of 1,000$/).getBoundingClientRect();
+    const pill = back.getBoundingClientRect();
     const list = box.getBoundingClientRect();
     const card = look.getBoundingClientRect();
     // Inside the list's box, at its top right, and clear of the card.
-    for (const r of [pill, back.getBoundingClientRect()]) {
-      expect(r.left).toBeGreaterThanOrEqual(list.left);
-      expect(r.right).toBeLessThanOrEqual(list.right);
-      expect(r.right).toBeLessThan(card.left);
-    }
+    expect(pill.left).toBeGreaterThanOrEqual(list.left);
+    expect(pill.right).toBeLessThanOrEqual(list.right);
+    expect(pill.right).toBeLessThan(card.left);
     // Riding under the table's pinned header, on screen however far down the page is.
     const head = box.querySelector('thead th')?.getBoundingClientRect().bottom ?? 0;
     expect(pill.top).toBeGreaterThanOrEqual(0);
@@ -418,6 +420,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     await vi.waitFor(() => {
       expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
     });
+    await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
     window.scrollTo(0, tableTop(box) + box.scrollHeight);
     await frame();
     const look = screen.getByRole('complementary', { name: 'Quick look' });
@@ -455,6 +458,7 @@ describe.runIf(!coarse)('the directory’s table, in the window', () => {
     });
     expect(box.scrollHeight).toBeLessThanOrEqual(box.clientHeight + 1);
     expect(document.documentElement.scrollHeight).toBeGreaterThan(window.innerHeight);
+    await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
     window.scrollTo(0, tableTop(box) + 30 * ROW);
     await frame();
     await frame();
@@ -466,6 +470,26 @@ describe.runIf(!coarse)('the directory’s table, in the window', () => {
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(look.getBoundingClientRect().top).toBeGreaterThanOrEqual(head.top);
   });
+  // Too wide for its box beside the quick look: the box scrolls it sideways,
+  // and the header rides down the box under the page's instead of sticking.
+  it('pins a wide table’s header too, while its box scrolls sideways', async () => {
+    await page.viewport(900, 720);
+    const { onLoadMore } = pages();
+    directory({ onLoadMore });
+    await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
+    const box = screen.getByRole('region', { name: 'People' });
+    await vi.waitFor(() => {
+      expect(box.scrollWidth).toBeGreaterThan(box.clientWidth + 1);
+      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+    });
+    window.scrollTo(0, tableTop(box) + 30 * ROW);
+    await frame();
+    await frame();
+    const head = box.querySelector('thead th')?.getBoundingClientRect() as DOMRect;
+    const sticky =
+      Number.parseFloat(getComputedStyle(box).getPropertyValue('--reach-sticky-top') || '0') || 0;
+    expect(Math.abs(head.top - sticky)).toBeLessThanOrEqual(2);
+  });
 });
 
 describe.runIf(coarse)('the directory’s list, under a finger', () => {
@@ -476,15 +500,11 @@ describe.runIf(coarse)('the directory’s list, under a finger', () => {
     expect(screen.queryByText(/ move$/)).toBeNull();
   });
 
-  it('opens with the first person selected, without opening them, and a page ahead', async () => {
+  it('opens with nobody selected, nobody opened, and a page ahead', async () => {
     const { asked, onLoadMore } = pages();
     const onOpen = vi.fn();
     directory({ onLoadMore, onOpen });
-    expect(document.querySelector('a[data-person-id="p0"]')).toHaveAttribute(
-      'aria-current',
-      'true',
-    );
-    expect(document.querySelector('a[data-person-id="p1"]')).not.toHaveAttribute('aria-current');
+    expect(document.querySelector('a[data-person-id][aria-current]')).toBeNull();
     expect(onOpen).not.toHaveBeenCalled();
     await vi.waitFor(() => {
       expect(asked).toEqual(['50']);

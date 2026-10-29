@@ -3725,6 +3725,7 @@ function OverviewTable({
         : { groupBy: (r: OverviewRow) => groupLabel(data, view.group ?? '', r) })}
       {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
       loadingMore={pages.loading}
+      total={data.total}
       endLabel={tr('cycles.thats_everyone_2', 'That’s everyone · {{total}}', {
         total: tr(
           'cycles.count_people',

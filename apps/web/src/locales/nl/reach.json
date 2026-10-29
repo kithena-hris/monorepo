@@ -517,6 +517,8 @@
   "components.scheduler.scheduler.to": "{{formatMinutes}} tot {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} tot {{name2}}",
   "components.scroll-position.scroll-position.back_to_top": "Terug naar boven",
+  "components.scroll-position.scroll-position.of": "{{seen}} van {{total}}",
+  "components.scroll-position.scroll-position.of_more": "{{seen}} van {{loaded}}+",
   "components.sheet.sheet.close": "Sluiten",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape annuleert.",
   "components.shortcuts.key-recorder.none": "Geen",

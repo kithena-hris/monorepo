@@ -546,6 +546,8 @@
   "components.scheduler.scheduler.to": "dalle {{formatMinutes}} alle {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "da {{name}} a {{name2}}",
   "components.scroll-position.scroll-position.back_to_top": "Torna su",
+  "components.scroll-position.scroll-position.of": "{{seen}} di {{total}}",
+  "components.scroll-position.scroll-position.of_more": "{{seen}} di {{loaded}}+",
   "components.sheet.sheet.close": "Chiudi",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Esc annulla.",
   "components.shortcuts.key-recorder.none": "Nessuno",

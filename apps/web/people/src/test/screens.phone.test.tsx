@@ -728,14 +728,14 @@ describe('at 390×844, with a finger', () => {
       />,
     );
     window.scrollTo({ top: 1200 });
-    const back = await screen.findByRole('button', { name: 'Back to top' });
-    expect(screen.getByText(/^\d+ of 388$/u)).toBeVisible();
+    const back = await screen.findByRole('button', { name: /^\d+ of 388\. Back to top$/u });
+    expect(back).toBeVisible();
     await settled();
     expect(underFloor(document.body)).toEqual([]);
     expect(await violations(document.body)).toEqual([]);
     await userEvent.click(back);
     await vi.waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Back to top' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Back to top$/u })).toBeNull();
     });
     window.scrollTo({ top: 0 });
   });

@@ -527,6 +527,8 @@
   "components.scheduler.scheduler.to": "{{formatMinutes}} bis {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} bis {{name2}}",
   "components.scroll-position.scroll-position.back_to_top": "Nach oben",
+  "components.scroll-position.scroll-position.of": "{{seen}} von {{total}}",
+  "components.scroll-position.scroll-position.of_more": "{{seen}} von {{loaded}}+",
   "components.sheet.sheet.close": "Schließen",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape bricht ab.",
   "components.shortcuts.key-recorder.none": "Keine",

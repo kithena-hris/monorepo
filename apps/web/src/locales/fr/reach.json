@@ -538,6 +538,8 @@
   "components.scheduler.scheduler.to": "{{formatMinutes}} à {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} à {{name2}}",
   "components.scroll-position.scroll-position.back_to_top": "Haut de page",
+  "components.scroll-position.scroll-position.of": "{{seen}} sur {{total}}",
+  "components.scroll-position.scroll-position.of_more": "{{seen}} sur {{loaded}}+",
   "components.sheet.sheet.close": "Fermer",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Échap pour annuler.",
   "components.shortcuts.key-recorder.none": "Aucun",

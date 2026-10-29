@@ -480,7 +480,6 @@
   "directory.directory.not": "{{join}} அல்ல",
   "directory.directory.not_started": "{{notStarted}} தொடங்கவில்லை",
   "directory.directory.not_understood": "புரியவில்லை: {{join}}.",
-  "directory.directory.of": "{{toLocaleString2}} இல் {{toLocaleString}}",
   "directory.directory.on_leave": "விடுப்பில்",
   "directory.directory.on_or_after": "{{longDate}} அன்று அல்லது பின்",
   "directory.directory.on_or_before": "{{longDate}} அன்று அல்லது முன்",

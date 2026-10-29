@@ -504,7 +504,6 @@
   "directory.directory.not": "não {{join}}",
   "directory.directory.not_started": "{{notStarted}} ainda sem começar",
   "directory.directory.not_understood": "Não percebido: {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} de {{toLocaleString2}}",
   "directory.directory.on_leave": "De licença",
   "directory.directory.on_or_after": "a {{longDate}} ou depois",
   "directory.directory.on_or_before": "a {{longDate}} ou antes",
