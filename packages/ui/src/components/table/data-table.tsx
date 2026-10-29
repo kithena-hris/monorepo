@@ -226,11 +226,6 @@ const GROUP_COLUMN = '__group';
 const COLUMN_MIN = 64;
 const COLUMN_MAX = 960;
 const COLUMN_DEFAULT = 176;
-/**
- * How many rows make a table long enough to say how many it holds, where it
- * is not told a `total` and does not keep loading: fewer are read at a glance.
- */
-const COUNTED_FROM = 10;
 /** How near the end, in px, counts as the end. */
 const END_MARGIN = 480;
 
@@ -1660,9 +1655,8 @@ export function DataTable<T extends TableRow>({
         body
       )}
 
-      {/* A selection's bar takes the window's foot while it is up. */}
-      {picked.size === 0 &&
-      (total !== undefined || infinite.current || rows.length >= COUNTED_FROM) ? (
+      {/* Under every table, short or long; a selection's bar takes its place while it is up. */}
+      {picked.size === 0 && rows.length > 0 ? (
         <ScrollPositionRail
           list={scrollRef}
           loaded={rows.length}

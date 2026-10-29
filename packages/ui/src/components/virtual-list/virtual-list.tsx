@@ -436,7 +436,7 @@ export function VirtualList<T>({
   // place the virtualizer counts it at: inside a list the page scrolls, so it
   // rides the window's foot, and under a box that scrolls itself.
   const count =
-    items.length > 0 && (total !== undefined || infinite.current || items.length >= 10) ? (
+    items.length > 0 ? (
       <ScrollPositionRail
         list={outerRef}
         loaded={items.length}
