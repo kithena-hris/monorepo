@@ -954,6 +954,7 @@ function Queue({
             actionsOf={rowActions}
             onEndReached={loadMore}
             loadingMore={pages.loading !== null}
+            total={kind === null ? total : countOf(kind)}
           />
         }
         detail={detail}
@@ -1013,9 +1014,12 @@ function QueueList({
   actionsOf,
   onEndReached,
   loadingMore = false,
+  total,
 }: {
   readonly onEndReached?: (() => void) | undefined;
   readonly loadingMore?: boolean;
+  /** How many the chip counts over every page: the count beside where the reader is. */
+  readonly total?: number;
   readonly rows: readonly Row[];
   readonly current: string | null;
   readonly now: number;
@@ -1062,6 +1066,7 @@ function QueueList({
       // The next page of the queue as the reader nears the end of this one.
       {...(onEndReached === undefined ? {} : { onEndReached })}
       loadingMore={loadingMore}
+      {...(total === undefined ? {} : { total: Math.max(total, items.length) })}
       renderItem={renderItem}
     />
   );
@@ -1644,6 +1649,14 @@ function Decided({
       (kind === null || d.kind === kind) &&
       (oldest === null || d.kind === 'changes' || (d.when ?? '') >= oldest),
   );
+  // Changes counted over every page, and the other kinds, which come whole.
+  const changesTotal = drawn.approvals?.decidedTotal ?? null;
+  const decidedTotal =
+    changesTotal === null
+      ? undefined
+      : (kind === null || kind === 'changes' ? changesTotal : 0) +
+        decisionsOf(state).filter((d) => d.kind !== 'changes' && (kind === null || d.kind === kind))
+          .length;
   const merges =
     viewer === 'hr' && (kind === null || kind === 'duplicates')
       ? (state.duplicates?.merges ?? [])
@@ -1679,6 +1692,7 @@ function Decided({
             fill
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
+            {...(decidedTotal === undefined ? {} : { total: decidedTotal })}
             columns={DECIDED_COLUMNS()}
           />
         </PageSection>

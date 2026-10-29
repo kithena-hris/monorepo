@@ -108,6 +108,8 @@ export interface TransferHistoryView {
   readonly items: readonly TransferView[];
   /** The cursor for older entries; null when there are none. */
   readonly next: string | null;
+  /** How many entries there are over every page, on the first; null on a later one. */
+  readonly total: number | null;
 }
 
 export type TransferDeps = ScreenDeps & {
@@ -116,6 +118,9 @@ export type TransferDeps = ScreenDeps & {
   /** Where import reports are kept: only its signing is used here. */
   readonly reports?: Pick<ObjectStore, 'sign'>;
 };
+
+/** Past this the history is not counted to the row: its total says this many. */
+const TRANSFER_COUNT_CAP = 10_000;
 
 export async function transferHistoryView(
   deps: TransferDeps,
@@ -184,9 +189,19 @@ export async function transferHistoryView(
         run: r.kind === 'import' ? runOf(r) : null,
       });
     }
+    // ponytail: the whole history read to count it, a row per file moved
+    // (`drizzle-transfers.ts`); a count query if a tenant's ledgers ever grow long.
+    const total =
+      before !== null
+        ? null
+        : rows.length <= limit
+          ? shown.length
+          : (await store.page(tx, asking.tenantId, { before: null, limit: TRANSFER_COUNT_CAP }))
+              .length;
     return ok({
       items,
       next: rows.length > limit ? (shown.at(-1)?.id ?? null) : null,
+      total,
     });
   });
 }

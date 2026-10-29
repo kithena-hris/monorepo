@@ -22,6 +22,8 @@ export interface ActivityPage {
   readonly entries: readonly StoredEntry[];
   /** The cursor for older entries; null when there are none. */
   readonly next: string | null;
+  /** How many entries the filter finds over every page, on the first; null on a later one. */
+  readonly total: number | null;
 }
 
 export const Forbidden = failure(
@@ -47,6 +49,12 @@ export function readActivity(deps: {
     if (!mayRead({ roles, support, administers }, query.filter.module)) return err(Forbidden);
     const rows = await deps.store.page(reader.tenantId, { ...query, limit: PAGE + 1 });
     const entries = rows.slice(0, PAGE);
-    return ok({ entries, next: rows.length > PAGE ? (entries.at(-1)?.id ?? null) : null });
+    const total =
+      query.before !== null
+        ? null
+        : rows.length <= PAGE
+          ? entries.length
+          : await deps.store.count(reader.tenantId, query.filter);
+    return ok({ entries, next: rows.length > PAGE ? (entries.at(-1)?.id ?? null) : null, total });
   };
 }

@@ -8,6 +8,10 @@ schema @link(url: "https://specs.apollo.dev/federation/v2.6", import: []) {
 type AuditActivity {
   entries: [AuditEntry!]
   next: ID
+  """
+  How many entries the filter finds over every page, on the first; null on a later one.
+  """
+  total: Int
 }
 
 """Who did what, when, in words. Never a value."""

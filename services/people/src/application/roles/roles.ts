@@ -122,6 +122,8 @@ export interface TenantRoles {
       readonly holders: readonly RoleHolder[];
       readonly candidates: readonly RoleCandidate[];
       readonly named: readonly RoleCandidate[];
+      /** How many candidates the search finds over every page, on the first; null on a later one. */
+      readonly total: number | null;
     }>
   >;
   /** One account's roles, as the rows hold them; for a write's answer. */
@@ -258,9 +260,19 @@ export function tenantRoles(deps: {
         return err(NotAllowedToList);
       }
       const accounts = [...held.keys()].toSorted();
+      const candidates = await store.candidates(tx, asking.tenantId, page);
+      // ponytail: counted by reading the search's every candidate, a few
+      // columns of the people who sign in; a count query if tenants outgrow it.
+      const total =
+        page === undefined || page.after != null
+          ? null
+          : candidates.length < page.limit
+            ? candidates.length
+            : (await store.candidates(tx, asking.tenantId, { search: page.search ?? null })).length;
       return ok({
         holders: accounts.map((account) => holderOf(held, account)),
-        candidates: await store.candidates(tx, asking.tenantId, page),
+        candidates,
+        total,
         named:
           page === undefined || accounts.length === 0
             ? []

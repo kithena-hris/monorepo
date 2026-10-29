@@ -1,9 +1,9 @@
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import type { EntryStore, StoredEntry } from '../application/ports.js';
 import type { ActorKind, Area, Entry } from '../domain/entry.js';
-import { SUPPORT_SESSION_HOURS } from '../domain/reading.js';
+import { SUPPORT_SESSION_HOURS, type Filter } from '../domain/reading.js';
 
 /**
  * The log, over `audit.entry` (`migrations/20260929160000_audit.sql`).
@@ -49,6 +49,22 @@ const iso = (v: Date | string): string => new Date(v).toISOString();
 /** `%`, `_` and `\` are LIKE's own; a search for "50%" means those characters. */
 const likeOf = (text: string): string => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
+/** What a filter narrows the log to, for `page` and `count` alike. */
+function filtered(tenantId: string, f: Filter): SQL {
+  const search = f.search === null || f.search.trim() === '' ? null : likeOf(f.search.trim());
+  return sql`e.tenant_id = ${tenantId}::uuid
+             AND (${f.module}::text IS NULL OR e.module = ${f.module})
+             AND (${f.areas.join(',')} = '' OR e.area = ANY (string_to_array(${f.areas.join(',')}, ',')))
+             AND (${f.actorKind}::text IS NULL OR e.actor_kind = ${f.actorKind})
+             AND (${f.actor}::uuid IS NULL OR e.actor_account_id = ${f.actor}::uuid)
+             AND (${f.subject}::text IS NULL OR e.subject_id = ${f.subject})
+             AND (${f.from}::timestamptz IS NULL OR e.occurred_at >= ${f.from}::timestamptz)
+             AND (${f.until}::timestamptz IS NULL OR e.occurred_at < ${f.until}::timestamptz)
+             AND (${search}::text IS NULL
+                  OR e.action ILIKE ${search} OR e.detail ILIKE ${search}
+                  OR e.subject_label ILIKE ${search} OR e.reason ILIKE ${search})`;
+}
+
 export function drizzleEntryStore(inTenant: InTenant): EntryStore {
   return {
     append: (e: Entry) =>
@@ -69,9 +85,15 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
         return [...rows].length > 0;
       }),
 
+    count: (tenantId, f) =>
+      inTenant(tenantId, async (tx) => {
+        const rows = await tx.execute<{ n: number }>(sql`
+          SELECT count(*)::int AS n FROM audit.entry e WHERE ${filtered(tenantId, f)}`);
+        return [...rows][0]?.n ?? 0;
+      }),
+
     page: (tenantId, { filter: f, before, limit }) =>
       inTenant(tenantId, async (tx) => {
-        const search = f.search === null || f.search.trim() === '' ? null : likeOf(f.search.trim());
         const rows = await tx.execute<Row>(sql`
           SELECT e.*, s.id AS sign_in_id, s.occurred_at AS sign_in_at, s.reason AS sign_in_reason,
                  COALESCE(e.operator_label, s.operator_label) AS named_operator
@@ -87,17 +109,7 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
                ORDER BY si.occurred_at DESC
                LIMIT 1
             ) s ON true
-           WHERE e.tenant_id = ${tenantId}::uuid
-             AND (${f.module}::text IS NULL OR e.module = ${f.module})
-             AND (${f.areas.join(',')} = '' OR e.area = ANY (string_to_array(${f.areas.join(',')}, ',')))
-             AND (${f.actorKind}::text IS NULL OR e.actor_kind = ${f.actorKind})
-             AND (${f.actor}::uuid IS NULL OR e.actor_account_id = ${f.actor}::uuid)
-             AND (${f.subject}::text IS NULL OR e.subject_id = ${f.subject})
-             AND (${f.from}::timestamptz IS NULL OR e.occurred_at >= ${f.from}::timestamptz)
-             AND (${f.until}::timestamptz IS NULL OR e.occurred_at < ${f.until}::timestamptz)
-             AND (${search}::text IS NULL
-                  OR e.action ILIKE ${search} OR e.detail ILIKE ${search}
-                  OR e.subject_label ILIKE ${search} OR e.reason ILIKE ${search})
+           WHERE ${filtered(tenantId, f)}
              AND (${before}::uuid IS NULL OR (e.occurred_at, e.id) < (
                    SELECT b.occurred_at, b.id FROM audit.entry b
                     WHERE b.tenant_id = ${tenantId}::uuid AND b.id = ${before}::uuid))

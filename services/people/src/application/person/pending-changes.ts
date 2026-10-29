@@ -191,6 +191,12 @@ export interface PendingChangeStore {
       readonly before?: { readonly at: string; readonly id: string };
     },
   ): Promise<readonly PendingChange[]>;
+  /** How many `decided` lists over every page: the count beside where the reader is. */
+  decidedCount(
+    tx: Tx,
+    tenantId: string,
+    where: { readonly since: string; readonly until: string; readonly requestedBy?: string },
+  ): Promise<number>;
   /** A sealed value's plaintext, while it is pending. */
   unseal(tx: Tx, tenantId: string, id: string): Promise<string | null>;
   /**

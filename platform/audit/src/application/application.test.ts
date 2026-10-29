@@ -40,6 +40,7 @@ function memoryStore(): EntryStore & { readonly rows: StoredEntry[] } {
       const from = before === null ? 0 : rows.findIndex((r) => r.id === before) + 1;
       return Promise.resolve(rows.slice(from, from + limit));
     },
+    count: () => Promise.resolve(rows.length),
   };
 }
 

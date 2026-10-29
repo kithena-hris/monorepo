@@ -332,10 +332,13 @@ describe('Decided, a page at a time (keyset)', () => {
     if (!first.ok) throw new Error(first.error.message);
     expect(first.value.decided).toHaveLength(DECIDED_PAGE);
     expect(first.value.decidedNext).not.toBeNull();
+    // Counted over every page on the first, so the list can say where the reader is.
+    expect(first.value.decidedTotal).toBe(total);
     const second = await approvalsView(s.deps, asking(SOFIA), first.value.decidedNext);
     if (!second.ok) throw new Error(second.error.message);
     expect(second.value.decided).toHaveLength(7);
     expect(second.value.decidedNext).toBeNull();
+    expect(second.value.decidedTotal).toBeNull();
     const ids = [...first.value.decided, ...second.value.decided].map((d) => d.id);
     expect(new Set(ids).size).toBe(total);
     // A later page carries only what was decided: the queue is the first page's.

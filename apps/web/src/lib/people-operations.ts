@@ -155,6 +155,7 @@ export const OPERATIONS = {
       itemsNext
       decided { ...ApprovalParts }
       decidedNext
+      decidedTotal
       checks { code title detail on }
       last90 { flagged rejected marked }
     }
@@ -240,6 +241,7 @@ export const OPERATIONS = {
       endpoint { id url enabled }
       deliveries { id eventName status attempts lastResponse createdAt deliveredAt replayOf }
       next
+      total
     }
   }`,
 
@@ -298,6 +300,7 @@ export const OPERATIONS = {
         subjectKind subjectId subjectLabel reason outcome via ai supportSignIn { entryId at reason }
       }
       next
+      total
     }
   }`,
 
@@ -362,6 +365,7 @@ export const OPERATIONS = {
       completedThisWeek
       toFill
       listed
+      hrListed
       blocking
       fields { key label dataType currency options { value label } person sensitive }
       rows { personId name department manager missing owner remindedAt }
@@ -389,6 +393,7 @@ export const OPERATIONS = {
       viewerAccountId canManage
       people { accountId personId name workEmail roles }
       next
+      total
       holders { accountId personId name workEmail roles }
     }
   }`,
@@ -475,6 +480,7 @@ export const OPERATIONS = {
         run { status label people { done total } }
       }
       next
+      total
     }
   }`,
 
@@ -988,6 +994,7 @@ export const OPERATIONS = {
       id name
       runs { period missed startedAt finishedAt outcome recipients { accountId name outcome } }
       next
+      total
     }
   }`,
 

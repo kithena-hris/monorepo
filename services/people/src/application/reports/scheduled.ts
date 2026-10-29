@@ -328,13 +328,34 @@ export async function scheduleRuns(
   asking: Asking,
   id: string,
   before: string | null = null,
-): Promise<Result<{ readonly runs: readonly ReportRun[]; readonly next: string | null }>> {
+): Promise<
+  Result<{
+    readonly runs: readonly ReportRun[];
+    readonly next: string | null;
+    /** Over every page, on the first; null on a later one. */
+    readonly total: number | null;
+  }>
+> {
   const found = await findSchedule(deps, tx, asking, id);
   if (!found.ok) return found;
   const read = await deps.schedules.runs(tx, asking.tenantId, id, RUNS_PAGE + 1, before);
   const runs = read.slice(0, RUNS_PAGE);
-  return ok({ runs, next: read.length > RUNS_PAGE ? (runs.at(-1)?.period ?? null) : null });
+  // ponytail: counted by reading them, one a period at most; a count query past years of daily runs.
+  const total =
+    before !== null
+      ? null
+      : read.length <= RUNS_PAGE
+        ? runs.length
+        : (await deps.schedules.runs(tx, asking.tenantId, id, RUNS_COUNT_CAP, null)).length;
+  return ok({
+    runs,
+    next: read.length > RUNS_PAGE ? (runs.at(-1)?.period ?? null) : null,
+    total,
+  });
 }
+
+/** Past this a schedule's runs are not counted to the run: its total says this many. */
+const RUNS_COUNT_CAP = 10_000;
 
 async function findSchedule(
   deps: ScheduleAdminDeps,

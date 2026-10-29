@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import {
   CalendarDate,
@@ -400,14 +400,18 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
     async page(f) {
       const after = pageCursor.read(f.after);
       const first = sql`lower(range_merge(${request.days}))`;
+      const filtered = and(
+        f.personIds === undefined ? undefined : inArray(request.personId, [...f.personIds]),
+        f.notPersonId == null ? undefined : ne(request.personId, f.notPersonId),
+        inArray(request.status, [...f.statuses]),
+        f.from === undefined
+          ? undefined
+          : sql`upper(range_merge(${request.days})) > ${f.from}::date`,
+      );
       const rows = await select()
         .where(
           and(
-            f.personIds === undefined ? undefined : inArray(request.personId, [...f.personIds]),
-            inArray(request.status, [...f.statuses]),
-            f.from === undefined
-              ? undefined
-              : sql`upper(range_merge(${request.days})) > ${f.from}::date`,
+            filtered,
             after === null
               ? undefined
               : f.order === 'newest'
@@ -423,8 +427,28 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
         .limit(f.limit + 1);
       const records = rows.slice(0, f.limit).map((row) => toRecord(tenantId, row));
       const last = records.at(-1);
+      // Counted on the first page only, and only when it is not the whole list.
+      const total =
+        after !== null
+          ? null
+          : rows.length <= f.limit
+            ? records.length
+            : ((
+                await tx
+                  .select({ n: count() })
+                  .from(request)
+                  .innerJoin(
+                    leaveType,
+                    and(
+                      eq(leaveType.tenantId, request.tenantId),
+                      eq(leaveType.key, request.leaveTypeKey),
+                    ),
+                  )
+                  .where(filtered)
+              )[0]?.n ?? 0);
       return {
         records,
+        total,
         next:
           rows.length > f.limit && last !== undefined
             ? pageCursor.of(

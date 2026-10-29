@@ -25,6 +25,7 @@ function wired(roles: string[]) {
       asked.push(q.filter);
       return Promise.resolve([]);
     },
+    count: () => Promise.resolve(0),
   };
   configureGraphQL({
     read: readActivity({ store, readers: { roles: () => Promise.resolve(new Set(roles)) } }),

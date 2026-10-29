@@ -272,6 +272,8 @@ export interface ActivityEntry {
 export interface ActivityPage {
   readonly entries: readonly ActivityEntry[];
   readonly next: string | null;
+  /** How many entries the filters find over every page, on the first. Absent from an older log. */
+  readonly total?: number | null;
 }
 
 /** The ids on a page that People can put a name and a face to. */

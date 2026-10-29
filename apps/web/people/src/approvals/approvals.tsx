@@ -134,6 +134,8 @@ export interface ApprovalsState {
   readonly decided?: readonly ApprovalItem[];
   /** The place of Decided's next page; null on the last. Absent from an older People. */
   readonly decidedNext?: string | null;
+  /** How many Decided holds over every page, on the first; absent or null otherwise. */
+  readonly decidedTotal?: number | null;
   /** What Kithena checks (AI8), for HR. */
   readonly checks?: readonly ApprovalCheck[] | null;
   /** A People administrator switches the checks. */

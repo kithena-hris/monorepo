@@ -495,6 +495,7 @@ describe('requests', () => {
     const walk = async (order: 'newest' | 'soonest') => {
       const seen: string[] = [];
       let after: string | null = null;
+      let counted: (number | null)[] = [];
       do {
         // oxlint-disable-next-line no-await-in-loop -- page after page
         const page = await run((tx) =>
@@ -508,8 +509,12 @@ describe('requests', () => {
           }),
         );
         seen.push(...page.records.map((r) => r.request.id));
+        counted = [...counted, page.total];
         after = page.next;
       } while (after !== null);
+      // Counted on the first page, over every page; not again on the later ones.
+      expect(counted[0]).toBe(seen.length);
+      expect(counted.slice(1).every((n) => n === null)).toBe(true);
       return seen;
     };
     expect(await walk('soonest')).toEqual(made);

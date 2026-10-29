@@ -179,6 +179,14 @@ describe('the import and export history', () => {
     if (!read.ok) throw new Error(read.error.message);
     expect(read.value.items).toHaveLength(2);
     expect(read.value.next).toBe('00000000-0000-4000-9000-000000000002');
-    expect(asked).toEqual([{ before: null, limit: 3 }]);
+    // The page, and then every entry once to count them: the first page only.
+    expect(asked).toEqual([
+      { before: null, limit: 3 },
+      { before: null, limit: 10_000 },
+    ]);
+    expect(read.value.total).toBe(3);
+    const later = await transferHistoryView(deps, as(SOFIA_ACCOUNT, 'hr'), read.value.next, 2);
+    if (!later.ok) throw new Error(later.error.message);
+    expect(later.value.total).toBeNull();
   });
 });

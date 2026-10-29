@@ -119,10 +119,25 @@ describe('the log in Postgres', () => {
   it('knows who administers a module, the latest word winning', async () => {
     const store = drizzleEntryStore(inTenant);
     const at = (h: number) => `2026-10-17T${String(h).padStart(2, '0')}:00:00.000Z`;
-    await store.administrator(ACME, { module: 'performance', accountId: ADA, named: true, at: at(9) });
-    await store.administrator(ACME, { module: 'performance', accountId: ADA, named: false, at: at(11) });
+    await store.administrator(ACME, {
+      module: 'performance',
+      accountId: ADA,
+      named: true,
+      at: at(9),
+    });
+    await store.administrator(ACME, {
+      module: 'performance',
+      accountId: ADA,
+      named: false,
+      at: at(11),
+    });
     // A redelivered naming from before the removal changes nothing.
-    await store.administrator(ACME, { module: 'performance', accountId: ADA, named: true, at: at(10) });
+    await store.administrator(ACME, {
+      module: 'performance',
+      accountId: ADA,
+      named: true,
+      at: at(10),
+    });
     expect([...(await store.administers(ACME, ADA))]).toEqual([]);
     await store.administrator(ACME, { module: 'timeoff', accountId: ADA, named: true, at: at(12) });
     expect([...(await store.administers(ACME, ADA))]).toEqual(['timeoff']);
@@ -206,6 +221,10 @@ describe('the log in Postgres', () => {
     // LIKE's own characters are literal: "50%" is not "50 anything".
     expect(await actions({ search: '50%' })).toEqual(['Exported people']);
     expect(await actions({ search: '5_%' })).toEqual([]);
+    // Counted by the same filter, over every page.
+    expect(await store.count(tenant, ALL)).toBe(3);
+    expect(await store.count(tenant, { ...ALL, areas: ['roles', 'imports_exports'] })).toBe(2);
+    expect(await store.count(tenant, { ...ALL, search: '5_%' })).toBe(0);
 
     const [newest] = await page({});
     expect(

@@ -281,6 +281,13 @@ describe('a held change, stored', () => {
     );
     expect([top, ...rest].map((c) => c.approval.id)).toEqual(all.map((c) => c.approval.id));
     expect(rest.map((c) => c.approval.id)).not.toContain(top.approval.id);
+    // Counted by the same rule, over every page.
+    expect(await inTenant(ACME, ({ tx }) => store.decidedCount(tx, ACME, where))).toBe(all.length);
+    expect(
+      await inTenant(ACME, ({ tx }) =>
+        store.decidedCount(tx, ACME, { ...where, requestedBy: ASKER }),
+      ),
+    ).toBe(mine.length);
   });
 
   it('is invisible to another tenant', async () => {

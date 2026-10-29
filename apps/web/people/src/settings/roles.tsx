@@ -65,6 +65,8 @@ export interface RolesState {
   readonly people: readonly RolesPerson[];
   /** The next page's place; null on the last. Absent from an older People. */
   readonly next?: string | null;
+  /** How many the table lists over every page. Absent from an older People. */
+  readonly total?: number | null;
   /** Everybody holding a role, whatever the page. Absent from an older People. */
   readonly holders?: readonly RolesPerson[];
 }
@@ -374,6 +376,8 @@ function Roles({
             fill
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
+            // Counted by People for its own search; a filter typed ahead of it is not.
+            {...(needle === '' && state.total != null ? { total: state.total } : {})}
             empty={t('settings.roles.nobody_matches', 'Nobody matches')}
             columns={columns}
           />

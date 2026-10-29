@@ -266,6 +266,7 @@ describe('a replay after the allowlist was narrowed', () => {
     // The log (PEO-121): newest first, the replay naming what it replayed.
     const log = await inTenant(ACME, ({ tx }) => listDeliveries(tx, ACME, id, null));
     expect(log.next).toBeNull();
+    expect(log.total).toBe(log.deliveries.length);
     expect(log.deliveries.map((d) => [d.status, d.replayOf])).toEqual([
       ['delivered', deliveryId],
       ['delivered', null],

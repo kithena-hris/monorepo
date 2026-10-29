@@ -27,6 +27,8 @@ export interface ReportRunsState {
   }[];
   /** The page before the last period shown; null on the last. Absent from an older People. */
   readonly next?: string | null;
+  /** How many runs there are over every page. Absent from an older People. */
+  readonly total?: number | null;
 }
 
 export interface ReportRunsProps {
@@ -137,6 +139,7 @@ function Runs({
           itemClassName="[&:not(:last-child)]:shadow-[inset_0_-1px_0_var(--color-border)]"
           {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
           loadingMore={pages.loading}
+          {...(state.total == null ? {} : { total: state.total })}
           renderItem={(run) => {
             const outcome =
               run.outcome === null

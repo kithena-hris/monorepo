@@ -92,6 +92,8 @@ export interface TransferHistory {
   readonly items: readonly TransferEntry[];
   /** The cursor for older entries; null on the last page. */
   readonly next: string | null;
+  /** How many entries there are over every page. Absent from an older People. */
+  readonly total?: number | null;
 }
 
 export interface ImportExportProps {
@@ -562,6 +564,8 @@ function History({
   const infinite = {
     ...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore }),
     loadingMore: pages.loading,
+    // People counts the whole history; a kind or a search narrows only what is loaded.
+    ...(kind === 'all' && search === '' && history.total != null ? { total: history.total } : {}),
   };
   const when = useCallback((e: TransferEntry) => whenOf(e.at, now, zone), [now, zone]);
   // Held while the clock and the zone hold, so a page landing or a search
