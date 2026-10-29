@@ -546,6 +546,8 @@
   "components.scheduler.scheduler.to": "de {{formatMinutes}} a {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} a {{name2}}",
   "components.scroll-position.scroll-position.back_to_top": "Tornar a dalt",
+  "components.scroll-position.scroll-position.of": "{{seen}} de {{total}}",
+  "components.scroll-position.scroll-position.of_more": "{{seen}} de {{loaded}}+",
   "components.sheet.sheet.close": "Tancar",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escapada cancel·la.",
   "components.shortcuts.key-recorder.none": "Cap",

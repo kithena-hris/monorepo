@@ -528,6 +528,8 @@
   "components.scheduler.scheduler.to": "{{formatMinutes}} से {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} से {{name2}}",
   "components.scroll-position.scroll-position.back_to_top": "ऊपर वापस जाएँ",
+  "components.scroll-position.scroll-position.of": "{{total}} में से {{seen}}",
+  "components.scroll-position.scroll-position.of_more": "{{loaded}}+ में से {{seen}}",
   "components.sheet.sheet.close": "बंद करें",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}। Escape रद्द करता है।",
   "components.shortcuts.key-recorder.none": "कोई नहीं",
