@@ -23,7 +23,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
-import { ScrollPositionRail } from '../scroll-position/scroll-position';
+import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
 import { t } from '../../lib/i18n';
 
 /**
@@ -445,7 +445,7 @@ export function VirtualList<T>({
       className={cn(surface && SURFACE, !page && SCROLLS, className)}
     >
       {page && (infinite.current || total !== undefined) ? (
-        <ScrollPositionRail
+        <LazyScrollPositionRail
           list={outerRef}
           loaded={items.length}
           total={total ?? (onEndReached === undefined ? items.length : null)}

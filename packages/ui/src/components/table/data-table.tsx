@@ -76,7 +76,7 @@ import { BulkBar } from './bulk-bar';
 import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
-import { ScrollPositionRail } from '../scroll-position/scroll-position';
+import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
 import {
   Table,
   TableBody,
@@ -1645,7 +1645,7 @@ export function DataTable<T extends TableRow>({
   return (
     <div className="min-w-0 space-y-3">
       {page && (infinite.current || total !== undefined) ? (
-        <ScrollPositionRail
+        <LazyScrollPositionRail
           list={scrollRef}
           loaded={rows.length}
           total={total ?? (onEndReached === undefined ? rows.length : null)}

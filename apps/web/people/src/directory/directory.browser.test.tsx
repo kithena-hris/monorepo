@@ -69,6 +69,16 @@ function pages() {
   return { asked, onLoadMore };
 }
 
+/** Until no page has been asked for in a while: the list has stopped growing. */
+async function quiet(asked: readonly string[]): Promise<void> {
+  let seen = -1;
+  while (asked.length !== seen) {
+    seen = asked.length;
+    // oxlint-disable-next-line no-await-in-loop -- waiting is the point
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  }
+}
+
 function directory(over: { onLoadMore: (after: string) => Promise<unknown>; onOpen?: () => void }) {
   // Inside what the shell puts around it (`apps/web`'s `app-shell.tsx` and
   // the remote's mount): Reach's `PageLayout` with the rail alone, whose
@@ -274,7 +284,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
   );
 
   it('opens a quick look on a click, and Show in list brings their row back smoothly and focuses it', async () => {
-    const { onLoadMore } = pages();
+    const { asked, onLoadMore } = pages();
     const onOpen = vi.fn();
     directory({ onLoadMore, onOpen });
     expect(screen.queryByRole('complementary', { name: 'Quick look' })).toBeNull();
@@ -290,6 +300,8 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     await vi.waitFor(() => {
       expect(inView('p0')).toBe(false);
     });
+    // At the end, page after page loads; on CI's WebKit that outlasts a click's wait.
+    await quiet(asked);
     await userEvent.click(within(look).getByRole('button', { name: 'Show in list' }));
     await vi.waitFor(
       () => {
