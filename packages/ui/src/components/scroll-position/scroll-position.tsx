@@ -58,8 +58,10 @@ export function ScrollPosition({
           seen: formatNumber(seen),
           total: formatNumber(total),
         });
+  // Decorative: the count beside it says the same in words, so its track is
+  // not held to an icon's contrast (`data-decorative`, `tools/a11y`).
   const ring = (
-    <span aria-hidden className="inline-flex">
+    <span aria-hidden data-decorative className="inline-flex">
       <CircularProgress
         value={seen}
         max={Math.max(1, total ?? loaded ?? seen)}
