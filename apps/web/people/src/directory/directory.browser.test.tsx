@@ -302,7 +302,24 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     });
     // At the end, page after page loads; on CI's WebKit that outlasts a click's wait.
     await quiet(asked);
-    await userEvent.click(within(look).getByRole('button', { name: 'Show in list' }));
+    // DIAGNOSTIC (temporary): what moves under CI's WebKit.
+    const show = within(look).getByRole('button', { name: 'Show in list' });
+    const diag: string[] = [];
+    for (let i = 0; i < 8; i += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- sampling frames
+      await new Promise((r) => requestAnimationFrame(r));
+      const r = show.getBoundingClientRect();
+      const lk = look.getBoundingClientRect();
+      const t = box.getBoundingClientRect();
+      diag.push(
+        `DIAG ${String(i)} show=${r.top.toFixed(1)},${r.left.toFixed(1)} look=${lk.top.toFixed(1)},${lk.height.toFixed(1)} y=${window.scrollY.toFixed(1)} doc=${String(document.documentElement.scrollHeight)} box=${t.top.toFixed(1)},${t.height.toFixed(1)},${String(box.scrollWidth)}/${String(box.clientWidth)} asked=${String(asked.length)} head=${box.querySelector('thead')?.style.transform ?? ''} anim=${String(document.getAnimations().length)}`,
+      );
+    }
+    try {
+      await userEvent.click(within(look).getByRole('button', { name: 'Show in list' }));
+    } catch (error) {
+      throw new Error(`${diag.join('\n')}\n${String(error)}`);
+    }
     await vi.waitFor(
       () => {
         expect(inView('p0')).toBe(true);
