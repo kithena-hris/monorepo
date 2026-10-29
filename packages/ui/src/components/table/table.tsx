@@ -279,7 +279,8 @@ export function TableHead({
         // Opaque, and over the rest of a pinned header (`TableHeader`, whose
         // rule is more specific, hence `!`): the corner, which both the header
         // cells scrolling sideways and the pinned column scrolling up pass under.
-        sticky && 'sticky left-0 z-30! bg-surface',
+        // Past the row's own controls when they are pinned too (`--reach-pin-start`).
+        sticky && 'sticky start-(--reach-pin-start,0px) z-30! bg-surface',
         resizer !== undefined && !sticky && 'relative',
         resizer !== undefined && 'overflow-visible',
         className,
@@ -349,7 +350,7 @@ export function TableCell({
         // The identity column stays put while the other twelve scroll past.
         // Without it, a wide table on a phone is a grid of numbers with no
         // idea whose they are.
-        sticky && 'sticky left-0 z-10 bg-[inherit]',
+        sticky && 'sticky start-(--reach-pin-start,0px) z-10 bg-[inherit]',
         className,
       )}
       {...props}

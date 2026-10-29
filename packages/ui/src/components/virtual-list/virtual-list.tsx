@@ -24,6 +24,7 @@ import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
 import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
+import { ShownCount } from '../scroll-position/shown-count';
 import { t } from '../../lib/i18n';
 
 /**
@@ -138,11 +139,9 @@ export interface VirtualListProps<T> {
   /** What a screen reader hears as a page lands. */
   moreLoaded?: (added: number) => string;
   /**
-   * How many items there are in all, loaded or not. A list the window scrolls
-   * that keeps loading (or is given this) shows the reader where they are as
-   * they go: a ring and "150 of 388" in its top corner, which takes them back
-   * to the top. Without it the count is out of what has loaded ("150 of
-   * 200+") until the last page lands.
+   * How many items there are in all, loaded or not: said at the list's top,
+   * "Showing 150 of 388". A list the window scrolls that keeps loading (or is
+   * given this) also offers a way back to the top once its top has gone by.
    */
   total?: number;
   /** On a `self` list, the height goes here. Without a bounded height nothing scrolls. */
@@ -434,29 +433,34 @@ export function VirtualList<T>({
     </div>
   ) : null;
 
+  // Above the list, never inside it: a line inside the box would move every
+  // row off the place the virtualizer counts it at.
+  const count =
+    total === undefined || items.length === 0 ? null : (
+      <ShownCount shown={items.length} total={total} className="mb-3" />
+    );
   const outer = (children: ReactNode, surface: boolean): JSX.Element => (
-    <div
-      ref={outerRef}
-      // Focusable for the same reason the table's container is: a region only a
-      // mouse can scroll is unreachable from the keyboard.
-      // A box that scrolls is a region the keyboard can reach; a list that is
-      // part of the page is only a list, named on the list itself.
-      {...(page ? {} : { tabIndex: 0, role: 'region', 'aria-label': label })}
-      className={cn(surface && SURFACE, !page && SCROLLS, className)}
-    >
-      {page && (infinite.current || total !== undefined) ? (
-        <LazyScrollPositionRail
-          list={outerRef}
-          loaded={items.length}
-          total={total ?? (onEndReached === undefined ? items.length : null)}
-        />
-      ) : null}
-      {children}
-      {placeholder}
-      <span aria-live="polite" className="sr-only">
-        {said}
-      </span>
-    </div>
+    <>
+      {count}
+      <div
+        ref={outerRef}
+        // Focusable for the same reason the table's container is: a region only a
+        // mouse can scroll is unreachable from the keyboard.
+        // A box that scrolls is a region the keyboard can reach; a list that is
+        // part of the page is only a list, named on the list itself.
+        {...(page ? {} : { tabIndex: 0, role: 'region', 'aria-label': label })}
+        className={cn(surface && SURFACE, !page && SCROLLS, className)}
+      >
+        {page && (infinite.current || total !== undefined) ? (
+          <LazyScrollPositionRail list={outerRef} />
+        ) : null}
+        {children}
+        {placeholder}
+        <span aria-live="polite" className="sr-only">
+          {said}
+        </span>
+      </div>
+    </>
   );
 
   if (items.length === 0) {

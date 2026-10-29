@@ -1202,7 +1202,7 @@ function BlockView({
       <header
         className={
           pinned
-            ? 'z-10 -mx-2 flex flex-col gap-1 bg-canvas/90 px-2 py-2 backdrop-blur-md lg:sticky lg:top-0'
+            ? 'z-10 -mx-2 flex flex-col gap-1 bg-canvas px-2 py-2 lg:sticky lg:top-0'
             : 'flex flex-col gap-1'
         }
       >
@@ -1324,7 +1324,7 @@ function WizardFrame({
           >
             {/* One scroll for the page. The question stays where it is on the left while the
                 answers pass on the right, each part's name pinned at the top as they go. */}
-            <aside className="sticky top-0 z-20 -mx-4 bg-canvas/90 px-4 pt-6 pb-3 backdrop-blur-md sm:-mx-8 sm:px-8 lg:mx-0 lg:max-h-full lg:self-start lg:bg-transparent lg:px-0 lg:pt-16 lg:pb-0 lg:backdrop-blur-none">
+            <aside className="sticky top-0 z-20 -mx-4 bg-canvas px-4 pt-6 pb-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:max-h-full lg:self-start lg:bg-transparent lg:px-0 lg:pt-16 lg:pb-0">
               <div className="flex flex-col gap-3 lg:gap-4">
                 <h2
                   id="setup-step-title"

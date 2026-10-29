@@ -696,9 +696,8 @@ describe('<DataTable scroll="page">', () => {
     expect(box.className).not.toContain('overscroll-y-contain');
   });
 
-  it('scrolls one axis a gesture: the first movement’s, until the wheel rests', async () => {
+  it('keeps a sideways gesture from sliding the window, without taking the scroll', async () => {
     vi.useFakeTimers();
-    const by = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
     render(
       <DataTable
         label="People"
@@ -718,25 +717,23 @@ describe('<DataTable scroll="page">', () => {
     Object.defineProperty(box, 'clientWidth', { value: 800 });
     const wheel = (deltaX: number, deltaY: number): boolean =>
       fireEvent(box, new WheelEvent('wheel', { deltaX, deltaY, cancelable: true }));
-    // Down, and a little sideways: down only, by the window.
-    expect(wheel(4, 40)).toBe(false);
-    expect(by).toHaveBeenLastCalledWith(0, 40);
-    expect(box.scrollLeft).toBe(0);
+    // Never cancelled: the browser scrolls, off the main thread.
+    expect(wheel(4, 40)).toBe(true);
+    // Down, and a little sideways: the window may still take it.
+    expect(box.style.overscrollBehaviorY).toBe('');
     // Still the same gesture, though it now leans sideways.
-    expect(wheel(30, 2)).toBe(false);
-    expect(by).toHaveBeenLastCalledWith(0, 2);
-    expect(box.scrollLeft).toBe(0);
-    // Straight down is the browser's own.
-    expect(wheel(0, 40)).toBe(true);
-    // At rest, a sideways gesture is sideways only.
+    expect(wheel(30, 2)).toBe(true);
+    expect(box.style.overscrollBehaviorY).toBe('');
+    // At rest, a gesture that starts sideways keeps the window still until it rests.
     act(() => {
       vi.advanceTimersByTime(200);
     });
-    by.mockClear();
-    expect(wheel(30, 3)).toBe(false);
-    expect(box.scrollLeft).toBe(30);
-    expect(by).not.toHaveBeenCalled();
-    by.mockRestore();
+    expect(wheel(30, 3)).toBe(true);
+    expect(box.style.overscrollBehaviorY).toBe('contain');
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(box.style.overscrollBehaviorY).toBe('');
     vi.useRealTimers();
   });
 });

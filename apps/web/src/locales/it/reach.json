@@ -548,6 +548,8 @@
   "components.scroll-position.scroll-position.back_to_top": "Torna su",
   "components.scroll-position.scroll-position.of": "{{seen}} di {{total}}",
   "components.scroll-position.scroll-position.of_more": "{{seen}} di {{loaded}}+",
+  "components.scroll-position.shown-count.all": "Tutti i {{total}} mostrati",
+  "components.scroll-position.shown-count.of": "{{shown}} di {{total}} mostrati",
   "components.sheet.sheet.close": "Chiudi",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Esc annulla.",
   "components.shortcuts.key-recorder.none": "Nessuno",

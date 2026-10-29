@@ -716,7 +716,7 @@ describe('at 390×844, with a finger', () => {
     expect(remind.closest('div')).toMatchTextContent('388 people');
   });
 
-  it('smart search: results scrolling forever, with where you are and the way back (MA2)', async () => {
+  it('smart search: results scrolling forever, with the count and the way back (MA2)', async () => {
     mount(
       <Directory
         {...smart}
@@ -728,7 +728,7 @@ describe('at 390×844, with a finger', () => {
       />,
     );
     window.scrollTo({ top: 1200 });
-    const back = await screen.findByRole('button', { name: /^\d+ of 388\. Back to top$/u });
+    const back = await screen.findByRole('button', { name: 'Back to top' });
     expect(back).toBeVisible();
     await settled();
     expect(underFloor(document.body)).toEqual([]);

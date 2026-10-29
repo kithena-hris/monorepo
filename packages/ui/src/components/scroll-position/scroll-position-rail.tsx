@@ -2,31 +2,32 @@
 
 import { useEffect, useState, type JSX, type RefObject } from 'react';
 
+import { icons } from '../../icons';
+import { t } from '../../lib/i18n';
 import { cn } from '../../lib/cn';
-import { ScrollPosition } from './scroll-position';
+import { Button } from '../button/button';
 
 /**
- * `ScrollPosition` over a list the window scrolls: `DataTable` and
- * `VirtualList` draw it themselves, and a list of its own (`List`) places it
- * first inside its box, through `LazyScrollPositionRail`. Nothing until the
- * list's top has gone under the page's sticky header; then the count rises
- * into the list's top corner, under whatever the list pins at its top (a
- * table's header, or the element marked `data-list-head`), rides there to the
- * list's end, and goes as the list comes back down. A sticky line of no height.
+ * Back to the top of a list the window scrolls: `DataTable` and `VirtualList`
+ * draw it themselves, and a list of its own (`List`) places it first inside
+ * its box, through `LazyScrollPositionRail`. Nothing until the list's top has
+ * gone under the page's sticky header; then the button rises into the list's
+ * top corner, under whatever the list pins at its top (a table's header, or
+ * the element marked `data-list-head`), rides there to the list's end, and
+ * goes as the list comes back down. A sticky line of no height.
+ *
+ * How far down the page the reader is, is the page's to say, once for every
+ * page (`PageLayout`'s scroll progress), not each list's.
  */
 export function ScrollPositionRail({
   list,
-  loaded,
-  total,
   className,
 }: {
   readonly list: RefObject<HTMLElement | null>;
-  readonly loaded: number;
-  readonly total: number | null;
   readonly className?: string;
 }): JSX.Element | null {
-  // Its own state, so a scroll frame draws this and not the list it sits over.
-  const [at, setAt] = useState<{ seen: number; pinned: boolean; below: number } | null>(null);
+  // Its own state, and only when it changes, so a scroll frame draws nothing.
+  const [at, setAt] = useState<{ pinned: boolean; below: number } | null>(null);
   useEffect(() => {
     const el = list.current;
     if (el === null) return;
@@ -39,17 +40,12 @@ export function ScrollPositionRail({
       const below =
         el.querySelector('thead, [data-list-head]')?.getBoundingClientRect().height ?? 0;
       const pinned = box.top < top - 1 && box.bottom > top + below;
-      // ponytail: read as a share of the list's height, so a row is a row's
-      // share; exact per row if rows ever differ much in height.
-      const read =
-        box.height > 0 ? Math.min(1, Math.max(0, (window.innerHeight - box.top) / box.height)) : 0;
-      const seen = Math.round(read * loaded);
       setAt((now) =>
         now === null && !pinned
           ? null
-          : now?.pinned === pinned && now.seen === seen && now.below === below
+          : now?.pinned === pinned && now.below === below
             ? now
-            : { seen, pinned, below },
+            : { pinned, below },
       );
     };
     const onScroll = (): void => {
@@ -63,7 +59,7 @@ export function ScrollPositionRail({
       window.removeEventListener('resize', onScroll);
       cancelAnimationFrame(frame);
     };
-  }, [list, loaded]);
+  }, [list]);
 
   if (at === null) return null;
   const toTop = (): void => {
@@ -75,11 +71,11 @@ export function ScrollPositionRail({
       className={cn('pointer-events-none sticky z-30 h-0', className)}
       style={{ top: `calc(var(--reach-sticky-top, 0px) + ${String(at.below)}px)` }}
     >
-      <ScrollPosition
-        seen={at.seen}
-        total={total}
-        loaded={loaded}
-        onBackToTop={toTop}
+      <Button
+        variant="secondary"
+        size="xs"
+        endIcon={<icons.up aria-hidden />}
+        onClick={toTop}
         // Up from under the list into its corner, the way a flyout opens;
         // held where the way out ends, then gone until the list pins again.
         data-state={at.pinned ? 'open' : 'closed'}
@@ -89,8 +85,10 @@ export function ScrollPositionRail({
         onAnimationEnd={() => {
           setAt((now) => (now?.pinned === false ? null : now));
         }}
-        className="absolute end-3 top-2 popover-motion pointer-events-auto data-[state=closed]:pointer-events-none"
-      />
+        className="absolute end-3 top-2 popover-motion pointer-events-auto shadow-md data-[state=closed]:pointer-events-none"
+      >
+        {t('components.scroll-position.scroll-position.back_to_top', 'Back to top')}
+      </Button>
     </div>
   );
 }

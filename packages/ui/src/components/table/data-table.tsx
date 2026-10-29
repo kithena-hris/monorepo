@@ -78,6 +78,7 @@ import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
 import type * as TableScroll from './table-scroll';
 import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
+import { ShownCount } from '../scroll-position/shown-count';
 import {
   Table,
   TableBody,
@@ -480,11 +481,9 @@ export interface DataTableProps<T extends TableRow> {
    */
   endLabel?: ReactNode;
   /**
-   * How many rows there are in all, loaded or not. A table the window scrolls
-   * that keeps loading (or is given this) shows the reader where they are as
-   * they go: a ring and "150 of 388" under its pinned header, which takes
-   * them back to the top. Without it the count is out of what has loaded
-   * ("150 of 200+") until the last page lands.
+   * How many rows there are in all, loaded or not: said above the table,
+   * "Showing 150 of 388". A table the window scrolls that keeps loading (or
+   * is given this) also offers a way back to the top under its pinned header.
    */
   total?: number;
 
@@ -928,8 +927,8 @@ export function DataTable<T extends TableRow>({
   useEffect(() => {
     const el = scrollRef.current;
     if (el === null) return;
-    return afterLoad((m) => m.lockAxis(el, page));
-  }, [page]);
+    return afterLoad((m) => m.lockAxis(el));
+  }, []);
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inPage = useWindowVirtualizer({
     count: virtualized && page ? items.length : 0,
@@ -996,6 +995,14 @@ export function DataTable<T extends TableRow>({
     : items.map((item, index) => ({ item, index }));
 
   const leadingColumns = (renderDetail ? 1 : 0) + (selectable ? 1 : 0) + (canReorder ? 1 : 0);
+  /*
+   * A pinned column takes the row's own controls with it: the box and the
+   * disclosure stay at the start, 40px each, and the pinned column after them
+   * (`--reach-pin-start`), so a row scrolled sideways still says whose it is
+   * and can still be picked. The grip scrolls away under them.
+   */
+  const pinned = columns.some((column) => column.sticky === true);
+  const pinStart = pinned ? ((selectable ? 1 : 0) + (renderDetail ? 1 : 0)) * 40 : 0;
   const totalColumns = columns.length + leadingColumns + (rowActions ? 1 : 0);
 
   /*
@@ -1276,18 +1283,18 @@ export function DataTable<T extends TableRow>({
       // Fixed widths add up to the table's: `w-max` would size it on its
       // content, and the browser would then share that out as cells came and
       // went. The leading controls are 40px each, the actions 48px.
-      {...(fixed
-        ? {
-            style: ((): CSSProperties => {
-              const sum =
-                columns.reduce((total, column) => total + widthFor(column), 0) +
-                leadingColumns * 40 +
-                (rowActions ? 48 : 0);
-              // Filling, the widths are shares of the box and their sum its least.
-              return fillsWidth ? { width: '100%', minWidth: sum } : { width: sum };
-            })(),
-          }
-        : {})}
+      style={((): CSSProperties | undefined => {
+        const pin = pinned
+          ? ({ '--reach-pin-start': `${String(pinStart)}px` } as CSSProperties)
+          : {};
+        if (!fixed) return pinned ? pin : undefined;
+        const sum =
+          columns.reduce((total, column) => total + widthFor(column), 0) +
+          leadingColumns * 40 +
+          (rowActions ? 48 : 0);
+        // Filling, the widths are shares of the box and their sum its least.
+        return fillsWidth ? { ...pin, width: '100%', minWidth: sum } : { ...pin, width: sum };
+      })()}
       // While more is on its way, the wheel stays with the table at the end
       // of what has loaded: WebKit handed it to the page, which slid away
       // under the reader until the next page arrived.
@@ -1322,7 +1329,12 @@ export function DataTable<T extends TableRow>({
           ) : null}
 
           {selectable ? (
-            <TableHead className="w-10 touch:me-auto touch:flex touch:h-auto! touch:items-center touch:gap-3 touch:p-0!">
+            <TableHead
+              className={cn(
+                'w-10 touch:me-auto touch:flex touch:h-auto! touch:items-center touch:gap-3 touch:p-0!',
+                pinned && 'sticky start-0 z-30! bg-surface',
+              )}
+            >
               <Checkbox
                 checked={allPicked ? true : somePicked ? 'indeterminate' : false}
                 // Named for what it does now, not for what it is. "Select all"
@@ -1349,7 +1361,12 @@ export function DataTable<T extends TableRow>({
           ) : null}
 
           {renderDetail ? (
-            <TableHead className="w-10 touch:hidden">
+            <TableHead
+              className={cn(
+                'w-10 touch:hidden',
+                pinned && cn('sticky z-30! bg-surface', selectable ? 'start-10' : 'start-0'),
+              )}
+            >
               <span className="sr-only">{t('components.table.data-table.expand', 'Expand')}</span>
             </TableHead>
           ) : null}
@@ -1538,6 +1555,7 @@ export function DataTable<T extends TableRow>({
               hasTrailing={hasTrailing}
               menuOnCard={menuOnCard}
               leadingColumns={leadingColumns}
+              pinned={pinned}
               stripe={striped && (place.get(id) ?? 0) % 2 === 1 && !picked.has(id)}
               selected={picked.has(id)}
               active={activeRowId === id}
@@ -1607,14 +1625,10 @@ export function DataTable<T extends TableRow>({
 
   return (
     <div className="min-w-0 space-y-3">
+      {total === undefined ? null : <ShownCount shown={rows.length} total={total} />}
       {page && (infinite.current || total !== undefined) ? (
-        <LazyScrollPositionRail
-          list={scrollRef}
-          loaded={rows.length}
-          total={total ?? (onEndReached === undefined ? rows.length : null)}
-          // Of no height, and none of the space between the table's parts.
-          className="my-0"
-        />
+        // Of no height, and none of the space between the table's parts.
+        <LazyScrollPositionRail list={scrollRef} className="my-0" />
       ) : null}
       {reorderable && activeSorts.length > 0 ? (
         <p role="status" className="text-xs text-fg-muted">
@@ -1681,6 +1695,8 @@ interface BodyRowProps<T> {
   hasTrailing: boolean;
   menuOnCard: boolean;
   leadingColumns: number;
+  /** The row's controls stay at its start with a pinned column (`--reach-pin-start`). */
+  pinned: boolean;
   stripe: boolean;
   selected: boolean;
   active: boolean;
@@ -1717,6 +1733,7 @@ const BodyRow = memo(function BodyRow<T>({
   hasTrailing,
   menuOnCard,
   leadingColumns,
+  pinned,
   stripe,
   selected,
   active,
@@ -1797,7 +1814,13 @@ const BodyRow = memo(function BodyRow<T>({
           <TableCell
             // Lower than the grip: a checkbox is smaller than its tap
             // area, and it lines up with the title's first line.
-            className={cn('w-10', CARD.leadCell, CARD.lead[reorderable ? 1 : 0], 'touch:top-4')}
+            className={cn(
+              'w-10',
+              pinned && 'sticky start-0 z-10 bg-[inherit]',
+              CARD.leadCell,
+              CARD.lead[reorderable ? 1 : 0],
+              'touch:top-4',
+            )}
           >
             <Checkbox
               checked={selected}
@@ -1816,7 +1839,18 @@ const BodyRow = memo(function BodyRow<T>({
         {renderDetail ? (
           // The disclosure goes to the card's far edge, where a phone
           // list puts its chevron.
-          <TableCell className={cn('w-10', CARD.leadCell, 'touch:end-2')}>
+          <TableCell
+            className={cn(
+              'w-10',
+              pinned &&
+                cn(
+                  'sticky z-10 bg-[inherit] touch:start-auto',
+                  selectable ? 'start-10' : 'start-0',
+                ),
+              CARD.leadCell,
+              'touch:end-2',
+            )}
+          >
             {detail === null ? (
               // A chevron that opens onto nothing teaches people to
               // stop pressing them.
