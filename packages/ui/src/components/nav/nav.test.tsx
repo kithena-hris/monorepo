@@ -67,6 +67,40 @@ describe('<NavItem flyout>', () => {
     );
   }
 
+  it('shows one at a time, however fast the pointer sweeps the rail', async () => {
+    const sections = (area: string): JSX.Element => (
+      <Nav label={`${area} sections`}>
+        <NavList>
+          <NavItem href={`/${area}`} level={2}>
+            {`${area} overview`}
+          </NavItem>
+        </NavList>
+      </Nav>
+    );
+    render(
+      <Nav label="Areas">
+        <NavList>
+          <NavItem href="/people" flyout={sections('People')}>
+            People
+          </NavItem>
+          <NavItem href="/documents" flyout={sections('Documents')}>
+            Documents
+          </NavItem>
+        </NavList>
+      </Nav>,
+    );
+    const item = (name: string): Element =>
+      screen.getByRole('link', { name }).closest('li') as Element;
+    fireEvent.pointerEnter(item('People'), { pointerType: 'mouse' });
+    await screen.findByRole('navigation', { name: 'People sections' });
+    // Straight on to the next, before People's close has fired.
+    fireEvent.pointerLeave(item('People'), { pointerType: 'mouse' });
+    fireEvent.pointerEnter(item('Documents'), { pointerType: 'mouse' });
+    await screen.findByRole('navigation', { name: 'Documents sections' });
+    expect(screen.queryByRole('navigation', { name: 'People sections' })).toBeNull();
+    expect(screen.getAllByRole('link', { expanded: true })).toHaveLength(1);
+  });
+
   it('is closed until asked, opens on focus, and says so', async () => {
     render(<Areas />);
     const people = screen.getByRole('link', { name: 'People' });
