@@ -433,28 +433,34 @@ export function VirtualList<T>({
     </div>
   ) : null;
 
+  // Above the list, never inside it: a line inside the box would move every
+  // row off the place the virtualizer counts it at.
+  const count =
+    total === undefined || items.length === 0 ? null : (
+      <ShownCount shown={items.length} total={total} className="mb-3" />
+    );
   const outer = (children: ReactNode, surface: boolean): JSX.Element => (
-    <div
-      ref={outerRef}
-      // Focusable for the same reason the table's container is: a region only a
-      // mouse can scroll is unreachable from the keyboard.
-      // A box that scrolls is a region the keyboard can reach; a list that is
-      // part of the page is only a list, named on the list itself.
-      {...(page ? {} : { tabIndex: 0, role: 'region', 'aria-label': label })}
-      className={cn(surface && SURFACE, !page && SCROLLS, className)}
-    >
-      {page && (infinite.current || total !== undefined) ? (
-        <LazyScrollPositionRail list={outerRef} />
-      ) : null}
-      {total === undefined || items.length === 0 ? null : (
-        <ShownCount shown={items.length} total={total} className="px-4 pt-3 pb-1" />
-      )}
-      {children}
-      {placeholder}
-      <span aria-live="polite" className="sr-only">
-        {said}
-      </span>
-    </div>
+    <>
+      {count}
+      <div
+        ref={outerRef}
+        // Focusable for the same reason the table's container is: a region only a
+        // mouse can scroll is unreachable from the keyboard.
+        // A box that scrolls is a region the keyboard can reach; a list that is
+        // part of the page is only a list, named on the list itself.
+        {...(page ? {} : { tabIndex: 0, role: 'region', 'aria-label': label })}
+        className={cn(surface && SURFACE, !page && SCROLLS, className)}
+      >
+        {page && (infinite.current || total !== undefined) ? (
+          <LazyScrollPositionRail list={outerRef} />
+        ) : null}
+        {children}
+        {placeholder}
+        <span aria-live="polite" className="sr-only">
+          {said}
+        </span>
+      </div>
+    </>
   );
 
   if (items.length === 0) {
