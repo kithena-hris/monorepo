@@ -14,6 +14,7 @@
     "./intl": "./src/lib/intl.ts",
     "./motion": "./src/lib/motion.ts",
     "./filter-model": "./src/components/filter-builder/filter-model.ts",
+    "./command-palette": "./src/components/command-palette/command-palette.tsx",
     "./placement": "./src/lib/placement.ts",
     "./brand/mark-data-uri": "./src/brand/mark-data-uri.ts",
     "./brand/kithena-mark-data-uri": "./src/brand/kithena-mark-data-uri.ts",

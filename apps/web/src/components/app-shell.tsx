@@ -3,7 +3,6 @@
 import {
   Avatar,
   Button,
-  CommandPalette,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -34,6 +33,8 @@ import { Link } from '../lib/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   createContext,
+  lazy,
+  Suspense,
   use,
   useCallback,
   useEffect,
@@ -958,6 +959,11 @@ function rememberCommand(id: string): void {
   }
 }
 
+/** In a chunk of its own, fetched when the palette is first opened: no page's first load pays for it. */
+const CommandPalette = lazy(() =>
+  import('@reach/ui/command-palette').then((m) => ({ default: m.CommandPalette })),
+);
+
 /**
  * ⌘K: pages, people and actions, from one field. Each action shows its keys;
  * what was run last on this device comes first.
@@ -976,10 +982,29 @@ function SearchPalette({
   readonly dark: boolean;
   readonly onTheme: (dark: boolean) => void;
   readonly viewing: string | null;
-}): JSX.Element {
+}): JSX.Element | null {
   const router = useRouter();
   const { prefs, table, destinations, keysFor, openHelp, create } = useShortcuts();
   const commands = useScreenCommands();
+  // The palette is fetched the first time it is asked for (`CommandPalette`
+  // below); until then ⌘K is heard here, and from then on by the palette.
+  const [wanted, setWanted] = useState(open);
+  useEffect(() => {
+    if (open) setWanted(true);
+  }, [open]);
+  useEffect(() => {
+    if (wanted) return undefined;
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        onOpenChange(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [wanted, onOpenChange]);
   const [recent, setRecent] = useState<readonly string[]>([]);
   useEffect(() => {
     if (open) setRecent(recentCommands());
@@ -1204,25 +1229,27 @@ function SearchPalette({
     ...filterCommands(shown, query),
   ];
 
-  return (
-    <CommandPalette
-      open={open}
-      onOpenChange={(next) => {
-        onOpenChange(next);
-        if (!next) setQuery('');
-      }}
-      hotkey="k"
-      label={tr('components.app-shell.search_people_and_pages', 'Search people and pages')}
-      placeholder={tr('components.app-shell.search_people_and_pages', 'Search people and pages')}
-      items={items}
-      filter={false}
-      loading={loading}
-      onQueryChange={setQuery}
-      empty={tr(
-        'components.app-shell.nobody_and_nothing_by_that_name',
-        'Nobody and nothing by that name.',
-      )}
-    />
+  return !wanted ? null : (
+    <Suspense fallback={null}>
+      <CommandPalette
+        open={open}
+        onOpenChange={(next) => {
+          onOpenChange(next);
+          if (!next) setQuery('');
+        }}
+        hotkey="k"
+        label={tr('components.app-shell.search_people_and_pages', 'Search people and pages')}
+        placeholder={tr('components.app-shell.search_people_and_pages', 'Search people and pages')}
+        items={items}
+        filter={false}
+        loading={loading}
+        onQueryChange={setQuery}
+        empty={tr(
+          'components.app-shell.nobody_and_nothing_by_that_name',
+          'Nobody and nothing by that name.',
+        )}
+      />
+    </Suspense>
   );
 }
 
