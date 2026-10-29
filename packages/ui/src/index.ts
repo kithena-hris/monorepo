@@ -607,7 +607,7 @@ export type { RatingProps } from './components/rating/rating';
 export type { RadioCardProps, RadioGroupItemProps } from './components/radio-group/radio-group';
 
 export { ScrollArea, ScrollBar } from './components/scroll-area/scroll-area';
-export { ScrollPosition } from './components/scroll-position/scroll-position';
+export { ScrollPosition, ScrollPositionRail } from './components/scroll-position/scroll-position';
 export type { ScrollPositionProps } from './components/scroll-position/scroll-position';
 export {
   VirtualList,

@@ -2889,7 +2889,7 @@
   },
   "components.inbox.rows.text": {
     "text": "{{moduleName}} › {{area}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{moduleName}}, {{area}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <span>. Filled in: {{moduleName}}, {{area}}."
   },
   "components.inbox.rows.you_are_on_it": {
     "text": "You are on it",

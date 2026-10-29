@@ -101,6 +101,13 @@ export interface AvatarProps
   status?: keyof typeof statusTone;
   /** Says what the dot means, "Online", for a screen reader. */
   statusLabel?: string;
+  /**
+   * A small icon across the lower edge, saying what the face is attached to:
+   * a leave request, a document, a review. The face says who; this says what,
+   * so a list led by people still reads by kind at a glance. Decoration: the
+   * row's text says the same thing in words. Takes the place of `status`.
+   */
+  badge?: ReactNode;
 }
 
 /** Initials from a display name, capped at two glyphs. Empty for no name. */
@@ -131,6 +138,7 @@ export function Avatar({
   fallback,
   status,
   statusLabel,
+  badge,
   ...props
 }: AvatarProps): JSX.Element {
   // A profile picture usually arrives from an upload or an HR import, so it is
@@ -177,7 +185,14 @@ export function Avatar({
       >
         {fallback ?? (initials === '' ? <UserRound aria-hidden /> : initials)}
       </AvatarPrimitive.Fallback>
-      {status ? (
+      {badge ? (
+        <span
+          aria-hidden
+          className="absolute -right-1 -bottom-1 grid size-[55%] min-h-3.5 min-w-3.5 place-items-center rounded-full bg-surface-raised text-fg-muted shadow-xs ring-2 ring-surface [&_svg]:size-[62%]"
+        >
+          {badge}
+        </span>
+      ) : status ? (
         <span
           className={cn(
             'absolute -right-px -bottom-px size-[28%] min-h-2 min-w-2 rounded-full ring-2 ring-surface',

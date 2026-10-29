@@ -100,11 +100,13 @@ export function ScrollPosition({
 }
 
 /**
- * `ScrollPosition` over a list the window scrolls, for `DataTable` and
- * `VirtualList`. Nothing until the list's top has gone under the page's
- * sticky header; then the count rises into the list's top corner, under the
- * table's pinned header, rides there to the list's end, and goes as the list
- * comes back down. Placed before the list, in a sticky line of no height.
+ * `ScrollPosition` over a list the window scrolls: `DataTable` and
+ * `VirtualList` draw it themselves, and a list of its own (`List`) places it
+ * first inside its box. Nothing until the list's top has gone under the
+ * page's sticky header; then the count rises into the list's top corner,
+ * under whatever the list pins at its top (a table's header, or the element
+ * marked `data-list-head`), rides there to the list's end, and goes as the
+ * list comes back down. A sticky line of no height.
  */
 export function ScrollPositionRail({
   list,
@@ -128,7 +130,8 @@ export function ScrollPositionRail({
       const top =
         Number.parseFloat(getComputedStyle(el).getPropertyValue('--reach-sticky-top')) || 0;
       const box = el.getBoundingClientRect();
-      const below = el.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+      const below =
+        el.querySelector('thead, [data-list-head]')?.getBoundingClientRect().height ?? 0;
       const pinned = box.top < top - 1 && box.bottom > top + below;
       // ponytail: read as a share of the list's height, so a row is a row's
       // share; exact per row if rows ever differ much in height.

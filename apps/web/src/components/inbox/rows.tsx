@@ -10,10 +10,11 @@ import { dueOf, iconOf } from './format';
 import { t } from '../../lib/t';
 
 /**
- * One row of the Inbox (A1's anatomy, M:A1): the tile or the sender's face,
- * the title, what it is, then where it lives, when it is due and where it
- * stands, and how long ago on the right. The same row in the list, the bell
- * and Home's To do card.
+ * One row of the Inbox (A1's anatomy, M:A1): the face of the person it is
+ * about, with what kind of thing it is across its edge, or the kind's tile
+ * when nobody is; the title, what it is, then where it lives, when it is due
+ * and where it stands, and how long ago on the right. The same row in the
+ * list, the bell and Home's To do card.
  */
 
 /** The badges under a row: module › area, due, status, outcome, replies, unread. */
@@ -42,14 +43,15 @@ export function RowBadges({
           {t('components.inbox.rows.needs_you', 'Needs you')}
         </Badge>
       ) : null}
-      <Badge size="sm" variant="outline">
+      {/* Where it lives, in words rather than one more box beside the ones that matter. */}
+      <span className="text-xs text-fg-muted">
         {item.area === null
           ? moduleName(item.module)
           : t('components.inbox.rows.text', '{{moduleName}} › {{area}}', {
               moduleName: moduleName(item.module),
               area: item.area,
             })}
-      </Badge>
+      </span>
       {due === null || item.lane !== 'task' ? null : (
         <Badge size="sm" tone={due.tone}>
           {due.label}
@@ -101,12 +103,26 @@ export function RowBadges({
   );
 }
 
-/** The sender's face for news from a person; the kind's tile otherwise. */
+/**
+ * Who it is about, by face, so a list of requests reads as the people asking:
+ * their photo where People lets the reader see it, their initials otherwise,
+ * and the kind across the edge. Kithena itself, or the reader, is the kind's
+ * tile.
+ */
 function face(item: Shown): { readonly leading?: ReactNode; readonly icon?: ReactNode } {
-  if (item.lane === 'update' && item.from?.name != null && item.from.name !== 'You') {
-    return { leading: <Avatar name={item.from.name} size="md" /> };
-  }
   const Icon = iconOf(item.icon);
+  if (item.from?.name != null && item.from.name !== 'You') {
+    return {
+      leading: (
+        <Avatar
+          name={item.from.name}
+          src={item.photo ?? undefined}
+          size="lg"
+          badge={<Icon aria-hidden />}
+        />
+      ),
+    };
+  }
   return { icon: <Icon aria-hidden /> };
 }
 

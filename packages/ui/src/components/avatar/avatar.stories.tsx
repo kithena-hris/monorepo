@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Bot, Building2, Users } from 'lucide-react';
+import { Bot, Building2, CalendarDays, FileText, Users } from 'lucide-react';
 
 import { Avatar, AvatarGroup } from './avatar';
 
@@ -171,6 +171,25 @@ export const WithACustomFallback: Story = {
       <Avatar size="lg" name="Northwind" shape="rounded" tone="neutral" fallback={<Building2 />} />
       <Avatar size="lg" name="Assistant" tone="neutral" fallback={<Bot />} />
       <Avatar size="lg" name="Platform team" tone="neutral" fallback={<Users />} />
+    </div>
+  ),
+};
+
+export const WithABadge: Story = {
+  name: 'Badge',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A face with what it is attached to across its lower edge: a list led by people that still reads by kind, as the Inbox is. Decoration only; the row says the kind in words.',
+      },
+    },
+  },
+  render: () => (
+    <div className="flex items-center gap-4">
+      <Avatar size="lg" name="Priya Shah" badge={<CalendarDays />} />
+      <Avatar size="lg" name="Jonas Weber" badge={<FileText />} />
+      <Avatar size="md" name="Amara Okafor" badge={<CalendarDays />} />
     </div>
   ),
 };
