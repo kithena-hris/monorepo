@@ -2399,29 +2399,21 @@
     "text": "{{name}} to {{name2}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx: text built in code. Filled in: {{name}}, {{name2}}."
   },
+  "components.scroll-position.scroll-position.all": {
+    "text": "Showing all {{total}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{total}}."
+  },
   "components.scroll-position.scroll-position.back_to_top": {
     "text": "Back to top",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position-rail.tsx, ScrollPositionRail: text inside <Button>."
-  },
-  "components.scroll-position.scroll-position.back_to_top_from": {
-    "text": "{{count}}. {{back}}",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: the aria-label of <Button>. Filled in: {{count}}, {{back}}."
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code."
   },
   "components.scroll-position.scroll-position.of": {
-    "text": "{{seen}} of {{total}}",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{seen}}, {{total}}."
-  },
-  "components.scroll-position.scroll-position.of_more": {
-    "text": "{{seen}} of {{loaded}}+",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{seen}}, {{loaded}}."
-  },
-  "components.scroll-position.shown-count.all": {
-    "text": "Showing all {{total}}",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/shown-count.tsx, ShownCount: text inside <p>. Filled in: {{total}}."
-  },
-  "components.scroll-position.shown-count.of": {
     "text": "Showing {{shown}} of {{total}}",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/shown-count.tsx, ShownCount: text inside <p>. Filled in: {{shown}}, {{total}}."
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{shown}}, {{total}}."
+  },
+  "components.scroll-position.scroll-position.so_far": {
+    "text": "Showing {{shown}} so far",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{shown}}."
   },
   "components.sheet.sheet.close": {
     "text": "Close",

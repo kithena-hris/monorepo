@@ -326,8 +326,10 @@ export const WhereYouAre: Story = {
   render: () => (
     <ScrollPosition
       className="w-fit"
-      seen={150}
-      total={388}
+      from={41}
+      to={60}
+      loaded={200}
+      total={1003}
       onBackToTop={() => {
         /* the list scrolls to its first row */
       }}

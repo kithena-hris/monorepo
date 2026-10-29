@@ -77,8 +77,7 @@ import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
 import type * as TableScroll from './table-scroll';
-import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
-import { ShownCount } from '../scroll-position/shown-count';
+import { ScrollPositionRail } from '../scroll-position/scroll-position-rail';
 import {
   Table,
   TableBody,
@@ -227,6 +226,11 @@ const GROUP_COLUMN = '__group';
 const COLUMN_MIN = 64;
 const COLUMN_MAX = 960;
 const COLUMN_DEFAULT = 176;
+/**
+ * How many rows make a table long enough to say how many it holds, where it
+ * is not told a `total` and does not keep loading: fewer are read at a glance.
+ */
+const COUNTED_FROM = 10;
 /** How near the end, in px, counts as the end. */
 const END_MARGIN = 480;
 
@@ -1625,11 +1629,6 @@ export function DataTable<T extends TableRow>({
 
   return (
     <div className="min-w-0 space-y-3">
-      {total === undefined ? null : <ShownCount shown={rows.length} total={total} />}
-      {page && (infinite.current || total !== undefined) ? (
-        // Of no height, and none of the space between the table's parts.
-        <LazyScrollPositionRail list={scrollRef} className="my-0" />
-      ) : null}
       {reorderable && activeSorts.length > 0 ? (
         <p role="status" className="text-xs text-fg-muted">
           {t(
@@ -1661,6 +1660,15 @@ export function DataTable<T extends TableRow>({
         body
       )}
 
+      {/* A selection's bar takes the window's foot while it is up. */}
+      {picked.size === 0 &&
+      (total !== undefined || infinite.current || rows.length >= COUNTED_FROM) ? (
+        <ScrollPositionRail
+          list={scrollRef}
+          loaded={rows.length}
+          total={total ?? (onEndReached === undefined ? rows.length : null)}
+        />
+      ) : null}
       {bulkBar}
       <span aria-live="polite" className="sr-only">
         {said}

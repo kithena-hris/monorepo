@@ -11,24 +11,30 @@ const meta = {
     docs: {
       description: {
         component: [
-          'Where you are in a long list that keeps loading: a ring filling as the reader goes, the count beside it, and a way back to the start.',
+          'Where you are in a long list: a map of it, its count, and a way back to the top.',
           '',
-          '`DataTable` and `VirtualList` do not draw it: they say their total above the rows and offer only Back to top, and the page draws its scroll progress once (`PageLayout`). Place it by hand only over a list of your own. Without a `total` the count is out of what has loaded ("150 of 200+"). The count is deliberately not a live region: it changes on every page of a scroll, and the list announces its own loads.',
+          "The map is the list on its side: the track is every row there is, the wash the rows loaded so far, the bright segment the rows on screen, gliding as the reader scrolls. The count runs up as pages land. `DataTable` and `VirtualList` float it at the window's foot over a long list and set it under a short one (`ScrollPositionRail`); place it by hand only over a list of your own. Without a `total` it says how many so far. Not a live region: it changes with every page loaded, and the list announces its own loads.",
         ].join('\n'),
       },
     },
   },
-  args: { seen: 150, total: 388 },
+  args: { from: 41, to: 60, loaded: 200, total: 1003 },
 } satisfies Meta<typeof ScrollPosition>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = { args: { onBackToTop: fn() } };
+export const Default: Story = { args: { onBackToTop: fn(), className: 'shadow-lg' } };
 
-export const CountOnly: Story = { args: { seen: 50 } };
+/** At the top: nowhere to go back to. */
+export const AtTheTop: Story = { args: { from: 1, to: 20 } };
 
-/** Nobody has counted the rows yet: out of what has loaded, until the last page lands. */
+/** Every row loaded. */
+export const AllLoaded: Story = {
+  args: { from: 980, to: 1003, loaded: 1003, onBackToTop: fn() },
+};
+
+/** Nobody has counted the rows yet. */
 export const Uncounted: Story = {
-  args: { seen: 150, total: null, loaded: 200, onBackToTop: fn() },
+  args: { total: null, onBackToTop: fn() },
 };

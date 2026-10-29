@@ -30,7 +30,6 @@ import { PINNED_BAR } from '../../lib/pinned';
 import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { Kbd } from '../kbd/kbd';
-import { PageProgress } from './page-progress';
 import { Tooltip } from '../tooltip/tooltip';
 import { t } from '../../lib/i18n';
 
@@ -450,8 +449,6 @@ export function PageLayout({
      */
     <div ref={container} className="@container/page">
       <div className={cn('relative', layout({ preset }), className)} {...props}>
-        {/* How far down the page the reader is, the same on every page. */}
-        <PageProgress />
         {header ? (
           <header
             // `col-span-full` rather than a grid area: the header spans every
