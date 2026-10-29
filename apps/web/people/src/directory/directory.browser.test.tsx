@@ -387,7 +387,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     expect(fills.size).toBe(1);
   });
 
-  it('keeps Back to top at the list’s top corner, off the quick look', async () => {
+  it('floats its count and Back to top at the window’s foot, under the list, off the quick look', async () => {
     const { onLoadMore } = pages();
     directory({ onLoadMore });
     await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
@@ -395,23 +395,23 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     await vi.waitFor(() => {
       expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
     });
-    // Nothing until the header pins.
-    expect(screen.queryByRole('button', { name: /Back to top$/ })).toBeNull();
+    // At the top, nowhere to go back to.
+    expect(screen.queryByRole('button', { name: 'Back to top' })).toBeNull();
     window.scrollTo(0, tableTop(box) + 40 * ROW);
     const back = await screen.findByRole('button', { name: 'Back to top' });
+    expect(screen.getByText(/^Showing [\d,]+ of 1,000$/)).toBeVisible();
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(look).not.toContainElement(back);
     const pill = back.getBoundingClientRect();
     const list = box.getBoundingClientRect();
     const card = look.getBoundingClientRect();
-    // Inside the list's box, at its top right, and clear of the card.
+    // Under the list's own column, and clear of the card.
     expect(pill.left).toBeGreaterThanOrEqual(list.left);
     expect(pill.right).toBeLessThanOrEqual(list.right);
     expect(pill.right).toBeLessThan(card.left);
-    // Riding under the table's pinned header, on screen however far down the page is.
-    const head = box.querySelector('thead th')?.getBoundingClientRect().bottom ?? 0;
-    expect(pill.top).toBeGreaterThanOrEqual(0);
-    expect(pill.top - head).toBeLessThan(80);
+    // At the foot of the window, however far down the page is.
+    expect(pill.bottom).toBeLessThanOrEqual(window.innerHeight);
+    expect(window.innerHeight - pill.bottom).toBeLessThan(80);
   });
 
   it('jumps instead under reduced motion', { timeout: slow ? 60_000 : 15_000 }, async () => {

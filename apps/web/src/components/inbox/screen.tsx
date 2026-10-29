@@ -26,7 +26,7 @@ import {
   List,
   ListDetail,
   PageHeader,
-  LazyScrollPositionRail,
+  ScrollPositionRail,
   SearchField,
   Select,
   SelectContent,
@@ -710,8 +710,6 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
     // `clip`, not `hidden`: rounded without becoming a scroll box, so the
     // window scrolls the list and its toolbar sticks under the page's header.
     <div ref={listBox} className="flex flex-col overflow-clip rounded-2xl bg-surface shadow-sm">
-      {/* Back to the top, once the toolbar pins. */}
-      <LazyScrollPositionRail list={listBox} />
       <div data-list-head className="sticky top-(--reach-sticky-top,0px) z-10 bg-surface">
         {toolbar}
         {bulkBar}
@@ -748,6 +746,13 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
       >
         {body}
       </div>
+      {/* How many, where the reader is among them, and back to the top. */}
+      <ScrollPositionRail
+        list={listBox}
+        loaded={shown.length}
+        total={shown.length}
+        className="pb-3"
+      />
     </div>
   );
 

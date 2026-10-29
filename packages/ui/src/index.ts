@@ -608,7 +608,7 @@ export type { RadioCardProps, RadioGroupItemProps } from './components/radio-gro
 export { ScrollArea, ScrollBar } from './components/scroll-area/scroll-area';
 // The count itself is drawn by the rail, fetched as a list is scrolled
 // (`lazy-rail.tsx`): exported here, it would be in every page's first load.
-export { LazyScrollPositionRail } from './components/scroll-position/lazy-rail';
+export { ScrollPositionRail } from './components/scroll-position/scroll-position-rail';
 export type { ScrollPositionProps } from './components/scroll-position/scroll-position';
 export {
   VirtualList,

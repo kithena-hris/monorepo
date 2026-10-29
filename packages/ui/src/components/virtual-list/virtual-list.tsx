@@ -23,8 +23,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
-import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
-import { ShownCount } from '../scroll-position/shown-count';
+import { ScrollPositionRail } from '../scroll-position/scroll-position-rail';
 import { t } from '../../lib/i18n';
 
 /**
@@ -433,15 +432,20 @@ export function VirtualList<T>({
     </div>
   ) : null;
 
-  // Above the list, never inside it: a line inside the box would move every
-  // row off the place the virtualizer counts it at.
+  // After the rows, never before them, which would move every row off the
+  // place the virtualizer counts it at: inside a list the page scrolls, so it
+  // rides the window's foot, and under a box that scrolls itself.
   const count =
-    total === undefined || items.length === 0 ? null : (
-      <ShownCount shown={items.length} total={total} className="mb-3" />
-    );
+    items.length > 0 ? (
+      <ScrollPositionRail
+        list={outerRef}
+        loaded={items.length}
+        total={total ?? (onEndReached === undefined ? items.length : null)}
+        className="mt-3"
+      />
+    ) : null;
   const outer = (children: ReactNode, surface: boolean): JSX.Element => (
     <>
-      {count}
       <div
         ref={outerRef}
         // Focusable for the same reason the table's container is: a region only a
@@ -451,15 +455,14 @@ export function VirtualList<T>({
         {...(page ? {} : { tabIndex: 0, role: 'region', 'aria-label': label })}
         className={cn(surface && SURFACE, !page && SCROLLS, className)}
       >
-        {page && (infinite.current || total !== undefined) ? (
-          <LazyScrollPositionRail list={outerRef} />
-        ) : null}
         {children}
         {placeholder}
         <span aria-live="polite" className="sr-only">
           {said}
         </span>
+        {page ? count : null}
       </div>
+      {page ? null : count}
     </>
   );
 

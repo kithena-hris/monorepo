@@ -138,12 +138,15 @@ describe('icon list and scroll position', () => {
   it('goes back to the top only when asked to', async () => {
     const onBackToTop = vi.fn();
     const { rerender } = render(
-      <ScrollPosition seen={150} total={388} onBackToTop={onBackToTop} />,
+      <ScrollPosition from={41} to={60} loaded={200} total={1003} onBackToTop={onBackToTop} />,
     );
-    await userEvent.click(screen.getByRole('button', { name: '150 of 388. Back to top' }));
+    expect(screen.getByText('Showing 200 of 1,003')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to top' }));
     expect(onBackToTop).toHaveBeenCalledOnce();
-    rerender(<ScrollPosition seen={50} total={null} loaded={200} />);
+    rerender(<ScrollPosition from={1} to={20} loaded={200} total={null} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByText('50 of 200+')).toBeInTheDocument();
+    rerender(<ScrollPosition from={1} to={20} loaded={1003} total={1003} />);
+    // The count runs up to its new value, and says so once it is there.
+    expect(await screen.findByText('Showing all 1,003')).toBeInTheDocument();
   });
 });
