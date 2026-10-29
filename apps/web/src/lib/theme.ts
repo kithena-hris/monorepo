@@ -20,3 +20,19 @@ export const THEME_KEY = 'kithena-theme';
 export function themeCookie(dark: boolean): string {
   return `${THEME_KEY}=${dark ? 'dark' : 'light'}; path=/; max-age=31536000; samesite=lax`;
 }
+
+/**
+ * The window's own colour in each theme: Reach's canvas, as sRGB (a browser's
+ * title bar does not resolve `oklch()` everywhere), so an installed app's
+ * title bar and a phone's status bar are the page's colour, not white over a
+ * dark page. Copied from `--reach-color-canvas`, as `palette.ts` copies it.
+ */
+export const THEME_COLOR = { light: '#f5f6f8', dark: '#000000' } as const;
+
+/** The title bar follows a choice made on the page, without waiting for a reload. */
+export function paintThemeColor(dark: boolean): void {
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute('content', dark ? THEME_COLOR.dark : THEME_COLOR.light);
+    meta.removeAttribute('media');
+  }
+}

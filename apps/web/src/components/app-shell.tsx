@@ -64,7 +64,7 @@ import {
   isCharacterKey,
   type ShortcutPrefs,
 } from '../lib/shortcuts';
-import { themeCookie } from '../lib/theme';
+import { paintThemeColor, themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { InboxCount, InboxToasts, useInboxTodo } from './inbox/bell';
 import type { InboxPeek } from '../lib/inbox/peek';
@@ -500,6 +500,7 @@ function useTheme(): readonly [boolean, (next: boolean) => void] {
     (next: boolean) => {
       document.documentElement.classList.toggle('dark', next);
       document.cookie = themeCookie(next);
+      paintThemeColor(next);
     },
   ] as const;
 }

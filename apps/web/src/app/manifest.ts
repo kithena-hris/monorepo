@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 
+import { THEME_COLOR } from '../lib/theme';
+
 /**
  * Kithena, installable: from the browser's menu on a desk, or "Add to Home
  * Screen" on a phone, it opens in a window of its own at its home page,
@@ -17,8 +19,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    background_color: '#f5f6f8',
-    theme_color: '#f5f6f8',
+    // Dark until the page says otherwise: the window opens in the app's dark
+    // canvas, then takes the page's own `theme-color` (`app/layout.tsx`).
+    background_color: THEME_COLOR.dark,
+    theme_color: THEME_COLOR.dark,
     icons: [
       { src: '/app-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/app-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
