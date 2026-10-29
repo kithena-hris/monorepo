@@ -559,6 +559,8 @@
   "components.scheduler.scheduler.to": "{{formatMinutes}}–{{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} – {{name2}}",
   "components.scroll-position.scroll-position.back_to_top": "Наверх",
+  "components.scroll-position.scroll-position.of": "{{seen}} из {{total}}",
+  "components.scroll-position.scroll-position.of_more": "{{seen}} из {{loaded}}+",
   "components.sheet.sheet.close": "Закрыть",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape — отмена.",
   "components.shortcuts.key-recorder.none": "Нет",

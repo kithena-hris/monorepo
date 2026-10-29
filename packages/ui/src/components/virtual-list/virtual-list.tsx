@@ -23,6 +23,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
+import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
 import { t } from '../../lib/i18n';
 
 /**
@@ -136,6 +137,14 @@ export interface VirtualListProps<T> {
   loadingMore?: boolean;
   /** What a screen reader hears as a page lands. */
   moreLoaded?: (added: number) => string;
+  /**
+   * How many items there are in all, loaded or not. A list the window scrolls
+   * that keeps loading (or is given this) shows the reader where they are as
+   * they go: a ring and "150 of 388" in its top corner, which takes them back
+   * to the top. Without it the count is out of what has loaded ("150 of
+   * 200+") until the last page lands.
+   */
+  total?: number;
   /** On a `self` list, the height goes here. Without a bounded height nothing scrolls. */
   className?: string;
   itemClassName?: string;
@@ -237,6 +246,7 @@ export function VirtualList<T>({
   onEndReached,
   loadingMore = false,
   moreLoaded = moreLoadedDefault,
+  total,
   className,
   itemClassName,
   ref,
@@ -413,7 +423,7 @@ export function VirtualList<T>({
     if (infinite.current && added > 0) setSaid(say.current(added));
   }, [items.length]);
 
-  const total = virtualizer.getTotalSize();
+  const extent = virtualizer.getTotalSize();
 
   const placeholder = loadingMore ? (
     <div aria-busy="true" className="p-3" style={{ height: estimateItemHeight }}>
@@ -434,6 +444,13 @@ export function VirtualList<T>({
       {...(page ? {} : { tabIndex: 0, role: 'region', 'aria-label': label })}
       className={cn(surface && SURFACE, !page && SCROLLS, className)}
     >
+      {page && (infinite.current || total !== undefined) ? (
+        <LazyScrollPositionRail
+          list={outerRef}
+          loaded={items.length}
+          total={total ?? (onEndReached === undefined ? items.length : null)}
+        />
+      ) : null}
       {children}
       {placeholder}
       <span aria-live="polite" className="sr-only">
@@ -454,7 +471,7 @@ export function VirtualList<T>({
     // list's height in exponent form, which no browser accepts as a length.
     const style = {
       paddingTop: px(first === undefined ? 0 : first.start - offset),
-      paddingBottom: px(last === undefined ? total : total - (last.end - offset)),
+      paddingBottom: px(last === undefined ? extent : extent - (last.end - offset)),
       ...(gap > 0 ? { display: 'flex', flexDirection: 'column' as const, gap } : {}),
     };
     const drawn = virtualRows.map((row) => {
@@ -551,7 +568,7 @@ export function VirtualList<T>({
       role="list"
       aria-label={label}
       className="relative w-full"
-      style={{ height: px(total) }}
+      style={{ height: px(extent) }}
     >
       {virtualRows.map((row) => {
         const first = row.index * lanes;

@@ -481,7 +481,6 @@
   "directory.directory.not": "niet {{join}}",
   "directory.directory.not_started": "{{notStarted}} nog niet begonnen",
   "directory.directory.not_understood": "Niet begrepen: {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} van {{toLocaleString2}}",
   "directory.directory.on_leave": "Met verlof",
   "directory.directory.on_or_after": "op of na {{longDate}}",
   "directory.directory.on_or_before": "op of vóór {{longDate}}",

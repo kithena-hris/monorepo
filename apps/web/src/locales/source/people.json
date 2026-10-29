@@ -1967,10 +1967,6 @@
     "text": "Not understood: {{join}}.",
     "context": "People: employee records, org chart, HR settings. directory/directory.tsx, Body: text built in code. Filled in: {{join}}."
   },
-  "directory.directory.of": {
-    "text": "{{toLocaleString}} of {{toLocaleString2}}",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, PlacePill: text inside <ScrollPosition>. Filled in: {{toLocaleString}}, {{toLocaleString2}}."
-  },
   "directory.directory.on_leave": {
     "text": "On leave",
     "context": "People: employee records, org chart, HR settings. directory/directory.tsx, DirectoryCard: text inside <PersonCard>."

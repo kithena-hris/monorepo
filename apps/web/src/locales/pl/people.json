@@ -522,7 +522,6 @@
   "directory.directory.not": "nie {{join}}",
   "directory.directory.not_started": "Jeszcze nie zaczęli: {{notStarted}}",
   "directory.directory.not_understood": "Nie zrozumiano: {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} z {{toLocaleString2}}",
   "directory.directory.on_leave": "Na urlopie",
   "directory.directory.on_or_after": "{{longDate}} lub później",
   "directory.directory.on_or_before": "{{longDate}} lub wcześniej",

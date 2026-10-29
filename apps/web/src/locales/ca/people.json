@@ -503,7 +503,6 @@
   "directory.directory.not": "no {{join}}",
   "directory.directory.not_started": "{{notStarted}} sense començar",
   "directory.directory.not_understood": "No entès: {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} de {{toLocaleString2}}",
   "directory.directory.on_leave": "De permís",
   "directory.directory.on_or_after": "el {{longDate}} o després",
   "directory.directory.on_or_before": "el {{longDate}} o abans",

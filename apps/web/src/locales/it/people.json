@@ -500,7 +500,6 @@
   "directory.directory.not": "non {{join}}",
   "directory.directory.not_started": "{{notStarted}} non ancora iniziati",
   "directory.directory.not_understood": "Non compreso: {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} di {{toLocaleString2}}",
   "directory.directory.on_leave": "In congedo",
   "directory.directory.on_or_after": "il {{longDate}} o dopo",
   "directory.directory.on_or_before": "il {{longDate}} o prima",

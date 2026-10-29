@@ -2403,6 +2403,18 @@
     "text": "Back to top",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code."
   },
+  "components.scroll-position.scroll-position.back_to_top_from": {
+    "text": "{{count}}. {{back}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: the aria-label of <Button>. Filled in: {{count}}, {{back}}."
+  },
+  "components.scroll-position.scroll-position.of": {
+    "text": "{{seen}} of {{total}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{seen}}, {{total}}."
+  },
+  "components.scroll-position.scroll-position.of_more": {
+    "text": "{{seen}} of {{loaded}}+",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{seen}}, {{loaded}}."
+  },
   "components.sheet.sheet.close": {
     "text": "Close",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/sheet/sheet.tsx, SheetContent: text inside <span>."

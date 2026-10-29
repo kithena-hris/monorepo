@@ -524,7 +524,6 @@
   "directory.directory.not": "не {{join}}",
   "directory.directory.not_started": "Ещё не вышли: {{notStarted}}",
   "directory.directory.not_understood": "Не понято: {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} из {{toLocaleString2}}",
   "directory.directory.on_leave": "В отпуске",
   "directory.directory.on_or_after": "{{longDate}} или позже",
   "directory.directory.on_or_before": "{{longDate}} или раньше",

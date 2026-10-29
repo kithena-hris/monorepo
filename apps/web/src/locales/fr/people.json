@@ -495,7 +495,6 @@
   "directory.directory.not": "pas {{join}}",
   "directory.directory.not_started": "{{notStarted}} pas encore arrivés",
   "directory.directory.not_understood": "Non compris : {{join}}.",
-  "directory.directory.of": "{{toLocaleString}} sur {{toLocaleString2}}",
   "directory.directory.on_leave": "En congé",
   "directory.directory.on_or_after": "le {{longDate}} ou après",
   "directory.directory.on_or_before": "le {{longDate}} ou avant",

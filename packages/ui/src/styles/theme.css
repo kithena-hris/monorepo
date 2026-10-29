@@ -763,3 +763,39 @@
     --flyout-y: 0px;
   }
 }
+
+/*
+ * A wide table's header, pinned under the page's (`DataTable`, `scroll="page"`).
+ * Its box scrolls sideways, and a box that scrolls either way is one a sticky
+ * header cannot pin out of, so the header rides down the box instead: by as
+ * far as the box's top has gone under the page's sticky header, never past
+ * the box's foot. Driven by the box crossing the top of the window, on the
+ * compositor (`table-pin-box` names that timeline, `table-pin-head` follows
+ * it); `DataTable` moves it from script where a browser has no scroll
+ * timelines. Under a finger the table is cards, with no header to pin.
+ */
+@keyframes table-head-pin {
+  to {
+    transform: translateY(calc(var(--reach-table-h, 0px) - var(--reach-head-h, 0px)));
+  }
+}
+@utility table-pin-box {
+  @supports (animation-timeline: view()) {
+    view-timeline: --reach-table block;
+    view-timeline-inset: var(--reach-sticky-top, 0px) 0px;
+  }
+}
+@utility table-pin-head {
+  @media (pointer: fine) {
+    /* Over the rows it rides across, and their pinned first column. */
+    position: relative;
+    z-index: 20;
+  }
+  @supports (animation-timeline: view()) {
+    @media (pointer: fine) {
+      animation: table-head-pin linear both;
+      animation-timeline: --reach-table;
+      animation-range: exit-crossing 0% exit-crossing calc(100% - var(--reach-head-h, 0px));
+    }
+  }
+}

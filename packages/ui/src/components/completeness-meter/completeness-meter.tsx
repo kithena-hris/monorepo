@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
-import { CircularProgress } from '../progress/progress';
+import { CircularProgress } from '../progress/circular-progress';
 import { t } from '../../lib/i18n';
 
 /**

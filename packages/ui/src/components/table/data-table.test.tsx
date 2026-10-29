@@ -695,6 +695,50 @@ describe('<DataTable scroll="page">', () => {
     expect(box.className).toContain('overflow-visible');
     expect(box.className).not.toContain('overscroll-y-contain');
   });
+
+  it('scrolls one axis a gesture: the first movement’s, until the wheel rests', async () => {
+    vi.useFakeTimers();
+    const by = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        scroll="page"
+      />,
+    );
+    // The wheel is handled once `table-scroll.ts` has loaded.
+    await act(async () => {
+      await import('./table-scroll');
+    });
+    const box = screen.getByRole('region', { name: 'People' });
+    // Wider than its box: it scrolls sideways.
+    Object.defineProperty(box, 'scrollWidth', { value: 2000 });
+    Object.defineProperty(box, 'clientWidth', { value: 800 });
+    const wheel = (deltaX: number, deltaY: number): boolean =>
+      fireEvent(box, new WheelEvent('wheel', { deltaX, deltaY, cancelable: true }));
+    // Down, and a little sideways: down only, by the window.
+    expect(wheel(4, 40)).toBe(false);
+    expect(by).toHaveBeenLastCalledWith(0, 40);
+    expect(box.scrollLeft).toBe(0);
+    // Still the same gesture, though it now leans sideways.
+    expect(wheel(30, 2)).toBe(false);
+    expect(by).toHaveBeenLastCalledWith(0, 2);
+    expect(box.scrollLeft).toBe(0);
+    // Straight down is the browser's own.
+    expect(wheel(0, 40)).toBe(true);
+    // At rest, a sideways gesture is sideways only.
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    by.mockClear();
+    expect(wheel(30, 3)).toBe(false);
+    expect(box.scrollLeft).toBe(30);
+    expect(by).not.toHaveBeenCalled();
+    by.mockRestore();
+    vi.useRealTimers();
+  });
 });
 
 describe('<DataTable columnSizing="fill">', () => {

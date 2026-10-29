@@ -527,6 +527,8 @@
   "components.scheduler.scheduler.to": "{{formatMinutes}} முதல் {{formatMinutes2}} வரை,",
   "components.scheduler.scheduler.to_2": "{{name}} முதல் {{name2}} வரை",
   "components.scroll-position.scroll-position.back_to_top": "மேலே திரும்பு",
+  "components.scroll-position.scroll-position.of": "{{total}} இல் {{seen}}",
+  "components.scroll-position.scroll-position.of_more": "{{loaded}}+ இல் {{seen}}",
   "components.sheet.sheet.close": "மூடு",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape ரத்துசெய்யும்.",
   "components.shortcuts.key-recorder.none": "எதுவும் இல்லை",

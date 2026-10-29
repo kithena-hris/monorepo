@@ -480,7 +480,6 @@
   "directory.directory.not": "{{join}} नहीं",
   "directory.directory.not_started": "{{notStarted}} शुरू नहीं हुए",
   "directory.directory.not_understood": "समझ नहीं आया: {{join}}।",
-  "directory.directory.of": "{{toLocaleString2}} में से {{toLocaleString}}",
   "directory.directory.on_leave": "छुट्टी पर",
   "directory.directory.on_or_after": "{{longDate}} को या उसके बाद",
   "directory.directory.on_or_before": "{{longDate}} को या उससे पहले",

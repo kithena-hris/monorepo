@@ -197,15 +197,18 @@ describe('Directory', () => {
     expect(screen.queryByRole('radio', { name: /Incomplete/ })).toBeNull();
   });
 
-  it('opens on the first person: their quick look, their row current, and nothing opened', async () => {
+  it('opens with the list alone, and a click brings up that person’s quick look', async () => {
     const user = fast();
     const onOpen = vi.fn();
     const { container } = render(<Directory {...props({ onOpen })} />);
+    expect(screen.queryByRole('complementary', { name: 'Quick look' })).toBeNull();
+    expect(container.querySelector('tr[aria-current]')).toBeNull();
+    // The keyboard starts on the first person: theirs is the row in the tab order.
+    expect(container.querySelector('tr[data-row-id="a"]')).toHaveAttribute('tabindex', '0');
+    await user.click(screen.getByRole('button', { name: 'Adam Reyes' }));
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(within(look).getByRole('heading', { name: 'Adam Reyes' })).toBeInTheDocument();
     expect(container.querySelector('tr[data-row-id="a"]')).toHaveAttribute('aria-current', 'true');
-    // The keyboard starts on them too: theirs is the row in the tab order.
-    expect(container.querySelector('tr[data-row-id="a"]')).toHaveAttribute('tabindex', '0');
     expect(onOpen).not.toHaveBeenCalled();
     // Closed, it stays closed.
     await user.click(within(look).getByRole('button', { name: 'Close' }));
@@ -216,6 +219,7 @@ describe('Directory', () => {
     const user = fast();
     const into = vi.spyOn(Element.prototype, 'scrollIntoView');
     render(<Directory {...props()} />);
+    await user.click(screen.getByRole('button', { name: 'Adam Reyes' }));
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     within(look).getByRole('button', { name: 'Close' }).focus();
     await user.keyboard('{ArrowDown}');
@@ -265,7 +269,7 @@ describe('Directory', () => {
     vi.unstubAllGlobals();
   });
 
-  it('says the time where they work on the quick look, as People answered (W3b)', () => {
+  it('says the time where they work on the quick look, as People answered (W3b)', async () => {
     const [adam, lena] = state.people;
     if (adam === undefined || lena === undefined) throw new Error('fixture');
     render(
@@ -290,6 +294,7 @@ describe('Directory', () => {
         })}
       />,
     );
+    await fast().click(screen.getByRole('button', { name: 'Adam Reyes' }));
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(within(look).getByText('Madrid · 14:12')).toBeInTheDocument();
   });
@@ -319,11 +324,6 @@ describe('Directory', () => {
     const onOpen = vi.fn();
     setShortcutKeys({ keys: { 'row.edit': ['e'] }, characterKeys: true });
     const { container } = render(<Directory {...props({ onOpen })} />);
-    await user.click(
-      within(screen.getByRole('complementary', { name: 'Quick look' })).getByRole('button', {
-        name: 'Close',
-      }),
-    );
     const row = container.querySelector<HTMLElement>('tr[data-row-id="l"]');
     row?.focus();
     await user.keyboard('{Enter}');

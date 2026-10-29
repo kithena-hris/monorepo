@@ -76,6 +76,8 @@ import { BulkBar } from './bulk-bar';
 import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
+import type * as TableScroll from './table-scroll';
+import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
 import {
   Table,
   TableBody,
@@ -233,6 +235,19 @@ const END_MARGIN = 480;
  * before the reader gets there and the end is never seen waiting.
  */
 const ahead = (loaded: number): number => Math.max(END_MARGIN, loaded * 0.3);
+
+/** Runs `attach` once `table-scroll.ts` has loaded; the cleanup undoes it, or stops it from running. */
+function afterLoad(attach: (m: typeof TableScroll) => () => void): () => void {
+  let detach: (() => void) | null = null;
+  let gone = false;
+  void import('./table-scroll').then((m) => {
+    if (!gone) detach = attach(m);
+  });
+  return () => {
+    gone = true;
+    detach?.();
+  };
+}
 
 /** The box a virtualized table assumes until it has one: a window's height. */
 const UNMEASURED = { width: 0, height: 900 };
@@ -464,6 +479,14 @@ export interface DataTableProps<T extends TableRow> {
    * everyone · 57 people". Without it, nothing is said.
    */
   endLabel?: ReactNode;
+  /**
+   * How many rows there are in all, loaded or not. A table the window scrolls
+   * that keeps loading (or is given this) shows the reader where they are as
+   * they go: a ring and "150 of 388" under its pinned header, which takes
+   * them back to the top. Without it the count is out of what has loaded
+   * ("150 of 200+") until the last page lands.
+   */
+  total?: number;
 
   /** Drag handles on every row. Disabled while a sort is active. */
   reorderable?: boolean;
@@ -578,6 +601,7 @@ export function DataTable<T extends TableRow>({
   onEndReached,
   loadingMore = false,
   endLabel,
+  total,
   reorderable = false,
   onReorder,
   describeRow,
@@ -867,14 +891,22 @@ export function DataTable<T extends TableRow>({
   /*
    * Wider than the page: the window scrolls it down and its own box sideways,
    * since a box that scrolls either way is one the header cannot pin out of.
-   * A table that fits has no box at all, and its header pins under the page's.
+   * A table that fits has no box at all, and its header pins under the page's;
+   * a wide one's header rides down its box instead (`table-pin-head`).
    */
   const [wide, setWide] = useState(false);
+  const pinsHead = page && wide && stickyHeader;
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!page || el === null || typeof ResizeObserver === 'undefined') return;
     const read = (): void => {
       setWide(el.scrollWidth > el.clientWidth + 1);
+      // How far the header can ride: the box's height less its own.
+      el.style.setProperty('--reach-table-h', `${String(el.offsetHeight)}px`);
+      el.style.setProperty(
+        '--reach-head-h',
+        `${String(el.querySelector('thead')?.offsetHeight ?? 0)}px`,
+      );
     };
     read();
     const observer = new ResizeObserver(read);
@@ -884,6 +916,19 @@ export function DataTable<T extends TableRow>({
     return () => {
       observer.disconnect();
     };
+  }, [page]);
+  // A wide header ridden from script where there are no scroll timelines, and
+  // one axis a wheel gesture: fetched with the first table (`table-scroll.ts`).
+  useEffect(() => {
+    const el = scrollRef.current;
+    const head = el?.querySelector('thead');
+    if (!pinsHead || el == null || head == null) return;
+    return afterLoad((m) => m.pinHead(el, head));
+  }, [pinsHead]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el === null) return;
+    return afterLoad((m) => m.lockAxis(el, page));
   }, [page]);
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inPage = useWindowVirtualizer({
@@ -1251,6 +1296,7 @@ export function DataTable<T extends TableRow>({
         // Not a scroll container at all: the header pins to the window, which
         // a box that scrolls, even one that never needs to, would stop.
         page && !wide && 'overflow-visible [--reach-table-top:var(--reach-sticky-top,0px)]',
+        pinsHead && 'table-pin-box',
         containerClassName,
       )}
       // The window's extent too, when it scrolls the table: WebKit clamps it the same way.
@@ -1267,7 +1313,7 @@ export function DataTable<T extends TableRow>({
       {caption === undefined ? null : (
         <caption className="mt-3 text-xs text-fg-muted">{caption}</caption>
       )}
-      <TableHeader className={CARD.head}>
+      <TableHeader className={cn(CARD.head, pinsHead && 'table-pin-head')}>
         <TableRow className={CARD.headRow}>
           {canReorder ? (
             <TableHead className="w-10 touch:hidden">
@@ -1561,6 +1607,15 @@ export function DataTable<T extends TableRow>({
 
   return (
     <div className="min-w-0 space-y-3">
+      {page && (infinite.current || total !== undefined) ? (
+        <LazyScrollPositionRail
+          list={scrollRef}
+          loaded={rows.length}
+          total={total ?? (onEndReached === undefined ? rows.length : null)}
+          // Of no height, and none of the space between the table's parts.
+          className="my-0"
+        />
+      ) : null}
       {reorderable && activeSorts.length > 0 ? (
         <p role="status" className="text-xs text-fg-muted">
           {t(
