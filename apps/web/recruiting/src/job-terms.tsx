@@ -1453,7 +1453,7 @@ export function BenefitsChoice({ data, props, commit }: TermsProps): JSX.Element
         onChange={setChosen}
       />
       {commit === undefined ? (
-        <div className="sticky bottom-0 flex justify-end bg-canvas/95 py-3 backdrop-blur">
+        <div className="sticky bottom-0 flex justify-end bg-canvas py-3">
           <Button
             loading={act.pending}
             disabled={!changed}

@@ -529,6 +529,8 @@
   "components.scroll-position.scroll-position.back_to_top": "Nach oben",
   "components.scroll-position.scroll-position.of": "{{seen}} von {{total}}",
   "components.scroll-position.scroll-position.of_more": "{{seen}} von {{loaded}}+",
+  "components.scroll-position.shown-count.all": "Alle {{total}} angezeigt",
+  "components.scroll-position.shown-count.of": "{{shown}} von {{total}} angezeigt",
   "components.sheet.sheet.close": "Schließen",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape bricht ab.",
   "components.shortcuts.key-recorder.none": "Keine",

@@ -25,9 +25,9 @@ export interface ScrollPositionProps extends Omit<ComponentPropsWithoutRef<'div'
 /**
  * Where you are in a long list that keeps loading: a ring filling as the
  * reader goes, the count beside it, and a way back to the start.
- * `DataTable` and `VirtualList` pin it over a list the window scrolls by
- * themselves (`ScrollPositionRail`); a caller places it only over a list of
- * its own.
+ * A caller places it over a list of its own; `DataTable` and `VirtualList`
+ * say their total above the rows instead (`ShownCount`), with only Back to
+ * top over them (`ScrollPositionRail`).
  *
  * The count is not a live region. It changes on every page of a scroll, and a
  * screen reader hearing each change hears nothing else; the list announces its

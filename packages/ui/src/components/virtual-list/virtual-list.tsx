@@ -24,6 +24,7 @@ import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
 import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
+import { ShownCount } from '../scroll-position/shown-count';
 import { t } from '../../lib/i18n';
 
 /**
@@ -138,11 +139,9 @@ export interface VirtualListProps<T> {
   /** What a screen reader hears as a page lands. */
   moreLoaded?: (added: number) => string;
   /**
-   * How many items there are in all, loaded or not. A list the window scrolls
-   * that keeps loading (or is given this) shows the reader where they are as
-   * they go: a ring and "150 of 388" in its top corner, which takes them back
-   * to the top. Without it the count is out of what has loaded ("150 of
-   * 200+") until the last page lands.
+   * How many items there are in all, loaded or not: said at the list's top,
+   * "Showing 150 of 388". A list the window scrolls that keeps loading (or is
+   * given this) also offers a way back to the top once its top has gone by.
    */
   total?: number;
   /** On a `self` list, the height goes here. Without a bounded height nothing scrolls. */
@@ -445,12 +444,11 @@ export function VirtualList<T>({
       className={cn(surface && SURFACE, !page && SCROLLS, className)}
     >
       {page && (infinite.current || total !== undefined) ? (
-        <LazyScrollPositionRail
-          list={outerRef}
-          loaded={items.length}
-          total={total ?? (onEndReached === undefined ? items.length : null)}
-        />
+        <LazyScrollPositionRail list={outerRef} />
       ) : null}
+      {total === undefined || items.length === 0 ? null : (
+        <ShownCount shown={items.length} total={total} className="px-4 pt-3 pb-1" />
+      )}
       {children}
       {placeholder}
       <span aria-live="polite" className="sr-only">

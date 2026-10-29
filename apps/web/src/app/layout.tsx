@@ -28,7 +28,9 @@ export async function generateMetadata(): Promise<Metadata> {
     // The mark as a data URI rather than a file in `public/`: it is generated
     // from the same constant the drift test guards, so the tab icon cannot fall
     // out of step with the logo the app renders.
-    icons: { icon: kithenaMarkDataUri },
+    icons: { icon: kithenaMarkDataUri, apple: '/apple-touch-icon.png' },
+    // Installed on an iPhone, it opens in a window of its own (`app/manifest.ts`).
+    appleWebApp: { capable: true, title: 'Kithena', statusBarStyle: 'default' },
   };
 }
 

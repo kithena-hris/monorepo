@@ -534,8 +534,11 @@ function useShortcutsFor({
   const pathname = usePathname();
   const commands = useScreenCommands();
   // A push arrived (`public/push-sw.js`): the bell and the Inbox catch up now, not on the next visit.
+  // Registered on every visit, not only when push is turned on, so the
+  // installed app (`app/manifest.ts`) has its worker from the first.
   useEffect(() => {
     const worker = 'serviceWorker' in navigator ? navigator.serviceWorker : null;
+    void worker?.register('/push-sw.js', { scope: '/' }).catch(() => undefined);
     const heard = (event: MessageEvent<unknown>): void => {
       if ((event.data as { type?: unknown } | null)?.type === 'kithena:push') router.refresh();
     };

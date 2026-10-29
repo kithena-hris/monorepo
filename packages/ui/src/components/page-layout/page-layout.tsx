@@ -449,6 +449,11 @@ export function PageLayout({
      */
     <div ref={container} className="@container/page">
       <div className={cn('relative', layout({ preset }), className)} {...props}>
+        {/* How far down the page the reader is, the same on every page (`page-progress`). */}
+        <div
+          aria-hidden
+          className="page-progress pointer-events-none fixed inset-x-0 top-0 z-40 h-0.5 origin-left bg-accent rtl:origin-right"
+        />
         {header ? (
           <header
             // `col-span-full` rather than a grid area: the header spans every
@@ -1309,8 +1314,6 @@ export function PageHeader({
       <div
         ref={stick.box}
         data-stuck={stick.stuck || undefined}
-        // The heavier material, as the app's own top bar: the page scrolls under it.
-        data-material={stick.stuck ? 'chrome' : undefined}
         style={
           sticky
             ? ({
@@ -1334,8 +1337,9 @@ export function PageHeader({
             'mx-[calc(var(--reach-page-gutter,0px)*-1)] px-[var(--reach-page-gutter,0px)]',
             'border-b border-transparent',
             'transition-[background-color,border-color,box-shadow,margin] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
-            'data-stuck:border-glass-line data-stuck:bg-surface',
-            'data-stuck:backdrop-blur-material data-stuck:backdrop-saturate-(--reach-material-saturate) data-stuck:supports-[backdrop-filter]:bg-glass',
+            // Solid, not glass: what scrolls under it is gone, not blurred
+            // behind the title, which read as one layer over another.
+            'data-stuck:border-border data-stuck:bg-surface',
           ],
           // The bar the lifted actions sit in: the breadcrumb's, or one of their own.
           bar && !sticky && 'touch:relative',
@@ -1498,16 +1502,12 @@ export function Toolbar({
 }: ToolbarProps): JSX.Element {
   return (
     <div
-      // Thin, and only when sticky. A toolbar floating under the header is the
-      // second translucent layer down; giving it the same weight as the header
-      // would stack two materials, which is the one thing that reliably
-      // destroys legibility rather than merely looking busy.
-      data-material={sticky ? 'thin' : undefined}
       className={cn(
         'flex flex-col gap-2',
         sticky &&
-          // Under the page's sticky header, wherever it ends (`PageHeader`).
-          'sticky top-(--reach-sticky-top,0px) z-20 -mx-4 bg-canvas/95 px-4 py-2 backdrop-blur-material-thin sm:-mx-6 sm:px-6',
+          // Under the page's sticky header, wherever it ends (`PageHeader`),
+          // and as solid as it: the rows go out of sight under it.
+          'sticky top-(--reach-sticky-top,0px) z-20 -mx-4 bg-canvas px-4 py-2 sm:-mx-6 sm:px-6',
         className,
       )}
       {...props}

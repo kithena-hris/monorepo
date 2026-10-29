@@ -32,10 +32,12 @@ const HOST_SUFFIX = process.env['TENANT_HOST_SUFFIX'] ?? '';
  * chat app (`/performance/tools/<app>/done`, `/people/chat/<app>/done`): a
  * passkey's Strict cookie stays behind on a navigation that began on that
  * app's site, so the route itself asks again from here (`strict-return.ts`),
- * and finishes only as whoever is signed in. Anything else redirects.
+ * and finishes only as whoever is signed in. And the app's manifest and
+ * icons, which a browser fetches without the cookie to install it. Anything
+ * else redirects.
  */
 const PUBLIC_PATH =
-  /^\/(login|recover|signed-out|auth\/|api\/(session|recover|mobile\/)|kiosk\/|kiosk-sw\.js$|sign\/|(performance\/tools|people\/chat)\/[a-z]+\/done$)/;
+  /^\/(login|recover|signed-out|auth\/|api\/(session|recover|mobile\/)|kiosk\/|kiosk-sw\.js$|manifest\.webmanifest$|app-icon-\d+\.png$|apple-touch-icon\.png$|sign\/|(performance\/tools|people\/chat)\/[a-z]+\/done$)/;
 
 /**
  * Resolved tenants, briefly.

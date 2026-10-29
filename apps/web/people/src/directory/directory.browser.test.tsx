@@ -387,7 +387,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     expect(fills.size).toBe(1);
   });
 
-  it('keeps the place and Back to top at the list’s top corner, off the quick look', async () => {
+  it('keeps Back to top at the list’s top corner, off the quick look', async () => {
     const { onLoadMore } = pages();
     directory({ onLoadMore });
     await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
@@ -398,7 +398,7 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     // Nothing until the header pins.
     expect(screen.queryByRole('button', { name: /Back to top$/ })).toBeNull();
     window.scrollTo(0, tableTop(box) + 40 * ROW);
-    const back = await screen.findByRole('button', { name: /^\d+ of 1,000\. Back to top$/ });
+    const back = await screen.findByRole('button', { name: 'Back to top' });
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(look).not.toContainElement(back);
     const pill = back.getBoundingClientRect();
@@ -495,6 +495,15 @@ describe.runIf(!coarse)('the directory’s table, in the window', () => {
     const sticky =
       Number.parseFloat(getComputedStyle(box).getPropertyValue('--reach-sticky-top') || '0') || 0;
     expect(Math.abs(head.top - sticky)).toBeLessThanOrEqual(2);
+    // Sideways, the row's controls and its name stay where they are.
+    const row = box.querySelector<HTMLTableRowElement>('tbody tr[data-row-id]');
+    const pins = [...(row?.cells ?? [])].filter((c) => getComputedStyle(c).position === 'sticky');
+    expect(pins.length).toBeGreaterThan(0);
+    const before = pins.map((c) => c.getBoundingClientRect().left);
+    box.scrollLeft = 200;
+    await frame();
+    expect(box.scrollLeft).toBeGreaterThan(0);
+    expect(pins.map((c) => c.getBoundingClientRect().left)).toEqual(before);
   });
 });
 

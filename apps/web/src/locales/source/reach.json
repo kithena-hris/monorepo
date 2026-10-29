@@ -2401,7 +2401,7 @@
   },
   "components.scroll-position.scroll-position.back_to_top": {
     "text": "Back to top",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code."
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position-rail.tsx, ScrollPositionRail: text inside <Button>."
   },
   "components.scroll-position.scroll-position.back_to_top_from": {
     "text": "{{count}}. {{back}}",
@@ -2414,6 +2414,14 @@
   "components.scroll-position.scroll-position.of_more": {
     "text": "{{seen}} of {{loaded}}+",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/scroll-position.tsx, ScrollPosition: text built in code. Filled in: {{seen}}, {{loaded}}."
+  },
+  "components.scroll-position.shown-count.all": {
+    "text": "Showing all {{total}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/shown-count.tsx, ShownCount: text inside <p>. Filled in: {{total}}."
+  },
+  "components.scroll-position.shown-count.of": {
+    "text": "Showing {{shown}} of {{total}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scroll-position/shown-count.tsx, ShownCount: text inside <p>. Filled in: {{shown}}, {{total}}."
   },
   "components.sheet.sheet.close": {
     "text": "Close",

@@ -3,41 +3,41 @@
  * mount (`DataTable`): a page that draws no table does not load it.
  */
 
-/** How long the wheel rests before a gesture's axis is let go: a trackpad's flick coasts on a tick every frame. */
+/** How long the wheel rests before a gesture is over: a trackpad's flick coasts on a tick every frame. */
 const WHEEL_REST_MS = 150;
 
 /**
- * One axis at a time. A swipe on a trackpad is never quite straight, and a
- * table wider than its box (down with the window or its box, sideways with
- * the box) slid both ways at once under it. A gesture keeps the axis its
- * first movement chose until the wheel rests; the other waits for the next.
+ * One axis at a time, without taking the scroll from the browser. A sideways
+ * swipe is never quite level, and the window slid down under a table being
+ * read across. A gesture that starts sideways stops the box handing its
+ * vertical part to the window (`overscroll-behavior-y`) until the wheel rests.
+ *
+ * Passive, and nothing scrolled from script: the last version cancelled each
+ * wheel event and moved the box itself, which held every frame of a scroll
+ * on the main thread, behind the rows being drawn, and the table lagged and
+ * jumped under the finger.
  */
-export function lockAxis(el: HTMLElement, page: boolean): () => void {
-  let axis: 'x' | 'y' | null = null;
+export function lockAxis(el: HTMLElement): () => void {
   let rest: ReturnType<typeof setTimeout> | undefined;
+  let moving = false;
+  const release = (): void => {
+    moving = false;
+    el.style.overscrollBehaviorY = '';
+  };
   const onWheel = (event: WheelEvent): void => {
     // A pinch, or a box with nothing to its side.
     if (event.ctrlKey || el.scrollWidth <= el.clientWidth + 1) return;
-    // Lines (a mouse in Firefox) and pages, in pixels.
-    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-    const dx = event.deltaX * unit;
-    const dy = event.deltaY * unit;
     clearTimeout(rest);
-    rest = setTimeout(() => {
-      axis = null;
-    }, WHEEL_REST_MS);
-    axis ??= Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-    // Already along its axis alone: the browser scrolls it, smoothed as ever.
-    if ((axis === 'x' ? dy : dx) === 0 || !event.cancelable) return;
-    event.preventDefault();
-    if (axis === 'x') el.scrollLeft += dx;
-    else if (page) window.scrollBy(0, dy);
-    else el.scrollTop += dy;
+    rest = setTimeout(release, WHEEL_REST_MS);
+    if (moving) return;
+    moving = true;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) el.style.overscrollBehaviorY = 'contain';
   };
-  el.addEventListener('wheel', onWheel, { passive: false });
+  el.addEventListener('wheel', onWheel, { passive: true });
   return () => {
     el.removeEventListener('wheel', onWheel);
     clearTimeout(rest);
+    release();
   };
 }
 

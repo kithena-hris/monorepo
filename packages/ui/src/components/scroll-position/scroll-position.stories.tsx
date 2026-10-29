@@ -13,7 +13,7 @@ const meta = {
         component: [
           'Where you are in a long list that keeps loading: a ring filling as the reader goes, the count beside it, and a way back to the start.',
           '',
-          '`DataTable` and `VirtualList` pin it over a list the window scrolls by themselves, rising into the list\'s top corner once its header pins; place it by hand only over a list of your own. Without a `total` the count is out of what has loaded ("150 of 200+"). The count is deliberately not a live region: it changes on every page of a scroll, and the list announces its own loads.',
+          '`DataTable` and `VirtualList` do not draw it: they say their total above the rows and offer only Back to top, and the page draws its scroll progress once (`PageLayout`). Place it by hand only over a list of your own. Without a `total` the count is out of what has loaded ("150 of 200+"). The count is deliberately not a live region: it changes on every page of a scroll, and the list announces its own loads.',
         ].join('\n'),
       },
     },

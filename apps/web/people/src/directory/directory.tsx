@@ -1001,7 +1001,7 @@ const CARD_HEIGHT = 190;
  * Back (or a reload) loads as many pages as it takes and returns to it, and
  * once the last row in view is halfway through what is loaded the next page
  * is asked for. The window scrolls the table, the cards and the phone's list
- * alike; each draws its own "150 of 388" (Reach's `ScrollPositionRail`).
+ * alike; each says "Showing 150 of 388" above its rows (Reach's `ShownCount`).
  */
 const personName = (p: DirectoryPerson): string => p.name;
 

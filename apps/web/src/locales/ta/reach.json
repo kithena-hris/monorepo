@@ -529,6 +529,8 @@
   "components.scroll-position.scroll-position.back_to_top": "மேலே திரும்பு",
   "components.scroll-position.scroll-position.of": "{{total}} இல் {{seen}}",
   "components.scroll-position.scroll-position.of_more": "{{loaded}}+ இல் {{seen}}",
+  "components.scroll-position.shown-count.all": "அனைத்து {{total}} காட்டப்படுகின்றன",
+  "components.scroll-position.shown-count.of": "{{total}} இல் {{shown}} காட்டப்படுகின்றன",
   "components.sheet.sheet.close": "மூடு",
   "components.shortcuts.key-recorder.escape_cancels": "{{recordingText}}. Escape ரத்துசெய்யும்.",
   "components.shortcuts.key-recorder.none": "எதுவும் இல்லை",
