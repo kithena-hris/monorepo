@@ -13,7 +13,7 @@ import { cn } from '../../lib/cn';
 import { formatNumber } from '../../lib/intl';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
-import { CircularProgress } from '../progress/progress';
+import { CircularProgress } from '../progress/circular-progress';
 import { t } from '../../lib/i18n';
 
 export interface ScrollPositionProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
