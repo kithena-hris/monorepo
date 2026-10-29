@@ -69,16 +69,6 @@ function pages() {
   return { asked, onLoadMore };
 }
 
-/** Until no page has been asked for in a while: the list has stopped growing. */
-async function quiet(asked: readonly string[]): Promise<void> {
-  let seen = -1;
-  while (asked.length !== seen) {
-    seen = asked.length;
-    // oxlint-disable-next-line no-await-in-loop -- waiting is the point
-    await new Promise((resolve) => setTimeout(resolve, 600));
-  }
-}
-
 function directory(over: { onLoadMore: (after: string) => Promise<unknown>; onOpen?: () => void }) {
   // Inside what the shell puts around it (`apps/web`'s `app-shell.tsx` and
   // the remote's mount): Reach's `PageLayout` with the rail alone, whose
@@ -283,51 +273,38 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     },
   );
 
-  it('opens a quick look on a click, and Show in list brings their row back smoothly and focuses it', async () => {
-    const { asked, onLoadMore } = pages();
-    const onOpen = vi.fn();
-    directory({ onLoadMore, onOpen });
-    expect(screen.queryByRole('complementary', { name: 'Quick look' })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
-    const look = screen.getByRole('complementary', { name: 'Quick look' });
-    expect(within(look).getByRole('heading', { name: 'Person 0' })).toBeVisible();
-    expect(onOpen).not.toHaveBeenCalled();
-    const box = screen.getByRole('region', { name: 'People' });
-    await vi.waitFor(() => {
-      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
-    });
-    window.scrollTo(0, tableTop(box) + box.scrollHeight);
-    await vi.waitFor(() => {
-      expect(inView('p0')).toBe(false);
-    });
-    // At the end, page after page loads; on CI's WebKit that outlasts a click's wait.
-    await quiet(asked);
-    // DIAGNOSTIC (temporary): what moves under CI's WebKit.
-    const show = within(look).getByRole('button', { name: 'Show in list' });
-    const diag: string[] = [];
-    for (let i = 0; i < 8; i += 1) {
-      // oxlint-disable-next-line no-await-in-loop -- sampling frames
-      await new Promise((r) => requestAnimationFrame(r));
-      const r = show.getBoundingClientRect();
-      const lk = look.getBoundingClientRect();
-      const t = box.getBoundingClientRect();
-      diag.push(
-        `DIAG ${String(i)} show=${r.top.toFixed(1)},${r.left.toFixed(1)} look=${lk.top.toFixed(1)},${lk.height.toFixed(1)} y=${window.scrollY.toFixed(1)} doc=${String(document.documentElement.scrollHeight)} box=${t.top.toFixed(1)},${t.height.toFixed(1)},${String(box.scrollWidth)}/${String(box.clientWidth)} asked=${String(asked.length)} head=${box.querySelector('thead')?.style.transform ?? ''} anim=${String(document.getAnimations().length)}`,
-      );
-    }
-    try {
+  it(
+    'opens a quick look on a click, and Show in list brings their row back smoothly and focuses it',
+    { timeout: slow ? 60_000 : 15_000 },
+    async () => {
+      const { onLoadMore } = pages();
+      const onOpen = vi.fn();
+      directory({ onLoadMore, onOpen });
+      expect(screen.queryByRole('complementary', { name: 'Quick look' })).toBeNull();
+      await userEvent.click(screen.getByRole('button', { name: 'Person 0' }));
+      const look = screen.getByRole('complementary', { name: 'Quick look' });
+      expect(within(look).getByRole('heading', { name: 'Person 0' })).toBeVisible();
+      expect(onOpen).not.toHaveBeenCalled();
+      const box = screen.getByRole('region', { name: 'People' });
+      await vi.waitFor(() => {
+        expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+      });
+      // Far enough that their row has gone, short of the end: there every page
+      // loads in turn, and CI's WebKit was still laying them out when it clicked.
+      window.scrollTo(0, tableTop(box) + 40 * ROW);
+      await vi.waitFor(() => {
+        expect(inView('p0')).toBe(false);
+      });
       await userEvent.click(within(look).getByRole('button', { name: 'Show in list' }));
-    } catch (error) {
-      throw new Error(`${diag.join('\n')}\n${String(error)}`);
-    }
-    await vi.waitFor(
-      () => {
-        expect(inView('p0')).toBe(true);
-        expect(document.querySelector('tr[data-row-id="p0"]')).toHaveFocus();
-      },
-      { timeout: slow ? 20_000 : 3000 },
-    );
-  });
+      await vi.waitFor(
+        () => {
+          expect(inView('p0')).toBe(true);
+          expect(document.querySelector('tr[data-row-id="p0"]')).toHaveFocus();
+        },
+        { timeout: slow ? 20_000 : 3000 },
+      );
+    },
+  );
 
   // A fixed 42 frames of flinging, at 300, 900 and 2,400 px a frame (the last
   // two past the overscan), down and back up. Each frame renders a fresh run
