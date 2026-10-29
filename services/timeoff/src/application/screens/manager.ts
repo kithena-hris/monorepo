@@ -128,7 +128,7 @@ export const approvals =
             if (found !== null) lookCloser.push({ item: found, reason: reasonView(q.reason) });
           }
           return ok({
-            view: { tab: query.tab, clear, lookCloser, items: [], next: null },
+            view: { tab: query.tab, clear, lookCloser, items: [], next: null, total: null },
             facts,
           });
         },
@@ -144,11 +144,12 @@ export const approvals =
     return transact<ApprovalsView>(deps, caller.tenantId, async (tx) => {
       const empty = { tab: query.tab, clear: [], lookCloser: [], why: [] };
       const personIds = await decidesFor(tx, deps, caller);
-      if (personIds?.length === 0) return ok({ ...empty, items: [], next: null });
+      if (personIds?.length === 0) return ok({ ...empty, items: [], next: null, total: 0 });
       const today = await todayOf(tx, deps, caller);
       const types = await typesOf(tx);
       const page = await tx.requests.page({
         ...(personIds === undefined ? {} : { personIds }),
+        notPersonId: caller.personId,
         ...(query.tab === 'coming_up'
           ? { statuses: ['approved'], from: today, order: 'soonest' as const }
           : { statuses: DECIDED, order: 'newest' as const }),
@@ -162,7 +163,7 @@ export const approvals =
         const member = await tx.members.get(record.request.personId);
         if (member !== null) items.push(requestItem(record, member, types));
       }
-      return ok({ ...empty, items, next: page.next });
+      return ok({ ...empty, items, next: page.next, total: page.total });
     });
   };
 

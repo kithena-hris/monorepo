@@ -241,13 +241,14 @@ function stores(tenantId: TenantId, s: State): Tx {
           f.order === 'newest' ? r.requestedAt : r.request.span.from;
         const sign = f.order === 'newest' ? -1 : 1;
         const after = pageCursor.read(f.after);
-        const rows = [...s.requests.values()]
-          .filter(
-            ({ request: r }) =>
-              (f.personIds === undefined || f.personIds.includes(r.personId)) &&
-              f.statuses.includes(r.status) &&
-              (f.from === undefined || r.span.to >= f.from),
-          )
+        const matching = [...s.requests.values()].filter(
+          ({ request: r }) =>
+            (f.personIds === undefined || f.personIds.includes(r.personId)) &&
+            (f.notPersonId == null || r.personId !== f.notPersonId) &&
+            f.statuses.includes(r.status) &&
+            (f.from === undefined || r.span.to >= f.from),
+        );
+        const rows = matching
           .filter((r) => {
             if (after === null) return true;
             const c = keyOf(r).localeCompare(after.key) || r.request.id.localeCompare(after.id);
@@ -261,6 +262,7 @@ function stores(tenantId: TenantId, s: State): Tx {
         const last = records.at(-1);
         return {
           records,
+          total: after === null ? matching.length : null,
           next:
             rows.length > f.limit && last !== undefined
               ? pageCursor.of(keyOf(last), last.request.id)

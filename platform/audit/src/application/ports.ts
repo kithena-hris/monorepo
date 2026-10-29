@@ -24,6 +24,8 @@ export interface EntryStore {
     tenantId: string,
     query: { readonly filter: Filter; readonly before: string | null; readonly limit: number },
   ): Promise<readonly StoredEntry[]>;
+  /** How many entries `filter` narrows the log to, over every page. */
+  count(tenantId: string, filter: Filter): Promise<number>;
   /**
    * A module's administrator named or removed, as identity says it: kept only
    * when it is newer than what is held, so a redelivery cannot undo a later one.

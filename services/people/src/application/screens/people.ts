@@ -727,6 +727,8 @@ export interface ApprovalsView {
   readonly decided: readonly ApprovalItem[];
   /** The place of the next page of `decided`, null on the last. */
   readonly decidedNext: string | null;
+  /** How many `decided` holds over every page, on its first; null on a later page or for anybody else. */
+  readonly decidedTotal: number | null;
   /** What Kithena checks (AI8), for HR; null for anybody else. */
   readonly checks: readonly CheckView[] | null;
   /** A People administrator switches the checks. */
@@ -784,6 +786,7 @@ export async function approvalsView(
         itemsNext: null,
         decided: [],
         decidedNext: null,
+        decidedTotal: null,
         checks: null,
         canTune: false,
         last90: null,
@@ -831,6 +834,12 @@ export async function approvalsView(
           })
         : [];
     const decided = read.slice(0, DECIDED_PAGE);
+    const decidedTotal =
+      isHr && !queueOnly && place === null
+        ? read.length <= DECIDED_PAGE
+          ? decided.length
+          : await pending.store.decidedCount(tx, asking.tenantId, { since, until: now })
+        : null;
     const lastDecided = decided.at(-1);
     const decidedNext =
       read.length > DECIDED_PAGE && lastDecided !== undefined
@@ -997,6 +1006,7 @@ export async function approvalsView(
       itemsNext,
       decided: decidedItems,
       decidedNext,
+      decidedTotal,
       checks: isHr ? checksOf(look) : null,
       canTune: everyone?.isAdmin === true && pending.flags !== undefined,
       last90:
@@ -2508,6 +2518,8 @@ export interface CompletenessView {
    * What Review's chip counts.
    */
   readonly listed: number;
+  /** Of those, the people HR fills something in for: the fill grid's rows over everybody. */
+  readonly hrListed: number;
   /** People missing bank, tax or ID details (`blocksPayroll`); null where not known. */
   readonly blocking: number | null;
   readonly fields: readonly {
@@ -2662,6 +2674,7 @@ export async function completenessView(
       completedThisWeek: 0,
       toFill: hrToFill(totals, version),
       listed: hrPeople + totals.waiting,
+      hrListed: hrPeople,
       blocking: figures?.blocking ?? null,
       fields: [...staff.map((s) => s.key), ...own].flatMap((key) => {
         const d = byKey.get(key);

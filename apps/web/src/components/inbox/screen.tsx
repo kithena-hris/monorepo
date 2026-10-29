@@ -26,6 +26,7 @@ import {
   List,
   ListDetail,
   PageHeader,
+  LazyScrollPositionRail,
   SearchField,
   Select,
   SelectContent,
@@ -50,6 +51,7 @@ import {
   lazy,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type JSX,
@@ -200,6 +202,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
     { source, q: search, outcome },
   );
   const sections = feed ? feedOf(shown) : [];
+  const listBox = useRef<HTMLDivElement | null>(null);
   const doneGroups = view === 'done' ? groupsOf(shown, 'done', now, zone) : [];
   const snoozed = view === 'snoozed' ? shown : [];
   const snoozedCount = snoozedOf(items).length;
@@ -639,7 +642,9 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
     );
 
   const heading = (key: SectionKey, count: number): JSX.Element => (
-    <div className="sticky top-0 z-10 flex items-center gap-2 bg-surface/95 px-4.5 pt-4 pb-1.5 backdrop-blur-sm">
+    // Not sticky: the list's toolbar already pins under the page's header, and
+    // a third layer pinned under both slid over them as the window scrolled.
+    <div className="flex items-center gap-2 px-4.5 pt-4 pb-1.5">
       <h2 className="text-sm font-semibold text-fg">{SECTION_LABEL[key]()}</h2>
       <Badge
         size="sm"
@@ -704,8 +709,10 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
   const list = (
     // `clip`, not `hidden`: rounded without becoming a scroll box, so the
     // window scrolls the list and its toolbar sticks under the page's header.
-    <div className="flex flex-col overflow-clip rounded-2xl bg-surface shadow-sm">
-      <div className="sticky top-(--reach-sticky-top,0px) z-10 bg-surface">
+    <div ref={listBox} className="flex flex-col overflow-clip rounded-2xl bg-surface shadow-sm">
+      {/* Where the reader is, once the toolbar pins: "12 of 40", and back to the top. */}
+      <LazyScrollPositionRail list={listBox} loaded={shown.length} total={shown.length} />
+      <div data-list-head className="sticky top-(--reach-sticky-top,0px) z-10 bg-surface">
         {toolbar}
         {bulkBar}
       </div>

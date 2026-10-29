@@ -79,6 +79,8 @@ export interface Shown extends InboxItem {
   /** Greyed: cancelled by the sender, or a team task somebody else took (Z2, Z3). */
   readonly dim: boolean;
   readonly ticks: readonly string[];
+  /** The face of who it is from (`from.personId`), where People lets the reader see it. */
+  readonly photo?: string | null;
 }
 
 /** Every module's answer, read safely: an item that does not parse is dropped, not guessed. */

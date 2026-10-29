@@ -119,7 +119,12 @@ export interface IntegrationDeps extends ScreenDeps {
     tenantId: string,
     endpointId: string,
     after: string | null,
-  ) => Promise<{ deliveries: readonly ListedDelivery[]; next: string | null }>;
+  ) => Promise<{
+    deliveries: readonly ListedDelivery[];
+    next: string | null;
+    /** Over every page, on the first; null on a later one. */
+    total: number | null;
+  }>;
   /** SCIM connections (PEO-072, PEO-073). Absent, the screen shows none and they cannot be made. */
   readonly scim?: ScimConnections;
   /** Where SCIM is served publicly: what an administrator pastes into their provider. */
@@ -237,6 +242,8 @@ export interface DeliveriesView {
   readonly deliveries: readonly ListedDelivery[];
   /** The cursor for the older page; null on the last. */
   readonly next: string | null;
+  /** How many there are over every page, on the first; null on a later one. */
+  readonly total: number | null;
 }
 
 /** One endpoint's delivery log (PEO-121): `people_admin`'s, as the endpoints are. */
@@ -603,7 +610,12 @@ function withChoices(
   const choices = choiceFields(version.document, {
     choices: proposed
       .filter((c) => c.status === 'mapped' && CHOICE_KEYS.includes(c.key ?? ''))
-      .map((c) => ({ index: c.index, header: c.header, key: c.key as string, cells: cells(c.index) })),
+      .map((c) => ({
+        index: c.index,
+        header: c.header,
+        key: c.key as string,
+        cells: cells(c.index),
+      })),
     unmatched: proposed
       .filter((c) => c.status === 'ignored' && c.key === null && c.source === null)
       .map((c) => ({ index: c.index, header: c.header, cells: cells(c.index) })),

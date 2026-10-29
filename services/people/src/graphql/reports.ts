@@ -144,6 +144,10 @@ export function defineReports(builder: PeopleBuilder, viaRest: ViaRest): void {
         nullable: true,
         description: 'The page before, as `before`; null on the last.',
       }),
+      total: t.exposeInt('total', {
+        nullable: true,
+        description: 'How many runs there are over every page, on the first; null on a later one.',
+      }),
     }),
   });
 

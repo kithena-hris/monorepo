@@ -95,6 +95,32 @@ export interface InboxRead {
   readonly now: string;
 }
 
+/**
+ * The faces of the people the items are from, as People lets the reader see
+ * them (`Names`). Without People, or where it refuses, the rows keep initials.
+ */
+async function photosOf(
+  items: readonly InboxItem[],
+  entitlements: readonly string[],
+  run: Run,
+): Promise<ReadonlyMap<string, string>> {
+  const personIds = [
+    ...new Set(items.flatMap((i) => (i.from?.personId == null ? [] : [i.from.personId]))),
+  ];
+  const photos = new Map<string, string>();
+  if (personIds.length === 0 || !entitlements.includes('module.people')) return photos;
+  const named = await run('people', 'Names', { personIds });
+  if (!named.ok) return photos;
+  const people = (named.data as { readonly people?: readonly NamedFace[] } | null)?.people ?? [];
+  for (const p of people) if (p.avatarUrl !== null) photos.set(p.personId, p.avatarUrl);
+  return photos;
+}
+
+interface NamedFace {
+  readonly personId: string;
+  readonly avatarUrl: string | null;
+}
+
 /** Every module the company has, read at once, merged and shaped by the person's state. */
 export async function readInbox(
   entitlements: readonly string[],
@@ -106,7 +132,11 @@ export async function readInbox(
   const answers = await Promise.all(sources.map((s) => run(s.area, s.operation)));
   const unanswered = sources.filter((_, i) => answers[i]?.ok !== true).map((s) => s.module);
   const raw = itemsOf(answers.map((a, i) => (a.ok ? sources[i]?.answer(a.data) : null)));
-  const items = shape(raw, state, now);
+  const photos = await photosOf(raw, entitlements, run);
+  const items = shape(raw, state, now).map((item) => {
+    const photo = item.from?.personId == null ? undefined : photos.get(item.from.personId);
+    return photo === undefined ? item : { ...item, photo };
+  });
   return {
     raw,
     items,

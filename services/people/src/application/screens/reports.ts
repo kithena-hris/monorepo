@@ -83,6 +83,8 @@ export interface ReportRunsView {
   })[];
   /** The page before this one's last period, as `before`; null on the last. */
   readonly next: string | null;
+  /** How many runs there are over every page, on the first; null on a later one. */
+  readonly total: number | null;
 }
 
 const unavailable = () => failure('UNAVAILABLE', 'Scheduled reports are not configured');
@@ -210,6 +212,7 @@ export async function reportRunsView(
         })),
       })),
       next: page.value.next,
+      total: page.value.total,
     });
   });
 }

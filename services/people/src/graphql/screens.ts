@@ -820,6 +820,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: 'The next page of Decided, as `decidedAfter`; null on the last.',
       }),
+      decidedTotal: t.exposeInt('decidedTotal', {
+        nullable: true,
+        description: 'How many Decided holds over every page, on its first; null on a later page.',
+      }),
       checks: t.field({
         type: [ApprovalCheckRef],
         nullable: true,
@@ -1213,6 +1217,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description:
           'Rows Missing details lists over everybody: a person HR fills for, and a person waiting on themselves.',
       }),
+      hrListed: t.exposeInt('hrListed', {
+        description: 'Of those, the people HR fills something in for, over everybody.',
+      }),
       blocking: t.exposeInt('blocking', {
         nullable: true,
         description: 'People missing bank, tax or ID details, whoever fills them in.',
@@ -1268,6 +1275,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       next: t.exposeID('next', {
         nullable: true,
         description: 'The next page, as `after`; null on the last.',
+      }),
+      total: t.exposeInt('total', {
+        nullable: true,
+        description: 'How many the table lists over every page, on the first; null on a later one.',
       }),
       holders: t.field({
         type: [RolesPerson],
@@ -2168,6 +2179,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       endpoint: t.field({ type: DeliveryEndpoint, resolve: (d) => d.endpoint }),
       deliveries: t.field({ type: [DeliveryRef], resolve: (d) => list(d.deliveries) }),
       next: t.exposeID('next', { nullable: true }),
+      total: t.exposeInt('total', {
+        nullable: true,
+        description: 'How many there are over every page, on the first; null on a later one.',
+      }),
     }),
   });
 

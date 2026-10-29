@@ -270,13 +270,12 @@ export type {
 export { Combobox } from './components/combobox/combobox';
 export type { ComboboxOption, ComboboxProps } from './components/combobox/combobox';
 
-export {
-  Command,
-  CommandPalette,
-  filterCommands,
-} from './components/command-palette/command-palette';
+// The palette itself is `@reach/ui/command-palette`, fetched by an app when it
+// is first opened: whatever is exported here is in every page's first load.
+// Its items and their matching are here.
+export { filterCommands } from './components/command-palette/filter';
+export type { CommandItem } from './components/command-palette/filter';
 export type {
-  CommandItem,
   CommandPaletteProps,
   CommandProps,
 } from './components/command-palette/command-palette';

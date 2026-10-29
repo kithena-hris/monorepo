@@ -199,12 +199,19 @@ export interface RequestStore {
    */
   page(filter: {
     readonly personIds?: readonly PersonId[];
+    /** Leaves one person's own out: HR's, which are someone else's to decide. */
+    readonly notPersonId?: PersonId | null;
     readonly statuses: readonly LeaveRequest['status'][];
     readonly from?: CalendarDate;
     readonly order: 'newest' | 'soonest';
     readonly after: string | null;
     readonly limit: number;
-  }): Promise<{ readonly records: readonly RequestRecord[]; readonly next: string | null }>;
+  }): Promise<{
+    readonly records: readonly RequestRecord[];
+    readonly next: string | null;
+    /** How many the filter finds over every page, on the first; null on a later one. */
+    readonly total: number | null;
+  }>;
   save(record: RequestRecord): Promise<void>;
   /** One step decided (`request_decision`): who, in which role, and what they wrote. Append-only. */
   recordDecision(decision: RequestDecision): Promise<void>;

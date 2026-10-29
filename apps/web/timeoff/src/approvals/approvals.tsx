@@ -56,6 +56,8 @@ export interface ApprovalsData {
   readonly items: readonly RequestItem[];
   /** Coming up and Decided: the next page's place, null on the last. Absent from an older Time Off. */
   readonly next?: string | null;
+  /** Coming up and Decided: how many over every page. Absent from an older Time Off. */
+  readonly total?: number | null;
   /** Waiting for me: each request's one line, the model's or Time Off's template (TOF-086). */
   readonly why: readonly { readonly requestId: string; readonly text: Written }[];
   /** How each leave type looks. */
@@ -562,6 +564,7 @@ function Decided({
       estimateItemHeight={72}
       {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
       loadingMore={pages.loading}
+      {...(data.total == null ? {} : { total: data.total })}
       renderItem={(item, _i, row) => {
         const look = lookOf(data.types, item.leaveTypeKey);
         const status = STATUS[item.status] ?? { label: item.status, tone: 'neutral' as const };

@@ -1,7 +1,4 @@
-import type {
-  TransferHistoryView,
-  TransferView,
-} from '../application/screens/transfers.js';
+import type { TransferHistoryView, TransferView } from '../application/screens/transfers.js';
 import type { PeopleBuilder, ViaRest } from './builder.js';
 
 /**
@@ -48,11 +45,15 @@ export function defineTransfers(builder: PeopleBuilder, viaRest: ViaRest): void 
     .implement({
       fields: (t) => ({
         done: t.exposeInt('done'),
-        total: t.exposeInt('total', { nullable: true, description: 'Null until the file is read.' }),
+        total: t.exposeInt('total', {
+          nullable: true,
+          description: 'Null until the file is read.',
+        }),
       }),
     });
   const Run = builder.objectRef<NonNullable<TransferView['run']>>('PeopleTransferRun').implement({
-    description: 'An import’s state: Importing with how many people are in, Imported, or Import failed.',
+    description:
+      'An import’s state: Importing with how many people are in, Imported, or Import failed.',
     fields: (t) => ({
       status: t.exposeString('status', { description: 'importing, imported or failed.' }),
       label: t.exposeString('label', { description: 'Importing, Imported or Import failed.' }),
@@ -60,7 +61,8 @@ export function defineTransfers(builder: PeopleBuilder, viaRest: ViaRest): void 
     }),
   });
   const Transfer = builder.objectRef<TransferView>('PeopleTransfer').implement({
-    description: 'One import or export, as its ledger keeps it. Never a value, never a stored link.',
+    description:
+      'One import or export, as its ledger keeps it. Never a value, never a stored link.',
     fields: (t) => ({
       id: t.exposeID('id'),
       kind: t.exposeString('kind', { description: 'import or export.' }),
@@ -73,7 +75,8 @@ export function defineTransfers(builder: PeopleBuilder, viaRest: ViaRest): void 
       imported: t.field({ type: Imported, nullable: true, resolve: (v) => v.imported }),
       exported: t.field({ type: Exported, nullable: true, resolve: (v) => v.exported }),
       downloadable: t.exposeBoolean('downloadable', {
-        description: 'The viewer’s own export, still there: `peopleExport(id)` hands them its files.',
+        description:
+          'The viewer’s own export, still there: `peopleExport(id)` hands them its files.',
       }),
       reportUrl: t.exposeString('reportUrl', {
         nullable: true,
@@ -91,6 +94,11 @@ export function defineTransfers(builder: PeopleBuilder, viaRest: ViaRest): void 
     fields: (t) => ({
       items: t.field({ type: [Transfer], resolve: (v) => list(v.items) }),
       next: t.exposeID('next', { nullable: true }),
+      total: t.exposeInt('total', {
+        nullable: true,
+        description:
+          'How many entries there are over every page, on the first; null on a later one.',
+      }),
     }),
   });
 

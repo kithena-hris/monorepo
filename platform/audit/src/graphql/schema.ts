@@ -78,8 +78,7 @@ const Entry = builder.objectRef<StoredEntry>('AuditEntry').implement({
     }),
     operatorLabel: t.string({
       nullable: true,
-      description:
-        'How the log names that operator: their work address, from the support sign-in.',
+      description: 'How the log names that operator: their work address, from the support sign-in.',
       resolve: (e) => e.actor.operatorLabel,
     }),
     subjectKind: t.string({ nullable: true, resolve: (e) => e.subject?.kind ?? null }),
@@ -105,6 +104,12 @@ const Activity = builder.objectRef<ActivityPage>('AuditActivity').implement({
   fields: (t) => ({
     entries: t.field({ type: [Entry], resolve: (p) => [...p.entries] }),
     next: t.id({ nullable: true, resolve: (p) => p.next }),
+    total: t.int({
+      nullable: true,
+      description:
+        'How many entries the filter finds over every page, on the first; null on a later one.',
+      resolve: (p) => p.total,
+    }),
   }),
 });
 
@@ -116,7 +121,8 @@ builder.queryType({
         'Who did what, across every module this company has. People administrators, HR and Kithena support; one module’s, for its administrators too.',
       args: {
         module: t.arg.string({
-          description: 'One module’s activity: people, identity, timeoff, documents, recruiting, onboarding, performance.',
+          description:
+            'One module’s activity: people, identity, timeoff, documents, recruiting, onboarding, performance.',
         }),
         areas: t.arg.stringList(),
         by: t.arg.string({ description: 'person, support, system or integration.' }),

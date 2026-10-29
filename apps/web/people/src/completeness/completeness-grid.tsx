@@ -102,6 +102,8 @@ export interface CompletenessState {
    * person waiting on themselves): what Review's chip counts. Absent from an older People.
    */
   readonly listed?: number;
+  /** Of those, the people HR fills something in for. Absent from an older People. */
+  readonly hrListed?: number;
   /** People missing bank, tax or ID details; null where People cannot say. */
   readonly blocking: number | null;
   readonly fields: readonly GapField[];
@@ -434,6 +436,17 @@ function Missing({
     [pages.rows, filled],
   );
   const hrRows = useMemo(() => rows.filter((r) => r.owner === 'hr'), [rows]);
+  // Over everybody, less the rows filled in here since the page came.
+  const cleared = pages.rows.length - rows.length;
+  const listedTotal =
+    state.listed === undefined ? undefined : Math.max(rows.length, state.listed - cleared);
+  const hrTotal =
+    state.hrListed === undefined
+      ? undefined
+      : Math.max(
+          hrRows.length,
+          state.hrListed - pages.rows.filter((r) => r.owner === 'hr').length + hrRows.length,
+        );
   const toFill = Math.max(0, state.toFill - saves.since);
   const labelOf = (key: string): string => pages.fields.get(key)?.label ?? key;
 
@@ -739,6 +752,7 @@ function Missing({
         fields={pages.fields}
         toFill={toFill}
         everybody={pages.done}
+        total={hrTotal}
         loadMore={pages.loadMore}
         loading={pages.loading}
         notices={notices}
@@ -924,6 +938,7 @@ function Missing({
             containerClassName="touch:hidden"
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
+            {...(listedTotal === undefined ? {} : { total: listedTotal })}
             virtualize
             empty={empty}
           />
@@ -941,6 +956,7 @@ function Missing({
                 ? {}
                 : { onEndReached: pages.loadMore })}
               loadingMore={pages.loading}
+              {...(listedTotal === undefined ? {} : { total: listedTotal })}
               renderItem={phoneRow}
             />
           </div>
@@ -1126,6 +1142,7 @@ function FillGrid({
   fields,
   toFill,
   everybody,
+  total,
   loadMore,
   loading,
   notices,
@@ -1140,6 +1157,8 @@ function FillGrid({
   readonly toFill: number;
   /** Every person is loaded: "across N people" is then a count, not a guess. */
   readonly everybody: boolean;
+  /** The people HR fills in for over everybody; absent from an older People. */
+  readonly total: number | undefined;
   readonly loadMore: (() => void) | undefined;
   readonly loading: boolean;
   readonly notices: ReactNode;
@@ -1378,6 +1397,7 @@ function FillGrid({
             fill
             {...(loadMore === undefined ? {} : { onEndReached: loadMore })}
             loadingMore={loading}
+            {...(total === undefined ? {} : { total })}
             virtualize
           />
         </div>

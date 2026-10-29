@@ -596,6 +596,7 @@ function Entries({
         fill
         {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
         loadingMore={pages.loading}
+        {...(page.total == null ? {} : { total: page.total })}
         describeRow={entryAction}
         activeRowId={opened?.id ?? null}
         onRowClick={showEntry}

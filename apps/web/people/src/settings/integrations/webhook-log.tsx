@@ -40,6 +40,8 @@ export interface WebhookLogState {
   readonly endpoint: { readonly id: string; readonly url: string; readonly enabled: boolean };
   readonly deliveries: readonly Delivery[];
   readonly next: string | null;
+  /** How many there are over every page; absent from an older People. */
+  readonly total?: number | null;
 }
 
 export interface WebhookLogProps {
@@ -177,6 +179,7 @@ function Log({
           fill
           {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
           loadingMore={pages.loading}
+          {...(state.total == null ? {} : { total: state.total })}
           columns={[
             {
               id: 'event',

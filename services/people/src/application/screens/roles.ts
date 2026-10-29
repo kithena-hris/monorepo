@@ -30,6 +30,8 @@ export interface RolesView {
   readonly people: readonly RolesViewPerson[];
   /** The next page's place (the last person's id); null on the last. */
   readonly next: string | null;
+  /** How many the table lists over every page, on the first; null on a later one. */
+  readonly total: number | null;
   /** Everybody holding a role, named where People has their person: the role cards'. */
   readonly holders: readonly RolesViewPerson[];
 }
@@ -52,7 +54,7 @@ export async function rolesView(
       limit: ROLES_PAGE + 1,
     });
     if (!listed.ok) return listed;
-    const { holders, candidates, named } = listed.value;
+    const { holders, candidates, named, total: found } = listed.value;
     const held = new Map(holders.map((h) => [h.accountId, h.roles]));
     const shown = candidates.slice(0, ROLES_PAGE);
     const next = candidates.length > ROLES_PAGE ? (shown.at(-1)?.personId ?? null) : null;
@@ -84,6 +86,11 @@ export async function rolesView(
         held.get(asking.viewer.accountId)?.includes('people_admin') === true,
       people,
       next,
+      // The holders with no person yet close the whole list, unsearched.
+      total:
+        found === null
+          ? null
+          : found + (search === null ? holderViews.filter((h) => h.personId === null).length : 0),
       holders: holderViews,
     });
   });

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { webhookDelivery, webhookEndpoint } from './tables.js';
@@ -41,7 +41,7 @@ export async function listDeliveries(
   tenantId: string,
   endpointId: string,
   after: string | null,
-): Promise<{ deliveries: readonly ListedDelivery[]; next: string | null }> {
+): Promise<{ deliveries: readonly ListedDelivery[]; next: string | null; total: number | null }> {
   const before = after === null || !/^\d{1,18}$/.test(after) ? null : Number(after);
   const rows = await tx
     .select()
@@ -55,7 +55,25 @@ export async function listDeliveries(
     )
     .orderBy(desc(webhookDelivery.seq))
     .limit(DELIVERY_PAGE);
+  // Counted on the first page only, and only when it is not the whole log.
+  const total =
+    before !== null
+      ? null
+      : rows.length < DELIVERY_PAGE
+        ? rows.length
+        : ((
+            await tx
+              .select({ n: count() })
+              .from(webhookDelivery)
+              .where(
+                and(
+                  eq(webhookDelivery.tenantId, tenantId),
+                  eq(webhookDelivery.endpointId, endpointId),
+                ),
+              )
+          )[0]?.n ?? 0);
   return {
+    total,
     deliveries: rows.map((r) => ({
       id: r.id,
       eventName: r.eventName,

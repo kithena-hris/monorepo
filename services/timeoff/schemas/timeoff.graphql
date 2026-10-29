@@ -545,6 +545,7 @@ type TimeOffApprovals {
   lookCloser: [TimeOffLookCloserItem!]!
   next: String
   tab: String!
+  total: Int
   why: [TimeOffWhy!]!
 }
 
