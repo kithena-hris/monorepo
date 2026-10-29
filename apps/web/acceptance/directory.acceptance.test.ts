@@ -108,6 +108,27 @@ describe('the directory filters', () => {
     await page.waitForLoadState('networkidle');
     problems.push(...seen('first load'));
 
+    // DIAGNOSTIC (not for merge): what the page holds when Add filter is missing.
+    try {
+      await page.getByRole('button', { name: 'Add filter' }).waitFor({ timeout: 20_000 });
+    } catch (cause) {
+      const shots = process.env['ACCEPTANCE_SHOTS'] ?? '/tmp/shots';
+      const { mkdirSync } = await import('node:fs');
+      mkdirSync(shots, { recursive: true });
+      await page.screenshot({ path: `${shots}/diag-add-filter.png`, fullPage: true });
+      const dump = await page.evaluate(() => ({
+        url: location.href,
+        buttons: [...document.querySelectorAll('button, [role="button"]')].map(
+          (b) =>
+            `${(b.getAttribute('aria-label') ?? b.textContent ?? '').trim().slice(0, 40)}|hidden=${String(b.closest('[aria-hidden="true"], [inert]') !== null)}`,
+        ),
+        chips: document.querySelector('[aria-label="Filters in force"]')?.outerHTML.slice(0, 2000) ?? 'NO CHIP ROW',
+        toolbar: document.querySelector('[data-remote]')?.innerHTML.slice(0, 6000) ?? 'NO REMOTE',
+        inert: [...document.querySelectorAll('[inert], [aria-hidden="true"]')].map((e) => `${e.tagName}.${e.className.toString().slice(0, 80)}`).slice(0, 30),
+      }));
+      console.log('DIAG', JSON.stringify({ errors, dump }, null, 1));
+      throw cause;
+    }
     await page.getByRole('button', { name: 'Add filter' }).click();
     const dialog = page.getByRole('dialog', { name: 'Filter people' });
     await dialog.getByRole('combobox', { name: 'Condition 1 field' }).click();
