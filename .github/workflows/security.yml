@@ -92,6 +92,8 @@ jobs:
       #   GHSA-86w9-cpqp-85rv  node-forge <=1.4.0   apps/mobile > expo > @expo/cli
       #   GHSA-vfj7-8cjw-p6xm  braces <=3.0.3       apps/mobile > expo > @expo/cli
       #   GHSA-mrhx-c7xc-m3w5  zod 3 (fixed in 4.6.6 only) apps/mobile > expo > @expo/cli
+      #   GHSA-gcqx-w48m-w2h4  deepmerge <=4.3.1    apps/mobile > expo > @expo/config
+      # `@expo/config` reads app.config at build time and is not bundled either.
       # `@expo/cli` is Expo's build and dev-server CLI: it signs and serves a
       # development build and runs `expo export`, and none of it is in the app
       # bundle. The audit counts it because `expo` is the app's runtime

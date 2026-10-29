@@ -10,16 +10,7 @@ import { currentPerson, displayName } from './session';
 import { shellData, type ShellData } from './shell';
 import { prefsFrom } from './shortcut-prefs';
 import type { ShortcutPrefs } from './shortcuts';
-import { SIDEBAR_COOKIE, sidebarCollapsedFrom } from './sidebar';
 import { RETURN_COOKIE } from './session-cookie';
-
-/**
- * Whether this device keeps the sidebar collapsed, from its cookie, for the
- * shell's first render; `undefined` when it has never said.
- */
-export async function sidebarCollapsed(): Promise<boolean | undefined> {
-  return sidebarCollapsedFrom((await cookies()).get(SIDEBAR_COOKIE)?.value);
-}
 
 /**
  * Who is signed in, as the shell draws them, and the shell's People data: the
@@ -37,7 +28,6 @@ export async function signedIn(): Promise<{
   readonly company: string;
   readonly logoUrl: string | null;
   readonly shell: ShellData;
-  readonly sidebarCollapsed: boolean | undefined;
   /** Their keyboard shortcuts, as they last saved them; the defaults otherwise. */
   readonly shortcuts: ShortcutPrefs;
 }> {
@@ -51,10 +41,9 @@ export async function signedIn(): Promise<{
   if (person === null) {
     redirect((await cookies()).has(RETURN_COOKIE) ? '/auth/view-as/end' : '/login');
   }
-  const [company, shell, collapsed, saved] = await Promise.all([
+  const [company, shell, saved] = await Promise.all([
     tenant,
     shellData(person.entitlements),
-    sidebarCollapsed(),
     shortcuts,
   ]);
   return {
@@ -70,7 +59,6 @@ export async function signedIn(): Promise<{
     company: company?.branding.displayName ?? company?.slug ?? 'your company',
     logoUrl: company?.branding.logoUrl ?? null,
     shell,
-    sidebarCollapsed: collapsed,
     shortcuts: prefsFrom(saved),
   };
 }

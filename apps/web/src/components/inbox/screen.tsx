@@ -702,9 +702,13 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
   );
 
   const list = (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-surface shadow-sm">
-      {toolbar}
-      {bulkBar}
+    // `clip`, not `hidden`: rounded without becoming a scroll box, so the
+    // window scrolls the list and its toolbar sticks under the page's header.
+    <div className="flex flex-col overflow-clip rounded-2xl bg-surface shadow-sm">
+      <div className="sticky top-(--reach-sticky-top,0px) z-10 bg-surface">
+        {toolbar}
+        {bulkBar}
+      </div>
       {read.unanswered.length === 0 ? null : (
         <p className="border-b border-border px-4 py-2 text-sm text-fg-muted">
           {t(
@@ -718,7 +722,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
         </p>
       )}
       <div
-        className="flex-1 overflow-y-auto pb-2"
+        className="pb-2"
         onKeyDown={(event) => {
           // D5: X selects the row in focus, as in Review.
           if (event.key !== 'x' || event.metaKey || event.ctrlKey || event.altKey || !feed) return;
@@ -763,7 +767,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
           .join(' · ');
 
   return (
-    <div className="flex h-[calc(100dvh-7rem)] flex-col gap-4 touch:h-auto">
+    <div className="flex flex-col gap-4">
       <PageHeader
         title={t('components.inbox.screen.inbox', 'Inbox')}
         description={summary}
@@ -797,7 +801,6 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
         waking={read.waking && read.items.length === 0}
       >
         <ListDetail
-          className="min-h-0 flex-1"
           listWidth="30rem"
           splitFrom="lg"
           listLabel={viewLabel}
@@ -812,7 +815,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
           list={list}
           detail={
             selected === null ? null : (
-              <div className="h-full overflow-y-auto rounded-2xl bg-surface shadow-sm">
+              <div className="rounded-2xl bg-surface shadow-sm">
                 <InboxDetail
                   key={selected.id}
                   item={selected}
@@ -824,7 +827,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
             )
           }
           emptyDetail={
-            <div className="grid h-full place-items-center rounded-2xl bg-surface shadow-sm">
+            <div className="grid min-h-[min(32rem,60dvh)] place-items-center rounded-2xl bg-surface shadow-sm">
               <EmptyState
                 icon={<icons.inbox />}
                 title={

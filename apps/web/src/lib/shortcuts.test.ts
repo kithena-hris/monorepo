@@ -65,15 +65,12 @@ describe('refusing keys', () => {
     expect(problemWith(changed, 'go.home', ['g', 'd'])).toBeNull();
   });
 
-  it('refuses the fixed keys too: ⌘K, ⌘\\, ?, /, Esc, [ and ]', () => {
+  it('refuses the fixed keys too: ⌘K, ?, /, Esc, [ and ]', () => {
     expect(problemWith(table, 'go.home', ['mod+k'], true)).toBe(
       '⌘K already opens search. Choose another.',
     );
     expect(problemWith(table, 'go.home', ['mod+k'])).toBe(
       'Ctrl+K already opens search. Choose another.',
-    );
-    expect(problemWith(table, 'go.home', ['mod+\\'], true)).toBe(
-      '⌘\\ already collapses the sidebar. Choose another.',
     );
     expect(problemWith(table, 'go.home', ['?'])).toBe(
       '? already shows the keyboard shortcuts. Choose another.',

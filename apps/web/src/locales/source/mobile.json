@@ -10871,6 +10871,18 @@
     "text": "Email",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. recruiting/screens.tsx, RecruitingCandidate: the description of <ListItem>."
   },
+  "recruiting.screens.hire": {
+    "text": "Hire",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. recruiting/screens.tsx, RecruitingCandidate: text inside <Button>."
+  },
+  "recruiting.screens.hire_name": {
+    "text": "Hire {{name}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. recruiting/screens.tsx, RecruitingCandidate: text inside <DialogTitle>. Filled in: {{name}}."
+  },
+  "recruiting.screens.hire_without_offer": {
+    "text": "There is no accepted offer to say when they start. Their People record is created as soon as they are hired, from this date.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. recruiting/screens.tsx, RecruitingCandidate: text inside <DialogDescription>."
+  },
   "recruiting.screens.hires": {
     "text": "Hires",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. recruiting/screens.tsx, RecruitingAnalytics: the label of <Stat>."
@@ -11046,6 +11058,10 @@
   "recruiting.screens.source": {
     "text": "Source",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. recruiting/screens.tsx, RecruitingCandidate: the description of <ListItem>."
+  },
+  "recruiting.screens.start_date": {
+    "text": "Start date",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. recruiting/screens.tsx, RecruitingCandidate: text inside <FieldLabel>."
   },
   "recruiting.screens.strong_no": {
     "text": "Strong no",

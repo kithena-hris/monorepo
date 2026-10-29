@@ -4,12 +4,17 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 
 ## The sidebar
 
-- **Two columns** (`shell-sidebar.tsx`, Reach's `PageLayout sidebarRail`): a rail of areas that never moves (the company's mark, the collapse control under it, Search, every area as an icon named by its tooltip, then Settings and you at the foot), and a panel beside it with the current area's name and its sections. Where you are is the rail; what you can do there is the panel.
-- **Collapsed**, the panel goes and the rail stays; an area's sections fly out from its icon. The collapse control is in the same place in both states.
-- **Never scrolls, never cuts a word**: the rail holds one icon per area, the panel only one area's sections, and section names wrap (`NavItem wrap`).
+- **A rail** (`shell-sidebar.tsx`, Reach's `PageLayout sidebarRail` with no panel): the company's mark, Search, every area as an icon named by its tooltip, then Settings and you at the foot. It is fixed while the page scrolls, and it never collapses, because there is nothing beside it to put away.
+- **An area's sections fly out of its icon** on hover (Reach's 50 ms), on focus, on a tap, or with →: its name, its sections, and at the foot its settings and anything it pins (Time Off's clock). They come out over the page, never beside it, so the page keeps its whole width. An area with one page is named by its tooltip.
+- **Never scrolls, never cuts a word**: the rail holds one icon per area, a flyout only one area's sections, and section names wrap (`NavItem wrap`).
 - **No keys on rows**: shortcuts live in the rail's tooltips, the search palette and the help sheet.
-- **Every area has a panel**: Home (Home, your profile, your time off), Inbox (Everything, Needs you, Waiting on others, Updates, Snoozed, Done), each module's sections with its settings at the panel's foot, and Settings (Company, each module, Notifications, Keyboard shortcuts, Activity log). Time Off's clock sits at the panel's foot.
-- **A press is never ignored**: the item is marked on its way at once (`NavItem pending`) and the panel turns to its area before the page arrives; every page the sidebar leads to is fetched as the pointer or keyboard comes into it; a press whose page has not come after 8 seconds is loaded the ordinary way.
+- **A press is never ignored**: the item is marked on its way at once (`NavItem pending`); every page a flyout leads to is fetched as the pointer or keyboard comes into it; a press whose page has not come after 8 seconds is loaded the ordinary way.
+
+## One scroll
+
+- **The window is the only scroll.** No page holds its content in a box of its own height: a long table grows the page (`DataTable fill` scrolls with the window, its rows virtualized against it and the next page asked for as the page nears its end), and the board's columns are as tall as their cards.
+- **The page's header sticks** (`PageHeader`, at a desk): the breadcrumb rides away above it, the description folds as it lands, and the title, its status, the actions and the tabs stay. It spans the content column edge to edge (`--reach-page-gutter`), on the chrome material with a hairline once stuck. Nothing under it moves as it folds.
+- **What sticks under it reads `--reach-sticky-top`**: a table's header, a toolbar, the Inbox's list toolbar, the directory's quick look and a list-detail's detail pane, which is the one thing that scrolls on its own, and only when it is taller than the window.
 
 ## Headers stay lean
 
@@ -32,7 +37,7 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 
 - **Journey** (`journey.tsx`): Reach's `Timeline`, one item per visit to a stage, newest first, the current one pulsing with "Now". Inside each visit, what happened while the candidate was there: emails, time requests and their answers, interviews (upcoming ones marked), scorecards, offers. Offered times show under their day as badges, the chosen one in success.
 - **Offer** (`offers.tsx`): one centred column, no tabs and no steps: the checks and the total first, then Pay, Dates, Contract, Time and place, Probation and notice, Clauses and Benefits, each filled from the job and the country pack, and the rules that applied last. It opens as a `ModalPage size="column"` over the page it came from (`?offer=` on the offers list, the board or a candidate), and as a page of its own from a link. Money is a `CurrencyField` (the currency inside); every other number is a `NumberField` with its unit inside, a length in the unit the law gives it. There is no Save button: a press saves at once, typing saves once it pauses, and "Saved" sits beside the title. Benefits use the job's `BenefitPicker`, with a `TagsInput` for benefits written in for this offer alone.
-- **Board** (`pipeline.tsx`): the `Kanban` fills from its top to the window's bottom (`useFillHeight`), so each column scrolls on its own. A sideways swipe anywhere on the board scrolls the board (the column lists contain only vertical scrolling), the scrollbar sits under the columns rather than on their edge, and columns snap only under a finger. The whole card drags (`dragActivator: { mode: 'card' }`), and a press opens the spotlight (`onCardOpen`). A card reads:
+- **Board** (`pipeline.tsx`): the `Kanban` is as tall as its longest column and the window scrolls it; no column scrolls on its own. A sideways swipe anywhere on the board scrolls the board, the scrollbar sits under the columns rather than on their edge, and columns snap only under a finger. The whole card drags (`dragActivator: { mode: 'card' }`), and a press opens the spotlight (`onCardOpen`). A card reads:
   - name and days in stage;
   - one badge row: ideal, match, knockout, duplicate;
   - an optional footer line: the next interview, or the scorecards owed.
@@ -56,7 +61,7 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 - **The toolbar**: search, a filter menu for the module (an icon until one is chosen, then its name), the view menu (Inbox, Snoozed, Done) and Select. Under a finger, Select is gone: rows swipe instead. Under it, choice chips with counts: All, Needs you, Waiting, Updates.
 - **Every view is an address**: `/inbox`, `/inbox/todo`, `/inbox/requests`, `/inbox/updates`, `/inbox/snoozed`, `/inbox/done`, each with `?item=`.
 - **An item stays where it was while you are there**: opening one marks it seen without moving it; the next visit, or Mark all seen, sorts again.
-- **The item opens beside the list** (`ListDetail`, list 30rem) and is done there: each module's kind has its own body, and Open in … is the fallback, never the first action.
+- **The item opens beside the list** (`ListDetail`, list 30rem), riding beside it as the page scrolls, and is done there: each module's kind has its own body, and Open in … is the fallback, never the first action.
 - **Push** (Settings › Notifications): one card, "Push notifications on this device", above the rows; the rows' Phone switches route to every device a person turned push on for.
 
 ## Colour and motion

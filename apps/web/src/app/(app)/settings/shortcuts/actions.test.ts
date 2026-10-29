@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const writePreference = vi.fn(
-  (): Promise<'saved' | 'view_only' | 'failed'> => Promise.resolve('saved'),
+const writePreference = vi.fn((): Promise<'saved' | 'view_only' | 'failed'> =>
+  Promise.resolve('saved'),
 );
 vi.mock('../../../../lib/preferences', () => ({ writePreference }));
 
@@ -29,7 +29,6 @@ describe('saving shortcuts', () => {
       [{ 'page.search': ['s'] }, '/ cannot be changed.'],
       [{ 'go.home': ['mod+q'] }, '⌘Q belongs to your browser or computer. Choose another.'],
       [{ 'go.home': ['?'] }, '? already shows the keyboard shortcuts. Choose another.'],
-      [{ sidebar: ['mod+e'] }, '⌘\\ cannot be changed.'],
     ] as const;
     for (const [bindings, message] of refused) {
       expect(await saveShortcuts({ bindings, characterKeys: true }, true)).toEqual({

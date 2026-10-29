@@ -3,7 +3,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState, type JSX } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CompletenessPage, CompletenessState, GapRow } from '../completeness/completeness-grid';
+import type {
+  CompletenessPage,
+  CompletenessState,
+  GapRow,
+} from '../completeness/completeness-grid';
 import type { DuplicatePair } from './duplicates';
 import { idCheckId, type ReviewItem } from './identifier-reviews';
 import { Review, type ReviewState } from './review';
@@ -26,10 +30,13 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 // machine, twice the room in WebKit, and on CI the flow without the clock.
 const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 const room = import.meta.env['CI_RUN'] === true ? Number.POSITIVE_INFINITY : webkit ? 2 : 1;
-const SCALE_TIMEOUT = 60_000;
+// The window scrolls the lists, and a shared runner's WebKit draws a frame of
+// a page that long in about a second: the flow there gets the time it takes.
+const SCALE_TIMEOUT = import.meta.env['CI_RUN'] === true && webkit ? 240_000 : 60_000;
 
 const N = 5_000;
-const minutesAgo = (i: number): string => new Date(Date.UTC(2026, 8, 24) - i * 60_000).toISOString();
+const minutesAgo = (i: number): string =>
+  new Date(Date.UTC(2026, 8, 24) - i * 60_000).toISOString();
 
 const idCheck = (i: number): ReviewItem => ({
   personId: `p${String(i)}`,
@@ -315,7 +322,8 @@ const hasRow = (name: string): boolean =>
   [...queue().querySelectorAll('[data-list-row]')].some((row) => row.textContent.includes(name));
 const missingTable = () => screen.getByRole('grid', { name: 'Missing information' });
 /** The queue's list, or null where it is not on the page at all. */
-const listed = (): Element | null => document.querySelector('ul[aria-label="Waiting for a decision"]');
+const listed = (): Element | null =>
+  document.querySelector('ul[aria-label="Waiting for a decision"]');
 
 describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
   it(
@@ -412,8 +420,12 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
       const table = missingTable();
       const box = scrollerOf(table.querySelector('tbody tr[data-row-id]') as Element);
       // To the end of the first page: the next is asked for, and lands under
-      // the last rows, which stay the rows they were.
-      box.scrollTop = box.scrollHeight;
+      // the last rows, which stay the rows they were. The window scrolls the
+      // table, with more of the page under it: to the table's end, not the page's.
+      box.scrollTop =
+        box === document.scrollingElement
+          ? table.getBoundingClientRect().bottom + window.scrollY - window.innerHeight
+          : box.scrollHeight;
       await painted();
       const last = table.querySelector(`tr[data-row-id="g${String(MISSING_PAGE - 1)}-hr"]`);
       expect(last).not.toBeNull();
@@ -461,7 +473,8 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
       });
       await painted();
       reading = performance.now() - reading;
-      kept['grid, read again'] = screen.getByRole('table', { name: 'Missing values' }) === gridTable;
+      kept['grid, read again'] =
+        screen.getByRole('table', { name: 'Missing values' }) === gridTable;
       kept['cell, read again'] = screen.queryByRole('textbox', { name: lastCell }) === atEnd;
       kept['place, read again'] = Math.abs(gridBox.scrollTop - place) < 2;
       gridBox.scrollTop = 0;
@@ -516,7 +529,9 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
     const row = await vi.waitFor(() => rowOf('Person 3000, ID checks'));
     expect(row).toHaveAttribute('aria-current', 'true');
     expect(
-      [...document.querySelectorAll('h2')].some((h) => h.textContent === 'Person 3000 · National ID'),
+      [...document.querySelectorAll('h2')].some(
+        (h) => h.textContent === 'Person 3000 · National ID',
+      ),
     ).toBe(true);
     // The virtualizer settles its scroll over a frame or two, as rows are measured.
     await vi.waitFor(() => {

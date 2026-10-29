@@ -119,18 +119,25 @@ function renderShell(
       companyName="Acme"
       entitlements={['module.people', 'module.timeoff']}
       shell={shell}
-      // Expanded: the collapsed rail has no room for a section list.
-      sidebarCollapsed={false}
     >
       <p>Page</p>
     </AppShell>,
   );
 }
 
-const sections = () =>
-  within(screen.getByRole('navigation', { name: 'Time off sections' }))
+/** An area's sections fly out of its icon in the rail: as focus reaches it, here. */
+function openArea(name: string): void {
+  fireEvent.focus(
+    within(screen.getByRole('navigation', { name: 'Areas' })).getByRole('link', { name }),
+  );
+}
+
+const sections = () => {
+  openArea('Time off');
+  return within(screen.getByRole('navigation', { name: 'Time off sections' }))
     .getAllByRole('link')
     .map((a) => a.textContent);
+};
 
 describe('Time off in the shell', () => {
   it('lists an employee’s sections under Time off, without Insights, the current one marked', () => {
@@ -188,10 +195,9 @@ describe('Time off in the shell', () => {
     pathname = '/time-off/approvals/decided';
     renderShell({ hr: true, admin: false, finance: false });
     expect(sections()).toEqual(['Overview', 'Calendar', 'Requests', 'Attendance', 'Insights']);
-    const requests = within(screen.getByRole('navigation', { name: 'Time off sections' })).getByRole(
-      'link',
-      { name: 'Requests' },
-    );
+    const requests = within(
+      screen.getByRole('navigation', { name: 'Time off sections' }),
+    ).getByRole('link', { name: 'Requests' });
     expect(requests.getAttribute('href')).toBe('/time-off/approvals/waiting');
     expect(requests.getAttribute('aria-current')).toBe('page');
   });
@@ -223,7 +229,7 @@ describe('Time off in the shell', () => {
   });
 });
 
-describe('the clock in the top bar (TOF-059)', () => {
+describe('the clock, at the foot of Time off’s sections (TOF-059)', () => {
   const slot = {
     area: 'timeoff' as const,
     slot: 'topBar' as const,
@@ -244,6 +250,7 @@ describe('the clock in the top bar (TOF-059)', () => {
         <p>Directory</p>
       </AppShell>,
     );
+    openArea('Time off');
     const pill = screen.getByRole('button', { name: 'timeoff TopBarClock ready' });
     expect(pill.getAttribute('data-slot')).toBe('topBar');
     pill.click();
@@ -265,10 +272,9 @@ describe('the clock in the top bar (TOF-059)', () => {
   });
 });
 
-describe('the sidebar: a rail of areas, a panel of the current one’s sections', () => {
-  it('names the area you are in over its sections, and every area in the rail', () => {
+describe('the sidebar: a rail of areas, each one’s sections flying out of it', () => {
+  it('keeps every area in the rail, and shows an area’s sections only when asked', () => {
     renderShell({ hr: false, admin: false, finance: false });
-    expect(screen.getByRole('heading', { name: 'Time off' })).toBeTruthy();
     const areas = within(screen.getByRole('navigation', { name: 'Areas' }));
     expect(areas.getAllByRole('link').map((a) => a.textContent)).toEqual([
       'Home',
@@ -276,6 +282,10 @@ describe('the sidebar: a rail of areas, a panel of the current one’s sections'
       'Time off',
       'People',
     ]);
+    // Not there all the time: the page keeps its width.
+    expect(screen.queryByRole('navigation', { name: 'Time off sections' })).toBeNull();
+    openArea('Time off');
+    expect(screen.getByRole('navigation', { name: 'Time off sections' })).toBeTruthy();
     // Search and Settings stay in the rail, whichever area is open.
     expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
     expect(
@@ -285,7 +295,7 @@ describe('the sidebar: a rail of areas, a panel of the current one’s sections'
     ).toBeTruthy();
   });
 
-  it('turns the panel at a press and says the page is on its way, then loads it the ordinary way if it never comes', () => {
+  it('says the page is on its way at a press, then loads it the ordinary way if it never comes', () => {
     vi.useFakeTimers();
     const assign = vi.fn();
     const real = window.location;
@@ -300,8 +310,6 @@ describe('the sidebar: a rail of areas, a panel of the current one’s sections'
       });
       fireEvent.click(home);
       expect(home.getAttribute('aria-busy')).toBe('true');
-      // The panel is Home's at once, not when the page arrives.
-      expect(screen.getByRole('heading', { name: 'Home' })).toBeTruthy();
       act(() => {
         vi.advanceTimersByTime(8000);
       });
@@ -316,18 +324,24 @@ describe('the sidebar: a rail of areas, a panel of the current one’s sections'
     vi.useFakeTimers();
     router.prefetch.mockClear();
     renderShell({ hr: false, admin: false, finance: false });
-    const panel = screen.getByRole('navigation', { name: 'Time off sections' });
-    fireEvent.pointerMove(panel.parentElement ?? panel);
+    const rail = screen.getByRole('navigation', { name: 'Areas' });
+    fireEvent.pointerMove(rail);
     // The first now, the rest as the browser idles.
     expect(router.prefetch.mock.calls).toHaveLength(1);
+    // And what an area's sections lead to, once they are out.
+    openArea('Time off');
+    const panel = screen.getByRole('navigation', { name: 'Time off sections' });
+    fireEvent.pointerMove(panel);
     act(() => {
       vi.advanceTimersByTime(5000);
     });
     vi.useRealTimers();
     const fetched = router.prefetch.mock.calls.map(([href]) => href as string);
-    expect(fetched).toEqual(expect.arrayContaining(['/time-off/overview', '/time-off/calendar/month', '/inbox']));
+    expect(fetched).toEqual(
+      expect.arrayContaining(['/time-off/overview', '/time-off/calendar/month', '/inbox']),
+    );
     const count = fetched.length;
-    fireEvent.pointerMove(panel.parentElement ?? panel);
+    fireEvent.pointerMove(panel);
     expect(router.prefetch.mock.calls).toHaveLength(count);
   });
 });

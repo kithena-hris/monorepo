@@ -2,6 +2,7 @@ import {
   Alert,
   Badge,
   Button,
+  DatePicker,
   Dialog,
   DialogBody,
   DialogContent,
@@ -311,6 +312,9 @@ export function RecruitingCandidate({
     candidateId: route.params.candidateId,
   });
   const [rejecting, setRejecting] = useState(false);
+  // Into Hired with no accepted offer: the day they start, asked for and the move sent again.
+  const [starting, setStarting] = useState(false);
+  const [startDate, setStartDate] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const back = { label: t('recruiting.screens.pipeline', 'Pipeline'), onPress: navigation.goBack };
@@ -332,8 +336,12 @@ export function RecruitingCandidate({
     void askRecruiting(signed, operation, variables).then((r) => {
       setBusy(false);
       setRejecting(false);
+      setStarting(false);
       if (r.ok) reload();
-      else setProblem(r.message);
+      else if (r.code === 'HIRE_NEEDS_START_DATE') {
+        setStartDate(null);
+        setStarting(true);
+      } else setProblem(r.message);
     });
   };
   const moving = a !== undefined && a.outcome === 'active' && a.may.includes('pipeline.move');
@@ -417,6 +425,64 @@ export function RecruitingCandidate({
           )}
         </>
       )}
+      {starting && a !== undefined && next !== undefined ? (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setStarting(false);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {t('recruiting.screens.hire_name', 'Hire {{name}}', {
+                  name: load.data.candidate.name,
+                })}
+              </DialogTitle>
+              <DialogDescription>
+                {t(
+                  'recruiting.screens.hire_without_offer',
+                  'There is no accepted offer to say when they start. Their People record is created as soon as they are hired, from this date.',
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogBody>
+              <Field>
+                <FieldLabel>{t('recruiting.screens.start_date', 'Start date')}</FieldLabel>
+                <DatePicker
+                  label={t('recruiting.screens.start_date', 'Start date')}
+                  value={startDate}
+                  onChange={setStartDate}
+                />
+              </Field>
+            </DialogBody>
+            <DialogFooter>
+              <Button
+                className="flex-1"
+                onPress={() => {
+                  setStarting(false);
+                }}
+              >
+                {t('recruiting.screens.cancel', 'Cancel')}
+              </Button>
+              <Button
+                className="flex-1"
+                variant="primary"
+                loading={busy}
+                disabled={startDate === null}
+                onPress={() => {
+                  act('MoveApplication', {
+                    applicationId: a.applicationId,
+                    input: { to: next.id, startDate },
+                  });
+                }}
+              >
+                {t('recruiting.screens.hire', 'Hire')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
       {rejecting && a !== undefined ? (
         <Dialog
           open

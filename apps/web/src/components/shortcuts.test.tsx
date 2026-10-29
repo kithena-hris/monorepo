@@ -369,7 +369,7 @@ describe('C, ⌘Enter and the palette’s actions', () => {
 });
 
 describe('the top of the sidebar: the company, never Kithena', () => {
-  const top = (props: { logoUrl?: string | null; sidebarCollapsed?: boolean }) =>
+  const top = (props: { logoUrl?: string | null }) =>
     render(
       <AppShell
         person={{ name: 'Ada Lovelace', email: 'ada@acme.example' }}
@@ -413,9 +413,8 @@ describe('the top of the sidebar: the company, never Kithena', () => {
     expect(document.querySelector('[title="Kithena"]')).toBeNull();
   });
 
-  it('keeps the mark and the label as the rail, and is axe-clean', async () => {
-    const { container } = top({ logoUrl: null, sidebarCollapsed: true });
-    expect(home().closest('[data-collapsed]')).not.toBeNull();
+  it('keeps the mark and the label in the rail, and is axe-clean', async () => {
+    const { container } = top({ logoUrl: null });
     expect(within(home()).getByText('AR')).toBeTruthy();
     const result = await axe.run(container, {
       rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },

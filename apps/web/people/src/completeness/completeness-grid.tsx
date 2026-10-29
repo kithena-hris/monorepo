@@ -918,9 +918,8 @@ function Missing({
             rowId={rowId}
             describeRow={nameOf}
             rowActions={rowActions}
-            // Infinite: the table scrolls in a box of its own the height the
-            // window has left, the next page loads near its end, and only
-            // the rows on screen are drawn.
+            // Infinite: the window scrolls it, the next page loads as the
+            // page nears its end, and only the rows on screen are drawn.
             fill
             containerClassName="touch:hidden"
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}

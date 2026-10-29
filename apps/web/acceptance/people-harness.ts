@@ -149,17 +149,19 @@ export async function eventually<T>(
 
 /** The People item in the shell's sidebar, which People's sections hang off. */
 export const peopleItem = (page: Page): Locator =>
-  // Exact: the collapsed rail's People flyout ends with a "Settings › People" link.
+  // Exact: People's flyout ends with a "People settings" link.
   page
     .getByRole('navigation', { name: 'Areas' })
     .getByRole('link', { name: 'People', exact: true });
 
 /**
- * People's own navigation in an expanded sidebar: its sections, in the panel
- * beside the rail while you are anywhere in People. Nothing has to be opened.
+ * People's own navigation: its sections, flown out of its icon in the rail as
+ * the pointer comes onto it (from off it: a press puts them away until it leaves).
  */
 export async function sections(page: Page): Promise<Locator> {
   await page.waitForLoadState('networkidle');
+  await page.mouse.move(900, 600);
+  await peopleItem(page).hover();
   const list = page.getByRole('navigation', { name: 'People sections' });
   await list.waitFor();
   return list;

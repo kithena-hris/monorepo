@@ -105,6 +105,29 @@ describe('<NavItem flyout>', () => {
     });
   });
 
+  it('puts itself away at a mouse press, and stays away until the pointer has left', async () => {
+    render(<Areas />);
+    const people = screen.getByRole('link', { name: 'People' });
+    const li = people.closest('li') as HTMLElement;
+    act(() => {
+      people.focus();
+    });
+    await screen.findByRole('navigation', { name: 'People sections' });
+    // The press goes to People; its sections must not sit over the page it opens.
+    fireEvent.pointerDown(people, { pointerType: 'mouse' });
+    fireEvent.click(people);
+    await waitFor(() => {
+      expect(screen.queryByRole('navigation', { name: 'People sections' })).toBeNull();
+    });
+    fireEvent.pointerEnter(li, { pointerType: 'mouse' });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.queryByRole('navigation', { name: 'People sections' })).toBeNull();
+    // Once it has left, hovering opens them again.
+    fireEvent.pointerLeave(li, { pointerType: 'mouse' });
+    fireEvent.pointerEnter(li, { pointerType: 'mouse' });
+    await screen.findByRole('navigation', { name: 'People sections' });
+  });
+
   it('opens on a first tap instead of following the link, and follows it on the second', async () => {
     render(<Areas />);
     const people = screen.getByRole('link', { name: 'People' });

@@ -84,8 +84,8 @@ describe('People inside the shell: its sections, and always a way to add somebod
       (rows) => rows.length === 1,
     );
 
-    // The shell's sidebar: a rail of areas, and People's four sections in the
-    // panel beside it while you are in People: nothing opens on hover, nothing covers the screen.
+    // The shell's sidebar: a rail of areas, People's four sections flying out
+    // of its icon when asked, never a column taking the page's width.
     await page.goto(`${shell}/people/review/waiting`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
@@ -121,38 +121,21 @@ describe('People inside the shell: its sections, and always a way to add somebod
       'page',
     );
     expect(await nav.getByRole('link').count()).toBe(4);
-    // The panel beside the rail names the area; the People item is a place to
-    // go, not a menu to open, while its sections are already beside it.
-    expect(await page.getByRole('heading', { name: 'People', exact: true }).isVisible()).toBe(true);
-    expect(await peopleItem(page).getAttribute('aria-expanded')).toBeNull();
-    // Its sections, as they fly out of its own row in the rail.
-    const flyout = peopleItem(page)
-      .locator('xpath=ancestor::li[1]')
-      .getByRole('navigation', { name: 'People sections' });
-    await peopleItem(page).hover();
-    await page.waitForTimeout(300);
-    expect(await flyout.count()).toBe(0);
-
-    // Collapsed, the panel goes and the rail stays: the same sections come out
-    // beside People on hover, after a moment, and Escape puts them away.
-    await page.getByRole('button', { name: 'Collapse sidebar' }).click();
-    await nav.waitFor({ state: 'hidden' });
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
+    // Escape puts them away; hovering the icon brings them back, after a moment.
+    await page.keyboard.press('Escape');
+    await nav.waitFor({ state: 'detached' });
     await page.mouse.move(900, 600);
     // The rail keeps the mark, and the link its name.
     expect(await brand.locator('img').isVisible()).toBe(true);
     await shot('sidebar-logo-rail-light');
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('false');
     await peopleItem(page).hover();
-    await flyout.waitFor();
-    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
-    expect(await flyout.getByRole('link', { name: /^Review/ }).getAttribute('aria-current')).toBe(
+    await nav.waitFor();
+    expect(await nav.getByRole('link', { name: /^Review/ }).getAttribute('aria-current')).toBe(
       'page',
     );
-    await page.keyboard.press('Escape');
-    await flyout.waitFor({ state: 'detached' });
     await page.mouse.move(900, 600);
-    await page.getByRole('button', { name: 'Expand sidebar' }).click();
-    await sections(page);
     // Review carries the design's trail, People › Review, whose crumb
     // switches to a sibling section.
     await page.getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
@@ -163,7 +146,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     });
     const kept = () => page.evaluate(() => (window as unknown as { kept?: boolean }).kept === true);
 
-    await nav.getByRole('link', { name: 'Directory' }).click();
+    await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory\/list$/);
     await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
     expect(await kept()).toBe(true);
@@ -248,7 +231,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(await kept()).toBe(true);
 
     // Every section is reachable from the keyboard and stays inside the shell:
-    // focus in the panel's sections, Tab on to the one wanted, Enter — a
+    // focus in People's sections, Tab on to the one wanted, Enter — a
     // client-side move, the sidebar still there, never another origin.
     const hrefs = await (
       await sections(page)

@@ -19,7 +19,7 @@ import {
   SelectValue,
   icons,
 } from '@reach/ui';
-import { useEffect, useLayoutEffect, useMemo, useState, type JSX } from 'react';
+import { useEffect, useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { RejectDialog, type Rejecting } from './reject-dialog';
@@ -167,27 +167,6 @@ function CandidateCard({
   );
 }
 
-/** The board's height: from its top to the window's bottom, so each column scrolls on its own. */
-function useFillHeight(): {
-  readonly ref: (node: HTMLDivElement | null) => void;
-  readonly height: number | null;
-} {
-  const [node, setNode] = useState<HTMLDivElement | null>(null);
-  const [height, setHeight] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    if (node === null) return undefined;
-    const measure = (): void => {
-      setHeight(Math.max(420, window.innerHeight - node.getBoundingClientRect().top - 24));
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => {
-      window.removeEventListener('resize', measure);
-    };
-  }, [node]);
-  return { ref: setNode, height };
-}
-
 /** The ten seconds after a move, as a bar the move can be undone from. */
 function UndoBar({
   undo,
@@ -305,7 +284,6 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
     skipped: number;
     failed: readonly string[];
   } | null>(null);
-  const fill = useFillHeight();
   /*
    * A dropped card stays where it was dropped while the move is saved, rather
    * than going back to its column until the board is read again: the drop is
@@ -651,20 +629,14 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             </div>
             <Refusal error={act.error} />
             {view === 'board' ? (
-              <div
-                ref={fill.ref}
-                className="flex min-h-[26rem] flex-col"
-                // Measured on the client: from the board's top to the window's bottom. Until then a
-                // fair guess, so the first paint already scrolls inside its columns.
-                style={{ height: fill.height ?? 'calc(100dvh - 16rem)' }}
-              >
+              // As tall as its longest column: the window scrolls the board, never a column.
+              <div className="flex flex-col">
                 <h2 className="sr-only">
                   {t('pipeline.candidates_by_stage', 'Candidates by stage')}
                 </h2>
                 <Kanban
                   label={t('pipeline.pipeline', '{{title}} pipeline', { title: data.job.title })}
                   columnWidth="296px"
-                  className="min-h-0 flex-1"
                   dragActivator={canMove ? { mode: 'card' } : { mode: 'none' }}
                   columns={shown.map((s) => ({
                     id: s.id,

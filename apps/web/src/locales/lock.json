@@ -6883,7 +6883,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -10746,8 +10745,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -17516,7 +17513,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -24402,7 +24403,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -28051,8 +28051,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -34658,7 +34656,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -41544,7 +41546,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -45193,8 +45194,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -51800,7 +51799,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -58686,7 +58689,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -62335,8 +62337,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -68942,7 +68942,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -75828,7 +75832,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -79690,8 +79693,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -86461,7 +86462,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -93347,7 +93352,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -97209,8 +97213,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -103980,7 +103982,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -112350,7 +112356,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.documents": "b4e929d8bcfe",
@@ -113083,8 +113088,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -121122,7 +121125,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -128008,7 +128015,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -131871,8 +131877,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -138641,7 +138645,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -145527,7 +145535,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -149176,8 +149183,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -155783,7 +155788,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -162669,7 +162678,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -166746,8 +166754,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -173679,7 +173685,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -180565,7 +180575,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -184428,8 +184437,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -191198,7 +191205,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -198084,7 +198095,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.end_viewing_as": "3b8b6cab0caa",
@@ -202161,8 +202171,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -209094,7 +209102,11 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -217464,7 +217476,6 @@
     "shell:components.activity-log.who_did_what_and_when_across": "931bf0a8e0b4",
     "shell:components.activity-log.who_did_what_in_and_when": "b06eff845b11",
     "shell:components.app-shell.administrator": "e7d3e769f3f5",
-    "shell:components.app-shell.collapse_or_expand_the_sidebar": "2183a13051ac",
     "shell:components.app-shell.create": "f2465d0db407",
     "shell:components.app-shell.dark_mode": "9b7878aef90b",
     "shell:components.app-shell.documents": "b4e929d8bcfe",
@@ -218197,8 +218208,6 @@
     "shell:lib.shortcuts.clears_the_selection": "b2e98d2453e9",
     "shell:lib.shortcuts.close_what_is_open": "9daeb6c1270e",
     "shell:lib.shortcuts.closes_what_is_open": "37311433d197",
-    "shell:lib.shortcuts.collapse_or_expand_the_sidebar": "2183a13051ac",
-    "shell:lib.shortcuts.collapses_the_sidebar": "2bafabb064c8",
     "shell:lib.shortcuts.compares_the_pair": "8eaebc1d766d",
     "shell:lib.shortcuts.could_never_be_reached": "f624a245ebc8",
     "shell:lib.shortcuts.create_what_this_page_makes_a_person": "6a59bd8da2ac",
@@ -226236,6 +226245,10 @@
     "recruiting:move.hire_title": "c4ca2b037c40",
     "recruiting:move.hire_without_offer": "f5396fa42a48",
     "recruiting:move.keep_interviews": "0d472b095309",
-    "recruiting:move.start_date": "8169693101a4"
+    "recruiting:move.start_date": "8169693101a4",
+    "mobile:recruiting.screens.hire": "cba8bbf6a3be",
+    "mobile:recruiting.screens.hire_name": "c4ca2b037c40",
+    "mobile:recruiting.screens.hire_without_offer": "f5396fa42a48",
+    "mobile:recruiting.screens.start_date": "8169693101a4"
   }
 }

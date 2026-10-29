@@ -1,6 +1,6 @@
 'use client';
 
-import { Nav, NavItem, NavList, Separator, icons, useSidebarPanel } from '@reach/ui';
+import { Nav, NavItem, NavList, Separator, icons } from '@reach/ui';
 import type { Route } from 'next';
 import { useEffect, useRef, type JSX, type ReactNode } from 'react';
 
@@ -8,14 +8,13 @@ import { Link } from '../lib/link';
 import { t as tr } from '../lib/t';
 
 /**
- * The sidebar in two columns (`PageLayout`'s `sidebarRail`): a rail of the
- * company's areas that never moves, and beside it a panel of the current
- * area's sections. Where you are is the rail; what you can do there is the
- * panel. Collapsed, the panel goes and the rail stays, each area's sections a
- * flyout from its icon.
+ * The sidebar is a rail (`PageLayout`'s `sidebarRail`, with no panel): the
+ * company's areas as icons, fixed while the page scrolls. An area's sections
+ * come out of its icon on hover, focus or a tap (`NavItem flyout`), over the
+ * page rather than beside it, so the page keeps its whole width.
  *
  * Nothing scrolls and nothing is cut short: the rail holds one icon per area
- * (named by its tooltip), and the panel only ever holds one area's sections,
+ * (named by its tooltip), and a flyout only ever holds one area's sections,
  * whose names wrap rather than truncate. Shortcuts are not on the rows (the
  * rail's tooltips, the palette and the help sheet carry them).
  */
@@ -41,8 +40,10 @@ export interface ShellArea {
   /** Its keys, for the rail's tooltip: never on a row. */
   readonly shortcut?: JSX.Element | undefined;
   readonly sections: readonly ShellSection[];
-  /** Its settings, at the panel's foot. */
+  /** Its settings, at its flyout's foot. */
   readonly settings?: { readonly path: string; readonly current: boolean } | undefined;
+  /** What the area pins at its flyout's foot: Time Off's clock. */
+  readonly foot?: ReactNode;
 }
 
 /** What the shell knows about a press: which item, so it can say it is on its way. */
@@ -123,11 +124,7 @@ export function SidebarRail({
   readonly onIntent: (event: { currentTarget: Element }) => void;
 }): JSX.Element {
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col gap-1"
-      onPointerMove={onIntent}
-      onFocus={onIntent}
-    >
+    <div className="flex min-h-0 flex-1 flex-col gap-1" onPointerMove={onIntent} onFocus={onIntent}>
       <Nav label={tr('components.shell-sidebar.search', 'Search')}>
         <NavList>
           <NavItem asChild icon={<icons.search aria-hidden />} shortcut={search.shortcut}>
@@ -158,9 +155,8 @@ export function SidebarRail({
 }
 
 /**
- * One area in the rail: its icon, named by its tooltip while the panel is
- * open beside it (which lists its sections), its sections flying out from it
- * when the panel is put away.
+ * One area in the rail: its icon, and its sections flying out from it. An
+ * area with one page and nothing else is named by its tooltip instead.
  */
 function RailItem({
   area,
@@ -169,13 +165,9 @@ function RailItem({
   readonly area: ShellArea;
   readonly presses: Presses;
 }): JSX.Element {
-  const panel = useSidebarPanel();
   const flyout =
-    panel === false && area.sections.length > 1 ? (
-      <Nav label={tr('components.shell-sidebar.area_sections', '{{area}} sections', { area: area.label })}>
-        <p className="px-2.5 pt-1 pb-2 text-sm font-semibold">{area.label}</p>
-        <SectionList area={area} presses={presses} />
-      </Nav>
+    area.sections.length > 1 || area.settings !== undefined || area.foot != null ? (
+      <AreaSections area={area} presses={presses} />
     ) : undefined;
   return (
     <NavItem
@@ -237,62 +229,62 @@ function SectionList({
 }
 
 /**
- * The panel beside the rail: the current area's name, its sections, and its
- * settings and anything an area pins (Time Off's clock) at the foot.
+ * An area's flyout: its name, its sections, and at the foot its settings and
+ * anything it pins (Time Off's clock).
  */
-export function SidebarPanel({
+function AreaSections({
   area,
-  foot,
   presses,
-  onIntent,
 }: {
   readonly area: ShellArea;
-  readonly foot?: ReactNode;
   readonly presses: Presses;
-  readonly onIntent: (event: { currentTarget: Element }) => void;
 }): JSX.Element {
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col px-2 pt-5 pb-3"
-      onPointerMove={onIntent}
-      onFocus={onIntent}
-    >
-      <h2 className="px-2.5 pb-3 text-lg leading-tight font-semibold break-words text-fg">
+    <div className="flex flex-col gap-1">
+      <p className="px-2.5 pt-1.5 pb-2 text-md leading-tight font-semibold break-words text-fg">
         {area.label}
-      </h2>
+      </p>
       <Nav
-        label={tr('components.shell-sidebar.area_sections', '{{area}} sections', { area: area.label })}
+        label={tr('components.shell-sidebar.area_sections', '{{area}} sections', {
+          area: area.label,
+        })}
       >
         <SectionList area={area} presses={presses} />
       </Nav>
-      <div className="mt-auto flex flex-col gap-3 pt-4">
-        {area.settings === undefined ? null : (
-          <Nav label={tr('components.shell-sidebar.area_settings', '{{area}} settings', { area: area.label })}>
-            <NavList>
-              <NavItem
-                asChild
-                level={2}
-                wrap
-                icon={<icons.settings aria-hidden />}
-                current={area.settings.current}
-                pending={presses.pending(area.settings.path)}
-              >
-                <Link
-                  href={area.settings.path}
-                  onClick={() => {
-                    if (area.settings !== undefined) presses.press(area.settings.path);
-                  }}
+      {area.settings === undefined && area.foot == null ? null : (
+        <div className="mt-1 flex flex-col gap-3 border-t border-border pt-2">
+          {area.settings === undefined ? null : (
+            <Nav
+              label={tr('components.shell-sidebar.area_settings', '{{area}} settings', {
+                area: area.label,
+              })}
+            >
+              <NavList>
+                <NavItem
+                  asChild
+                  level={2}
+                  wrap
+                  icon={<icons.settings aria-hidden />}
+                  current={area.settings.current}
+                  pending={presses.pending(area.settings.path)}
                 >
-                  {tr('components.shell-sidebar.area_settings', '{{area}} settings', {
-                    area: area.label,
-                  })}
-                </Link>
-              </NavItem>
-            </NavList>
-          </Nav>
-        )}
-        {foot}
-      </div>
+                  <Link
+                    href={area.settings.path}
+                    onClick={() => {
+                      if (area.settings !== undefined) presses.press(area.settings.path);
+                    }}
+                  >
+                    {tr('components.shell-sidebar.area_settings', '{{area}} settings', {
+                      area: area.label,
+                    })}
+                  </Link>
+                </NavItem>
+              </NavList>
+            </Nav>
+          )}
+          {area.foot}
+        </div>
+      )}
     </div>
   );
 }

@@ -799,10 +799,6 @@
     "text": "Administrator",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
   },
-  "components.app-shell.collapse_or_expand_the_sidebar": {
-    "text": "Collapse or expand the sidebar",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value."
-  },
   "components.app-shell.create": {
     "text": "Create… {{label}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value. Filled in: {{label}}."
@@ -3473,11 +3469,11 @@
   },
   "components.shell-sidebar.area_sections": {
     "text": "{{area}} sections",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, RailItem: the label of <Nav>. Filled in: {{area}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, AreaSections: the label of <Nav>. Filled in: {{area}}."
   },
   "components.shell-sidebar.area_settings": {
     "text": "{{area}} settings",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, SidebarPanel: the label of <Nav>. Filled in: {{area}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shell-sidebar.tsx, AreaSections: the label of <Nav>. Filled in: {{area}}."
   },
   "components.shell-sidebar.areas": {
     "text": "Areas",
@@ -4429,14 +4425,6 @@
   },
   "lib.shortcuts.closes_what_is_open": {
     "text": "closes what is open",
-    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
-  },
-  "lib.shortcuts.collapse_or_expand_the_sidebar": {
-    "text": "Collapse or expand the sidebar",
-    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
-  },
-  "lib.shortcuts.collapses_the_sidebar": {
-    "text": "collapses the sidebar",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
   },
   "lib.shortcuts.compares_the_pair": {
