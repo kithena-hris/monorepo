@@ -1,15 +1,62 @@
 'use client';
 
-import { useEffect, useState, type JSX, type RefObject } from 'react';
+import { useEffect, useState, type JSX, type ReactNode, type RefObject } from 'react';
 
 import { cn } from '../../lib/cn';
-import { ScrollPosition } from './scroll-position';
+import { t } from '../../lib/i18n';
+import { formatNumber } from '../../lib/intl';
+import { BulkBar } from '../table/bulk-bar';
+import { ListMap, ScrollPosition, useRunningCount } from './scroll-position';
+
+/** A selection on the list: the bar it summons takes the pill's place, and keeps its map. */
+export interface RailSelection {
+  readonly count: number;
+  readonly onClear: () => void;
+  /** The actions, as `Button`s (`BulkBar`). */
+  readonly actions: ReactNode;
+}
+
+/**
+ * The map and a short count, leading a selection's bar: where the reader is
+ * stays in view while rows are picked, in the bar's inverted ink.
+ */
+function Place({
+  from,
+  to,
+  loaded,
+  total,
+}: {
+  readonly from: number;
+  readonly to: number;
+  readonly loaded: number;
+  readonly total: number | null;
+}): JSX.Element {
+  const shown = useRunningCount(loaded);
+  return (
+    <span className="flex items-center gap-2.5 text-sm text-fg-on-invert/75 tabular-nums">
+      <ListMap from={from} to={to} loaded={loaded} total={total} invert />
+      <span className="whitespace-nowrap">
+        {total === null
+          ? t('components.scroll-position.scroll-position-rail.so_far', '{{shown}} so far', {
+              shown: formatNumber(shown),
+            })
+          : t('components.scroll-position.scroll-position-rail.of', '{{shown}} of {{total}}', {
+              shown: formatNumber(shown),
+              total: formatNumber(total),
+            })}
+      </span>
+    </span>
+  );
+}
 
 /**
  * `ScrollPosition` under a list, sticky to the bottom of the window: on a
  * short list it simply sits beneath the rows, and on a long one it floats at
  * the window's foot, lifted by its shadow, until the list's end comes up to
- * meet it, the way `BulkBar` rides. `DataTable` and `VirtualList` place it
+ * meet it. Rows picked, the same place holds the selection's bar instead
+ * (`BulkBar`), led by the same map and count: one thing at the window's foot,
+ * which changes what it offers, the way a phone's toolbar becomes the
+ * selection's, and the reader never loses their place to it. `DataTable` and `VirtualList` place it
  * themselves; a list of its own places it last inside its box.
  *
  * Which rows are on screen is read from the list's box: the window's scroll
@@ -21,11 +68,13 @@ export function ScrollPositionRail({
   list,
   loaded,
   total,
+  selection,
   className,
 }: {
   readonly list: RefObject<HTMLElement | null>;
   readonly loaded: number;
   readonly total: number | null;
+  readonly selection?: RailSelection;
   readonly className?: string;
 }): JSX.Element {
   const [at, setAt] = useState({ from: 1, to: 1, own: false, floating: false });
@@ -96,15 +145,27 @@ export function ScrollPositionRail({
         className,
       )}
     >
-      <ScrollPosition
-        from={at.from}
-        to={at.to}
-        loaded={loaded}
-        total={total}
-        {...(at.from > 1 ? { onBackToTop: toTop } : {})}
-        data-floating={at.floating || undefined}
-        className="pointer-events-auto transition-shadow duration-(--animate-duration-normal) ease-standard data-floating:shadow-lg"
-      />
+      {selection !== undefined && selection.count > 0 ? (
+        <BulkBar
+          count={selection.count}
+          onClear={selection.onClear}
+          leading={<Place from={at.from} to={at.to} loaded={loaded} total={total} />}
+          // The rail is what sticks; the bar rides inside it.
+          className="pointer-events-auto static"
+        >
+          {selection.actions}
+        </BulkBar>
+      ) : (
+        <ScrollPosition
+          from={at.from}
+          to={at.to}
+          loaded={loaded}
+          total={total}
+          {...(at.from > 1 ? { onBackToTop: toTop } : {})}
+          data-floating={at.floating || undefined}
+          className="pointer-events-auto transition-shadow duration-(--animate-duration-normal) ease-standard data-floating:shadow-lg"
+        />
+      )}
     </div>
   );
 }

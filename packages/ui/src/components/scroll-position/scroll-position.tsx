@@ -30,7 +30,7 @@ const COUNT_MS = 450;
  * to 400 as a page lands. The first render is the value itself, so the server
  * and the browser agree; under reduced motion it changes at once.
  */
-function useRunningCount(value: number): number {
+export function useRunningCount(value: number): number {
   const [shown, setShown] = useState(value);
   const at = useRef(value);
   useEffect(() => {
@@ -65,6 +65,58 @@ const share = (part: number, whole: number): string =>
   `${String(whole > 0 ? Math.min(100, Math.max(0, (part / whole) * 100)) : 0)}%`;
 
 /**
+ * The list laid on its side: the track is every row there is, the wash over
+ * it the rows loaded so far, the bright segment the rows on screen, gliding
+ * as the reader scrolls and back. Decorative: what sits beside it says it in
+ * words (`data-decorative`, `tools/a11y`). `invert` draws it in the ink of an
+ * inverted fill, for the selection's bar (`ScrollPositionRail`).
+ */
+export function ListMap({
+  from,
+  to,
+  loaded,
+  total,
+  invert = false,
+}: {
+  readonly from: number;
+  readonly to: number;
+  readonly loaded: number;
+  readonly total: number | null;
+  readonly invert?: boolean;
+}): JSX.Element {
+  const all = total ?? loaded;
+  return (
+    <span
+      aria-hidden
+      data-decorative
+      className={cn(
+        'relative h-2 w-24 shrink-0 overflow-hidden rounded-full',
+        invert ? 'bg-fg-on-invert/15' : 'bg-surface-sunken',
+      )}
+    >
+      <span
+        className={cn(
+          'absolute inset-y-0 start-0 rounded-full transition-[width] duration-500 ease-standard motion-reduce:transition-none',
+          invert ? 'bg-fg-on-invert/35' : 'bg-accent/40',
+        )}
+        style={{ width: share(loaded, all) }}
+      />
+      <span
+        className={cn(
+          'absolute inset-y-0 rounded-full transition-[inset-inline-start,width] duration-300 ease-standard motion-reduce:transition-none',
+          invert ? 'bg-fg-on-invert' : 'bg-accent',
+        )}
+        style={{
+          insetInlineStart: share(from - 1, all),
+          // Never thinner than a dot, however long the list.
+          width: `max(0.375rem, ${share(to - from + 1, all)})`,
+        }}
+      />
+    </span>
+  );
+}
+
+/**
  * Where you are in a long list: a map of it, its count, and a way back.
  *
  * The map is the list laid on its side. Its track is every row there is, the
@@ -88,7 +140,6 @@ export function ScrollPosition({
   ...props
 }: ScrollPositionProps): JSX.Element {
   const shown = useRunningCount(loaded);
-  const all = total ?? loaded;
   const count =
     total === null
       ? t('components.scroll-position.scroll-position.so_far', 'Showing {{shown}} so far', {
@@ -111,25 +162,7 @@ export function ScrollPosition({
       )}
       {...props}
     >
-      {/* Decorative: the count beside it says it in words (`data-decorative`, `tools/a11y`). */}
-      <span
-        aria-hidden
-        data-decorative
-        className="relative h-2 w-24 shrink-0 overflow-hidden rounded-full bg-surface-sunken"
-      >
-        <span
-          className="absolute inset-y-0 start-0 rounded-full bg-accent/40 transition-[width] duration-500 ease-standard motion-reduce:transition-none"
-          style={{ width: share(loaded, all) }}
-        />
-        <span
-          className="absolute inset-y-0 rounded-full bg-accent transition-[inset-inline-start,width] duration-300 ease-standard motion-reduce:transition-none"
-          style={{
-            insetInlineStart: share(from - 1, all),
-            // Never thinner than a dot, however long the list.
-            width: `max(0.375rem, ${share(to - from + 1, all)})`,
-          }}
-        />
-      </span>
+      <ListMap from={from} to={to} loaded={loaded} total={total} />
       <span className="whitespace-nowrap">{count}</span>
       {onBackToTop ? (
         <Button

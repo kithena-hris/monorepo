@@ -526,6 +526,8 @@
   "components.scheduler.scheduler.more": "மேலும்",
   "components.scheduler.scheduler.to": "{{formatMinutes}} முதல் {{formatMinutes2}} வரை,",
   "components.scheduler.scheduler.to_2": "{{name}} முதல் {{name2}} வரை",
+  "components.scroll-position.scroll-position-rail.of": "{{total}} இல் {{shown}}",
+  "components.scroll-position.scroll-position-rail.so_far": "இதுவரை {{shown}}",
   "components.scroll-position.scroll-position.all": "அனைத்து {{total}} காட்டப்படுகின்றன",
   "components.scroll-position.scroll-position.back_to_top": "மேலே திரும்பு",
   "components.scroll-position.scroll-position.of": "{{total}} இல் {{shown}} காட்டப்படுகின்றன",

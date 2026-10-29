@@ -551,6 +551,8 @@
   "components.scheduler.scheduler.more": "więcej",
   "components.scheduler.scheduler.to": "{{formatMinutes}}–{{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}}–{{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{shown}} z {{total}}",
+  "components.scroll-position.scroll-position-rail.so_far": "na razie {{shown}}",
   "components.scroll-position.scroll-position.all": "Wyświetlono wszystkie: {{total}}",
   "components.scroll-position.scroll-position.back_to_top": "Do góry",
   "components.scroll-position.scroll-position.of": "Wyświetlono {{shown}} z {{total}}",

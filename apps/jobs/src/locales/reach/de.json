@@ -526,6 +526,8 @@
   "components.scheduler.scheduler.more": "weitere",
   "components.scheduler.scheduler.to": "{{formatMinutes}} bis {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} bis {{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{shown}} von {{total}}",
+  "components.scroll-position.scroll-position-rail.so_far": "bisher {{shown}}",
   "components.scroll-position.scroll-position.all": "Alle {{total}} angezeigt",
   "components.scroll-position.scroll-position.back_to_top": "Nach oben",
   "components.scroll-position.scroll-position.of": "{{shown}} von {{total}} angezeigt",

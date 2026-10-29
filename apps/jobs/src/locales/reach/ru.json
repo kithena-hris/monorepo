@@ -558,6 +558,8 @@
   "components.scheduler.scheduler.more": "ещё",
   "components.scheduler.scheduler.to": "{{formatMinutes}}–{{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} – {{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{shown}} из {{total}}",
+  "components.scroll-position.scroll-position-rail.so_far": "пока {{shown}}",
   "components.scroll-position.scroll-position.all": "Показаны все: {{total}}",
   "components.scroll-position.scroll-position.back_to_top": "Наверх",
   "components.scroll-position.scroll-position.of": "Показано {{shown}} из {{total}}",

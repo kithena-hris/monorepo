@@ -527,6 +527,8 @@
   "components.scheduler.scheduler.more": "और",
   "components.scheduler.scheduler.to": "{{formatMinutes}} से {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} से {{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{total}} में से {{shown}}",
+  "components.scroll-position.scroll-position-rail.so_far": "अब तक {{shown}}",
   "components.scroll-position.scroll-position.all": "सभी {{total}} दिखाए जा रहे हैं",
   "components.scroll-position.scroll-position.back_to_top": "ऊपर वापस जाएँ",
   "components.scroll-position.scroll-position.of": "{{total}} में से {{shown}} दिखाए जा रहे हैं",

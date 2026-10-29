@@ -73,7 +73,6 @@ import {
   useShortcutKeys,
   type RowAction,
 } from '../../lib/shortcut-keys';
-import { BulkBar } from './bulk-bar';
 import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
@@ -1628,17 +1627,6 @@ export function DataTable<T extends TableRow>({
     </Table>
   );
 
-  const bulkBar = selectable ? (
-    <BulkBar
-      count={picked.size}
-      onClear={() => {
-        setPicked([]);
-      }}
-    >
-      {bulkActions?.(pickedRowObjects)}
-    </BulkBar>
-  ) : null;
-
   return (
     <div className="min-w-0 space-y-3">
       {reorderable && activeSorts.length > 0 ? (
@@ -1672,15 +1660,25 @@ export function DataTable<T extends TableRow>({
         body
       )}
 
-      {/* Under every table, short or long; a selection's bar takes its place while it is up. */}
-      {picked.size === 0 && rows.length > 0 ? (
+      {/* Under every table, short or long; picking rows turns it into the selection's bar. */}
+      {rows.length > 0 ? (
         <ScrollPositionRail
           list={scrollRef}
           loaded={rows.length}
           total={total ?? (onEndReached === undefined ? rows.length : null)}
+          {...(selectable
+            ? {
+                selection: {
+                  count: picked.size,
+                  onClear: () => {
+                    setPicked([]);
+                  },
+                  actions: bulkActions?.(pickedRowObjects),
+                },
+              }
+            : {})}
         />
       ) : null}
-      {bulkBar}
       <span aria-live="polite" className="sr-only">
         {said}
       </span>

@@ -545,6 +545,8 @@
   "components.scheduler.scheduler.more": "més",
   "components.scheduler.scheduler.to": "de {{formatMinutes}} a {{formatMinutes2}},",
   "components.scheduler.scheduler.to_2": "{{name}} a {{name2}}",
+  "components.scroll-position.scroll-position-rail.of": "{{shown}} de {{total}}",
+  "components.scroll-position.scroll-position-rail.so_far": "{{shown}} de moment",
   "components.scroll-position.scroll-position.all": "Es mostren tots {{total}}",
   "components.scroll-position.scroll-position.back_to_top": "Tornar a dalt",
   "components.scroll-position.scroll-position.of": "Es mostren {{shown}} de {{total}}",
