@@ -696,7 +696,7 @@ describe('<DataTable scroll="page">', () => {
     expect(box.className).not.toContain('overscroll-y-contain');
   });
 
-  it('scrolls one axis a gesture: the first movement’s, until the wheel rests', () => {
+  it('scrolls one axis a gesture: the first movement’s, until the wheel rests', async () => {
     vi.useFakeTimers();
     const by = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
     render(
@@ -708,6 +708,10 @@ describe('<DataTable scroll="page">', () => {
         scroll="page"
       />,
     );
+    // The wheel is handled once `table-scroll.ts` has loaded.
+    await act(async () => {
+      await import('./table-scroll');
+    });
     const box = screen.getByRole('region', { name: 'People' });
     // Wider than its box: it scrolls sideways.
     Object.defineProperty(box, 'scrollWidth', { value: 2000 });

@@ -76,6 +76,7 @@ import { BulkBar } from './bulk-bar';
 import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
+import type * as TableScroll from './table-scroll';
 import { LazyScrollPositionRail } from '../scroll-position/lazy-rail';
 import {
   Table,
@@ -235,8 +236,18 @@ const END_MARGIN = 480;
  */
 const ahead = (loaded: number): number => Math.max(END_MARGIN, loaded * 0.3);
 
-/** How long the wheel rests before a gesture's axis is let go: a trackpad's flick coasts on a tick every frame. */
-const WHEEL_REST_MS = 150;
+/** Runs `attach` once `table-scroll.ts` has loaded; the cleanup undoes it, or stops it from running. */
+function afterLoad(attach: (m: typeof TableScroll) => () => void): () => void {
+  let detach: (() => void) | null = null;
+  let gone = false;
+  void import('./table-scroll').then((m) => {
+    if (!gone) detach = attach(m);
+  });
+  return () => {
+    gone = true;
+    detach?.();
+  };
+}
 
 /** The box a virtualized table assumes until it has one: a window's height. */
 const UNMEASURED = { width: 0, height: 900 };
@@ -906,66 +917,18 @@ export function DataTable<T extends TableRow>({
       observer.disconnect();
     };
   }, [page]);
-  // Without scroll timelines (`table-pin-head`), the wide header rides down from script.
+  // A wide header ridden from script where there are no scroll timelines, and
+  // one axis a wheel gesture: fetched with the first table (`table-scroll.ts`).
   useEffect(() => {
     const el = scrollRef.current;
     const head = el?.querySelector('thead');
     if (!pinsHead || el == null || head == null) return;
-    if (typeof window.CSS === 'undefined' || window.CSS.supports('animation-timeline: view()'))
-      return;
-    const pin = (): void => {
-      const top =
-        Number.parseFloat(getComputedStyle(el).getPropertyValue('--reach-sticky-top')) || 0;
-      const box = el.getBoundingClientRect();
-      const by = window.matchMedia('(pointer: fine)').matches
-        ? Math.min(Math.max(top - box.top, 0), box.height - head.offsetHeight)
-        : 0;
-      head.style.transform = by > 0 ? `translateY(${String(by)}px)` : '';
-    };
-    pin();
-    window.addEventListener('scroll', pin, { passive: true });
-    window.addEventListener('resize', pin);
-    return () => {
-      window.removeEventListener('scroll', pin);
-      window.removeEventListener('resize', pin);
-      head.style.transform = '';
-    };
+    return afterLoad((m) => m.pinHead(el, head));
   }, [pinsHead]);
-  /*
-   * One axis at a time. A swipe on a trackpad is never quite straight, and a
-   * table wider than its box (down with the window or its box, sideways with
-   * the box) slid both ways at once under it. A gesture keeps the axis its
-   * first movement chose until the wheel rests; the other waits for the next.
-   */
   useEffect(() => {
     const el = scrollRef.current;
     if (el === null) return;
-    let axis: 'x' | 'y' | null = null;
-    let rest: ReturnType<typeof setTimeout> | undefined;
-    const onWheel = (event: WheelEvent): void => {
-      // A pinch, or a box with nothing to its side.
-      if (event.ctrlKey || el.scrollWidth <= el.clientWidth + 1) return;
-      // Lines (a mouse in Firefox) and pages, in pixels.
-      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-      const dx = event.deltaX * unit;
-      const dy = event.deltaY * unit;
-      clearTimeout(rest);
-      rest = setTimeout(() => {
-        axis = null;
-      }, WHEEL_REST_MS);
-      axis ??= Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-      // Already along its axis alone: the browser scrolls it, smoothed as ever.
-      if ((axis === 'x' ? dy : dx) === 0 || !event.cancelable) return;
-      event.preventDefault();
-      if (axis === 'x') el.scrollLeft += dx;
-      else if (page) window.scrollBy(0, dy);
-      else el.scrollTop += dy;
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => {
-      el.removeEventListener('wheel', onWheel);
-      clearTimeout(rest);
-    };
+    return afterLoad((m) => m.lockAxis(el, page));
   }, [page]);
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inPage = useWindowVirtualizer({
