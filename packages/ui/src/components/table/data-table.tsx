@@ -65,6 +65,7 @@ import {
 import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+import { AHEAD_PX, drawAhead } from '../../lib/draw-ahead';
 import {
   actionPressed,
   pressed,
@@ -928,11 +929,23 @@ export function DataTable<T extends TableRow>({
     if (el === null) return;
     return afterLoad((m) => m.lockAxis(el));
   }, []);
+  // Further ahead while the table moves, in the direction it is going
+  // (`drawAhead`): read from whichever virtualizer scrolls it.
+  const moving = useRef<{ scrollDirection: 'forward' | 'backward' | null } | null>(null);
+  const rangeExtractor = useMemo(
+    () =>
+      drawAhead(
+        () => moving.current?.scrollDirection ?? null,
+        Math.ceil(AHEAD_PX / estimateRowHeight),
+      ),
+    [estimateRowHeight],
+  );
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inPage = useWindowVirtualizer({
     count: virtualized && page ? items.length : 0,
     estimateSize,
     overscan: 20,
+    rangeExtractor,
     scrollMargin: margin,
     // Rendered with the frame, not inside each scroll event (`virtual-list.tsx`).
     useFlushSync: false,
@@ -948,6 +961,7 @@ export function DataTable<T extends TableRow>({
     // are plain rows (`SpacerRow`): every row there is loaded, so none of
     // them is drawn as if it were still coming.
     overscan: 20,
+    rangeExtractor,
     // Before its box has a size of its own (on the server, while hydrating,
     // in a box not laid out yet) the table draws the rows a window would
     // show, not a skeleton: the first HTML carries the first rows, and the
@@ -956,6 +970,9 @@ export function DataTable<T extends TableRow>({
     observeElementRect: observeSizedRect,
   });
   const virtualizer = page ? inPage : inBox;
+  useLayoutEffect(() => {
+    moving.current = virtualizer;
+  }, [virtualizer]);
   // The window's virtualizer counts from the top of the page; the spacers count from the body's.
   const offset = page ? margin : 0;
 
