@@ -31,6 +31,7 @@ import {
   TableRow,
   Textarea,
   icons,
+  regionName,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -186,22 +187,23 @@ function Editor({
             )}
           </legend>
           {COUNTRIES.map((c) => (
-            <div key={c} className="flex items-center gap-2">
-              <Switch
-                id={`country-${c}`}
-                checked={countries.includes(c)}
-                onCheckedChange={(on) => {
-                  setT({
-                    ...t,
-                    conditions: {
-                      ...t.conditions,
-                      countries: on ? [...countries, c] : countries.filter((x) => x !== c),
-                    },
-                  });
-                }}
-              />
-              <label htmlFor={`country-${c}`}>{c}</label>
-            </div>
+            <Field key={c} orientation="horizontal" className="justify-start">
+              <FieldControl>
+                <Switch
+                  checked={countries.includes(c)}
+                  onCheckedChange={(on) => {
+                    setT({
+                      ...t,
+                      conditions: {
+                        ...t.conditions,
+                        countries: on ? [...countries, c] : countries.filter((x) => x !== c),
+                      },
+                    });
+                  }}
+                />
+              </FieldControl>
+              <FieldLabel>{regionName(c)}</FieldLabel>
+            </Field>
           ))}
         </fieldset>
         <Table>
@@ -327,16 +329,17 @@ function Editor({
           </Button>
         </form>
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="active"
-              checked={t.active}
-              onCheckedChange={(on) => {
-                setT({ ...t, active: on });
-              }}
-            />
-            <label htmlFor="active">{tr('templates.in_use', 'In use')}</label>
-          </div>
+          <Field orientation="horizontal" className="justify-start">
+            <FieldControl>
+              <Switch
+                checked={t.active}
+                onCheckedChange={(on) => {
+                  setT({ ...t, active: on });
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>{tr('templates.in_use', 'In use')}</FieldLabel>
+          </Field>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onDone}>
               {tr('templates.close', 'Close')}

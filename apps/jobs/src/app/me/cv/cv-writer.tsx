@@ -8,8 +8,14 @@ import {
   FieldDescription,
   FieldLabel,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Stepper,
   Textarea,
+  dateFormat,
   icons,
 } from '@reach/ui';
 import Link from 'next/link';
@@ -17,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type JSX } from 'react';
 
 import { accountApi } from '../../../lib/browser-api';
+import { monthName, NOW, toMonthYear } from './month-year';
 import { t } from '../../../lib/i18n';
 
 /**
@@ -52,6 +59,99 @@ const STEPS = () => [
 ];
 
 const empty: Entry = { title: '', organisation: '', from: '', to: '', bullets: [] };
+
+/*
+ * A CV's dates, picked, never typed: a year, and the month where it is known,
+ * or "now" for what they still do. Held as `2023-03`, `2023` or `now` while
+ * the draft is edited, and said in the reader's words ("Mar 2023") only when
+ * the CV is kept, which is what its PDF prints.
+ */
+const NO_MONTH = 'none';
+
+/** A picked value in the reader's words, as the kept CV prints it. */
+function inWords(value: string): string {
+  if (value === NOW) return t('app.me.cv.cv-writer.now_word', 'Now');
+  const [y, m] = value.split('-').map(Number);
+  if (y === undefined || Number.isNaN(y)) return '';
+  return m === undefined
+    ? String(y)
+    : dateFormat({ month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
+        new Date(Date.UTC(y, m - 1, 1)),
+      );
+}
+
+function MonthYear({
+  label,
+  value,
+  onChange,
+  allowNow,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly onChange: (next: string) => void;
+  readonly allowNow: boolean;
+}): JSX.Element {
+  const thisYear = new Date().getUTCFullYear();
+  const years = Array.from({ length: 61 }, (_, i) => String(thisYear + 1 - i));
+  const year = value === NOW ? NOW : (value.split('-')[0] ?? '');
+  const month: string | undefined = value === NOW ? undefined : value.split('-')[1];
+  // No month without a year, and none for what they still do.
+  const noMonth = year === '' || year === NOW;
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="flex gap-2">
+        <Select
+          value={year}
+          onValueChange={(y) => {
+            onChange(y === NOW || month === undefined ? y : `${y}-${month}`);
+          }}
+        >
+          <FieldControl>
+            <SelectTrigger className="min-w-0 flex-1">
+              <SelectValue placeholder={t('app.me.cv.cv-writer.year', 'Year')} />
+            </SelectTrigger>
+          </FieldControl>
+          <SelectContent>
+            {allowNow ? (
+              <SelectItem value={NOW}>{t('app.me.cv.cv-writer.now_word', 'Now')}</SelectItem>
+            ) : null}
+            {years.map((y) => (
+              <SelectItem key={y} value={y}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={month ?? NO_MONTH}
+          disabled={noMonth}
+          onValueChange={(m) => {
+            if (noMonth) return;
+            onChange(m === NO_MONTH ? year : `${year}-${m}`);
+          }}
+        >
+          <SelectTrigger
+            className="min-w-0 flex-1"
+            aria-label={t('app.me.cv.cv-writer.month_of', '{{label}}: month', { label })}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_MONTH}>
+              {t('app.me.cv.cv-writer.any_month', 'Month not given')}
+            </SelectItem>
+            {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map((m) => (
+              <SelectItem key={m} value={m}>
+                {monthName(Number(m), 'long')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </Field>
+  );
+}
 
 function EntryFields({
   label,
@@ -93,30 +193,22 @@ function EntryFields({
                 />
               </FieldControl>
             </Field>
-            <Field>
-              <FieldLabel>{t('app.me.cv.cv-writer.from', 'From')}</FieldLabel>
-              <FieldControl>
-                <Input
-                  value={e.from}
-                  placeholder="2021"
-                  onChange={(ev) => {
-                    set(i, { from: ev.target.value });
-                  }}
-                />
-              </FieldControl>
-            </Field>
-            <Field>
-              <FieldLabel>{t('app.me.cv.cv-writer.to', 'To')}</FieldLabel>
-              <FieldControl>
-                <Input
-                  value={e.to}
-                  placeholder={t('app.me.cv.cv-writer.now', 'now')}
-                  onChange={(ev) => {
-                    set(i, { to: ev.target.value });
-                  }}
-                />
-              </FieldControl>
-            </Field>
+            <MonthYear
+              label={t('app.me.cv.cv-writer.from', 'From')}
+              value={e.from}
+              allowNow={false}
+              onChange={(from) => {
+                set(i, { from });
+              }}
+            />
+            <MonthYear
+              label={t('app.me.cv.cv-writer.to', 'To')}
+              value={e.to}
+              allowNow
+              onChange={(to) => {
+                set(i, { to });
+              }}
+            />
           </div>
           <Field>
             <FieldLabel>
@@ -193,7 +285,16 @@ export function CvWriter({
       const answer = await accountApi<Draft>('/cv-draft', { method: 'POST', body: answers });
       if (!answer.ok) setError(answer.message);
       else {
-        setDraft(answer.data);
+        const picked = (e: Entry): Entry => ({
+          ...e,
+          from: toMonthYear(e.from),
+          to: toMonthYear(e.to),
+        });
+        setDraft({
+          ...answer.data,
+          experience: answer.data.experience.map(picked),
+          education: answer.data.education.map(picked),
+        });
         setStep(1);
       }
     });
@@ -206,10 +307,14 @@ export function CvWriter({
         ...draft,
         experience: draft.experience.map((e) => ({
           ...e,
+          from: inWords(e.from),
+          to: inWords(e.to),
           bullets: e.bullets.map((b) => b.trim()).filter(Boolean),
         })),
         education: draft.education.map((e) => ({
           ...e,
+          from: inWords(e.from),
+          to: inWords(e.to),
           bullets: e.bullets.map((b) => b.trim()).filter(Boolean),
         })),
         skills: draft.skills.map((s) => s.trim()).filter(Boolean),

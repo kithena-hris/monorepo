@@ -88,6 +88,8 @@
   "inbox.inbox.someone": "Algú",
   "inbox.inbox.someone_approved": "{{by}} ho ha aprovat",
   "inbox.inbox.someone_declined": "{{by}} ho ha rebutjat",
+  "inbox.inbox.start_held": "{{name}} encara no pot començar: {{open}} encara pendent",
+  "inbox.inbox.start_held_hint": "La data d’inici era el {{date}}. Decideix les condicions pendents del contracte a Recruiting; comença l’hora després que es compleixi l’última.",
   "inbox.inbox.starts": "Comença el {{hired}}",
   "inbox.inbox.stopped": "Aturat",
   "inbox.inbox.today": "Avui",

@@ -89,6 +89,8 @@
   "inbox.inbox.someone": "Alguien",
   "inbox.inbox.someone_approved": "{{by}} lo ha aprobado",
   "inbox.inbox.someone_declined": "{{by}} lo ha rechazado",
+  "inbox.inbox.start_held": "{{name}} aún no puede empezar: {{open}} sigue pendiente",
+  "inbox.inbox.start_held_hint": "Su fecha de inicio era el {{date}}. Decide las condiciones pendientes de su contrato en Recruiting; empieza la hora siguiente a cumplirse la última.",
   "inbox.inbox.starts": "Empieza el {{hired}}",
   "inbox.inbox.stopped": "Detenido",
   "inbox.inbox.today": "Hoy",

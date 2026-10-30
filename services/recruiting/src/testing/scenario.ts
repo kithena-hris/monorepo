@@ -54,6 +54,7 @@ import {
   sendTheOffer,
   submitOfferForApproval,
   uploadSignedContract,
+  prepareTheContract,
   moveOrHire,
 } from '../application/offers.js';
 import { candidateByToken, candidatePage } from '../application/privacy.js';
@@ -328,8 +329,11 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   };
   const entityId = randomUUID();
   const locationId = randomUUID();
+  // People's team the job is picked from, by name: the hire arrives in it.
+  const designTeam = randomUUID();
   await uow.run(tenantId, async (tx) => {
     await tx.admins.add(accounts.ada);
+    await tx.orgUnits.save({ id: designTeam, name: 'Design', parentId: null, source: 'people' });
     for (const [who, id] of Object.entries(people)) {
       await tx.members.upsert(
         {
@@ -1705,6 +1709,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   await asMailing('ada', async (ctx) => {
     const contract = await ctx.tx.contracts.forOffer(offer.id);
     expect(contract?.route).toBe('upload');
+    // Prepared again from its page, the contract already there is the answer: never a second.
+    expect(value(await prepareTheContract(ctx, offer.id)).id).toBe(contract?.id);
     const candidate = await ctx.tx.candidates.byEmail('yuki@example.com');
     const fileId = (await ctx.tx.files.of(candidate?.id ?? ''))[0]?.id ?? '';
     value(await uploadSignedContract(ctx, offer.id, fileId, CalendarDate.parse('2026-10-20')));
@@ -1752,6 +1758,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       ...(place.probationEnd === null ? {} : { probationEnd: place.probationEnd }),
     },
     startDate: '2026-12-01',
+    orgUnitId: designTeam,
   });
   expect(hired?.effectiveFrom).toBe('2026-12-01');
   // Filled: the job comes off Kithena Jobs.

@@ -143,6 +143,18 @@
     "text": "Onboarding",
     "context": "An email welcoming a new hire before their first day. application/screens.ts: a \"area\" value."
   },
+  "inbox.screens.people": {
+    "text": "People",
+    "context": "An email welcoming a new hire before their first day. application/screens.ts: a \"openIn\" value."
+  },
+  "inbox.screens.probation_not_passed": {
+    "text": "{{name}} did not pass probation: end their employment",
+    "context": "An email welcoming a new hire before their first day. application/screens.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.screens.probation_not_passed_hint": {
+    "text": "Decided {{day}}. End the employment from their record in People, with the notice their contract gives during probation.",
+    "context": "An email welcoming a new hire before their first day. application/screens.ts: a \"summary\" value. Filled in: {{day}}."
+  },
   "meet_team": {
     "text": "Meet the team",
     "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."

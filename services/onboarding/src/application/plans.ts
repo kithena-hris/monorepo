@@ -52,10 +52,12 @@ async function holidaysOf(ctx: Ctx, country: string): Promise<ReadonlySet<string
 /** A hire from any source: one plan per hire, the same source id twice changes nothing but a moved start. */
 export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRecord>> {
   const { t, language } = await mailWords(ctx);
+  const bySource = await ctx.tx.hires.bySource(hire.source, hire.externalId);
+  const byEmail = bySource === null ? await ctx.tx.hires.byEmail(hire.email) : null;
   const known =
-    (await ctx.tx.hires.bySource(hire.source, hire.externalId)) ??
+    bySource ??
     // People's event for somebody Recruiting already handed over: the same person.
-    (hire.source === 'people' ? await ctx.tx.hires.byEmail(hire.email) : null);
+    (hire.source === 'people' ? byEmail : null);
   if (known !== null) {
     const plan = await ctx.tx.plans.byHire(known.id);
     if (plan === null) return err(notFound('plan'));
@@ -67,16 +69,62 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
       managerId: plan.managerId ?? hire.managerId,
     };
     await ctx.tx.plans.save(next);
+    // The person is known now: Recruiting's plan started before People had made them.
+    if (plan.personId === null && next.personId !== null) await announce(ctx, next);
     return ok(next);
   }
-  const hireId = ctx.deps.newId();
-  await ctx.tx.hires.save({ ...hire, id: hireId, createdAt: ctx.at });
-  let templates = await ctx.tx.templates.list();
-  if (templates.length === 0) {
-    const first = defaultTemplate(ctx.deps.newId());
-    await ctx.tx.templates.save(first);
-    templates = [first];
+  /*
+   * Recruiting's hand-over read after People's own event for the same person
+   * (the two topics are read apart, so either can come first): the plan People
+   * started knew no probation, no contract and only the company's country.
+   * Rebuilt in place from what Recruiting knows: People's hire becomes
+   * Recruiting's, so its cancellation finds it and People's later events still
+   * do by email, the same plan and the same welcome link, so the hire is not
+   * welcomed twice. A plan already under way keeps its tasks and takes only
+   * the probation.
+   */
+  const started = hire.source === 'recruiting' && byEmail?.source === 'people' ? byEmail : null;
+  const replacing = started === null ? null : await ctx.tx.plans.byHire(started.id);
+  const hireId = started?.id ?? ctx.deps.newId();
+  await ctx.tx.hires.save({
+    ...hire,
+    id: hireId,
+    personId: hire.personId ?? started?.personId ?? replacing?.personId ?? null,
+    createdAt: started?.createdAt ?? ctx.at,
+  });
+  if (replacing !== null && replacing.state !== 'cancelled') {
+    const fresh =
+      replacing.state === 'scheduled' && replacing.tasks.every((x) => x.state !== 'done');
+    const next: PlanRecord = fresh
+      ? {
+          ...replacing,
+          ...buildPlan({
+            id: replacing.id,
+            hireId,
+            hire,
+            templates: await templatesOf(ctx),
+            country: countryTasks(hire.country),
+            holidays: await holidaysOf(ctx, hire.country),
+            newId: ctx.deps.newId,
+          }),
+          name: `${hire.givenName} ${hire.familyName}`.trim(),
+          managerId: hire.managerId ?? replacing.managerId,
+          country: hire.country,
+          location: hire.location ?? replacing.location,
+          workMode: hire.workMode,
+          allowedExtensionMonths: hire.probationExtensionMonths,
+        }
+      : {
+          ...replacing,
+          hireId,
+          probationEnd: replacing.probationEnd ?? hire.probationEnd,
+          allowedExtensionMonths: replacing.allowedExtensionMonths ?? hire.probationExtensionMonths,
+        };
+    await ctx.tx.plans.save(next);
+    await announce(ctx, next);
+    return ok(next);
   }
+  const templates = await templatesOf(ctx);
   const built = buildPlan({
     id: ctx.deps.newId(),
     hireId,
@@ -101,23 +149,7 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
     welcomeHash: sha256(token),
   };
   await ctx.tx.plans.save(plan);
-  await publish(
-    ctx,
-    event(
-      ctx,
-      PlanStarted.name,
-      { type: 'plan', id: plan.id },
-      {
-        planId: plan.id,
-        hireId,
-        personId: plan.personId,
-        startDate: plan.startDate,
-        probationEnd: plan.probationEnd,
-        tasks: plan.tasks.length,
-      },
-      plan.startDate,
-    ),
-  );
+  await announce(ctx, plan);
   const manager = await nameOf(ctx, plan.managerId);
   const firstDay = new Intl.DateTimeFormat(language, {
     weekday: 'long',
@@ -177,6 +209,40 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
     dedupeKey: `onboarding:welcome:${plan.id}`,
   });
   return ok(plan);
+}
+
+/** The company's templates, the default one made the first time there are none. */
+async function templatesOf(ctx: Ctx): Promise<Awaited<ReturnType<Ctx['tx']['templates']['list']>>> {
+  const templates = await ctx.tx.templates.list();
+  if (templates.length > 0) return templates;
+  const first = defaultTemplate(ctx.deps.newId());
+  await ctx.tx.templates.save(first);
+  return [first];
+}
+
+/**
+ * `onboarding.plan.started`, again for a plan whose person or probation came
+ * later: Performance takes the start and the probation's end from it (its
+ * probation reviews), and with no person it has nobody to give them to.
+ */
+async function announce(ctx: Ctx, plan: PlanRecord): Promise<void> {
+  await publish(
+    ctx,
+    event(
+      ctx,
+      PlanStarted.name,
+      { type: 'plan', id: plan.id },
+      {
+        planId: plan.id,
+        hireId: plan.hireId,
+        personId: plan.personId,
+        startDate: plan.startDate,
+        probationEnd: plan.probationEnd,
+        tasks: plan.tasks.length,
+      },
+      plan.startDate,
+    ),
+  );
 }
 
 /** A hire that fell through before the start: the plan is cancelled (§O4). */

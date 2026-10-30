@@ -401,7 +401,7 @@ export const CvDraft = z.object({
 export type CvDraft = z.infer<typeof CvDraft>;
 
 const WRITE_CV = `You write a candidate's CV from what they tell you about themselves. Return a JSON object {"name":"","headline":"","location":""|null,"email":"","phone":""|null,"summary":"","experience":[{"title":"","organisation":"","from":"","to":"","bullets":[""]}],"education":[{"title":"","organisation":"","from":"","to":"","bullets":[]}],"skills":[""],"languages":[""]}.
-Use only what they said: never invent an employer, a date, a degree or a number; where something is missing leave it blank or out. Dates as the person gave them ("2021", "Mar 2023", "now"). The summary is three or four plain sentences in the first person, specific, no clichés. Each experience bullet starts with a verb and says what was done and, where they said so, what it led to. Keep their wording where it is good. Write in the language they wrote in.`;
+Use only what they said: never invent an employer, a date, a degree or a number; where something is missing leave it blank or out. Dates as a year ("2021"), a year and month where they gave the month ("2023-03"), or "now" for what they still do; blank where they gave none. The summary is three or four plain sentences in the first person, specific, no clichés. Each experience bullet starts with a verb and says what was done and, where they said so, what it led to. Keep their wording where it is good. Write in the language they wrote in.`;
 
 export interface CvAnswers {
   readonly targetRole: string;

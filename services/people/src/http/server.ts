@@ -44,6 +44,7 @@ import { scimProvisioning } from '../application/scim/provisioning.js';
 import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
 import type { PeopleService } from '../application/person/service.js';
 import { invitations } from '../application/person/invitations.js';
+import { drizzleStartHolds } from '../infrastructure/drizzle-start-holds.js';
 import { drizzleInvitationStore, identityInviterFrom } from '../infrastructure/invitations.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { readCacheFrom } from '../infrastructure/valkey-read-cache.js';
@@ -802,6 +803,7 @@ function screenDeps(
     teamTasks: drizzleTeamTasks(),
     invitations: drizzleInvitationStore(),
     preHires,
+    startHolds: drizzleStartHolds(),
     ...inboxNotices(calendars, service),
     inboxRules: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).inboxRules,
     documents: {

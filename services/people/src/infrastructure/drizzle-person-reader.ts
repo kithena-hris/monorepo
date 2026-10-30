@@ -615,7 +615,11 @@ export async function preHires(
   return rows.map((r) => r.id);
 }
 
-/** Pre-hires whose start date is on or before a day, earliest start first. */
+/**
+ * Pre-hires whose start date is on or before a day, earliest start first. Not
+ * one whose start is held for an open pre-start condition (`people.start_hold`,
+ * Recruiting PRD §21.3): they start the run after the last one is met.
+ */
 export function drizzleArrivals(): Arrivals {
   return {
     async due(tx, tenantId, onOrBefore, limit) {
@@ -627,6 +631,8 @@ export function drizzleArrivals(): Arrivals {
             eq(person.tenantId, tenantId),
             inArray(person.status, ['pre_hire', 'onboarding']),
             lte(person.hireDate, onOrBefore),
+            sql`NOT EXISTS (SELECT 1 FROM people.start_hold h
+                             WHERE h.tenant_id = ${person.tenantId} AND h.person_id = ${person.id})`,
           ),
         )
         .orderBy(asc(person.hireDate), asc(person.id))

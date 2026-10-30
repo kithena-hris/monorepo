@@ -129,15 +129,12 @@ export default async function Results({
               {t('app.search.page.work_mode', 'Work mode')}
             </legend>
             {MODES().map(([v, l]) => (
-              <div key={v} className="flex items-center gap-2">
-                <Checkbox
-                  id={`mode-${v}`}
-                  name="workMode"
-                  value={v}
-                  defaultChecked={modes.has(v)}
-                />
-                <label htmlFor={`mode-${v}`}>{l}</label>
-              </div>
+              <Field key={v} orientation="horizontal" className="justify-start">
+                <FieldControl>
+                  <Checkbox name="workMode" value={v} defaultChecked={modes.has(v)} />
+                </FieldControl>
+                <FieldLabel>{l}</FieldLabel>
+              </Field>
             ))}
           </fieldset>
           <Choose

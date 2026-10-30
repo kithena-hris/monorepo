@@ -1373,16 +1373,17 @@ function OfferEditor({
             </Field>
           ) : null}
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <Switch
-                id="no-probation"
-                checked={draft.terms.probation === null}
-                onCheckedChange={(on) => {
-                  setTerms({ probation: on ? null : { count: 6, unit: 'months' } });
-                }}
-              />
-              <label htmlFor="no-probation">{tr('offers.no_probation', 'No probation')}</label>
-            </div>
+            <Field orientation="horizontal" className="justify-start">
+              <FieldControl>
+                <Switch
+                  checked={draft.terms.probation === null}
+                  onCheckedChange={(on) => {
+                    setTerms({ probation: on ? null : { count: 6, unit: 'months' } });
+                  }}
+                />
+              </FieldControl>
+              <FieldLabel>{tr('offers.no_probation', 'No probation')}</FieldLabel>
+            </Field>
             {draft.terms.probation === null ? null : (
               <Length
                 label={tr('offers.probation', 'Probation')}
@@ -1437,16 +1438,17 @@ function OfferEditor({
                 }}
               />
             ) : null}
-            <div className="flex items-center gap-3">
-              <Switch
-                id="mobility"
-                checked={draft.terms.mobilityClause === true}
-                onCheckedChange={(on) => {
-                  setTerms({ mobilityClause: on });
-                }}
-              />
-              <label htmlFor="mobility">{tr('offers.mobility_clause', 'Mobility clause')}</label>
-            </div>
+            <Field orientation="horizontal" className="justify-start">
+              <FieldControl>
+                <Switch
+                  checked={draft.terms.mobilityClause === true}
+                  onCheckedChange={(on) => {
+                    setTerms({ mobilityClause: on });
+                  }}
+                />
+              </FieldControl>
+              <FieldLabel>{tr('offers.mobility_clause', 'Mobility clause')}</FieldLabel>
+            </Field>
             <Issues issues={issues('clauses')} />
           </Group>
         ) : null}
@@ -2140,9 +2142,13 @@ function ContractDraft({
   );
 }
 
+/** The Select's value for "no file": Radix gives an empty string no item. */
+const NO_FILE = 'none';
+
 export function Contract(props: ScreenProps<OfferData>): JSX.Element {
   const act = useAct(props);
-  const [fileId, setFileId] = useState('');
+  // The signed copy among the candidate's files, or none: the paper stays with the company.
+  const [fileId, setFileId] = useState<string | null>(null);
   const [signedOn, setSignedOn] = useState('');
   const [own, setOwn] = useState<readonly UploadItem[]>([]);
   const [attaching, attach] = useTransition();
@@ -2242,6 +2248,26 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                       <EmptyState
                         icon={<icons.document aria-hidden />}
                         title={tr('offers.no_contract_yet', 'No contract yet')}
+                        {...(data.offer.acceptance === null
+                          ? {}
+                          : {
+                              // Accepted, and the terms refused the contract on the start
+                              // date: prepared again here, and the refusal says why.
+                              description: tr(
+                                'offers.contract_not_prepared',
+                                'The offer was accepted, but the contract could not be prepared from its terms. Prepare it again; if it is refused, the reason says what to change on the offer.',
+                              ),
+                              action: (
+                                <Button
+                                  loading={act.pending}
+                                  onClick={() => {
+                                    act.run('PrepareContract', { offerId: data.offer.id });
+                                  }}
+                                >
+                                  {tr('offers.prepare_the_contract', 'Prepare the contract')}
+                                </Button>
+                              ),
+                            })}
                       />
                     ) : (
                       <KeyValues
@@ -2328,22 +2354,36 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                       </CardTitle>
                       <CardDescription>
                         {tr(
-                          'offers.upload_the_scan_to_documents_or',
-                          'Upload the scan to Documents or the candidate’s files, then record it here.',
+                          'offers.signed_on_paper_record_it',
+                          'Signed on paper by both: record the day of the second signature, and the signed copy if it is among the candidate’s files. Keep the paper; with Documents switched on, contracts are signed and kept in Kithena.',
                         )}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 md:grid-cols-2">
-                      <Field required>
-                        <FieldLabel>{tr('offers.file_reference', 'File reference')}</FieldLabel>
-                        <FieldControl>
-                          <Input
-                            value={fileId}
-                            onChange={(e) => {
-                              setFileId(e.target.value);
-                            }}
-                          />
-                        </FieldControl>
+                      <Field>
+                        <FieldLabel>{tr('offers.signed_copy', 'Signed copy')}</FieldLabel>
+                        <Select
+                          value={fileId ?? NO_FILE}
+                          onValueChange={(v) => {
+                            setFileId(v === NO_FILE ? null : v);
+                          }}
+                        >
+                          <FieldControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FieldControl>
+                          <SelectContent>
+                            <SelectItem value={NO_FILE}>
+                              {tr('offers.kept_on_paper', 'Kept on paper')}
+                            </SelectItem>
+                            {(data.files ?? []).map((f) => (
+                              <SelectItem key={f.id} value={f.id}>
+                                {f.fileName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </Field>
                       <Field required>
                         <FieldLabel>
@@ -2373,7 +2413,7 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                       </Field>
                       <div className="flex justify-end">
                         <Button
-                          disabled={fileId === '' || signedOn === ''}
+                          disabled={signedOn === ''}
                           loading={act.pending}
                           onClick={() => {
                             act.run('UploadSignedContract', {

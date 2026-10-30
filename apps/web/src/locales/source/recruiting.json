@@ -4867,6 +4867,10 @@
     "text": "Drafted from the accepted offer and the law of the employing entity. Check every fact, edit what you need, then send it to sign.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <CardDescription>."
   },
+  "offers.contract_not_prepared": {
+    "text": "The offer was accepted, but the contract could not be prepared from its terms. Prepare it again; if it is refused, the reason says what to change on the offer.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <EmptyState>."
+  },
   "offers.contract_text": {
     "text": "Contract",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <FieldLabel>."
@@ -4987,10 +4991,6 @@
     "text": "What the law of the employing entity says the contract states, and where each comes from.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <p>."
   },
-  "offers.file_reference": {
-    "text": "File reference",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <FieldLabel>."
-  },
   "offers.fill_in_before_sending": {
     "text": "Fill in before sending",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
@@ -5051,6 +5051,10 @@
     "text": "Job",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
   },
+  "offers.kept_on_paper": {
+    "text": "Kept on paper",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <SelectItem>."
+  },
   "offers.leave_empty_for_no_end": {
     "text": "Leave empty for no end.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldDescription>."
@@ -5061,7 +5065,7 @@
   },
   "offers.mobility_clause": {
     "text": "Mobility clause",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <label>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldLabel>."
   },
   "offers.month": {
     "text": "Month",
@@ -5105,7 +5109,7 @@
   },
   "offers.no_probation": {
     "text": "No probation",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <label>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldLabel>."
   },
   "offers.no_reason_given": {
     "text": "No reason given.",
@@ -5355,6 +5359,10 @@
     "text": "Pre-start conditions",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <CardTitle>."
   },
+  "offers.prepare_the_contract": {
+    "text": "Prepare the contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <Button>."
+  },
   "offers.prepare_the_contract_next": {
     "text": "Next, prepare the contract and send it to sign. Once it is signed, {{name}} is handed on to People.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <Alert>. Filled in: {{name}}."
@@ -5491,6 +5499,14 @@
     "text": "Signed contract uploaded",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
   },
+  "offers.signed_copy": {
+    "text": "Signed copy",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <FieldLabel>."
+  },
+  "offers.signed_on_paper_record_it": {
+    "text": "Signed on paper by both: record the day of the second signature, and the signed copy if it is among the candidate’s files. Keep the paper; with Documents switched on, contracts are signed and kept in Kithena.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <CardDescription>."
+  },
   "offers.signer_candidate": {
     "text": "{{name}}, with a code sent to their email",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <li>. Filled in: {{name}}."
@@ -5626,10 +5642,6 @@
   "offers.unit_weeks": {
     "text": "weeks",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, UNIT: a \"weeks\" value."
-  },
-  "offers.upload_the_scan_to_documents_or": {
-    "text": "Upload the scan to Documents or the candidate’s files, then record it here.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <CardDescription>."
   },
   "offers.variable_at_target": {
     "text": "Variable at target",

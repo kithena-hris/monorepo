@@ -1250,6 +1250,51 @@ export async function peopleInbox(
       }
     }
 
+    /* ------------------------------------------------- starts on hold -- */
+    // Recruiting PRD §21.3: an open pre-start condition on the start date blocks
+    // the start and tells HR. Their task until the condition is met in Recruiting,
+    // where the contract page decides it, or the hire is cancelled.
+    const { startHolds } = deps;
+    if (startHolds !== undefined && asking.viewer.roles.has('hr')) {
+      const held = await startHolds.due(tx, asking.tenantId, now.slice(0, 10), TEAM_PAGE);
+      const people = await deps.service.access.readMany(tx, {
+        ...asking,
+        personIds: held.map((h) => h.personId),
+      });
+      for (const h of held) {
+        const p = people.ok ? people.value.get(h.personId) : undefined;
+        const name =
+          (p === undefined ? null : nameOf(p.attributes)) ?? t('inbox.inbox.someone', 'Someone');
+        const open = h.conditions.map((c) => c.replaceAll('_', ' ')).join(', ');
+        items.push(
+          item({
+            id: `people:start-held:${h.applicationId}`,
+            lane: 'task',
+            kind: 'people.start-held',
+            area: t('inbox.inbox.new_hires', 'New hires'),
+            icon: 'user-plus',
+            tone: 'danger',
+            title: t('inbox.inbox.start_held', '{{name}} can’t start yet: {{open}} still open', {
+              name,
+              open,
+            }),
+            summary: t(
+              'inbox.inbox.start_held_hint',
+              'Their start date was {{date}}. Decide the open conditions on their contract in Recruiting; they start the hour after the last one is met.',
+              { date: dayLabel(h.startsOn) },
+            ),
+            from: { name, personId: h.personId },
+            at: now,
+            due: h.startsOn,
+            link:
+              h.offerId === null
+                ? `/people/${h.personId}`
+                : `/recruiting/offers/${h.offerId}/contract`,
+          }),
+        );
+      }
+    }
+
     // H1, Z3: an integration failing is a task for every People administrator; one takes it.
     const team = deps.teamTasks;
     if (team !== undefined && asking.viewer.roles.has('people_admin')) {

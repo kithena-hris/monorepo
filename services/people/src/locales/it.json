@@ -86,6 +86,8 @@
   "inbox.inbox.someone": "Qualcuno",
   "inbox.inbox.someone_approved": "{{by}} ha approvato",
   "inbox.inbox.someone_declined": "{{by}} ha rifiutato",
+  "inbox.inbox.start_held": "{{name}} non può ancora iniziare: {{open}} ancora in sospeso",
+  "inbox.inbox.start_held_hint": "La data di inizio era il {{date}}. Decidi le condizioni in sospeso del contratto in Recruiting; inizia l’ora dopo che l’ultima è soddisfatta.",
   "inbox.inbox.starts": "Inizia il {{hired}}",
   "inbox.inbox.stopped": "Interrotto",
   "inbox.inbox.today": "Oggi",

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { attributesOf, hiresFromRecruiting } from './hire-from-recruiting.js';
 import { define, inMemoryPeople, noTransaction as tx, TENANT, versionOf } from './in-memory.js';
 import { personAccess } from './person-access.js';
+import type { StartHold, StartHolds } from './start-holds.js';
 import { SYSTEM_VIEWER, withSupport } from './subject.js';
 
 /**
@@ -216,7 +217,13 @@ describe('a hire Recruiting made', () => {
   it('fills a hire not started yet from the hire, leaving what HR set', async () => {
     const title = define({ key: 'job_title', effectiveDated: true });
     const store = inMemoryPeople([
-      versionOf(1, [define({ key: 'given_name' }), define({ key: 'family_name' }), email, probation, title]),
+      versionOf(1, [
+        define({ key: 'given_name' }),
+        define({ key: 'family_name' }),
+        email,
+        probation,
+        title,
+      ]),
     ]);
     const access = personAccess({ ...store.deps, relations: withSupport(store.deps.relations) });
     const hires = hiresFromRecruiting(access, store.deps.schemas);
@@ -274,6 +281,47 @@ describe('a hire Recruiting made', () => {
     const [row] = [...store.rows.values()];
     expect(row?.snapshot.status).toBe('pre_hire');
     expect(row?.fields.custom).not.toHaveProperty('probation_end');
+  });
+
+  it('holds the start while a pre-start condition is open, until every one is met', async () => {
+    const store = inMemoryPeople([
+      versionOf(1, [define({ key: 'given_name' }), define({ key: 'family_name' }), email]),
+    ]);
+    const access = personAccess({ ...store.deps, relations: withSupport(store.deps.relations) });
+    const held = new Map<string, StartHold>();
+    const holds: StartHolds = {
+      hold: (_tx, _tenant, h) => {
+        held.set(h.applicationId, h);
+        return Promise.resolve();
+      },
+      release: (_tx, _tenant, applicationId) => Promise.resolve(held.delete(applicationId)),
+      due: () => Promise.resolve([]),
+    };
+    const hires = hiresFromRecruiting(access, store.deps.schemas, { holds });
+    const withChecks = {
+      ...hired,
+      payload: {
+        ...hired.payload,
+        conditions: [
+          { kind: 'right_to_work', state: 'open' },
+          { kind: 'references', state: 'met' },
+        ],
+      },
+    };
+    expect((await hires.hired(tx, withChecks as never)).outcome).toBe('applied');
+    const [row] = [...store.rows.values()];
+    expect([...held.values()]).toEqual([
+      {
+        applicationId: hired.payload.applicationId,
+        personId: row?.snapshot.id,
+        conditions: ['right_to_work'],
+        offerId: hired.payload.offerId,
+      },
+    ]);
+    const met = { ...cancelled, eventName: 'recruiting.prehire.conditions_met' };
+    expect((await hires.conditionsMet(tx, met as never)).outcome).toBe('applied');
+    expect(held.size).toBe(0);
+    expect((await hires.conditionsMet(tx, met as never)).outcome).toBe('unchanged');
   });
 
   it('is discarded when the hire falls through, found by its work email', async () => {

@@ -1,5 +1,6 @@
 import { everyCatalogue, keepChosen } from './catalogue.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { logger } from '@kithena/telemetry';
 import type {
   CalendarDate,
   ConditionKind,
@@ -593,7 +594,11 @@ export async function candidateAccepts(
   if (!accepted.ok) return accepted;
   await ctx.tx.offers.save(accepted.value);
   await publish(ctx, offerEvent(ctx, 'accepted', accepted.value));
-  await prepareContract(ctx, accepted.value, app);
+  // A contract the terms refuse on the start date is prepared again from its
+  // page (`prepareTheContract`), where HR reads why; the acceptance stands.
+  const prepared = await prepareContract(ctx, accepted.value, app);
+  if (!prepared.ok)
+    logger.warn({ offerId, code: prepared.error.code }, 'contract not prepared on acceptance');
   // Accepted moves to the contract stage: the contract is prepared and signed there, and the signature hires.
   if (app.outcome === 'active') {
     const placed = await placeInContract(ctx, app);
@@ -1045,6 +1050,25 @@ async function prepareContract(
 }
 
 /**
+ * The contract for an accepted offer, prepared now where acceptance could
+ * not: the terms refused on the start date (a pack's rule moved, the job lost
+ * its legal entity), and the Inbox's "Create the contract" led to a page with
+ * nothing to create. The refusal comes back in words, for HR to correct the
+ * offer or the job and ask again. A contract already there is the answer.
+ */
+export async function prepareTheContract(ctx: Ctx, offerId: string): Promise<Result<Contract>> {
+  const offer = await ctx.tx.offers.get(offerId);
+  if (offer === null) return err(notFound('offer'));
+  const loaded = await editableOffer(ctx, offer.applicationId);
+  if (!loaded.ok) return loaded;
+  if (offer.state !== 'accepted')
+    return err(failure('NOT_ACCEPTED', 'A contract is prepared once the offer is accepted'));
+  const held = await ctx.tx.contracts.forOffer(offerId);
+  if (held !== null) return ok(held);
+  return prepareContract(ctx, offer, loaded.value.app);
+}
+
+/**
  * The shell filed the contract in Documents and sent its envelope, carrying
  * the contract's `subjectRef` (PRD §21.2, §28): from now on only Documents'
  * `envelope.completed` signs it. A retry on a contract already out is the
@@ -1149,11 +1173,15 @@ export async function candidateSignedContract(
   return ok(true);
 }
 
-/** A signed copy uploaded by HR: wet ink, or no Documents (PRD §21.2). */
+/**
+ * Signed on paper, recorded by HR: wet ink, or no Documents (PRD §21.2). The
+ * date of the second signature, and the signed copy where it is among the
+ * candidate's files; without one, the paper stays with the company.
+ */
 export async function uploadSignedContract(
   ctx: Ctx,
   offerId: string,
-  fileId: string,
+  fileId: string | null,
   signedOn: CalendarDate,
 ): Promise<Result<true>> {
   const offer = await ctx.tx.offers.get(offerId);
@@ -1162,8 +1190,10 @@ export async function uploadSignedContract(
   if (!loaded.ok) return loaded;
   const contract = await ctx.tx.contracts.forOffer(offerId);
   if (contract === null) return err(notFound('contract'));
-  const file = await ctx.tx.files.get(fileId);
-  if (file?.candidateId !== loaded.value.candidate.id) return err(notFound('file'));
+  if (fileId !== null) {
+    const file = await ctx.tx.files.get(fileId);
+    if (file?.candidateId !== loaded.value.candidate.id) return err(notFound('file'));
+  }
   const signed = markSigned(
     contract,
     ctx.caller.personId ?? ctx.caller.accountId,
@@ -1382,6 +1412,23 @@ async function hireByHand(
   });
 }
 
+/**
+ * The team the hire joins, as People knows it: the requisition's org unit,
+ * else the job's team (`department`, picked from People's org units by name).
+ * Only one People holds, so the record arrives in its department; a team
+ * Recruiting keeps on its own, without People, is no id People could use.
+ */
+async function orgUnitOf(ctx: Ctx, job: JobRecord): Promise<string | null> {
+  const units = (await ctx.tx.orgUnits.list()).filter((u) => u.source === 'people');
+  for (const id of job.requisitionIds) {
+    const wanted = (await ctx.tx.requisitions.get(id))?.orgUnitId ?? null;
+    if (wanted !== null && units.some((u) => u.id === wanted)) return wanted;
+  }
+  return job.department === null
+    ? null
+    : (units.find((u) => u.name === job.department)?.id ?? null);
+}
+
 /** The pre-hire opened and `recruiting.candidate.hired` sent, with what the offer gave or nothing. */
 async function handOver(
   ctx: Ctx,
@@ -1430,7 +1477,7 @@ async function handOver(
         startDate,
         jobTitle: job.title,
         managerId: manager,
-        orgUnitId: null,
+        orgUnitId: await orgUnitOf(ctx, job),
         locationId: job.locationIds[0] ?? null,
         locationName:
           job.locationIds[0] === undefined

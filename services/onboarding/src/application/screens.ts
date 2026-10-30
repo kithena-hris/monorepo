@@ -277,24 +277,48 @@ export async function onboardingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
       link: string | null;
     }[];
   };
-  return {
-    items: mine.rows
-      .filter((r) => r.dueOn <= soon)
-      .map((r) => ({
-        id: `onboarding:task:${r.taskId}`,
+  // A probation not passed is HR's to end through People's termination (§O8):
+  // their task until the person has left. Without People, the plan is where it was decided.
+  const ending: InboxItem[] = [];
+  if (ctx.viewer.hr) {
+    const entitlements =
+      ((await ctx.tx.settings.get('entitlements')) as { entitlements: string[] } | null)
+        ?.entitlements ?? [];
+    // ponytail: every plan read per Inbox; a reviews-by-outcome query when plans run to thousands.
+    for (const plan of await ctx.tx.plans.list()) {
+      if (plan.personId === null) continue;
+      const last = (await ctx.tx.reviews.forPlan(plan.id))
+        .toSorted((a, b) => a.at.localeCompare(b.at))
+        .at(-1);
+      if (last?.outcome !== 'failed') continue;
+      if ((await ctx.tx.members.get(plan.personId))?.status === 'terminated') continue;
+      ending.push({
+        id: `onboarding:probation-ended:${plan.id}`,
         lane: 'task',
-        kind: 'onboarding.task',
+        kind: 'onboarding.probation',
         module: 'onboarding',
         area: t('inbox.screens.onboarding', 'Onboarding'),
         icon: 'hire',
-        title: `${r.title}: ${r.name}`,
-        at: `${r.dueOn}T00:00:00.000Z` as Instant,
-        due: r.dueOn,
+        title: t(
+          'inbox.screens.probation_not_passed',
+          '{{name}} did not pass probation: end their employment',
+          { name: plan.name },
+        ),
+        summary: t(
+          'inbox.screens.probation_not_passed_hint',
+          'Decided {{day}}. End the employment from their record in People, with the notice their contract gives during probation.',
+          { day: last.at.slice(0, 10) },
+        ),
+        at: last.at as Instant,
+        due: null,
         dueVerb: 'due',
-        link: `/onboarding/plans/${r.planId}`,
-        openIn: t('inbox.screens.onboarding', 'Onboarding'),
-        tone: r.late ? 'danger' : null,
-        summary: null,
+        link: entitlements.includes('module.people')
+          ? `/people/${plan.personId}`
+          : `/onboarding/plans/${plan.id}`,
+        openIn: entitlements.includes('module.people')
+          ? t('inbox.screens.people', 'People')
+          : t('inbox.screens.onboarding', 'Onboarding'),
+        tone: 'danger',
         from: null,
         status: null,
         outcome: null,
@@ -302,12 +326,44 @@ export async function onboardingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         team: null,
         replies: 0,
         message: null,
-        detail: {
-          planId: r.planId,
-          taskId: r.taskId,
-          kind: r.kind,
-          link: r.link,
-        } satisfies OnboardingTaskDetail,
-      })),
+        detail: null,
+      });
+    }
+  }
+  return {
+    items: [
+      ...ending,
+      ...mine.rows
+        .filter((r) => r.dueOn <= soon)
+        .map((r): InboxItem => ({
+          id: `onboarding:task:${r.taskId}`,
+          lane: 'task',
+          kind: 'onboarding.task',
+          module: 'onboarding',
+          area: t('inbox.screens.onboarding', 'Onboarding'),
+          icon: 'hire',
+          title: `${r.title}: ${r.name}`,
+          at: `${r.dueOn}T00:00:00.000Z` as Instant,
+          due: r.dueOn,
+          dueVerb: 'due',
+          link: `/onboarding/plans/${r.planId}`,
+          openIn: t('inbox.screens.onboarding', 'Onboarding'),
+          tone: r.late ? 'danger' : null,
+          summary: null,
+          from: null,
+          status: null,
+          outcome: null,
+          count: null,
+          team: null,
+          replies: 0,
+          message: null,
+          detail: {
+            planId: r.planId,
+            taskId: r.taskId,
+            kind: r.kind,
+            link: r.link,
+          } satisfies OnboardingTaskDetail,
+        })),
+    ],
   };
 }

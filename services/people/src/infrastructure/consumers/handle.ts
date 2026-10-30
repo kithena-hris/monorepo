@@ -5,6 +5,8 @@ import {
   AccountProvisioned,
   AccountSignupAnswered,
   CandidateHired,
+  PrehireConditionsMet,
+  ProbationReviewed,
   PersonAnonymised,
   PersonChangeDecided,
   PersonChangeRequested,
@@ -41,6 +43,7 @@ import type {
   Hired,
   HiresFromRecruiting,
 } from '../../application/person/hire-from-recruiting.js';
+import type { ProbationsFromOnboarding } from '../../application/person/probation-from-onboarding.js';
 import type { EnterAsSelf, SelfEntryOutcome } from '../../application/person/self-entry.js';
 import type { ReportSignup } from '../signup-report.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
@@ -111,6 +114,11 @@ export interface ConsumerDeps {
    * `enterAsSelf` is; the event is then ignored and said so.
    */
   readonly hires?: HiresFromRecruiting;
+  /**
+   * Onboarding's probation decisions, kept on the record (Recruiting PRD
+   * §O8): through the write path, so absent with it, as `hires` is.
+   */
+  readonly probations?: ProbationsFromOnboarding;
   /**
    * A hire signed up to the account People invited them to: a pre-hire
    * becomes `onboarding`. Whether a record moved.
@@ -526,6 +534,35 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
             hired ? 'recruiting hire not applied' : 'recruiting cancellation not applied',
           );
         }
+        return done.outcome;
+      }
+
+      // Every pre-start condition met: the start held for them goes ahead (PRD §21.3).
+      case PrehireConditionsMet.name: {
+        const event = parse(PrehireConditionsMet, raw);
+        if (!event) return 'rejected';
+        const { hires } = deps;
+        if (!hires) return 'ignored';
+        const done = await deps.inTenant(event.tenantId, ({ tx }) =>
+          hires.conditionsMet(tx, event),
+        );
+        return done.outcome;
+      }
+
+      // A probation decided in Onboarding: its outcome, and an extension's end, on the record.
+      case ProbationReviewed.name: {
+        const event = parse(ProbationReviewed, raw);
+        if (!event) return 'rejected';
+        const { probations } = deps;
+        if (!probations) return 'ignored';
+        const done = await deps.inTenant(event.tenantId, ({ tx }) =>
+          probations.reviewed(tx, event),
+        );
+        if (done.outcome === 'rejected')
+          logger.warn(
+            { eventId: event.eventId, code: done.code },
+            'probation outcome not recorded',
+          );
         return done.outcome;
       }
 

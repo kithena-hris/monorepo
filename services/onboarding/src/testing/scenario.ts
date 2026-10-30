@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   CandidateHired,
+  PersonHired,
   PrehireCancelled,
   ReviewReleased,
   TenantId,
@@ -20,7 +21,13 @@ import {
   setBuddy,
   welcomePage,
 } from '../application/plans.js';
-import { boardScreen, myTasks, planScreen, saveSettings } from '../application/screens.js';
+import {
+  boardScreen,
+  myTasks,
+  onboardingInbox,
+  planScreen,
+  saveSettings,
+} from '../application/screens.js';
 import type { Deps, UnitOfWork } from '../application/ports.js';
 import { onboardingConsumer } from '../infrastructure/consumers/handle.js';
 
@@ -232,12 +239,33 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
   };
   expect(moved.plan.probationEnd).toBe('2027-06-07');
 
-  // Performance releases the probation review: the task links to it; the decision stays here.
+  // People makes Yuki: the plan has its person now, and says so again for
+  // Performance, which needs a person to hang the probation's end on.
   const yuki = randomUUID();
-  await h.uow.run(tenantId, async (tx) => {
-    const p = await tx.plans.get(planId);
-    if (p !== null) await tx.plans.save({ ...p, personId: yuki });
-  });
+  const personHired = (personId: string, email: string, given: string) =>
+    envelope(PersonHired.name, {
+      personId,
+      identityAccountId: null,
+      name: { given, family: 'Sato', preferred: null },
+      workEmail: email,
+      managerId: null,
+      orgUnitId: null,
+      legalEntityId: null,
+      employment: { from: '2026-12-08', to: null },
+      status: 'pending',
+      schemaVersion: 1,
+      sourceOfRecord: 'own',
+    });
+  expect(await consume(personHired(yuki, 'yuki@example.com', 'Yuki'))).toBe('applied');
+  const started = (await h.events(tenantId)).filter(
+    (e) => e.eventName === 'onboarding.plan.started',
+  );
+  expect(started.map((e) => (e.payload as { personId: string | null }).personId)).toEqual([
+    null,
+    yuki,
+  ]);
+  expect(started.at(-1)?.payload).toMatchObject({ probationEnd: '2027-06-07' });
+  // Performance releases the probation review: the task links to it; the decision stays here.
   const cycleId = randomUUID();
   const released = envelope(ReviewReleased.name, {
     reviewId: randomUUID(),
@@ -262,6 +290,73 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
   const names = (await h.events(tenantId)).map((e) => e.eventName);
   expect(names).toContain('onboarding.probation.reviewed');
   expect(names.filter((n) => n === 'onboarding.task.completed').length).toBe(3);
+
+  // Kai does not pass: HR is sent to end the employment, through People's own termination.
+  const kai = randomUUID();
+  const kaiApplication = randomUUID();
+  today = '2026-10-15';
+  await consume(
+    envelope(CandidateHired.name, {
+      ...handover(kaiApplication),
+      candidate: { givenName: 'Kai', familyName: 'Sato', email: 'kai@example.com', phone: null },
+    }),
+  );
+  await consume(personHired(kai, 'kai@example.com', 'Kai'));
+  const kaiPlan = (
+    (await as('hr', (ctx) => boardScreen(ctx, undefined))) as {
+      rows: { id: string; name: string }[];
+    }
+  ).rows.find((r) => r.name === 'Kai Sato');
+  today = '2027-05-10';
+  value(await as('manager', (ctx) => reviewProbation(ctx, kaiPlan?.id ?? '', 'failed', null)));
+  const ending = (await as('hr', (ctx) => onboardingInbox(ctx))).items.filter(
+    (i) => i.kind === 'onboarding.probation',
+  );
+  expect(ending.map((i) => i.title)).toEqual([
+    'Kai Sato did not pass probation: end their employment',
+  ]);
+
+  // Ana's two events come the other way round: People's first, then Recruiting's.
+  // One plan, rebuilt from the hand-over with the probation People's never knew.
+  const ana = randomUUID();
+  const anaApplication = randomUUID();
+  today = '2026-10-15';
+  expect(await consume(personHired(ana, 'ana@example.com', 'Ana'))).toBe('applied');
+  expect(
+    await consume(
+      envelope(CandidateHired.name, {
+        ...handover(anaApplication),
+        candidate: { givenName: 'Ana', familyName: 'Sato', email: 'ana@example.com', phone: null },
+      }),
+    ),
+  ).toBe('applied');
+  const anaRows = (
+    (await as('hr', (ctx) => boardScreen(ctx, undefined))) as {
+      rows: { id: string; name: string }[];
+    }
+  ).rows.filter((r) => r.name === 'Ana Sato');
+  expect(anaRows.length).toBe(1);
+  const anaPlan = value(await as('hr', (ctx) => planScreen(ctx, anaRows[0]?.id ?? ''))) as {
+    plan: { probationEnd: string | null };
+    tasks: { key: string }[];
+  };
+  expect(anaPlan.plan.probationEnd).toBe('2027-05-31');
+  expect(anaPlan.tasks.map((t) => t.key)).toContain('probation_review');
+  // Welcomed once, by the plan People's event started.
+  expect(sent.filter((m) => m.to === 'ana@example.com').length).toBe(1);
+  // People's event read again still finds her plan.
+  expect(await consume(personHired(ana, 'ana@example.com', 'Ana'))).toBe('applied');
+  // And Recruiting's cancellation still finds it.
+  expect(
+    await consume(
+      envelope(PrehireCancelled.name, {
+        candidateId: randomUUID(),
+        applicationId: anaApplication,
+        reasonKey: 'reneged',
+        email: null,
+      }),
+    ),
+  ).toBe('applied');
 
   // Another hire falls through before the start: its plan is cancelled.
   const second = randomUUID();

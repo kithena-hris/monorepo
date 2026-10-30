@@ -935,6 +935,12 @@ export interface OfferData {
   };
   readonly hash: string;
   readonly candidate: { readonly id: string; readonly name: string; readonly email: string };
+  /** The candidate's files, to pick a signed copy from (R22). */
+  readonly files?: readonly {
+    readonly id: string;
+    readonly fileName: string;
+    readonly kind: string;
+  }[];
   readonly signatoryPersonId: string | null;
   readonly job: { readonly id: string; readonly title: string };
   /** The pay the job ad gave, shown beside the offer's. */

@@ -125,6 +125,7 @@ import {
   sendTheOffer,
   submitOfferForApproval,
   uploadSignedContract,
+  prepareTheContract,
   withdrawTheOffer,
   worksCouncilDecides,
   moveOrHire,
@@ -1666,11 +1667,21 @@ export const ROUTES: readonly Route[] = [
     name: 'uploadSignedContract',
     method: 'POST',
     path: `${V1}/offers/{offerId}/contract`,
-    summary: 'R22: the signed contract, uploaded',
+    summary:
+      'R22: a contract signed on paper, recorded, with its copy among the candidate’s files or not',
     params: z.object({ offerId: Id }),
-    body: z.object({ fileId: Id, signedOn: CalendarDate }),
+    body: z.object({ fileId: Id.nullable().default(null), signedOn: CalendarDate }),
     run: (ctx, { params, body }) =>
       uploadSignedContract(ctx, params.offerId, body.fileId, body.signedOn),
+  }),
+  route({
+    name: 'prepareContract',
+    method: 'POST',
+    path: `${V1}/offers/{offerId}/contract/prepare`,
+    summary:
+      'R22: the contract for an accepted offer, prepared again where acceptance could not, or why not',
+    params: z.object({ offerId: Id }),
+    run: (ctx, { params }) => prepareTheContract(ctx, params.offerId),
   }),
   route({
     name: 'draftContract',

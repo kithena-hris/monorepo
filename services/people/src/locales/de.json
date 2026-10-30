@@ -85,6 +85,8 @@
   "inbox.inbox.someone": "Jemand",
   "inbox.inbox.someone_approved": "{{by}} hat genehmigt",
   "inbox.inbox.someone_declined": "{{by}} hat abgelehnt",
+  "inbox.inbox.start_held": "{{name}} kann noch nicht anfangen: {{open}} noch offen",
+  "inbox.inbox.start_held_hint": "Ihr Startdatum war der {{date}}. Entscheiden Sie die offenen Bedingungen ihres Vertrags in Recruiting; sie fangen in der Stunde nach der letzten erfüllten an.",
   "inbox.inbox.starts": "Beginnt am {{hired}}",
   "inbox.inbox.stopped": "Angehalten",
   "inbox.inbox.today": "Heute",

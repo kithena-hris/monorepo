@@ -470,31 +470,33 @@ function AgencyDialog({
               {t('board.jobs_it_may_submit_to', 'Jobs it may submit to')}
             </legend>
             {jobs.map((j) => (
-              <div key={j.id} className="flex items-center gap-3">
-                <Switch
-                  id={`agency-job-${j.id}`}
-                  checked={a.jobIds.includes(j.id)}
-                  onCheckedChange={(on) => {
-                    setA({
-                      ...a,
-                      jobIds: on ? [...a.jobIds, j.id] : a.jobIds.filter((x) => x !== j.id),
-                    });
-                  }}
-                />
-                <label htmlFor={`agency-job-${j.id}`}>{j.title}</label>
-              </div>
+              <Field key={j.id} orientation="horizontal" className="justify-start">
+                <FieldControl>
+                  <Switch
+                    checked={a.jobIds.includes(j.id)}
+                    onCheckedChange={(on) => {
+                      setA({
+                        ...a,
+                        jobIds: on ? [...a.jobIds, j.id] : a.jobIds.filter((x) => x !== j.id),
+                      });
+                    }}
+                  />
+                </FieldControl>
+                <FieldLabel>{j.title}</FieldLabel>
+              </Field>
             ))}
           </fieldset>
-          <div className="flex items-center gap-3">
-            <Switch
-              id="agency-active"
-              checked={a.active}
-              onCheckedChange={(on) => {
-                setA({ ...a, active: on });
-              }}
-            />
-            <label htmlFor="agency-active">{t('board.active', 'Active')}</label>
-          </div>
+          <Field orientation="horizontal" className="justify-start">
+            <FieldControl>
+              <Switch
+                checked={a.active}
+                onCheckedChange={(on) => {
+                  setA({ ...a, active: on });
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>{t('board.active', 'Active')}</FieldLabel>
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>

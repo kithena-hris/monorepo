@@ -86,6 +86,8 @@
   "inbox.inbox.someone": "Quelqu’un",
   "inbox.inbox.someone_approved": "{{by}} a approuvé",
   "inbox.inbox.someone_declined": "{{by}} a refusé",
+  "inbox.inbox.start_held": "{{name}} ne peut pas encore commencer : {{open}} encore en attente",
+  "inbox.inbox.start_held_hint": "Sa date de début était le {{date}}. Statuez sur les conditions en attente de son contrat dans Recruiting ; la personne commence l’heure qui suit la dernière remplie.",
   "inbox.inbox.starts": "Arrive le {{hired}}",
   "inbox.inbox.stopped": "Arrêté",
   "inbox.inbox.today": "Aujourd’hui",
