@@ -95,7 +95,8 @@ export function onboardingConsumer(deps: Deps): (raw: unknown) => Promise<Outcom
           probationEnd: p.terms?.probationEnd ?? null,
           country,
           legalEntityId: p.legalEntityId,
-          location: null,
+          // The job's office, by the name Recruiting gives it: the welcome page's "Where".
+          location: p.locationName ?? null,
           department: null,
           workMode: p.terms?.workMode ?? p.workMode ?? 'onsite',
           contractType: p.terms?.contractType ?? null,
