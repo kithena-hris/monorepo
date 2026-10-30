@@ -77,19 +77,20 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
    * Recruiting's hand-over read after People's own event for the same person
    * (the two topics are read apart, so either can come first): the plan People
    * started knew no probation, no contract and only the company's country.
-   * Rebuilt in place from what Recruiting knows, under its own hire so its
-   * cancellation finds it, the same plan and the same welcome link, so the
-   * hire is not welcomed twice. A plan already under way keeps its tasks and
-   * takes only the probation.
+   * Rebuilt in place from what Recruiting knows: People's hire becomes
+   * Recruiting's, so its cancellation finds it and People's later events still
+   * do by email, the same plan and the same welcome link, so the hire is not
+   * welcomed twice. A plan already under way keeps its tasks and takes only
+   * the probation.
    */
   const started = hire.source === 'recruiting' && byEmail?.source === 'people' ? byEmail : null;
   const replacing = started === null ? null : await ctx.tx.plans.byHire(started.id);
-  const hireId = ctx.deps.newId();
+  const hireId = started?.id ?? ctx.deps.newId();
   await ctx.tx.hires.save({
     ...hire,
     id: hireId,
-    personId: hire.personId ?? replacing?.personId ?? null,
-    createdAt: ctx.at,
+    personId: hire.personId ?? started?.personId ?? replacing?.personId ?? null,
+    createdAt: started?.createdAt ?? ctx.at,
   });
   if (replacing !== null && replacing.state !== 'cancelled') {
     const fresh =

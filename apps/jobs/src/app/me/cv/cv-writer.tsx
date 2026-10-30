@@ -93,13 +93,16 @@ function MonthYear({
 }): JSX.Element {
   const thisYear = new Date().getUTCFullYear();
   const years = Array.from({ length: 61 }, (_, i) => String(thisYear + 1 - i));
-  const [year, month] = value === NOW ? [NOW, undefined] : value.split('-');
+  const year = value === NOW ? NOW : (value.split('-')[0] ?? '');
+  const month: string | undefined = value === NOW ? undefined : value.split('-')[1];
+  // No month without a year, and none for what they still do.
+  const noMonth = year === '' || year === NOW;
   return (
     <Field>
       <FieldLabel>{label}</FieldLabel>
       <div className="flex gap-2">
         <Select
-          value={year === undefined || year === '' ? '' : year}
+          value={year}
           onValueChange={(y) => {
             onChange(y === NOW || month === undefined ? y : `${y}-${month}`);
           }}
@@ -122,9 +125,9 @@ function MonthYear({
         </Select>
         <Select
           value={month ?? NO_MONTH}
-          disabled={year === undefined || year === '' || year === NOW}
+          disabled={noMonth}
           onValueChange={(m) => {
-            if (year === undefined || year === '' || year === NOW) return;
+            if (noMonth) return;
             onChange(m === NO_MONTH ? year : `${year}-${m}`);
           }}
         >

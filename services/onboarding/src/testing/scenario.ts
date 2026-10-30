@@ -264,7 +264,7 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
     null,
     yuki,
   ]);
-  expect((started.at(-1)?.payload as { probationEnd: string }).probationEnd).toBe('2027-06-07');
+  expect(started.at(-1)?.payload).toMatchObject({ probationEnd: '2027-06-07' });
   // Performance releases the probation review: the task links to it; the decision stays here.
   const cycleId = randomUUID();
   const released = envelope(ReviewReleased.name, {
@@ -344,6 +344,8 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
   expect(anaPlan.tasks.map((t) => t.key)).toContain('probation_review');
   // Welcomed once, by the plan People's event started.
   expect(sent.filter((m) => m.to === 'ana@example.com').length).toBe(1);
+  // People's event read again still finds her plan.
+  expect(await consume(personHired(ana, 'ana@example.com', 'Ana'))).toBe('applied');
   // And Recruiting's cancellation still finds it.
   expect(
     await consume(

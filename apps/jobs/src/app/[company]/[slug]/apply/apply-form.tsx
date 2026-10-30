@@ -69,7 +69,6 @@ function Answer({
   readonly value: Value | undefined;
   readonly onChange: (v: Value) => void;
 }): JSX.Element {
-  const id = `answer-${field.key}`;
   if (field.kind === 'yes_no')
     return (
       <Field required={field.required}>
@@ -117,7 +116,7 @@ function Answer({
     return (
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 font-medium">{field.label}</legend>
-        {field.options.map((o, i) => (
+        {field.options.map((o) => (
           <Field key={o} orientation="horizontal" className="justify-start">
             <FieldControl>
               <Checkbox

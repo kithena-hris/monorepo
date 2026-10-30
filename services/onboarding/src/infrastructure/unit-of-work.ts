@@ -110,7 +110,8 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       save: async (h) => {
         await tx.execute(sql`INSERT INTO onboarding.hire (tenant_id, id, source, external_id, person_id, body)
           VALUES (${T}, ${h.id}, ${h.source}, ${h.externalId}, ${h.personId}, ${J(h)})
-          ON CONFLICT (tenant_id, id) DO UPDATE SET person_id = EXCLUDED.person_id, body = EXCLUDED.body`);
+          ON CONFLICT (tenant_id, id) DO UPDATE SET source = EXCLUDED.source, external_id = EXCLUDED.external_id,
+            person_id = EXCLUDED.person_id, body = EXCLUDED.body`);
       },
     },
     templates: {
@@ -143,7 +144,7 @@ function storesIn(tx: PostgresJsDatabase, T: string): Tx {
       save: async (p) => {
         await tx.execute(sql`INSERT INTO onboarding.plan (tenant_id, id, hire_id, state, start_date, probation_end, manager_id, buddy_id, person_id, welcome_hash, body)
           VALUES (${T}, ${p.id}, ${p.hireId}, ${p.state}, ${p.startDate}, ${p.probationEnd}, ${p.managerId}, ${p.buddyId}, ${p.personId}, ${p.welcomeHash}, ${J(p)})
-          ON CONFLICT (tenant_id, id) DO UPDATE SET state = EXCLUDED.state, start_date = EXCLUDED.start_date, probation_end = EXCLUDED.probation_end,
+          ON CONFLICT (tenant_id, id) DO UPDATE SET hire_id = EXCLUDED.hire_id, state = EXCLUDED.state, start_date = EXCLUDED.start_date, probation_end = EXCLUDED.probation_end,
             manager_id = EXCLUDED.manager_id, buddy_id = EXCLUDED.buddy_id, person_id = EXCLUDED.person_id, body = EXCLUDED.body`);
         await tx.execute(sql`DELETE FROM onboarding.task WHERE plan_id = ${p.id}`);
         for (const t of p.tasks)
