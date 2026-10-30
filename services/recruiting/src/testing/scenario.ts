@@ -54,6 +54,7 @@ import {
   sendTheOffer,
   submitOfferForApproval,
   uploadSignedContract,
+  prepareTheContract,
   moveOrHire,
 } from '../application/offers.js';
 import { candidateByToken, candidatePage } from '../application/privacy.js';
@@ -1708,6 +1709,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   await asMailing('ada', async (ctx) => {
     const contract = await ctx.tx.contracts.forOffer(offer.id);
     expect(contract?.route).toBe('upload');
+    // Prepared again from its page, the contract already there is the answer: never a second.
+    expect(value(await prepareTheContract(ctx, offer.id)).id).toBe(contract?.id);
     const candidate = await ctx.tx.candidates.byEmail('yuki@example.com');
     const fileId = (await ctx.tx.files.of(candidate?.id ?? ''))[0]?.id ?? '';
     value(await uploadSignedContract(ctx, offer.id, fileId, CalendarDate.parse('2026-10-20')));

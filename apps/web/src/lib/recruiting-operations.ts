@@ -267,6 +267,7 @@ export const OPERATIONS = {
   SaveAgreement: write('SaveAgreement', 'saveAgreement', ...ID('id')),
   RemoveAgreement: write('RemoveAgreement', 'removeAgreement', ...ID('id'), false),
   UploadSignedContract: write('UploadSignedContract', 'uploadSignedContract', ...ID('offerId')),
+  PrepareContract: write('PrepareContract', 'prepareContract', ...ID('offerId'), false),
   /** The contract drafted from the accepted offer and the law of the entity's country */
   DraftContract: write('DraftContract', 'draftContract', ...ID('offerId'), false),
   /** The contract being edited, changed as asked in words */

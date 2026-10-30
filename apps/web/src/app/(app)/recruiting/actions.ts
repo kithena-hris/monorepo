@@ -100,6 +100,7 @@ const WRITES = new Set<OperationName>([
   'SaveAgreement',
   'RemoveAgreement',
   'UploadSignedContract',
+  'PrepareContract',
   'ReviseContract',
   'DecideCondition',
   'CancelPrehire',

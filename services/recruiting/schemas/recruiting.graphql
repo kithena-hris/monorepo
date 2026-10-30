@@ -244,6 +244,10 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """
+  R22: the contract for an accepted offer, prepared again where acceptance could not, or why not
+  """
+  prepareContract(idempotencyKey: String!, offerId: String!): JSON
   """R19: the open offer, or a new draft filled from the job"""
   prepareOffer(applicationId: String!, idempotencyKey: String!): JSON
   """§ 99 BetrVG: present the hire"""
@@ -676,7 +680,9 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
-  """R22: the signed contract, uploaded"""
+  """
+  R22: a contract signed on paper, recorded, with its copy among the candidate’s files or not
+  """
   uploadSignedContract(
     idempotencyKey: String!
     """The REST body"""

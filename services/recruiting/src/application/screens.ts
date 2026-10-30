@@ -628,6 +628,15 @@ export async function offerScreen(ctx: Ctx, offerId: string): Promise<Result<unk
       name: candidate?.name ?? '',
       email: candidate?.email ?? '',
     },
+    /** The candidate's files, to pick a signed copy from (R22): named, never typed in. */
+    files:
+      candidate === null
+        ? []
+        : (await ctx.tx.files.of(candidate.id)).map((f) => ({
+            id: f.id,
+            fileName: f.fileName,
+            kind: f.kind,
+          })),
     /** Who signs for the company when the shell sends the contract (PRD §21.2): the reader, as a member. */
     signatoryPersonId: ctx.viewer.personId,
     job: { id: job.id, title: job.title },
