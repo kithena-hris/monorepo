@@ -118,16 +118,17 @@ function Answer({
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 font-medium">{field.label}</legend>
         {field.options.map((o, i) => (
-          <div key={o} className="flex items-center gap-2">
-            <Checkbox
-              id={`${id}-${String(i)}`}
-              checked={chosen.includes(o)}
-              onCheckedChange={(on) => {
-                onChange(on === true ? [...chosen, o] : chosen.filter((x) => x !== o));
-              }}
-            />
-            <label htmlFor={`${id}-${String(i)}`}>{o}</label>
-          </div>
+          <Field key={o} orientation="horizontal" className="justify-start">
+            <FieldControl>
+              <Checkbox
+                checked={chosen.includes(o)}
+                onCheckedChange={(on) => {
+                  onChange(on === true ? [...chosen, o] : chosen.filter((x) => x !== o));
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>{o}</FieldLabel>
+          </Field>
         ))}
       </fieldset>
     );
@@ -526,54 +527,57 @@ export function ApplyForm({
               )}
             </Card>
           )}
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="consent"
-              checked={consent}
-              onCheckedChange={(on) => {
-                setConsent(on === true);
-              }}
-            />
-            <label htmlFor="consent">
+          <Field orientation="horizontal" className="items-start justify-start">
+            <FieldControl>
+              <Checkbox
+                checked={consent}
+                onCheckedChange={(on) => {
+                  setConsent(on === true);
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>
               {t(
                 'app.[company].[slug].apply.apply-form.i_agree_to_processing_my_application',
                 'I agree to {{name}} processing my application.',
                 { name: job.company.name },
               )}
-            </label>
-          </div>
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="pool"
-              checked={pool}
-              onCheckedChange={(on) => {
-                setPool(on === true);
-              }}
-            />
-            <label htmlFor="pool">
+            </FieldLabel>
+          </Field>
+          <Field orientation="horizontal" className="items-start justify-start">
+            <FieldControl>
+              <Checkbox
+                checked={pool}
+                onCheckedChange={(on) => {
+                  setPool(on === true);
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>
               {t(
                 'app.[company].[slug].apply.apply-form.keep_me_in_s_talent_pool',
                 'Keep me in {{name}}’s talent pool for other jobs for 12 months (optional)',
                 { name: job.company.name },
               )}
-            </label>
-          </div>
+            </FieldLabel>
+          </Field>
           {job.nycNotice ? (
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="nyc"
-                checked={nyc}
-                onCheckedChange={(on) => {
-                  setNyc(on === true);
-                }}
-              />
-              <label htmlFor="nyc">
+            <Field orientation="horizontal" className="items-start justify-start">
+              <FieldControl>
+                <Checkbox
+                  checked={nyc}
+                  onCheckedChange={(on) => {
+                    setNyc(on === true);
+                  }}
+                />
+              </FieldControl>
+              <FieldLabel>
                 {t(
                   'app.[company].[slug].apply.apply-form.i_have_read_the_notice_that',
                   'I have read the notice that an automated tool helps review applications for this New York City job.',
                 )}
-              </label>
-            </div>
+              </FieldLabel>
+            </Field>
           ) : null}
           <div className="flex justify-between">
             <Button
