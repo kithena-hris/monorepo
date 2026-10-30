@@ -21,7 +21,13 @@ import {
   setBuddy,
   welcomePage,
 } from '../application/plans.js';
-import { boardScreen, myTasks, planScreen, saveSettings } from '../application/screens.js';
+import {
+  boardScreen,
+  myTasks,
+  onboardingInbox,
+  planScreen,
+  saveSettings,
+} from '../application/screens.js';
 import type { Deps, UnitOfWork } from '../application/ports.js';
 import { onboardingConsumer } from '../infrastructure/consumers/handle.js';
 
@@ -284,6 +290,31 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
   const names = (await h.events(tenantId)).map((e) => e.eventName);
   expect(names).toContain('onboarding.probation.reviewed');
   expect(names.filter((n) => n === 'onboarding.task.completed').length).toBe(3);
+
+  // Kai does not pass: HR is sent to end the employment, through People's own termination.
+  const kai = randomUUID();
+  const kaiApplication = randomUUID();
+  today = '2026-10-15';
+  await consume(
+    envelope(CandidateHired.name, {
+      ...handover(kaiApplication),
+      candidate: { givenName: 'Kai', familyName: 'Sato', email: 'kai@example.com', phone: null },
+    }),
+  );
+  await consume(personHired(kai, 'kai@example.com', 'Kai'));
+  const kaiPlan = (
+    (await as('hr', (ctx) => boardScreen(ctx, undefined))) as {
+      rows: { id: string; name: string }[];
+    }
+  ).rows.find((r) => r.name === 'Kai Sato');
+  today = '2027-05-10';
+  value(await as('manager', (ctx) => reviewProbation(ctx, kaiPlan?.id ?? '', 'failed', null)));
+  const ending = (await as('hr', (ctx) => onboardingInbox(ctx))).items.filter(
+    (i) => i.kind === 'onboarding.probation',
+  );
+  expect(ending.map((i) => i.title)).toEqual([
+    'Kai Sato did not pass probation: end their employment',
+  ]);
 
   // Ana's two events come the other way round: People's first, then Recruiting's.
   // One plan, rebuilt from the hand-over with the probation People's never knew.
