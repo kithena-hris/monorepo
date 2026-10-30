@@ -5,6 +5,7 @@ import {
   AccountProvisioned,
   AccountSignupAnswered,
   CandidateHired,
+  PrehireConditionsMet,
   ProbationReviewed,
   PersonAnonymised,
   PersonChangeDecided,
@@ -39,6 +40,7 @@ import type { RecomputeCompleteness } from '../../application/completeness/recom
 import type { OrgAdmin } from '../../application/org/org.js';
 import type {
   Cancelled,
+  ConditionsMet,
   Hired,
   HiresFromRecruiting,
 } from '../../application/person/hire-from-recruiting.js';
@@ -536,6 +538,18 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
             hired ? 'recruiting hire not applied' : 'recruiting cancellation not applied',
           );
         }
+        return done.outcome;
+      }
+
+      // Every pre-start condition met: the start held for them goes ahead (PRD §21.3).
+      case PrehireConditionsMet.name: {
+        const event = parse(PrehireConditionsMet, raw);
+        if (!event) return 'rejected';
+        const { hires } = deps;
+        if (!hires) return 'ignored';
+        const done = await deps.inTenant(event.tenantId, ({ tx }) =>
+          hires.conditionsMet(tx, event as ConditionsMet),
+        );
         return done.outcome;
       }
 

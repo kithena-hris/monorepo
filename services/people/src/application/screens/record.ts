@@ -30,6 +30,7 @@ import type {
   RecordField,
   RecordSection,
 } from './model.js';
+import type { StartHolds } from '../person/start-holds.js';
 
 /**
  * One person's record as a form: the sections and fields this viewer may
@@ -54,6 +55,8 @@ export interface ScreenDeps {
   readonly invitations?: Pick<InvitationStore, 'get'>;
   /** Who is a pre-hire, earliest start first. */
   readonly preHires?: (tx: Tx, tenantId: string, limit: number) => Promise<readonly string[]>;
+  /** Starts held for an open pre-start condition (Recruiting PRD §21.3): HR's task once the day has come. */
+  readonly startHolds?: Pick<StartHolds, 'due'>;
   /** Email for what reaches somebody's Inbox (INB-050). Absent, none is sent. */
   readonly inboxNotifier?: InboxNotifier;
   /** The company's Inbox rules (P2). Absent, the defaults. */

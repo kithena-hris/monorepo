@@ -5,6 +5,7 @@ import {
   type CandidateHired,
   type EventEnvelope,
   type PrehireCancelled,
+  type PrehireConditionsMet,
 } from '@kithena/contracts';
 import { ok } from '@kithena/domain-kit';
 import type * as z from 'zod';
@@ -12,6 +13,7 @@ import type * as z from 'zod';
 import type { PersonAccess } from './person-access.js';
 import type { Calendars } from '../org/org.js';
 import type { SchemaVersions } from './ports.js';
+import type { StartHolds } from './start-holds.js';
 import { SYSTEM_VIEWER } from './subject.js';
 import { valueSchemaFor } from './values.js';
 
@@ -42,6 +44,9 @@ import { valueSchemaFor } from './values.js';
 
 export type Hired = EventEnvelope & { payload: z.infer<typeof CandidateHired.payload> };
 export type Cancelled = EventEnvelope & { payload: z.infer<typeof PrehireCancelled.payload> };
+export type ConditionsMet = EventEnvelope & {
+  payload: z.infer<typeof PrehireConditionsMet.payload>;
+};
 
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
 
@@ -52,6 +57,11 @@ export interface HiresFromRecruiting {
     event: Hired,
   ): Promise<{ outcome: Outcome; code?: string; left?: readonly string[] }>;
   cancelled(tx: PostgresJsDatabase, event: Cancelled): Promise<{ outcome: Outcome; code?: string }>;
+  /** Every pre-start condition met: the start held for them goes ahead (PRD §21.3). */
+  conditionsMet(
+    tx: PostgresJsDatabase,
+    event: ConditionsMet,
+  ): Promise<{ outcome: Outcome; code?: string }>;
   /**
    * Only what is empty: whoever is on the books under the work email gets the
    * contract's signature in an empty signature field, and a hire not started
@@ -119,6 +129,8 @@ export function hiresFromRecruiting(
     readonly calendars?: Pick<Calendars, 'load'>;
     /** The core fields, there before a hire is written into them (`pickedFields`). */
     readonly ensure?: (tx: PostgresJsDatabase, tenantId: string) => Promise<void>;
+    /** A start held while a pre-start condition is open (PRD §21.3). */
+    readonly holds?: StartHolds;
   } = {},
 ): HiresFromRecruiting {
   const asking = (event: EventEnvelope) => ({
@@ -251,9 +263,25 @@ export function hiresFromRecruiting(
       });
       if (!created.ok)
         return { outcome: 'rejected', code: created.error.code, left: created.error.path ?? [] };
+      // A right-to-work check, a background check, references still open: no start until they are met.
+      const open = event.payload.conditions.filter((c) => c.state === 'open').map((c) => c.kind);
+      if (open.length > 0)
+        await more.holds?.hold(tx, event.tenantId, {
+          applicationId: event.payload.applicationId,
+          personId: created.value.id,
+          conditions: open,
+          offerId: event.payload.offerId,
+        });
       return left.length === 0 ? { outcome: 'applied' } : { outcome: 'applied', left };
     },
+    async conditionsMet(tx, event) {
+      if (more.holds === undefined) return { outcome: 'ignored' };
+      return (await more.holds.release(tx, event.tenantId, event.payload.applicationId))
+        ? { outcome: 'applied' }
+        : { outcome: 'unchanged' };
+    },
     async cancelled(tx, event) {
+      await more.holds?.release(tx, event.tenantId, event.payload.applicationId);
       if (event.payload.email === null) return { outcome: 'ignored' };
       const found = await holder(tx, event, event.payload.email, ['pre_hire', 'onboarding']);
       if (!found.ok) return { outcome: 'rejected', code: found.error.code };

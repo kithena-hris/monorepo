@@ -14,6 +14,7 @@ import {
 } from '../../infrastructure/drizzle-person-reader.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { fixedCalendars } from '../org/org.js';
+import { drizzleStartHolds } from '../../infrastructure/drizzle-start-holds.js';
 import { startArrivals } from './start.js';
 
 /**
@@ -90,6 +91,7 @@ beforeAll(async () => {
     '20261005120000_people_section_names.sql',
     '20260924170100_people_tenant_company.sql',
     '20261027090000_people_secret_dated.sql',
+    '20261030110000_people_start_hold.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -168,5 +170,35 @@ describe('starting pre-hires on their own day', () => {
 
     expect(await runAt('2026-10-01T09:00:00.000Z')).toMatchObject({ started: 0, waiting: 0 });
     expect(await events(KIRI)).toHaveLength(2);
+  });
+
+  it('holds a start while a pre-start condition is open, and starts them once it is met', async () => {
+    const holds = drizzleStartHolds();
+    const application = '00000000-0000-4000-8000-0000000000d1';
+    await inTenant(ACME, ({ tx }) =>
+      holds.hold(tx, ACME, {
+        applicationId: application,
+        personId: LATER,
+        conditions: ['right_to_work'],
+        offerId: null,
+      }),
+    );
+    // Tama's day has come in Auckland, and the check is still open: no start, and HR is told.
+    expect(await runAt('2026-11-02T00:30:00.000Z')).toMatchObject({ started: 0 });
+    expect((await statuses())[LATER]).toBe('pre_hire');
+    const due = await inTenant(ACME, ({ tx }) => holds.due(tx, ACME, '2026-11-02', 10));
+    expect(due).toEqual([
+      {
+        applicationId: application,
+        personId: LATER,
+        conditions: ['right_to_work'],
+        offerId: null,
+        startsOn: '2026-11-02',
+      },
+    ]);
+    // Met in Recruiting: the hold goes, and the next run starts them.
+    expect(await inTenant(ACME, ({ tx }) => holds.release(tx, ACME, application))).toBe(true);
+    expect(await runAt('2026-11-02T01:30:00.000Z')).toMatchObject({ started: 1 });
+    expect((await statuses())[LATER]).toBe('active');
   });
 });

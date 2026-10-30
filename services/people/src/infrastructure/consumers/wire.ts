@@ -33,6 +33,7 @@ import {
   type HiresFromRecruiting,
 } from '../../application/person/hire-from-recruiting.js';
 import { probationsFromOnboarding } from '../../application/person/probation-from-onboarding.js';
+import { drizzleStartHolds } from '../drizzle-start-holds.js';
 import { personAccess, type PersonAccess } from '../../application/person/person-access.js';
 import { enterAsSelf } from '../../application/person/self-entry.js';
 import { withSources, withSubjects, withSupport } from '../../application/person/subject.js';
@@ -191,6 +192,7 @@ function hiresOf(env: NodeJS.ProcessEnv): HiresFromRecruiting | undefined {
   });
   const ensured = new Set<string>();
   return hiresFromRecruiting(access, drizzleSchemaVersions(), {
+    holds: drizzleStartHolds(),
     calendars: org,
     ensure: async (tx, tenantId) => {
       if (ensured.has(tenantId)) return;
@@ -223,7 +225,9 @@ export function consumerFrom(
       ? {}
       : {
           enterAsSelf: enterAsSelf(access, drizzlePersonReader()),
-          hires: hiresFromRecruiting(access, drizzleSchemaVersions()),
+          hires: hiresFromRecruiting(access, drizzleSchemaVersions(), {
+            holds: drizzleStartHolds(),
+          }),
           probations: probationsFromOnboarding(access, drizzleSchemaVersions()),
         }),
     ...(approvals === null ? {} : { approvals }),
