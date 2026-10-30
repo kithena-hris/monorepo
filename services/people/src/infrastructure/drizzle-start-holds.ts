@@ -11,7 +11,10 @@ export function drizzleStartHolds(): StartHolds {
       await tx.execute(sql`
         INSERT INTO people.start_hold (tenant_id, application_id, person_id, conditions, offer_id)
         VALUES (${tenantId}::uuid, ${hold.applicationId}::uuid, ${hold.personId}::uuid,
-                ${[...hold.conditions]}::text[], ${hold.offerId}::uuid)
+                ARRAY[${sql.join(
+                  hold.conditions.map((c) => sql`${c}`),
+                  sql`, `,
+                )}]::text[], ${hold.offerId}::uuid)
         ON CONFLICT (tenant_id, application_id) DO UPDATE
            SET conditions = EXCLUDED.conditions, person_id = EXCLUDED.person_id,
                offer_id = EXCLUDED.offer_id
