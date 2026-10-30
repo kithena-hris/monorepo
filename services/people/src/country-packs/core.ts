@@ -90,6 +90,7 @@ export const CHOICE_LABELS: Readonly<Record<string, string>> = {
   working_pattern: 'Working pattern',
   pay_frequency: 'Pay frequency',
   pay_basis: 'Pay basis',
+  probation_outcome: 'Probation outcome',
 };
 
 export const choiceField = (
@@ -262,10 +263,20 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     classification: { ...identity, piiKind: 'none', aiEligible: true },
     effectiveDated: true,
   }),
-  choiceField('employment_type', { sectionKey: 'employment', order: 7 }, builtInChoices('employment_type')),
+  choiceField(
+    'employment_type',
+    { sectionKey: 'employment', order: 7 },
+    builtInChoices('employment_type'),
+  ),
   field({ ...terms, key: 'contract_start', label: 'Contract start', order: 8, ...date() }),
   field({ ...terms, key: 'contract_end', label: 'Contract end', order: 9, ...date() }),
   field({ ...terms, key: 'probation_end', label: 'Probation end', order: 10, ...date() }),
+  // Decided in Onboarding's probation review (Recruiting PRD §O8), recorded here.
+  choiceField('probation_outcome', { sectionKey: 'employment', order: 10 }, [
+    { value: 'passed', label: 'Passed' },
+    { value: 'extended', label: 'Extended' },
+    { value: 'failed', label: 'Not passed' },
+  ]),
   choiceField('working_pattern', { sectionKey: 'employment', order: 11 }, [
     { value: 'full_time', label: 'Full-time' },
     { value: 'part_time', label: 'Part-time' },
@@ -355,7 +366,14 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
     typeConfig: { kind: 'boolean' },
   }),
   // A raise is a dated fact (Appendix A), each change sealed on its own.
-  field({ ...pay, ...money, key: 'base_salary', label: 'Base salary', order: 0, effectiveDated: true }),
+  field({
+    ...pay,
+    ...money,
+    key: 'base_salary',
+    label: 'Base salary',
+    order: 0,
+    effectiveDated: true,
+  }),
   // What the base salary is quoted per, as the offer states it.
   {
     ...choiceField('pay_basis', { sectionKey: 'compensation', order: 1 }, [
@@ -418,19 +436,19 @@ export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
  * `pickedFields`.
  */
 export const EMPLOYEE_NUMBER_FIELD: AttributeDefinitionInput = field({
-    key: 'employee_number',
-    sectionKey: 'employment',
-    label: 'Employee number',
-    order: 1,
-    dataType: 'text',
-    typeConfig: { kind: 'text' },
-    // People writes it on every new record (`nextNumber`); nobody types it.
-    ownership: ['system'],
-    required: true,
-    visibility: ['self', 'manager', 'hr'],
-    collectAt: 'hr_only',
-    classification: { ...identity, piiKind: 'none' },
-  });
+  key: 'employee_number',
+  sectionKey: 'employment',
+  label: 'Employee number',
+  order: 1,
+  dataType: 'text',
+  typeConfig: { kind: 'text' },
+  // People writes it on every new record (`nextNumber`); nobody types it.
+  ownership: ['system'],
+  required: true,
+  visibility: ['self', 'manager', 'hr'],
+  collectAt: 'hr_only',
+  classification: { ...identity, piiKind: 'none' },
+});
 
 export const CORE_PACK: {
   readonly sections: readonly SectionInput[];

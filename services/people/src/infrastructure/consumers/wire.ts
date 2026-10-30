@@ -2,7 +2,12 @@ import { randomBytes } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { Kafka, type Consumer } from 'kafkajs';
 import postgres from 'postgres';
-import { AccountProvisioned, CandidateHired, SchemaPublished } from '@kithena/contracts';
+import {
+  AccountProvisioned,
+  CandidateHired,
+  ProbationReviewed,
+  SchemaPublished,
+} from '@kithena/contracts';
 import { kafkaConfigFrom } from '@kithena/db-kit';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
@@ -27,6 +32,7 @@ import {
   hiresFromRecruiting,
   type HiresFromRecruiting,
 } from '../../application/person/hire-from-recruiting.js';
+import { probationsFromOnboarding } from '../../application/person/probation-from-onboarding.js';
 import { personAccess, type PersonAccess } from '../../application/person/person-access.js';
 import { enterAsSelf } from '../../application/person/self-entry.js';
 import { withSources, withSubjects, withSupport } from '../../application/person/subject.js';
@@ -122,10 +128,15 @@ export async function startConsumers(
     hireSignatures({ inTenant, ...(hires === undefined ? {} : { hires }) }),
   );
 
+  // Onboarding's topic, under a group of its own: a probation decided there is
+  // recorded on the person (Recruiting PRD §O8).
+  const onboarding = broker.consumer({ groupId: 'people-onboarding' });
+  await consume(onboarding, [ProbationReviewed.topic], handle);
+
   return {
     async stop() {
-      // Together: each leaves its group in turn otherwise, and three outlast the shutdown deadline.
-      await Promise.all([consumer, recruiting, signatures].map((c) => c.disconnect()));
+      // Together: each leaves its group in turn otherwise, and four outlast the shutdown deadline.
+      await Promise.all([consumer, recruiting, signatures, onboarding].map((c) => c.disconnect()));
       await approvals?.close();
       await client.end();
     },
@@ -213,6 +224,7 @@ export function consumerFrom(
       : {
           enterAsSelf: enterAsSelf(access, drizzlePersonReader()),
           hires: hiresFromRecruiting(access, drizzleSchemaVersions()),
+          probations: probationsFromOnboarding(access, drizzleSchemaVersions()),
         }),
     ...(approvals === null ? {} : { approvals }),
     inTenant,
