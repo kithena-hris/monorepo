@@ -355,6 +355,14 @@
     "text": "{{by}} declined",
     "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value. Filled in: {{by}}."
   },
+  "inbox.inbox.start_held": {
+    "text": "{{name}} can’t start yet: {{open}} still open",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}, {{open}}."
+  },
+  "inbox.inbox.start_held_hint": {
+    "text": "Their start date was {{date}}. Decide the open conditions on their contract in Recruiting; they start the hour after the last one is met.",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{date}}."
+  },
   "inbox.inbox.starts": {
     "text": "Starts {{hired}}",
     "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{hired}}."

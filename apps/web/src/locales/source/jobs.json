@@ -45,11 +45,11 @@
   },
   "app.[company].[slug].apply.apply-form.i_agree_to_processing_my_application": {
     "text": "I agree to {{name}} processing my application.",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <label>. Filled in: {{name}}."
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <FieldLabel>. Filled in: {{name}}."
   },
   "app.[company].[slug].apply.apply-form.i_have_read_the_notice_that": {
     "text": "I have read the notice that an automated tool helps review applications for this New York City job.",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <label>."
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <FieldLabel>."
   },
   "app.[company].[slug].apply.apply-form.kb": {
     "text": "{{value}} · {{String}} KB",
@@ -57,7 +57,7 @@
   },
   "app.[company].[slug].apply.apply-form.keep_me_in_s_talent_pool": {
     "text": "Keep me in {{name}}’s talent pool for other jobs for 12 months (optional)",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <label>. Filled in: {{name}}."
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <FieldLabel>. Filled in: {{name}}."
   },
   "app.[company].[slug].apply.apply-form.may_use_an_automated_employment_decision": {
     "text": "{{name}} may use an automated employment decision tool, at the earliest ten business days from today, to compare what you send with the job’s criteria. A person decides. You may ask the recruiter for another way to be assessed, or for an accommodation, and what data it uses and how long it is kept. A summary of its latest bias audit is published by {{name}}.",
@@ -1127,6 +1127,10 @@
     "text": "Add one",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <Button>."
   },
+  "app.me.cv.cv-writer.any_month": {
+    "text": "Month not given",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, MonthYear: text inside <SelectItem>."
+  },
   "app.me.cv.cv-writer.back": {
     "text": "Back",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Link>."
@@ -1169,7 +1173,7 @@
   },
   "app.me.cv.cv-writer.from": {
     "text": "From",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <FieldLabel>."
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: the label of <MonthYear>."
   },
   "app.me.cv.cv-writer.go_postgres_kubernetes_on_call": {
     "text": "Go, Postgres, Kubernetes, on call",
@@ -1207,13 +1211,17 @@
     "text": "Madrid",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Input>."
   },
+  "app.me.cv.cv-writer.month_of": {
+    "text": "{{label}}: month",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, MonthYear: the aria-label of <SelectTrigger>. Filled in: {{label}}."
+  },
   "app.me.cv.cv-writer.name": {
     "text": "Name",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
   },
-  "app.me.cv.cv-writer.now": {
-    "text": "now",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: the placeholder of <Input>."
+  "app.me.cv.cv-writer.now_word": {
+    "text": "Now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx: text built in code."
   },
   "app.me.cv.cv-writer.one_job_per_paragraph_the_title": {
     "text": "One job per paragraph: the title, the company, the years, and what you did there. Numbers help: \"cut deploy time from 40 to 8 minutes\".",
@@ -1269,7 +1277,7 @@
   },
   "app.me.cv.cv-writer.to": {
     "text": "To",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <FieldLabel>."
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: the label of <MonthYear>."
   },
   "app.me.cv.cv-writer.what_you_did_one_line_each": {
     "text": "What you did, one line each",
@@ -1306,6 +1314,10 @@
   "app.me.cv.cv-writer.writing_your_cv": {
     "text": "Writing your CV",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the label of <Stepper>."
+  },
+  "app.me.cv.cv-writer.year": {
+    "text": "Year",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, MonthYear: the placeholder of <SelectValue>."
   },
   "app.me.cv.cv-writer.your_applications_and_cvs": {
     "text": "Your applications and CVs",

@@ -35,6 +35,8 @@
   "in_pf_esi": "S’inscrire au fonds de prévoyance et à l’assurance publique le cas échéant",
   "in_uan": "Indiquer votre UAN du fonds de prévoyance, ou en demander un nouveau",
   "inbox.screens.onboarding": "Intégration",
+  "inbox.screens.probation_not_passed": "{{name}} n’a pas validé sa période d’essai : mettez fin à son contrat",
+  "inbox.screens.probation_not_passed_hint": "Décidé le {{day}}. Mettez fin au contrat depuis sa fiche dans People, avec le préavis que son contrat prévoit pendant la période d’essai.",
   "meet_team": "Rencontrer l’équipe",
   "onboarding_training": "Assigner la formation d’intégration",
   "personal_details": "Remplir vos informations personnelles",

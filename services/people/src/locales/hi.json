@@ -87,6 +87,8 @@
   "inbox.inbox.someone": "कोई",
   "inbox.inbox.someone_approved": "{{by}} ने मंज़ूर किया",
   "inbox.inbox.someone_declined": "{{by}} ने अस्वीकार किया",
+  "inbox.inbox.start_held": "{{name}} अभी शुरू नहीं कर सकते: {{open}} अभी बाकी है",
+  "inbox.inbox.start_held_hint": "उनकी शुरुआत की तारीख़ {{date}} थी। Recruiting में उनके अनुबंध की बाकी शर्तों पर फ़ैसला करें; आख़िरी शर्त पूरी होने के अगले घंटे वे शुरू करेंगे।",
   "inbox.inbox.starts": "{{hired}} से शुरू",
   "inbox.inbox.stopped": "रुका",
   "inbox.inbox.today": "आज",

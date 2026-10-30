@@ -34,6 +34,8 @@
   "in_pan_bank": "Podać numer PAN i dane bankowe",
   "in_pf_esi": "Zgłosić do funduszu emerytalnego i ubezpieczenia państwowego, jeśli dotyczy",
   "in_uan": "Podać numer UAN funduszu emerytalnego lub poprosić o nowy",
+  "inbox.screens.probation_not_passed": "{{name}} nie zaliczył(a) okresu próbnego: zakończ zatrudnienie",
+  "inbox.screens.probation_not_passed_hint": "Decyzja z {{day}}. Zakończ zatrudnienie z poziomu karty w People, z okresem wypowiedzenia, jaki umowa przewiduje w okresie próbnym.",
   "meet_team": "Poznać zespół",
   "onboarding_training": "Przypisać szkolenie wdrożeniowe",
   "personal_details": "Uzupełnić dane osobowe",

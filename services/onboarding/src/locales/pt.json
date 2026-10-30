@@ -35,6 +35,8 @@
   "in_pf_esi": "Inscrever no fundo de previdência e no seguro estatal, quando aplicável",
   "in_uan": "Indicar o UAN do fundo de previdência ou pedir um novo",
   "inbox.screens.onboarding": "Integração",
+  "inbox.screens.probation_not_passed": "{{name}} não passou o período experimental: terminar o contrato",
+  "inbox.screens.probation_not_passed_hint": "Decidido a {{day}}. Termine o contrato a partir da ficha em People, com o pré-aviso que o contrato prevê durante o período experimental.",
   "meet_team": "Conhecer a equipa",
   "onboarding_training": "Atribuir a formação de integração",
   "personal_details": "Preencher os dados pessoais",

@@ -35,6 +35,8 @@
   "in_pf_esi": "Donar d’alta al fons de previsió i a l’assegurança estatal on correspongui",
   "in_uan": "Indicar l’UAN del fons de previsió, o demanar-ne un de nou",
   "inbox.screens.onboarding": "Incorporació",
+  "inbox.screens.probation_not_passed": "{{name}} no ha superat el període de prova: acaba el seu contracte",
+  "inbox.screens.probation_not_passed_hint": "Decidit el {{day}}. Acaba el contracte des de la seva fitxa a People, amb el preavís que dona el contracte durant el període de prova.",
   "meet_team": "Conèixer l’equip",
   "onboarding_training": "Assignar la formació d’incorporació",
   "personal_details": "Omplir les teves dades personals",

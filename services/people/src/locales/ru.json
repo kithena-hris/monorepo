@@ -90,6 +90,8 @@
   "inbox.inbox.someone": "Кто-то",
   "inbox.inbox.someone_approved": "{{by}} одобрил(а)",
   "inbox.inbox.someone_declined": "{{by}} отклонил(а)",
+  "inbox.inbox.start_held": "{{name}} пока не может приступить: {{open}} ещё не закрыто",
+  "inbox.inbox.start_held_hint": "Дата выхода была {{date}}. Решите открытые условия договора в Recruiting; сотрудник приступит через час после выполнения последнего.",
   "inbox.inbox.starts": "Начинает {{hired}}",
   "inbox.inbox.stopped": "Остановлено",
   "inbox.inbox.today": "Сегодня",

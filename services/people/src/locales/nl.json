@@ -83,6 +83,8 @@
   "inbox.inbox.someone": "Iemand",
   "inbox.inbox.someone_approved": "{{by}} heeft goedgekeurd",
   "inbox.inbox.someone_declined": "{{by}} heeft afgewezen",
+  "inbox.inbox.start_held": "{{name}} kan nog niet beginnen: {{open}} staat nog open",
+  "inbox.inbox.start_held_hint": "De startdatum was {{date}}. Beslis over de openstaande voorwaarden van het contract in Recruiting; de kandidaat begint het uur nadat de laatste is vervuld.",
   "inbox.inbox.starts": "Begint op {{hired}}",
   "inbox.inbox.stopped": "Gestopt",
   "inbox.inbox.today": "Vandaag",

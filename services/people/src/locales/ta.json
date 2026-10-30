@@ -88,6 +88,8 @@
   "inbox.inbox.someone": "யாரோ",
   "inbox.inbox.someone_approved": "{{by}} அங்கீகரித்தார்",
   "inbox.inbox.someone_declined": "{{by}} மறுத்தார்",
+  "inbox.inbox.start_held": "{{name}} இன்னும் தொடங்க முடியாது: {{open}} இன்னும் நிலுவையில்",
+  "inbox.inbox.start_held_hint": "அவர்களின் தொடக்க நாள் {{date}}. Recruiting இல் அவர்களின் ஒப்பந்தத்தின் நிலுவை நிபந்தனைகளை முடிவு செய்யவும்; கடைசி நிபந்தனை நிறைவேறிய அடுத்த மணி நேரத்தில் அவர்கள் தொடங்குவார்கள்.",
   "inbox.inbox.starts": "{{hired}} அன்று தொடங்குகிறார்",
   "inbox.inbox.stopped": "நிறுத்தப்பட்டது",
   "inbox.inbox.today": "இன்று",

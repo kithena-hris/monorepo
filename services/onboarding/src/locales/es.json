@@ -35,6 +35,8 @@
   "in_pf_esi": "Inscribir en el fondo de previsión y el seguro estatal cuando corresponda",
   "in_uan": "Facilitar tu UAN del fondo de previsión, o pedir uno nuevo",
   "inbox.screens.onboarding": "Incorporación",
+  "inbox.screens.probation_not_passed": "{{name}} no ha superado el periodo de prueba: termina su contrato",
+  "inbox.screens.probation_not_passed_hint": "Decidido el {{day}}. Termina el contrato desde su ficha en People, con el preaviso que da su contrato durante el periodo de prueba.",
   "meet_team": "Conocer al equipo",
   "onboarding_training": "Asignar la formación de incorporación",
   "personal_details": "Rellenar tus datos personales",

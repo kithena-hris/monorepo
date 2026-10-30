@@ -501,7 +501,7 @@
   },
   "templates.in_use": {
     "text": "In use",
-    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <label>."
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <FieldLabel>."
   },
   "templates.is_hr": {
     "text": "{{name}} is HR",
