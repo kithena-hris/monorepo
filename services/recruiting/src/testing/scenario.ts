@@ -328,8 +328,11 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   };
   const entityId = randomUUID();
   const locationId = randomUUID();
+  // People's team the job is picked from, by name: the hire arrives in it.
+  const designTeam = randomUUID();
   await uow.run(tenantId, async (tx) => {
     await tx.admins.add(accounts.ada);
+    await tx.orgUnits.save({ id: designTeam, name: 'Design', parentId: null, source: 'people' });
     for (const [who, id] of Object.entries(people)) {
       await tx.members.upsert(
         {
@@ -1752,6 +1755,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       ...(place.probationEnd === null ? {} : { probationEnd: place.probationEnd }),
     },
     startDate: '2026-12-01',
+    orgUnitId: designTeam,
   });
   expect(hired?.effectiveFrom).toBe('2026-12-01');
   // Filled: the job comes off Kithena Jobs.

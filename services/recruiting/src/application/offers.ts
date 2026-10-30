@@ -1382,6 +1382,23 @@ async function hireByHand(
   });
 }
 
+/**
+ * The team the hire joins, as People knows it: the requisition's org unit,
+ * else the job's team (`department`, picked from People's org units by name).
+ * Only one People holds, so the record arrives in its department; a team
+ * Recruiting keeps on its own, without People, is no id People could use.
+ */
+async function orgUnitOf(ctx: Ctx, job: JobRecord): Promise<string | null> {
+  const units = (await ctx.tx.orgUnits.list()).filter((u) => u.source === 'people');
+  for (const id of job.requisitionIds) {
+    const wanted = (await ctx.tx.requisitions.get(id))?.orgUnitId ?? null;
+    if (wanted !== null && units.some((u) => u.id === wanted)) return wanted;
+  }
+  return job.department === null
+    ? null
+    : (units.find((u) => u.name === job.department)?.id ?? null);
+}
+
 /** The pre-hire opened and `recruiting.candidate.hired` sent, with what the offer gave or nothing. */
 async function handOver(
   ctx: Ctx,
@@ -1430,7 +1447,7 @@ async function handOver(
         startDate,
         jobTitle: job.title,
         managerId: manager,
-        orgUnitId: null,
+        orgUnitId: await orgUnitOf(ctx, job),
         locationId: job.locationIds[0] ?? null,
         locationName:
           job.locationIds[0] === undefined
