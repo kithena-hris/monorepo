@@ -40,14 +40,10 @@ import type { RecomputeCompleteness } from '../../application/completeness/recom
 import type { OrgAdmin } from '../../application/org/org.js';
 import type {
   Cancelled,
-  ConditionsMet,
   Hired,
   HiresFromRecruiting,
 } from '../../application/person/hire-from-recruiting.js';
-import type {
-  ProbationsFromOnboarding,
-  Reviewed,
-} from '../../application/person/probation-from-onboarding.js';
+import type { ProbationsFromOnboarding } from '../../application/person/probation-from-onboarding.js';
 import type { EnterAsSelf, SelfEntryOutcome } from '../../application/person/self-entry.js';
 import type { ReportSignup } from '../signup-report.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
@@ -548,7 +544,7 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         const { hires } = deps;
         if (!hires) return 'ignored';
         const done = await deps.inTenant(event.tenantId, ({ tx }) =>
-          hires.conditionsMet(tx, event as ConditionsMet),
+          hires.conditionsMet(tx, event),
         );
         return done.outcome;
       }
@@ -560,7 +556,7 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         const { probations } = deps;
         if (!probations) return 'ignored';
         const done = await deps.inTenant(event.tenantId, ({ tx }) =>
-          probations.reviewed(tx, event as Reviewed),
+          probations.reviewed(tx, event),
         );
         if (done.outcome === 'rejected')
           logger.warn(
