@@ -321,7 +321,7 @@
   },
   "approvals.decision.ai": {
     "text": "AI",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/decision.tsx, AiTag: text inside <Badge>."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/words.ts, AiTag: text built in code."
   },
   "approvals.decision.approve": {
     "text": "Approve",
@@ -373,7 +373,7 @@
   },
   "approvals.decision.for": {
     "text": "{{listOf}} for {{listOf2}}",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/decision.tsx: text built in code. Filled in: {{listOf}}, {{listOf2}}."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/words.ts: text built in code. Filled in: {{listOf}}, {{listOf2}}."
   },
   "approvals.decision.last_time_off": {
     "text": "Last time off",
@@ -597,7 +597,7 @@
   },
   "approvals.suggest.keeps_of_in_every_day": {
     "text": "Keeps {{in}} of {{of}} in every day",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/suggest.tsx: text built in code. Filled in: {{in}}, {{of}}."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/words.ts: text built in code. Filled in: {{in}}, {{of}}."
   },
   "approvals.suggest.message": {
     "text": "Message",
@@ -605,15 +605,15 @@
   },
   "approvals.suggest.no_team_minimum_on_these_days": {
     "text": "No team minimum on these days",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/suggest.tsx: text built in code."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/words.ts: text built in code."
   },
   "approvals.suggest.of_in_on_one": {
     "text": "{{in}} of {{of}} in on {{count}} day",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/suggest.tsx: text built in code. Filled in: {{count}}, {{in}}, {{of}}. Plural: the words for a {{count}} of one."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/words.ts: text built in code. Filled in: {{count}}, {{in}}, {{of}}. Plural: the words for a {{count}} of one."
   },
   "approvals.suggest.of_in_on_other": {
     "text": "{{in}} of {{of}} in on {{count}} days",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/suggest.tsx: text built in code. Filled in: {{count}}, {{in}}, {{of}}. Plural: the words for any other {{count}}."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/words.ts: text built in code. Filled in: {{count}}, {{in}}, {{of}}. Plural: the words for any other {{count}}."
   },
   "approvals.suggest.other_dates": {
     "text": "Other dates",

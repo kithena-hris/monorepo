@@ -1,4 +1,4 @@
-import { dateFormat, formatList, type IconName, icons } from '@reach/ui';
+import { Badge, dateFormat, formatList, type IconName, icons } from '@reach/ui';
 import { createElement, type ReactNode } from 'react';
 import { t as tr } from '../i18n';
 
@@ -264,3 +264,40 @@ export const firstName = (displayName: string): string => displayName.split(' ')
 export function listOf(parts: readonly string[]): string {
   return parts.length <= 1 ? (parts[0] ?? '') : formatList(parts);
 }
+
+/** "Keeps 5 of 7 in every day", from the coverage the domain worked out. */
+export function impactOf(coverage: readonly CoverageDay[]): string {
+  const counted = coverage.filter((c) => c.checked);
+  const worst = counted.toSorted((a, b) => a.in - b.in)[0];
+  if (worst === undefined)
+    return tr('approvals.suggest.no_team_minimum_on_these_days', 'No team minimum on these days');
+  const short = counted.filter((c) => c.below).length;
+  return short === 0
+    ? tr('approvals.suggest.keeps_of_in_every_day', 'Keeps {{in}} of {{of}} in every day', {
+        in: String(worst.in),
+        of: String(worst.of),
+      })
+    : tr(
+        'approvals.suggest.of_in_on',
+        {
+          one: '{{in}} of {{of}} in on {{count}} day',
+          other: '{{in}} of {{of}} in on {{count}} days',
+        },
+        { count: short, in: String(worst.in), of: String(worst.of) },
+      );
+}
+
+/** "AI", on a line a model wrote and nowhere else. */
+export function AiTag(): ReactNode {
+  return createElement(Badge, { tone: 'assistant', size: 'sm' }, tr('approvals.decision.ai', 'AI'));
+}
+
+/** "Wed 21 for Mon 26": the days a swap gives up, for the days it takes. */
+export const swapWords = (swapped: {
+  readonly out: readonly string[];
+  readonly in: readonly string[];
+}): string =>
+  tr('approvals.decision.for', '{{listOf}} for {{listOf2}}', {
+    listOf: listOf(swapped.out.map(dayName)),
+    listOf2: listOf(swapped.in.map(dayName)),
+  });

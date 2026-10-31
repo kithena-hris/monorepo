@@ -21,8 +21,17 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import type { Outcome } from '../load';
-import { AiTag, swapWords, type Alternative, type DecisionData } from './decision';
-import { daysLabel, firstName, listOf, spanLabel, type CoverageDay, type Range } from './words';
+import type { Alternative, DecisionData } from './decision';
+import {
+  AiTag,
+  daysLabel,
+  firstName,
+  impactOf,
+  listOf,
+  spanLabel,
+  swapWords,
+  type Range,
+} from './words';
 import { t } from '../i18n';
 
 /**
@@ -220,28 +229,6 @@ function describe(option: Alternative): string {
     'approvals.suggest.a_clean_week_with_nobody_else',
     'A clean week, with nobody else short.',
   );
-}
-
-/** "Keeps 5 of 7 in every day", from the coverage the domain worked out. */
-export function impactOf(coverage: readonly CoverageDay[]): string {
-  const counted = coverage.filter((c) => c.checked);
-  const worst = counted.toSorted((a, b) => a.in - b.in)[0];
-  if (worst === undefined)
-    return t('approvals.suggest.no_team_minimum_on_these_days', 'No team minimum on these days');
-  const short = counted.filter((c) => c.below).length;
-  return short === 0
-    ? t('approvals.suggest.keeps_of_in_every_day', 'Keeps {{in}} of {{of}} in every day', {
-        in: String(worst.in),
-        of: String(worst.of),
-      })
-    : t(
-        'approvals.suggest.of_in_on',
-        {
-          one: '{{in}} of {{of}} in on {{count}} day',
-          other: '{{in}} of {{of}} in on {{count}} days',
-        },
-        { count: short, in: String(worst.in), of: String(worst.of) },
-      );
 }
 
 /** The message for dates Time Off sent none for: what changes, and why. */

@@ -35,6 +35,8 @@ import {
   type RequestItem,
   type Span,
   type Written,
+  AiTag,
+  swapWords,
 } from './words';
 import { t } from '../i18n';
 
@@ -303,22 +305,6 @@ export function Decision({
     </div>
   );
 }
-
-/** On a line a model wrote, and only there (§14.1). */
-export function AiTag(): JSX.Element {
-  return (
-    <Badge tone="assistant" size="sm">
-      {t('approvals.decision.ai', 'AI')}
-    </Badge>
-  );
-}
-
-/** "Wed 21 for Mon 26". */
-export const swapWords = (swapped: NonNullable<Alternative['swapped']>): string =>
-  t('approvals.decision.for', '{{listOf}} for {{listOf2}}', {
-    listOf: listOf(swapped.out.map(dayName)),
-    listOf2: listOf(swapped.in.map(dayName)),
-  });
 
 /**
  * What to know (T17's card): the days the team falls short and who is off
