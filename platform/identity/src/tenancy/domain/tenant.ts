@@ -101,6 +101,7 @@ export function brandingFor(row: {
       // mid-acquisition customer back to the default indigo, which is a visible
       // change to their own staff for no privacy gained.
       themeId: row.themeId ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- written until nothing reads it (themeId supersedes it)
       accentColor: null,
     };
   }
@@ -114,6 +115,7 @@ export function brandingFor(row: {
     // it did not.
     coverImageUrl: row.coverImageUrl ?? null,
     themeId: row.themeId ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- written until nothing reads it (themeId supersedes it)
     accentColor: row.accentColor,
   };
 }

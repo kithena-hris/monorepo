@@ -73,6 +73,7 @@ export async function resolveTenant(slug: string): Promise<Tenant | null> {
       logoUrl: typeof b['logoUrl'] === 'string' ? b['logoUrl'] : null,
       coverImageUrl: typeof b['coverImageUrl'] === 'string' ? b['coverImageUrl'] : null,
       themeId: typeof b['themeId'] === 'string' ? b['themeId'] : null,
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- written until nothing reads it (themeId supersedes it)
       accentColor: typeof b['accentColor'] === 'string' ? b['accentColor'] : null,
     },
   };
