@@ -190,6 +190,14 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       case 'Timesheet':
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
+        return {
+          load: loadable,
+          show: live.get('show'),
+          // A filter of what is on the page: the address follows, nothing is read again.
+          onShow: (show: string | null) => {
+            noteInAddress({ show }, 'replace');
+          },
+        };
       case 'Exceptions':
       case 'ParentalCases':
         return { load: loadable };

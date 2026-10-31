@@ -41,7 +41,6 @@ import {
   chartTone,
   days,
   leaveIcon,
-  longSpan,
   shortDate,
   spanLabel,
 } from '../words';
@@ -258,9 +257,13 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
 
 /* -------------------------------------------------------------- panel -- */
 
-/** The panel's columns at a desk; one column in a narrower panel. */
+/**
+ * The panel's columns at a desk, the types beside the dates; one column in a
+ * narrower panel. Read from a wrapper: a container query never applies to
+ * the element that is the container.
+ */
 const columns =
-  '@container/panel grid gap-6 @min-[44rem]/panel:grid-cols-[18rem_minmax(0,1fr)] @min-[44rem]/panel:items-start';
+  'grid gap-6 @min-[44rem]/panel:grid-cols-[17rem_minmax(0,1fr)] @min-[44rem]/panel:items-start';
 
 function Panel({
   data,
@@ -349,7 +352,7 @@ function Panel({
           </a>
         </Button>
       </DialogHeader>
-      <DialogBody>
+      <DialogBody className="@container/panel">
         <div className={columns}>
           <TypePicker
             data={data}
@@ -663,7 +666,8 @@ function Consequences({
           inset
           label={tr('request.request.youll_be_off', 'You’ll be off')}
           icon={leaveIcon(type.icon)}
-          value={longSpan(span.from, span.to)}
+          // The short span: a figure, not a sentence, so it holds one line in its tile.
+          value={spanLabel(span.from, span.to)}
           description={tr('request.request.away', '{{name}} · {{days}} · {{days2}} away', {
             name: type.name,
             days: days(span.workingDays),

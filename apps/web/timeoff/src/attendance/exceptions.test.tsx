@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -16,7 +17,7 @@ describe('exceptions for HR', () => {
   it('lists the four kinds with their count and why each matters', async () => {
     const { container } = render(<Exceptions load={ready()} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Attendance' })).toBeTruthy();
-    expect(screen.getByText('Everyone · September 2026')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'September 2026' })).toBeTruthy();
     const kinds = within(screen.getByRole('list', { name: 'What needs action' }));
     const rows = kinds.getAllByRole('listitem').map((r) => r.textContent);
     expect(rows).toHaveLength(4);
@@ -51,19 +52,22 @@ describe('exceptions for HR', () => {
     ).toBe('/time-off/attendance/exceptions?month=2026-09&kind=short_rest');
   });
 
-  it('downloads the inspector’s record for the month, as CSV and PDF, and moves a month', () => {
+  it('downloads the inspector’s record for the month, as CSV or PDF, and moves a month', async () => {
     render(<Exceptions load={ready()} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Export for the labour inspector' }));
     expect(
-      screen.getByRole('link', { name: 'Export for the labour inspector' }).getAttribute('href'),
+      (await screen.findByRole('menuitem', { name: 'As a spreadsheet (CSV)' })).getAttribute(
+        'href',
+      ),
     ).toBe('/time-off/downloads/inspector?from=2026-09-01&to=2026-09-30&format=csv');
-    expect(
-      screen
-        .getByRole('link', { name: 'Export for the labour inspector as PDF' })
-        .getAttribute('href'),
-    ).toBe('/time-off/downloads/inspector?from=2026-09-01&to=2026-09-30&format=pdf');
-    expect(screen.getByRole('link', { name: 'August 2026' }).getAttribute('href')).toBe(
-      '/time-off/attendance/exceptions?month=2026-08',
+    expect(screen.getByRole('menuitem', { name: 'As a PDF' }).getAttribute('href')).toBe(
+      '/time-off/downloads/inspector?from=2026-09-01&to=2026-09-30&format=pdf',
     );
+    await user.keyboard('{Escape}');
+    expect(
+      screen.getByRole('link', { name: 'Previous month, August 2026' }).getAttribute('href'),
+    ).toBe('/time-off/attendance/exceptions?month=2026-08');
   });
 
   it('says when nothing needs HR', () => {

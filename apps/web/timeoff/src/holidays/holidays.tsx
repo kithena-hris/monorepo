@@ -93,20 +93,23 @@ function Ready({
         }
       />
       <div className="flex max-w-2xl flex-col gap-5">
-        <SegmentedControl
-          aria-label={t('holidays.holidays.year', 'Year')}
-          fullWidth
-          value={String(data.year)}
-          onValueChange={(year) => {
-            onNavigate?.(`/time-off/holidays/${year}`);
-          }}
-        >
-          {[thisYear, thisYear + 1].map((y) => (
-            <SegmentedControlItem key={y} value={String(y)}>
-              {String(y)}
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
+        {/* The year, and the feed: one toolbar row, as every Time Off page has. */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <SegmentedControl
+            aria-label={t('holidays.holidays.year', 'Year')}
+            value={String(data.year)}
+            onValueChange={(year) => {
+              onNavigate?.(`/time-off/holidays/${year}`);
+            }}
+          >
+            {[thisYear, thisYear + 1].map((y) => (
+              <SegmentedControlItem key={y} value={String(y)}>
+                {String(y)}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+          <Subscribe onSubscribe={onSubscribe} />
+        </div>
         {data.holidays.length === 0 ? (
           <p className="text-sm text-fg-muted">
             {t(
@@ -148,7 +151,6 @@ function Ready({
             })}
           </List>
         )}
-        <Subscribe onSubscribe={onSubscribe} />
       </div>
     </>
   );
@@ -159,7 +161,7 @@ function Subscribe({ onSubscribe }: Pick<HolidaysProps, 'onSubscribe'>): JSX.Ele
   const [pending, start] = useTransition();
   if (feed?.ok === true) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex w-full flex-col gap-3">
         <CopyField
           label={t('holidays.holidays.copy_the_feed_address', 'Copy the feed address')}
           value={feed.url}
@@ -181,7 +183,6 @@ function Subscribe({ onSubscribe }: Pick<HolidaysProps, 'onSubscribe'>): JSX.Ele
   return (
     <div className="flex flex-col gap-3">
       <Button
-        fullWidth
         startIcon={<icons.calendar aria-hidden />}
         disabled={onSubscribe === undefined}
         loading={pending}

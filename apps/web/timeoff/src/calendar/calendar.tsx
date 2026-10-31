@@ -245,6 +245,7 @@ function Ready({
           <>
             <PeriodNav
               className={deskOnly}
+              label={tr('calendar.calendar.month', 'Month')}
               title={monthName(data.month)}
               today={{
                 label: tr('calendar.calendar.today', 'Today'),
@@ -267,6 +268,7 @@ function Ready({
             />
             <PeriodNav
               className={phoneOnly}
+              label={tr('calendar.calendar.week', 'Week')}
               title={spanLabel(data.week, weekEnd)}
               today={{
                 label: tr('calendar.calendar.today', 'Today'),

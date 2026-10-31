@@ -37,9 +37,12 @@ export function PeriodNav({
   previous,
   next,
   today,
+  label,
   className,
 }: {
   readonly title: ReactNode;
+  /** What the steps walk through, for a screen reader: "Month". */
+  readonly label?: string;
   readonly previous: Step;
   readonly next: Step;
   /** Back to the period that holds today, where that is somewhere else. */
@@ -48,7 +51,7 @@ export function PeriodNav({
 }): JSX.Element {
   return (
     <nav
-      aria-label={t('period.period', 'Period')}
+      aria-label={label ?? t('period.period', 'Period')}
       className={cn('flex min-w-0 items-center gap-1', className)}
     >
       {today === undefined ? null : today.href === undefined ? (

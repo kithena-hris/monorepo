@@ -7,7 +7,8 @@ import {
   ListItem,
   PageSection,
   Skeleton,
-  Stat,
+  SegmentedControl,
+  SegmentedControlItem,
   icons,
   type IconName,
 } from '@reach/ui';
@@ -27,6 +28,7 @@ import {
 } from './time';
 import { t } from '../i18n';
 import { Header } from '../frame';
+import { useHeld } from '../held';
 import { ATTENDANCE } from './section';
 
 /**
@@ -70,9 +72,12 @@ export interface TeamNowData {
 
 export interface TeamNowProps {
   readonly load: Loadable<TeamNowData>;
+  /** Whom the list shows (`?show=in`), held by the host in the address. */
+  readonly show?: string | null;
+  readonly onShow?: (show: string | null) => void;
 }
 
-export function TeamNow({ load }: TeamNowProps): JSX.Element {
+export function TeamNow({ load, show, onShow }: TeamNowProps): JSX.Element {
   if (load.status === 'loading') return <TeamNowSkeleton />;
   return (
     <div className="@container/now flex flex-col gap-6">
@@ -81,7 +86,7 @@ export function TeamNow({ load }: TeamNowProps): JSX.Element {
         load={load}
         what={t('attendance.team-now.your_team_right_now', 'your team right now')}
       >
-        {(data) => <Ready data={data} />}
+        {(data) => <Ready data={data} show={show} onShow={onShow} />}
       </Loaded>
     </div>
   );
@@ -89,7 +94,6 @@ export function TeamNow({ load }: TeamNowProps): JSX.Element {
 
 const body =
   'flex flex-col gap-5 @min-[60rem]/now:grid @min-[60rem]/now:grid-cols-[minmax(0,1fr)_20rem] @min-[60rem]/now:items-start';
-const counts = 'grid grid-cols-4 gap-3 @max-[40rem]/now:grid-cols-2';
 
 type Now = 'in' | 'break' | 'waiting' | 'away' | 'done';
 
@@ -141,7 +145,20 @@ function nextWorkingDay(date: string): string {
   return next;
 }
 
-function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
+const SHOWS = ['all', 'in', 'break', 'waiting', 'away'] as const;
+type Show = (typeof SHOWS)[number];
+
+function Ready({
+  data,
+  show: heldShow,
+  onShow,
+}: {
+  readonly data: TeamNowData;
+  readonly show?: string | null | undefined;
+  readonly onShow?: ((show: string | null) => void) | undefined;
+}): JSX.Element {
+  const [held, setShow] = useHeld<string | null>(heldShow, onShow, null);
+  const show: Show = SHOWS.find((v) => v === held) ?? 'all';
   const away = new Map(
     data.away
       .filter((a) => a.status === 'approved' || a.status === 'taken')
@@ -177,29 +194,42 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
     return { ...p, now, badge, back };
   });
   const tally = (now: Now): number => rows.filter((r) => r.now === now).length;
+  // Finished for the day counts as in: they came, and the filter is about who is here.
+  const shown =
+    show === 'all' ? rows : rows.filter((r) => (r.now === 'done' ? 'in' : r.now) === show);
 
   return (
     <>
       <Header fallback={ATTENDANCE()} />
       <div className={body}>
         <div className="flex min-w-0 flex-col gap-5">
-          <div className={counts}>
-            {(['in', 'break', 'waiting', 'away'] as const).map((n) => (
-              <Stat
-                key={n}
-                label={NOW[n].label}
-                value={String(tally(n))}
-                className={n === 'waiting' ? '@max-[40rem]/now:hidden' : undefined}
-              />
+          {/* Who is where, as a filter: each count narrows the list to its people. */}
+          <SegmentedControl
+            aria-label={t('attendance.team-now.who_to_show', 'Who to show')}
+            className="max-w-full overflow-x-auto"
+            value={show}
+            onValueChange={(next) => {
+              if (next !== '') setShow(next === 'all' ? null : next);
+            }}
+          >
+            {SHOWS.map((v) => (
+              <SegmentedControlItem key={v} value={v}>
+                {v === 'all' ? t('attendance.team-now.everyone', 'Everyone') : NOW[v].label}{' '}
+                <span className="opacity-60 tabular-nums">
+                  {String(
+                    v === 'all' ? rows.length : v === 'in' ? tally('in') + tally('done') : tally(v),
+                  )}
+                </span>
+              </SegmentedControlItem>
             ))}
-          </div>
+          </SegmentedControl>
           {rows.length === 0 ? (
             <p className="text-sm text-fg-muted">
               {t('attendance.team-now.nobody_reports_to_you', 'Nobody reports to you.')}
             </p>
           ) : (
             <List aria-label={t('attendance.team-now.your_team', 'Your team')}>
-              {rows.map((r) => (
+              {shown.map((r) => (
                 <ListItem
                   key={r.personId}
                   leading={<Avatar name={r.displayName} />}
@@ -344,7 +374,7 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
   );
 }
 
-/** The board while it loads, in its exact shape: the counts, the rows, Needs you. */
+/** The board while it loads, in its exact shape: the filter, the rows, Needs you. */
 export function TeamNowSkeleton(): JSX.Element {
   return (
     <div className="@container/now flex flex-col gap-6">
@@ -354,14 +384,7 @@ export function TeamNowSkeleton(): JSX.Element {
           {t('attendance.team-now.loading_your_team_right_now', 'Loading your team right now')}
         </span>
         <div className="flex min-w-0 flex-col gap-5">
-          <div className={counts}>
-            {[0, 1, 2, 3].map((n) => (
-              <Skeleton
-                key={n}
-                className={`h-22 rounded-lg ${n === 2 ? '@max-[40rem]/now:hidden' : ''}`}
-              />
-            ))}
-          </div>
+          <Skeleton className="h-9 w-full max-w-[34rem] rounded-full" />
           <div className="flex flex-col gap-2">
             {[0, 1, 2, 3, 4, 5].map((n) => (
               <Skeleton key={n} className="h-14 rounded-sm" />
