@@ -15,14 +15,14 @@
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1148.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
-    "bullmq": "^6.3.12",
+    "bullmq": "^6.4.2",
     "decimal.js": "^10.6.0",
     "ioredis": "^6.0.0",
     "drizzle-orm": "^0.45.4",
@@ -35,8 +35,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/pdfkit": "^0.17.6",
+    "@types/pdfkit": "^0.17.7",
     "@kithena/testing": "workspace:*",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }
