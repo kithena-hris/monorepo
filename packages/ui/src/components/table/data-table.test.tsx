@@ -128,6 +128,11 @@ describe('<DataTable selectable>', () => {
     expect(screen.queryByText('Showing 4 of 1,003')).toBeNull();
     fireEvent.click(within(bar).getByRole('button', { name: 'Clear selection' }));
     expect(screen.getByText('Showing 4 of 1,003')).toBeInTheDocument();
+    // Escape puts it down too, from anywhere but a field.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select 2' }));
+    expect(screen.getByRole('group', { name: '1 selected' })).toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('group', { name: '1 selected' })).toBeNull();
   });
 });
 
@@ -664,12 +669,16 @@ describe('<DataTable> pinned header and a virtualized body', () => {
       Number.parseFloat(
         box.querySelector<HTMLElement>(':scope > div[aria-hidden]')?.style.height ?? '',
       );
-    // The header (57 here) and every row at its height, drawn or not.
-    expect(extent()).toBe(57 + many.length * 57);
+    // The header (57 here), every row at its height, drawn or not, and the
+    // three rows standing in at the foot while more is to come.
+    expect(extent()).toBe(57 + (many.length + 3) * 57);
     expect(box).toHaveClass('relative');
-    // The next page's skeleton row counts too.
+    expect(box.querySelectorAll('[data-coming]')).toHaveLength(3);
+    expect(box.querySelector('[aria-busy]')).toBeNull();
+    // While the next page is on its way, the first says so.
     rerender(<DataTable {...props} loadingMore />);
-    expect(extent()).toBe(57 + (many.length + 1) * 57);
+    expect(extent()).toBe(57 + (many.length + 3) * 57);
+    expect(box.querySelectorAll('[aria-busy]')).toHaveLength(1);
     // While more is coming the wheel stays with the table; at the end it may go on to the page.
     expect(box).toHaveClass('overscroll-y-contain');
     const { onEndReached: _more, ...done } = props;

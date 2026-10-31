@@ -162,6 +162,8 @@ const SCROLLS =
 
 /** How close to the end, in items, the next page is asked for. */
 const AHEAD = 10;
+/** Items standing in at the foot for what has not loaded yet. */
+const COMING_ITEMS = 3;
 
 const moreLoadedDefault = (added: number): string =>
   t('components.virtual-list.virtual-list.more_loaded', '{{added}} more loaded', {
@@ -440,14 +442,27 @@ export function VirtualList<T>({
 
   const extent = virtualizer.getTotalSize();
 
-  const placeholder = loadingMore ? (
-    <div aria-busy="true" className="p-3" style={{ height: estimateItemHeight }}>
-      <span className="sr-only">
-        {t('components.virtual-list.virtual-list.loading_more', 'Loading more')}
-      </span>
-      <Skeleton className="h-full w-full rounded-md" />
-    </div>
-  ) : null;
+  // Items standing in at the foot whenever more is to come, fading down, so
+  // the list never ends on its last item and then jumps when a page lands.
+  const placeholder =
+    loadingMore || onEndReached !== undefined
+      ? Array.from({ length: COMING_ITEMS }, (_, i) => (
+          <div
+            key={`coming-${String(i)}`}
+            data-coming=""
+            {...(loadingMore && i === 0 ? { 'aria-busy': true } : { 'aria-hidden': true })}
+            className="p-3"
+            style={{ height: estimateItemHeight, opacity: 1 - i * 0.3 }}
+          >
+            {loadingMore && i === 0 ? (
+              <span className="sr-only">
+                {t('components.virtual-list.virtual-list.loading_more', 'Loading more')}
+              </span>
+            ) : null}
+            <Skeleton className="h-full w-full rounded-md" />
+          </div>
+        ))
+      : null;
 
   // After the rows, never before them, which would move every row off the
   // place the virtualizer counts it at: inside a list the page scrolls, so it

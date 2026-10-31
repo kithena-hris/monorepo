@@ -1330,11 +1330,12 @@ export function PageHeader({
             '-mt-3 mb-[calc(var(--reach-header-fold)-0.75rem)] py-3 touch:m-0 touch:p-0',
             // Edge to edge across the content column, the gutters included.
             'mx-[calc(var(--reach-page-gutter,0px)*-1)] px-[var(--reach-page-gutter,0px)]',
-            'border-b border-transparent',
-            'transition-[background-color,border-color,box-shadow,margin] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
-            // Solid, not glass: what scrolls under it is gone, not blurred
-            // behind the title, which read as one layer over another.
-            'data-stuck:border-border data-stuck:bg-surface',
+            // Opaque from the first frame, the page's own fill: the stuck state
+            // is read a frame after the header sticks, and a fill that waited
+            // for it showed the rows scrolling under the title for that moment.
+            'border-b border-transparent bg-canvas',
+            'transition-[border-color,box-shadow,margin] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+            'data-stuck:border-border',
           ],
           // The bar the lifted actions sit in: the breadcrumb's, or one of their own.
           bar && !sticky && 'touch:relative',
@@ -1390,7 +1391,9 @@ export function PageHeader({
           {allActions ? (
             <div
               className={cn(
-                'flex shrink-0 flex-wrap items-center gap-2 @max-md:w-full @max-md:[&>*]:flex-1',
+                // At the row's far end, and still there when the row wraps under
+                // a long title: the page's primary action is where the eye ends.
+                'ms-auto flex shrink-0 flex-wrap items-center justify-end gap-2',
                 // Nothing left in the row under a finger: no empty row either.
                 rowEmptyOnTouch && 'touch:contents!',
               )}

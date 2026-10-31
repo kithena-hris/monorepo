@@ -226,6 +226,18 @@ const GROUP_COLUMN = '__group';
 const COLUMN_MIN = 64;
 const COLUMN_MAX = 960;
 const COLUMN_DEFAULT = 176;
+/**
+ * A leading control's column (the box, the disclosure, the grip): the 16px
+ * control, the first cell's 20px start and 12px end, and room for its focus
+ * ring, which at 40px ran under the pinned column beside it and was cut.
+ */
+const LEAD_PX = 48;
+/**
+ * Rows standing in at the foot for what has not loaded yet, whenever more
+ * is to come: the table never ends on its last loaded row and then jumps when
+ * the next page lands, it runs on into rows still being drawn, fading.
+ */
+const COMING_ROWS = 3;
 /** How near the end, in px, counts as the end. */
 const END_MARGIN = 480;
 
@@ -1012,12 +1024,12 @@ export function DataTable<T extends TableRow>({
   const leadingColumns = (renderDetail ? 1 : 0) + (selectable ? 1 : 0) + (canReorder ? 1 : 0);
   /*
    * A pinned column takes the row's own controls with it: the box and the
-   * disclosure stay at the start, 40px each, and the pinned column after them
+   * disclosure stay at the start, 48px each, and the pinned column after them
    * (`--reach-pin-start`), so a row scrolled sideways still says whose it is
    * and can still be picked. The grip scrolls away under them.
    */
   const pinned = columns.some((column) => column.sticky === true);
-  const pinStart = pinned ? ((selectable ? 1 : 0) + (renderDetail ? 1 : 0)) * 40 : 0;
+  const pinStart = pinned ? ((selectable ? 1 : 0) + (renderDetail ? 1 : 0)) * LEAD_PX : 0;
   const totalColumns = columns.length + leadingColumns + (rowActions ? 1 : 0);
 
   /*
@@ -1154,6 +1166,28 @@ export function DataTable<T extends TableRow>({
    */
   const latest = useRef({ onRowKey, picked, setPicked, open, setOpen, singleExpand });
   latest.current = { onRowKey, picked, setPicked, open, setOpen, singleExpand };
+  // Escape puts a selection down, as the bar says: from anywhere on the page,
+  // unless something else is Escape's to close (a menu, a dialog, a list) or
+  // a field is being typed in, where it is the field's.
+  const anyPicked = picked.size > 0;
+  useEffect(() => {
+    if (!anyPicked) return;
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const at = event.target instanceof Element ? event.target : null;
+      if (
+        at?.closest(
+          '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], input, textarea, select, [contenteditable="true"]',
+        ) != null
+      )
+        return;
+      latest.current.setPicked([]);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [anyPicked]);
   const rowEvents = useMemo<RowEvents<T>>(
     () => ({
       key: (row, id, event) => {
@@ -1199,6 +1233,8 @@ export function DataTable<T extends TableRow>({
       );
   }, [rows.length]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
+  // More to come: asked for, or still to ask for.
+  const coming = loadingMore || onEndReached !== undefined ? COMING_ROWS : 0;
   const atEnd =
     endLabel !== undefined && rows.length > 0 && onEndReached === undefined && !loadingMore;
   useEffect(() => {
@@ -1297,7 +1333,7 @@ export function DataTable<T extends TableRow>({
       className={cn(CARD.table, fixed && 'table-fixed touch:w-full! touch:table-auto', className)}
       // Fixed widths add up to the table's: `w-max` would size it on its
       // content, and the browser would then share that out as cells came and
-      // went. The leading controls are 40px each, the actions 48px.
+      // went. The leading controls are `LEAD_PX` each, the actions 48px.
       style={((): CSSProperties | undefined => {
         const pin = pinned
           ? ({ '--reach-pin-start': `${String(pinStart)}px` } as CSSProperties)
@@ -1305,7 +1341,7 @@ export function DataTable<T extends TableRow>({
         if (!fixed) return pinned ? pin : undefined;
         const sum =
           columns.reduce((total, column) => total + widthFor(column), 0) +
-          leadingColumns * 40 +
+          leadingColumns * LEAD_PX +
           (rowActions ? 48 : 0);
         // Filling, the widths are shares of the box and their sum its least.
         return fillsWidth ? { ...pin, width: '100%', minWidth: sum } : { ...pin, width: sum };
@@ -1328,7 +1364,7 @@ export function DataTable<T extends TableRow>({
             contentHeight:
               headHeight +
               virtualizer.getTotalSize() +
-              (loadingMore || atEnd ? estimateRowHeight : 0),
+              (coming > 0 ? coming * estimateRowHeight : atEnd ? estimateRowHeight : 0),
           }
         : {})}
     >
@@ -1338,7 +1374,7 @@ export function DataTable<T extends TableRow>({
       <TableHeader className={cn(CARD.head, pinsHead && 'table-pin-head')}>
         <TableRow className={CARD.headRow}>
           {canReorder ? (
-            <TableHead className="w-10 touch:hidden">
+            <TableHead className="w-12 touch:hidden">
               <span className="sr-only">{t('components.table.data-table.reorder', 'Reorder')}</span>
             </TableHead>
           ) : null}
@@ -1346,7 +1382,7 @@ export function DataTable<T extends TableRow>({
           {selectable ? (
             <TableHead
               className={cn(
-                'w-10 touch:me-auto touch:flex touch:h-auto! touch:items-center touch:gap-3 touch:p-0!',
+                'w-12 touch:me-auto touch:flex touch:h-auto! touch:items-center touch:gap-3 touch:p-0!',
                 pinned && 'sticky start-0 z-30! bg-surface',
               )}
             >
@@ -1378,8 +1414,8 @@ export function DataTable<T extends TableRow>({
           {renderDetail ? (
             <TableHead
               className={cn(
-                'w-10 touch:hidden',
-                pinned && cn('sticky z-30! bg-surface', selectable ? 'start-10' : 'start-0'),
+                'w-12 touch:hidden',
+                pinned && cn('sticky z-30! bg-surface', selectable ? 'start-12' : 'start-0'),
               )}
             >
               <span className="sr-only">{t('components.table.data-table.expand', 'Expand')}</span>
@@ -1588,14 +1624,21 @@ export function DataTable<T extends TableRow>({
           <SpacerRow height={paddingBottom} rowHeight={estimateRowHeight} span={totalColumns} />
         ) : null}
 
-        {loadingMore ? (
-          // A row in the table's own shape, a bar in each cell, as tall as a
-          // row: when the page arrives it takes the row's place and nothing
-          // under the reader's eye moves. A card's shape under a finger.
-          <TableRow aria-busy="true" className="touch:block" style={{ height: estimateRowHeight }}>
+        {Array.from({ length: coming }, (_, row) => (
+          // Rows in the table's own shape, a bar in each cell, as tall as a
+          // row, fading down: when the page arrives it takes their place and
+          // nothing under the reader's eye moves. A card's shape under a
+          // finger. Only the first says, and only while the page is coming.
+          <TableRow
+            key={`coming-${String(row)}`}
+            data-coming=""
+            {...(loadingMore && row === 0 ? { 'aria-busy': true } : { 'aria-hidden': true })}
+            className="touch:block"
+            style={{ height: estimateRowHeight, opacity: 1 - row * 0.3 }}
+          >
             {Array.from({ length: totalColumns }, (_, i) => (
               <TableCell key={i} className={i === 0 ? 'touch:block touch:h-13' : 'touch:hidden'}>
-                {i === 0 ? (
+                {i === 0 && row === 0 && loadingMore ? (
                   <span className="sr-only">
                     {t('components.table.data-table.loading_more', 'Loading more')}
                   </span>
@@ -1606,7 +1649,7 @@ export function DataTable<T extends TableRow>({
               </TableCell>
             ))}
           </TableRow>
-        ) : null}
+        ))}
 
         {atEnd ? (
           // The end, said: a rule either side of a quiet line, as tall as a row.
@@ -1832,7 +1875,7 @@ const BodyRow = memo(function BodyRow<T>({
             // Lower than the grip: a checkbox is smaller than its tap
             // area, and it lines up with the title's first line.
             className={cn(
-              'w-10',
+              'w-12',
               pinned && 'sticky start-0 z-10 bg-[inherit]',
               CARD.leadCell,
               CARD.lead[reorderable ? 1 : 0],
@@ -1858,11 +1901,11 @@ const BodyRow = memo(function BodyRow<T>({
           // list puts its chevron.
           <TableCell
             className={cn(
-              'w-10',
+              'w-12',
               pinned &&
                 cn(
                   'sticky z-10 bg-[inherit] touch:start-auto',
-                  selectable ? 'start-10' : 'start-0',
+                  selectable ? 'start-12' : 'start-0',
                 ),
               CARD.leadCell,
               'touch:end-2',
@@ -2062,7 +2105,7 @@ function DataRow({
       {...rest}
     >
       {reorderable ? (
-        <TableCell className={cn('w-10', leadClassName)}>
+        <TableCell className={cn('w-12', leadClassName)}>
           <button
             type="button"
             ref={setActivatorNodeRef}
