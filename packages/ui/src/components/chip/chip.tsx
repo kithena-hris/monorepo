@@ -234,7 +234,7 @@ export function ChipGroup({ className, scroll = false, ...props }: ChipGroupProp
       className={cn(
         'flex flex-wrap items-center gap-2',
         scroll &&
-          'touch:flex-nowrap touch:overflow-x-auto touch:overscroll-x-contain touch:[scrollbar-width:none] touch:py-1',
+          'touch:flex-nowrap touch:overflow-x-auto touch:overscroll-x-none touch:[scrollbar-width:none] touch:py-1',
         className,
       )}
       {...props}
@@ -286,7 +286,7 @@ export function ChipRow({
       {...(label === undefined ? {} : { role: 'group', 'aria-labelledby': labelId })}
       className={cn(
         'flex flex-wrap items-center gap-2',
-        'touch:flex-nowrap touch:overflow-x-auto touch:overscroll-x-contain touch:[scrollbar-width:none] touch:py-1',
+        'touch:flex-nowrap touch:overflow-x-auto touch:overscroll-x-none touch:[scrollbar-width:none] touch:py-1',
         className,
       )}
       {...props}

@@ -158,7 +158,7 @@ export interface VirtualListProps<T> {
  */
 const SURFACE = 'rounded-lg bg-surface shadow-sm';
 const SCROLLS =
-  'overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus';
+  'overflow-y-auto overscroll-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus';
 
 /** How close to the end, in items, the next page is asked for. */
 const AHEAD = 10;

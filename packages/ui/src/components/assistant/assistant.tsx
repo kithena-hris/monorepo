@@ -281,7 +281,7 @@ export function AssistantPanel({
         aria-live="polite"
         aria-busy={busy || undefined}
         aria-labelledby={titleId}
-        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4"
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-none p-4"
       >
         {children}
       </div>

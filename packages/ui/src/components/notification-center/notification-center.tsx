@@ -95,7 +95,7 @@ export function NotificationPanel({
         }
         action={action}
       />
-      <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain touch:gap-2">
+      <div className="flex min-h-0 flex-col overflow-y-auto overscroll-none touch:gap-2">
         {children}
       </div>
     </section>
@@ -287,7 +287,7 @@ export function NotificationCenter({
                 action={action}
               />
             </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-4 pb-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-none px-4 pb-4">
               {children}
             </div>
           </SheetContent>

@@ -67,7 +67,7 @@ export function ChatLog({ label, className, children, ...props }: ChatLogProps):
         const el = event.currentTarget;
         atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
       }}
-      className={cn('flex min-h-0 flex-col gap-2.5 overflow-y-auto overscroll-contain', className)}
+      className={cn('flex min-h-0 flex-col gap-2.5 overflow-y-auto overscroll-none', className)}
       {...props}
     >
       {children}

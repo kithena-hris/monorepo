@@ -136,9 +136,19 @@
   }
 
   /* Momentum scrolling inside a panel must not drag the page behind it,
-     the "rubber-band the whole app while scrolling a sheet" bug. */
+     the "rubber-band the whole app while scrolling a sheet" bug. `none`, not
+     `contain`: the panel keeps the scroll and does not bounce at its end either. */
   [data-scroll-lock] {
-    overscroll-behavior: contain;
+    overscroll-behavior: none;
+  }
+
+  /* No elastic bounce at the page's ends, top, bottom or sides: an app's
+     window stops where its content does, as every box inside it does
+     (`overscroll-none`). It also ends pull-to-refresh in a phone's browser;
+     the installed app has none to lose. */
+  html,
+  body {
+    overscroll-behavior: none;
   }
 
   /* The parts nobody draws still carry the palette: the scrollbar and the

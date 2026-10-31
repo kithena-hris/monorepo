@@ -101,7 +101,7 @@ export function Table({
       className={cn(
         // `isolate`: the pinned header's stacking stays inside the table,
         // under the page's own bars and anything laid over the table.
-        'isolate w-full overflow-auto overscroll-x-contain',
+        'isolate w-full overflow-auto overscroll-x-none',
         // A raised surface, not a ruled box: the rows are separated by hairlines
         // and the table itself by its shadow, the same as every other card.
         !bare && 'rounded-lg bg-surface shadow-sm',

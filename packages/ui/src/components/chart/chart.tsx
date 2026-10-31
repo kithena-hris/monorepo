@@ -182,7 +182,7 @@ function TouchScroll({
     '--chart-min': `${String(marks * pitch + gutter)}rem`,
   };
   return (
-    <div className="touch:overflow-x-auto touch:overscroll-x-contain">
+    <div className="touch:overflow-x-auto touch:overscroll-x-none">
       <div className="touch:min-w-(--chart-min)" style={style}>
         {children}
       </div>

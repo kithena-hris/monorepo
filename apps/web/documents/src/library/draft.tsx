@@ -261,7 +261,7 @@ export function DraftDialog({
                 <PdfPages
                   src={shown}
                   label={draft.title}
-                  className="max-h-[60dvh] overflow-y-auto overscroll-y-contain rounded-md bg-surface-sunken p-3"
+                  className="max-h-[60dvh] overflow-y-auto overscroll-y-none rounded-md bg-surface-sunken p-3"
                 />
               )}
               {draft.figures.length === 0 ? null : (

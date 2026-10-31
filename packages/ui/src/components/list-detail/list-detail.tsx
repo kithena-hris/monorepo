@@ -103,9 +103,9 @@ const borderClass = {
  * and a detail taller than the window is the one thing that scrolls on its own.
  */
 const stickyDetail = {
-  md: '@2xl:sticky @2xl:top-(--reach-sticky-top,0px) @2xl:self-start @2xl:max-h-[calc(100dvh-var(--reach-sticky-top,0px))] @2xl:overflow-y-auto @2xl:overscroll-contain',
-  lg: '@4xl:sticky @4xl:top-(--reach-sticky-top,0px) @4xl:self-start @4xl:max-h-[calc(100dvh-var(--reach-sticky-top,0px))] @4xl:overflow-y-auto @4xl:overscroll-contain',
-  xl: '@6xl:sticky @6xl:top-(--reach-sticky-top,0px) @6xl:self-start @6xl:max-h-[calc(100dvh-var(--reach-sticky-top,0px))] @6xl:overflow-y-auto @6xl:overscroll-contain',
+  md: '@2xl:sticky @2xl:top-(--reach-sticky-top,0px) @2xl:self-start @2xl:max-h-[calc(100dvh-var(--reach-sticky-top,0px))] @2xl:overflow-y-auto @2xl:overscroll-none',
+  lg: '@4xl:sticky @4xl:top-(--reach-sticky-top,0px) @4xl:self-start @4xl:max-h-[calc(100dvh-var(--reach-sticky-top,0px))] @4xl:overflow-y-auto @4xl:overscroll-none',
+  xl: '@6xl:sticky @6xl:top-(--reach-sticky-top,0px) @6xl:self-start @6xl:max-h-[calc(100dvh-var(--reach-sticky-top,0px))] @6xl:overflow-y-auto @6xl:overscroll-none',
 } as const;
 
 const hideBelowSplit = {

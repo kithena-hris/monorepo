@@ -312,7 +312,7 @@ export function SheetDescription({
 export function SheetBody({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
   return (
     <div
-      className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4', className)}
+      className={cn('min-h-0 flex-1 overflow-y-auto overscroll-none px-5 py-4', className)}
       {...props}
     />
   );

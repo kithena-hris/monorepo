@@ -25,7 +25,7 @@ const meta = {
           '',
           'It does not replace native scrolling. The viewport is a real scroll container, so momentum, rubber-banding, keyboard paging, find-in-page and screen-reader scroll-into-view all behave exactly as they should. Custom-scroll libraries that reimplement the physics get all five of those wrong on a phone.',
           '',
-          '`overscroll-contain` stops a flick inside the panel from scrolling the page behind it once it hits the end, the "I scrolled the list and the whole app moved" bug.',
+          '`overscroll-none` stops a flick inside the panel from scrolling the page behind it once it hits the end, the "I scrolled the list and the whole app moved" bug.',
           '',
           '### Height goes on the viewport',
           '',
