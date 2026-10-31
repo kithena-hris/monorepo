@@ -1393,7 +1393,10 @@ export function PageHeader({
               className={cn(
                 // At the row's far end, and still there when the row wraps under
                 // a long title: the page's primary action is where the eye ends.
-                'ms-auto flex shrink-0 flex-wrap items-center justify-end gap-2',
+                // Never wider than the row; a header as narrow as a phone gives
+                // them the row to share, as a phone's own buttons do.
+                'ms-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2',
+                '@max-md:w-full @max-md:[&>*]:flex-1',
                 // Nothing left in the row under a finger: no empty row either.
                 rowEmptyOnTouch && 'touch:contents!',
               )}
