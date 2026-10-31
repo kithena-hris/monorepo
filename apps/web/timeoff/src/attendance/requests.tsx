@@ -101,7 +101,9 @@ export function AttendanceRequests(props: AttendanceRequestsProps): JSX.Element 
   return (
     <div className="flex flex-col gap-6">
       {load.status === 'error' ? (
-        <PageHeader title={t('attendance.requests.attendance', 'Attendance')} />
+        <PageHeader
+          title={t('attendance.requests.overtime_and_corrections', 'Overtime and corrections')}
+        />
       ) : null}
       <Loaded
         load={load}
@@ -129,7 +131,7 @@ function Ready({
   return (
     <>
       <PageHeader
-        title={t('attendance.requests.attendance', 'Attendance')}
+        title={t('attendance.requests.overtime_and_corrections', 'Overtime and corrections')}
         description={
           manages
             ? t(
@@ -193,20 +195,6 @@ function Ready({
                   '{{date}} · added more than a day afterwards',
                   { date: shortDate(n.date) },
                 )}
-                trailing={
-                  <Button asChild size="sm" variant="ghost">
-                    <a
-                      href={`/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`}
-                      aria-label={t(
-                        'attendance.requests.see_s_beside_the_original',
-                        'See {{displayName}}’s {{weekdayName}} beside the original',
-                        { displayName: n.displayName, weekdayName: weekdayName(n.date) },
-                      )}
-                    >
-                      {t('attendance.requests.see', 'See')}
-                    </a>
-                  </Button>
-                }
               >
                 {n.punch?.kind === 'in'
                   ? t(
@@ -403,7 +391,10 @@ function Decide({
 export function AttendanceRequestsSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={t('attendance.requests.attendance', 'Attendance')} description={' '} />
+      <PageHeader
+        title={t('attendance.requests.overtime_and_corrections', 'Overtime and corrections')}
+        description={' '}
+      />
       <div role="status" className="flex flex-col gap-6">
         <span className="sr-only">
           {t(

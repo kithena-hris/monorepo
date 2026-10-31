@@ -159,12 +159,13 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           },
           onNavigate: go,
         };
-      case 'MyRequestsUpcoming':
-      case 'MyRequestsPast':
-      case 'MyRequestsCancelled':
+      case 'MyRequests':
       case 'RequestDetail':
         return {
           load: loadable,
+          onShow: (show: string) => {
+            goTo({ show: show === 'upcoming' ? null : show }, '/time-off/requests');
+          },
           onCancel: actions.cancelRequest,
           onChange: actions.changeRequest,
           onShorten: actions.shortenRequest,

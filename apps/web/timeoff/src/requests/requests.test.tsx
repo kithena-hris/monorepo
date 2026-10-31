@@ -6,7 +6,7 @@ import { approved, november, past, suggested, upcoming } from './acme.fixture';
 import { MyRequests, type RequestsData } from './requests';
 
 /**
- * My requests (T6, T7, MT10) on Acme's demo data: Adam's year on
+ * Your requests (T6, T7, MT10) on Acme's demo data: Adam's year on
  * 1 October 2026. Every state passes axe; the dialog is portalled, so axe
  * runs over the document while it is open.
  */
@@ -15,9 +15,17 @@ const ready = (data: RequestsData) => ({ status: 'ready' as const, data });
 const ok = () => Promise.resolve({ ok: true as const });
 
 describe('my requests', () => {
+  it('switches between upcoming, past and cancelled over the list, and asks the host', () => {
+    const onShow = vi.fn();
+    render(<MyRequests load={ready(upcoming())} onShow={onShow} />);
+    expect(screen.getByRole('radio', { name: 'Upcoming' })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'Past' }));
+    expect(onShow).toHaveBeenCalledWith('past');
+  });
+
   it('lists the tab, and draws the first request beside it with its timeline', async () => {
     const { container } = render(<MyRequests load={ready(upcoming())} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'My requests' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Your requests' })).toBeTruthy();
     const rows = screen.getAllByRole('link');
     expect(rows.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
       [

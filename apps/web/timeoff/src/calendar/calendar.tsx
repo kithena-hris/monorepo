@@ -8,7 +8,6 @@ import {
   CopyField,
   List,
   ListItem,
-  PageHeader,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -46,6 +45,7 @@ import {
 } from '../approvals/words';
 import { ClashCard } from './clash';
 import { t as tr } from '../i18n';
+import { Header } from '../frame';
 
 /**
  * The team calendar (T12–T15, MT13, MT14, §10.1): who is away by month, as
@@ -116,7 +116,15 @@ export function TeamCalendar(props: TeamCalendarProps): JSX.Element {
   if (load.status === 'loading') return <TeamCalendarSkeleton view={viewOf(path)} />;
   return (
     <div className="@container/calendar flex flex-col gap-4">
-      <PageHeader title={tr('calendar.calendar.calendar', 'Calendar')} />
+      <Header
+        fallback={{
+          title: tr('calendar.calendar.calendar', 'Calendar'),
+          description: tr(
+            'calendar.calendar.description',
+            'Who is away and when, by month, as a timeline or across the year',
+          ),
+        }}
+      />
       <Loaded load={load} what={tr('calendar.calendar.the_calendar', 'the calendar')}>
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
@@ -733,7 +741,15 @@ function Subscribe({
 export function TeamCalendarSkeleton({ view }: { readonly view: CalendarViewName }): JSX.Element {
   return (
     <div className="@container/calendar flex flex-col gap-4">
-      <PageHeader title={tr('calendar.calendar.calendar', 'Calendar')} />
+      <Header
+        fallback={{
+          title: tr('calendar.calendar.calendar', 'Calendar'),
+          description: tr(
+            'calendar.calendar.description',
+            'Who is away and when, by month, as a timeline or across the year',
+          ),
+        }}
+      />
       <div role="status" className="flex flex-col gap-4">
         <span className="sr-only">
           {tr('calendar.calendar.loading_the_calendar', 'Loading the calendar')}

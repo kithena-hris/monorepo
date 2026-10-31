@@ -5335,6 +5335,10 @@
     "text": "Analytics and reports",
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/insights/what-changed): a short line under its name on a phone’s row."
   },
+  "nav./people/insights/what-changed.tab_label": {
+    "text": "What changed",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/what-changed): its name in the sidebar, the breadcrumb and the menus."
+  },
   "nav./people/review/asked.label": {
     "text": "I asked",
     "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/asked): its name in the sidebar, the breadcrumb and the menus."
@@ -5359,17 +5363,21 @@
     "text": "Review",
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/review/waiting): its name in the sidebar, the breadcrumb and the menus."
   },
-  "nav./people/review/waiting.label_for.finance": {
-    "text": "Your requests",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is finance."
-  },
-  "nav./people/review/waiting.label_for.hr": {
-    "text": "Waiting for me",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is hr."
-  },
   "nav./people/review/waiting.summary": {
     "text": "Every decision, in one queue",
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/review/waiting): a short line under its name on a phone’s row."
+  },
+  "nav./people/review/waiting.tab_label": {
+    "text": "Waiting",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/review/waiting.tab_label_for.finance": {
+    "text": "Your requests",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is finance."
+  },
+  "nav./people/review/waiting.tab_label_for.hr": {
+    "text": "Waiting for me",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is hr."
   },
   "nav./settings/activity?area=fields,organisation,roles,integrations.description": {
     "text": "Who did what, and when. Never the values themselves.",

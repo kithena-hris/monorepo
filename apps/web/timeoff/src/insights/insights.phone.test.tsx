@@ -9,16 +9,13 @@ import type { InsightsData } from './insights';
 
 /**
  * Insights (T27) at 390×844 with a coarse pointer and the real stylesheet:
- * every tab and an open point, axe with contrast, the 44px floor, and
+ * the one page and an open point, axe with contrast, the 44px floor, and
  * nothing wider than the phone.
  */
 
 const states: readonly (readonly [string, Partial<InsightsData>])[] = [
-  ['what changed', {}],
+  ['the whole page', {}],
   ['the people behind a point', { point: 'no_break' }],
-  ['time off', { tab: 'time-off' }],
-  ['attendance', { tab: 'attendance' }],
-  ['balances', { tab: 'balances' }],
 ];
 
 it('draws the nudge as a sheet on a phone, every target reachable', async () => {

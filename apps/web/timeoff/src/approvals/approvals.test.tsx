@@ -277,7 +277,7 @@ describe('the states around it', () => {
       />,
     );
     expect(screen.getByRole('status').textContent).toContain('Loading requests');
-    expect(screen.getByRole('heading', { level: 1, name: 'Requests' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Approvals' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
     const retry = vi.fn();
     rerender(<Approvals load={{ status: 'error', message: 'Time Off did not answer', retry }} />);
@@ -290,18 +290,20 @@ describe('the states around it', () => {
       <Framed
         load={ready(waiting())}
         frame={{
-          section: 'Requests',
+          section: 'Approvals',
+          description: 'Time off waiting for your decision, coming up and decided',
           tabs: [
-            {
-              href: '/time-off/approvals/waiting',
-              label: 'Waiting for me',
-              current: true,
-              count: 5,
-            },
+            { href: '/time-off/approvals/waiting', label: 'Waiting', current: true, count: 5 },
+            { href: '/time-off/approvals/coming-up', label: 'Coming up', current: false },
+            { href: '/time-off/approvals/decided', label: 'Decided', current: false },
           ],
         }}
       />,
     );
-    expect(screen.getByRole('navigation', { name: 'Requests tabs' })).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: 'Approvals tabs' })).toBeTruthy();
+    // The section's own line, the same on every tab, so the tabs never move.
+    expect(
+      screen.getByText('Time off waiting for your decision, coming up and decided'),
+    ).toBeTruthy();
   });
 });

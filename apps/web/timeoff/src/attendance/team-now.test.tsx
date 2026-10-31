@@ -16,7 +16,6 @@ describe('team, right now', () => {
   it('counts who is in, on a break, not in yet and away', async () => {
     const { container } = render(<TeamNow load={ready()} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Attendance' })).toBeTruthy();
-    expect(screen.getByText('6 people report to you')).toBeTruthy();
     const count = (label: string): string | undefined =>
       screen.getAllByText(label).find((el) => el.closest('[class*="flex-col"]') !== null)
         ?.parentElement?.parentElement?.textContent ?? undefined;

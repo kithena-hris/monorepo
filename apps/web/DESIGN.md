@@ -68,6 +68,16 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 - **The item opens beside the list** (`ListDetail`, list 30rem), riding beside it as the page scrolls, and is done there: each module's kind has its own body, and Open in … is the fallback, never the first action.
 - **Push** (Settings › Notifications): one card, "Push notifications on this device", above the rows; the rows' Phone switches route to every device a person turned push on for.
 
+## Time Off
+
+- **Five places, by who uses them.** Overview (everyone), Approvals (managers and HR), Calendar (everyone), Attendance (everyone), Insights (managers and HR). An employee sees three.
+- **At most three tabs, in fixed places.** Approvals: Waiting, Coming up, Decided. Calendar: Month, Timeline, Year. Attendance: Today (managers, HR), My week, Exceptions (HR). A section with one tab draws no tab row. `routes.test.tsx` holds the limit.
+- **One header per section.** Every tab of a section shows the section's title and its one line from `routes.json` (`Header` in `frame.tsx`), so switching tabs never moves the tabs. What a view adds ("Week of 28 Sept · 40h scheduled", an export) sits in a row under the tabs, never in the header.
+- **What is not the page's one thing goes under More.** Delegate approvals, Adjust a balance, Parental leave cases; Overtime and corrections, Kiosk code, Close the pay period: manifest actions with `menu: true`, drawn as the header's More menu. Each opens a page of its own, which carries its own title.
+- **Your requests is one list**, `/time-off/requests`, with Upcoming, Past and Cancelled as a switch over it (`?show=`), reached from Overview's Coming up.
+- **Overview leads with the balances**, the page's width. Under them: Coming up and the team on the left; the clock and the days worth taking on the right.
+- **Insights is one page**, read top to bottom: what changed, then time off, attendance and balances, each section named for what it measures.
+
 ## Colour and motion
 
 - Restrained: neutrals from the canvas and surfaces. The accent is reserved for the primary action, the current stage and progress.

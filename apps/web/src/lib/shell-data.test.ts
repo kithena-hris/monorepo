@@ -152,7 +152,7 @@ describe('Time Off for its approvers (TOF-058a)', () => {
     const places = placesFor(nav, timeOffRoles(employee, v));
     const frame = headerFrame(
       places,
-      '/time-off/requests/upcoming',
+      '/time-off/approvals/waiting',
       '/time-off',
       { tabs: timeOffCounts(v, places.sections).tabs },
       'Time off',
@@ -165,35 +165,29 @@ describe('Time Off for its approvers (TOF-058a)', () => {
 
   it('shows Marco, who approves with no admin role, the queue tabs and what waits', () => {
     expect(requests(viewer(true))).toEqual({
-      section: 'Requests',
-      tabs: [
-        'Waiting for me3',
-        'Coming up',
-        'Decided',
-        'Delegation',
-        'Balance adjustments',
-        'Upcoming',
-        'Past',
-        'Cancelled',
-      ],
+      section: 'Approvals',
+      tabs: ['Waiting3', 'Coming up', 'Decided'],
     });
   });
 
-  it('shows Adam, who approves nobody, his own requests and none of the queue', () => {
-    expect(requests(viewer(false))).toEqual({
-      section: 'My requests',
-      tabs: ['Upcoming', 'Past', 'Cancelled'],
-    });
+  it('shows Adam, who approves nobody, none of the queue', () => {
+    expect(requests(viewer(false))).toEqual({ section: null, tabs: undefined });
+    const places = placesFor(nav, timeOffRoles(employee, viewer(false)));
+    expect(places.sections.map((p) => p.label)).toEqual(['Overview', 'Calendar', 'Attendance']);
   });
 
   it('offers Request time off only to somebody Time Off holds as an employee', () => {
     const actions = (v: TimeOffViewer | null) =>
       placesFor(nav, timeOffRoles(employee, v)).actions.map((a) => a.label);
-    expect(actions(viewer(false))).toEqual(['Request time off']);
-    // A provisional record People has not hired: nothing to request from.
-    expect(actions(viewer(false, false))).toEqual([]);
+    expect(actions(viewer(false))).toEqual([
+      'Request time off',
+      'Overtime and corrections',
+      'Kiosk code',
+    ]);
+    // A provisional record People has not hired: nothing to request or clock from.
+    expect(actions(viewer(false, false))).toEqual(['Overtime and corrections']);
     // Time Off did not answer: offered, as before it could say.
-    expect(actions(null)).toEqual(['Request time off']);
+    expect(actions(null)).toEqual(['Request time off', 'Overtime and corrections', 'Kiosk code']);
   });
 
   it('keeps the shell’s roles when Time Off does not answer', () => {

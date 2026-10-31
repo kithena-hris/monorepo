@@ -29,7 +29,6 @@ import { Overview as OverviewScreen } from './overview/overview';
 import { ParentalCase as ParentalCaseScreen } from './parental/case';
 import { ParentalCases as ParentalCasesScreen } from './parental/cases';
 import { ParentalPlan as ParentalPlanScreen } from './parental/plan';
-import { placeholder } from './placeholder';
 import { ApprovalSettings as ApprovalSettingsScreen } from './settings/approval-settings';
 import { AttendanceSettings as AttendanceSettingsScreen } from './settings/attendance-settings';
 import { DescribePolicy as DescribePolicyScreen } from './settings/describe-policy';
@@ -41,22 +40,18 @@ import { NegativeBalance as NegativeBalanceScreen } from './settings/negative-ba
 import { DescribeRequest as DescribeScreen } from './request/describe';
 import { RequestTimeOff as RequestScreen } from './request/request';
 import { MyRequests as RequestsScreen } from './requests/requests';
-import { t } from './i18n';
 
 export const Overview = framed(OverviewScreen);
 export const RequestTimeOff = framed(RequestScreen);
 export const DescribeRequest = framed(DescribeScreen);
-// One screen, three tabs and a request's own address: each name is what the
+// One screen, the list and a request's own address: each name is what the
 // shell's loader reads to know which (`lib/timeoff-screens.ts`).
-export const MyRequestsUpcoming = framed(RequestsScreen);
-export const MyRequestsPast = framed(RequestsScreen);
-export const MyRequestsCancelled = framed(RequestsScreen);
+export const MyRequests = framed(RequestsScreen);
 export const RequestDetail = framed(RequestsScreen);
 export const Approvals = framed(ApprovalsScreen);
 export const Delegation = framed(DelegationScreen);
 export const Adjustments = framed(AdjustmentsScreen);
 export const TeamCalendar = framed(TeamCalendarScreen);
-export const Attendance = framed(placeholder(() => t('index.attendance', 'Attendance')));
 // TOF-059, TOF-074 to TOF-077: the clock in the shell's top bar (a slot, not a
 // screen: no frame), my timesheet and the team right now.
 export { TopBarClock } from './clock/clock';

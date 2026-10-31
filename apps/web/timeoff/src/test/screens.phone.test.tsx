@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import axe from 'axe-core';
 import { expect, it } from 'vitest';
 
-import { Attendance, Overview, ParentalCase, ParentalCases, ParentalPlan } from '../index';
+import { Overview, ParentalCase, ParentalCases, ParentalPlan, Timesheet } from '../index';
 import { adam } from '../overview/acme.fixture';
 import { adaCases, adamCase, parental } from '../parental/acme.fixture';
 import { underFloor } from './floor';
@@ -14,11 +14,13 @@ import { underFloor } from './floor';
  * ticket adds its own states here.
  */
 
-it('draws a placeholder under a phone’s bar, its tabs as pills, every target reachable', async () => {
+it('draws a section under a phone’s bar, its tabs as pills and More as an icon, every target reachable', async () => {
   render(
-    <Attendance
+    <Timesheet
+      load={{ status: 'loading' }}
       frame={{
         section: 'Attendance',
+        description: 'Clocked hours, breaks and overtime',
         siblings: [
           {
             label: 'Time off',
@@ -29,10 +31,10 @@ it('draws a placeholder under a phone’s bar, its tabs as pills, every target r
           },
         ],
         tabs: [
-          { href: '/time-off/attendance/timesheets', label: 'Timesheets', current: true },
-          { href: '/time-off/attendance/schedule', label: 'Schedule', current: false },
+          { href: '/time-off/attendance/now', label: 'Today', current: false },
+          { href: '/time-off/attendance/timesheet', label: 'My week', current: true },
         ],
-        actions: [{ href: '/time-off/request', label: 'Request time off', icon: 'add' }],
+        actions: [{ href: '/time-off/attendance/kiosk-code', label: 'Kiosk code', menu: true }],
       }}
     />,
   );
@@ -53,7 +55,7 @@ it('draws the overview as MT1: the clock, balances to swipe, one suggestion, wha
             label: 'Time off',
             items: [
               { href: '/time-off/overview', label: 'Overview', icon: 'overview', current: true },
-              { href: '/time-off/requests/upcoming', label: 'My requests' },
+              { href: '/time-off/calendar/month', label: 'Calendar' },
             ],
           },
         ],

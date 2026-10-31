@@ -12,7 +12,6 @@ import {
   FieldLabel,
   List,
   ListItem,
-  PageHeader,
   PageSection,
   Skeleton,
   icons,
@@ -22,6 +21,7 @@ import { useState, useTransition, type JSX } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { firstName, spanLabel, type Range } from './words';
 import { t } from '../i18n';
+import { Header } from '../frame';
 
 /**
  * Delegating approvals (T19, §9.7): who decides for me while I am away, for
@@ -74,8 +74,8 @@ export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Ele
   if (load.status === 'loading') return <DelegationSkeleton />;
   return (
     <div className="@container/delegation flex flex-col gap-6">
-      <PageHeader
-        title={t('approvals.delegation.requests', 'Requests')}
+      <Header
+        title={t('approvals.delegation.delegate_approvals', 'Delegate approvals')}
         description={DESCRIPTION()}
       />
       <Loaded load={load} what={t('approvals.delegation.your_delegation', 'your delegation')}>
@@ -321,8 +321,8 @@ function Ready({
 export function DelegationSkeleton(): JSX.Element {
   return (
     <div className="@container/delegation flex flex-col gap-6">
-      <PageHeader
-        title={t('approvals.delegation.requests', 'Requests')}
+      <Header
+        title={t('approvals.delegation.delegate_approvals', 'Delegate approvals')}
         description={DESCRIPTION()}
       />
       <div role="status" className={body}>

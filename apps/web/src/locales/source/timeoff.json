@@ -29,7 +29,7 @@
   },
   "approvals.adjustments.balance_adjustments": {
     "text": "Balance adjustments",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjustments: the title of <PageHeader>."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjustments: the title of <Header>."
   },
   "approvals.adjustments.balance_adjustments_2": {
     "text": "balance adjustments",
@@ -57,7 +57,7 @@
   },
   "approvals.adjustments.days_you_asked_hr_to_add": {
     "text": "Days you asked HR to add or take away",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Ready: the description of <PageHeader>."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Ready: the description of <Header>."
   },
   "approvals.adjustments.decline": {
     "text": "Decline",
@@ -173,7 +173,7 @@
   },
   "approvals.adjustments.waiting_for_you_hr_count": {
     "text": "{{count}} waiting for you; HR’s own count at once",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Ready: the description of <PageHeader>. Filled in: {{count}}."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Ready: the description of <Header>. Filled in: {{count}}."
   },
   "approvals.adjustments.who": {
     "text": "Who",
@@ -194,6 +194,10 @@
   "approvals.approvals.ai": {
     "text": "AI",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Waiting: the supporting of <Badge>."
+  },
+  "approvals.approvals.approvals": {
+    "text": "Approvals",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Approvals: the fallback of <Header>."
   },
   "approvals.approvals.approve": {
     "text": "Approve {{length}}",
@@ -279,10 +283,6 @@
     "text": "Request",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Opened: the detailLabel of <ListDetail>."
   },
-  "approvals.approvals.requests": {
-    "text": "Requests",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Approvals: the title of <PageHeader>."
-  },
   "approvals.approvals.sorted_by_kithena_using_coverage_balances": {
     "text": "Sorted by Kithena using coverage, balances and deadlines. The order never decides for you.",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Waiting: text inside <p>."
@@ -303,10 +303,6 @@
     "text": "This request is not waiting for you",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Opened: the title of <Alert>."
   },
-  "approvals.approvals.time_off_waiting_for_you_coming_up": {
-    "text": "Time off waiting for you, coming up and decided.",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, DESCRIPTION: text built in code."
-  },
   "approvals.approvals.waiting": {
     "text": "Waiting",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, STATUS: a \"pending\" value."
@@ -318,6 +314,10 @@
   "approvals.approvals.waiting_for_you": {
     "text": "Waiting for you",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Opened: the listLabel of <ListDetail>."
+  },
+  "approvals.approvals.waiting_for_your_decision": {
+    "text": "Time off waiting for your decision, coming up and decided",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, DESCRIPTION: text built in code."
   },
   "approvals.decision.ai": {
     "text": "AI",
@@ -467,6 +467,10 @@
     "text": "Delegate",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/delegation.tsx, Ready: text inside <FieldLabel>."
   },
+  "approvals.delegation.delegate_approvals": {
+    "text": "Delegate approvals",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/delegation.tsx, Delegation: the title of <Header>."
+  },
   "approvals.delegation.from": {
     "text": "From",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/delegation.tsx, Ready: text inside <FieldLabel>."
@@ -506,10 +510,6 @@
   "approvals.delegation.removed": {
     "text": "Removed",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/delegation.tsx, Ready: the onClick of <Button>."
-  },
-  "approvals.delegation.requests": {
-    "text": "Requests",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/delegation.tsx, Delegation: the title of <PageHeader>."
   },
   "approvals.delegation.requests_never_get_stuck": {
     "text": "Requests never get stuck",
@@ -731,10 +731,6 @@
     "text": "A day in lieu is owed for each one.",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"why\" value."
   },
-  "attendance.exceptions.attendance": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Exceptions: the title of <PageHeader>."
-  },
   "attendance.exceptions.by_person": {
     "text": "{{title}}, by person",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the aria-label of <List>. Filled in: {{title}}."
@@ -749,11 +745,11 @@
   },
   "attendance.exceptions.everyone": {
     "text": "Everyone · {{monthLabel}}",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the description of <PageHeader>. Filled in: {{monthLabel}}."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <h2>. Filled in: {{monthLabel}}."
   },
   "attendance.exceptions.export_for_the_labour_inspector": {
     "text": "Export for the labour inspector",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the actions of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <a>."
   },
   "attendance.exceptions.export_for_the_labour_inspector_as": {
     "text": "Export for the labour inspector as PDF",
@@ -783,14 +779,6 @@
     "text": "Nothing needs you in {{monthLabel}}.",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <p>. Filled in: {{monthLabel}}."
   },
-  "attendance.exceptions.open": {
-    "text": "Open",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the trailing of <a>."
-  },
-  "attendance.exceptions.open_s": {
-    "text": "Open {{displayName}}’s {{date}}",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the aria-label of <a>. Filled in: {{displayName}}, {{date}}."
-  },
   "attendance.exceptions.over": {
     "text": "{{date}} · {{duration}} over",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"line\" value. Filled in: {{date}}, {{duration}}."
@@ -801,7 +789,7 @@
   },
   "attendance.exceptions.pdf": {
     "text": "PDF",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the actions of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <a>."
   },
   "attendance.exceptions.people_one": {
     "text": "{{count}} person",
@@ -846,10 +834,6 @@
   "attendance.month-nav.month": {
     "text": "Month",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/month-nav.tsx, MonthNav: the aria-label of <nav>."
-  },
-  "attendance.pay-period.attendance": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/pay-period.tsx, PayPeriod: the title of <PageHeader>."
   },
   "attendance.pay-period.closes_for_payroll_after": {
     "text": "{{monthName}} · closes for Payroll after {{date}}",
@@ -922,6 +906,10 @@
   "attendance.pay-period.paid_as": {
     "text": "Paid as",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/pay-period.tsx, Ready: text inside <TableHead>."
+  },
+  "attendance.pay-period.pay_period": {
+    "text": "Pay period",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/pay-period.tsx, PayPeriod: the title of <PageHeader>."
   },
   "attendance.pay-period.payroll_gets_hours_and_amounts_once": {
     "text": "Payroll gets hours, and amounts once pay rates are known, never punch times or locations.",
@@ -1039,10 +1027,6 @@
     "text": "{{minutes}} at {{multiplier}}×, sent to Payroll with the month.",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Decide: a \"description\" value. Filled in: {{minutes}}, {{multiplier}}."
   },
-  "attendance.requests.attendance": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, AttendanceRequests: the title of <PageHeader>."
-  },
   "attendance.requests.banked_hour_for_hour_to_take": {
     "text": "{{minutes}} banked, hour for hour, to take as time off.",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Decide: a \"description\" value. Filled in: {{minutes}}."
@@ -1115,6 +1099,10 @@
     "text": "{{displayName}} · {{duration}} overtime",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: text inside <ListItem>. Filled in: {{displayName}}, {{duration}}."
   },
+  "attendance.requests.overtime_and_corrections": {
+    "text": "Overtime and corrections",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, AttendanceRequests: the title of <PageHeader>."
+  },
   "attendance.requests.overtime_to_decide_late_one": {
     "text": "{{length}} overtime to decide, {{count}} late correction",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: the description of <PageHeader>. Filled in: {{count}}, {{length}}. Plural: the words for a {{count}} of one."
@@ -1138,14 +1126,6 @@
   "attendance.requests.saving": {
     "text": "Saving",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Decide: the loadingLabel of <Button>."
-  },
-  "attendance.requests.see": {
-    "text": "See",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: the trailing of <a>."
-  },
-  "attendance.requests.see_s_beside_the_original": {
-    "text": "See {{displayName}}’s {{weekdayName}} beside the original",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: the aria-label of <a>. Filled in: {{displayName}}, {{weekdayName}}."
   },
   "attendance.requests.the_last_month_your_manager_decides": {
     "text": "The last month. Your manager decides each day as comp time or pay.",
@@ -1171,6 +1151,14 @@
     "text": "Your overtime and where it stands",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: the description of <PageHeader>."
   },
+  "attendance.section.description": {
+    "text": "Clocked hours, breaks and overtime",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/section.ts, ATTENDANCE: a \"description\" value."
+  },
+  "attendance.section.title": {
+    "text": "Attendance",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/section.ts, ATTENDANCE: a \"title\" value."
+  },
   "attendance.team-now.added_afterwards": {
     "text": "{{date}} · added afterwards",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the description of <ListItem>. Filled in: {{date}}."
@@ -1178,10 +1166,6 @@
   "attendance.team-now.ai": {
     "text": "AI",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the action of <Badge>."
-  },
-  "attendance.team-now.attendance": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, TeamNow: the title of <PageHeader>."
   },
   "attendance.team-now.away": {
     "text": "Away",
@@ -1250,14 +1234,6 @@
   "attendance.team-now.review_overtime": {
     "text": "Review {{displayName}}’s overtime",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the aria-label of <a>. Filled in: {{displayName}}."
-  },
-  "attendance.team-now.to_you_one": {
-    "text": "{{count}} person reports to you",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the description of <PageHeader>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
-  },
-  "attendance.team-now.to_you_other": {
-    "text": "{{count}} people report to you",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the description of <PageHeader>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "attendance.team-now.today": {
     "text": "{{displayName}} today",
@@ -1350,10 +1326,6 @@
   "attendance.timesheet.around": {
     "text": "Around {{time}}",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, FixClockOut: the title of <AssistantCard>. Filled in: {{time}}."
-  },
-  "attendance.timesheet.attendance": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Timesheet: the title of <PageHeader>."
   },
   "attendance.timesheet.breaks": {
     "text": "Breaks",
@@ -1501,7 +1473,7 @@
   },
   "attendance.timesheet.scheduled": {
     "text": "{{monthName}} · {{planned}} scheduled",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the description of <PageHeader>. Filled in: {{monthName}}, {{planned}}."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: text inside <h2>. Filled in: {{monthName}}, {{planned}}."
   },
   "attendance.timesheet.show_by": {
     "text": "Show by",
@@ -1529,7 +1501,7 @@
   },
   "attendance.timesheet.week_of_scheduled": {
     "text": "Week of {{dayMonth}} · {{planned}} scheduled",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the description of <PageHeader>. Filled in: {{dayMonth}}, {{planned}}."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: text inside <h2>. Filled in: {{dayMonth}}, {{planned}}."
   },
   "attendance.timesheet.when_did_you_finish_on": {
     "text": "When did you finish on {{weekdayName}}?",
@@ -1669,7 +1641,7 @@
   },
   "calendar.calendar.calendar": {
     "text": "Calendar",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, TeamCalendar: the title of <PageHeader>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, TeamCalendar: the fallback of <Header>."
   },
   "calendar.calendar.change_waiting": {
     "text": "Change waiting",
@@ -1682,6 +1654,10 @@
   "calendar.calendar.days_off_across": {
     "text": "Days off across {{year}}",
     "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the label of <CalendarHeatmap>. Filled in: {{year}}."
+  },
+  "calendar.calendar.description": {
+    "text": "Who is away and when, by month, as a timeline or across the year",
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, TeamCalendar: the fallback of <Header>."
   },
   "calendar.calendar.feed_address": {
     "text": "Feed address",
@@ -2107,6 +2083,10 @@
     "text": "In {{section}}",
     "context": "Time Off: leave, absences, time tracking, policies. frame.tsx, ScreenFrame: the groups of <BreadcrumbMenu>. Filled in: {{section}}."
   },
+  "frame.more": {
+    "text": "More",
+    "context": "Time Off: leave, absences, time tracking, policies. frame.tsx, ScreenFrame: the aria-label of <Button>."
+  },
   "frame.page_tabs": {
     "text": "Page tabs",
     "context": "Time Off: leave, absences, time tracking, policies. frame.tsx, ScreenFrame: the label of <TertiaryNav>."
@@ -2207,33 +2187,21 @@
     "text": "Year",
     "context": "Time Off: leave, absences, time tracking, policies. holidays/holidays.tsx, Ready: the aria-label of <SegmentedControl>."
   },
-  "index.attendance": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. index.ts, Attendance: text built in code."
-  },
-  "index.browser.attendance": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. index.browser.ts, Attendance: text built in code."
-  },
   "insights.insights.above_the_carry_over_at_the": {
     "text": "Above the carry-over at the year end, if nothing more is booked",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, BalancesTab: the description of <PageSection>."
   },
   "insights.insights.across_the_company_as_of": {
-    "text": "Time off and attendance across the company · {{people}} · as of {{longDate}}",
-    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: the description of <PageHeader>. Filled in: {{people}}, {{longDate}}."
+    "text": "Across the company · {{people}} · as of {{longDate}}",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: text inside <p>. Filled in: {{people}}, {{longDate}}."
   },
   "insights.insights.ai": {
     "text": "AI",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, WhatChanged: the action of <Badge>."
   },
-  "insights.insights.by_month": {
-    "text": "By month",
-    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the title of <PageSection>."
-  },
-  "insights.insights.by_team": {
-    "text": "By team",
-    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the title of <PageSection>."
+  "insights.insights.attendance_by_month": {
+    "text": "Attendance by month",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, AttendanceTab: the title of <PageSection>."
   },
   "insights.insights.days_left": {
     "text": "{{left}} days left",
@@ -2259,9 +2227,13 @@
     "text": "Days taken by team",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the label of <Teams>."
   },
+  "insights.insights.description": {
+    "text": "What changed, time taken, attendance and balances across your people",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: the fallback of <Header>."
+  },
   "insights.insights.for_your_team_as_of": {
-    "text": "Time off and attendance for your team · {{people}} · as of {{longDate}}",
-    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: the description of <PageHeader>. Filled in: {{people}}, {{longDate}}."
+    "text": "Your team · {{people}} · as of {{longDate}}",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: text inside <p>. Filled in: {{people}}, {{longDate}}."
   },
   "insights.insights.groups_never_described_teams_left_out_one": {
     "text": "Groups under {{cohortMinimum}} people are never described, and sick leave is only ever a total for a group that size or larger. {{count}} smaller team is left out of the per-team figures.",
@@ -2293,7 +2265,7 @@
   },
   "insights.insights.insights": {
     "text": "Insights",
-    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: the title of <PageHeader>."
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: the fallback of <Header>."
   },
   "insights.insights.last_day_off": {
     "text": "Last day off {{lastDayOff}}",
@@ -2402,6 +2374,14 @@
   "insights.insights.this_month_so_far": {
     "text": "This month so far",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, AttendanceTab: the description of <ChartCard>."
+  },
+  "insights.insights.time_off_by_month": {
+    "text": "Time off by month",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the title of <PageSection>."
+  },
+  "insights.insights.time_off_by_team": {
+    "text": "Time off by team",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the title of <PageSection>."
   },
   "insights.insights.unbooked_days": {
     "text": "Unbooked days",
@@ -2776,27 +2756,23 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/negative-balance): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/adjustments.label": {
-    "text": "Balance adjustments",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/adjustments): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/approvals/adjustments.short": {
-    "text": "Adjustments",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/adjustments): its short name, on a tab under a finger."
+    "text": "Adjust a balance",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/approvals/adjustments): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/coming-up.label": {
     "text": "Coming up",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/coming-up): its name in the sidebar, the breadcrumb and the menus."
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Approvals (/time-off/approvals/coming-up): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/decided.label": {
     "text": "Decided",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/decided): its name in the sidebar, the breadcrumb and the menus."
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Approvals (/time-off/approvals/decided): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/delegation.label": {
-    "text": "Delegation",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/delegation): its name in the sidebar, the breadcrumb and the menus."
+    "text": "Delegate approvals",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/approvals/delegation): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/waiting.description": {
-    "text": "Requests waiting for a decision, and your own",
+    "text": "Time off waiting for your decision, coming up and decided",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): one sentence under its name in a menu or on a card."
   },
   "nav./time-off/approvals/waiting.group": {
@@ -2804,24 +2780,16 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): the heading of the group it is listed under."
   },
   "nav./time-off/approvals/waiting.label": {
-    "text": "My requests",
+    "text": "Approvals",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): its name in the sidebar, the breadcrumb and the menus."
   },
-  "nav./time-off/approvals/waiting.label_for.hr": {
-    "text": "Requests",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): its name for a viewer whose role is hr."
-  },
-  "nav./time-off/approvals/waiting.label_for.manager": {
-    "text": "Requests",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): its name for a viewer whose role is manager."
-  },
-  "nav./time-off/approvals/waiting.short": {
-    "text": "Waiting",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/waiting): its short name, on a tab under a finger."
-  },
   "nav./time-off/approvals/waiting.summary": {
-    "text": "Decisions and your own requests",
+    "text": "Decisions on other people's time off",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): a short line under its name on a phone’s row."
+  },
+  "nav./time-off/approvals/waiting.tab_label": {
+    "text": "Waiting",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Approvals (/time-off/approvals/waiting): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/exceptions.label": {
     "text": "Exceptions",
@@ -2829,14 +2797,10 @@
   },
   "nav./time-off/attendance/kiosk-code.label": {
     "text": "Kiosk code",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/kiosk-code): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/attendance/kiosk-code.short": {
-    "text": "Kiosk",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/kiosk-code): its short name, on a tab under a finger."
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/attendance/kiosk-code): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/now.description": {
-    "text": "Your timesheet and schedule; for managers and HR, who is in and what needs fixing",
+    "text": "Clocked hours, breaks and overtime",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): one sentence under its name in a menu or on a card."
   },
   "nav./time-off/attendance/now.group": {
@@ -2848,39 +2812,27 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/now.summary": {
-    "text": "Timesheets and schedules",
+    "text": "Timesheets and who is in",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): a short line under its name on a phone’s row."
   },
-  "nav./time-off/attendance/pay-period.label": {
-    "text": "Pay period",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/pay-period): its name in the sidebar, the breadcrumb and the menus."
+  "nav./time-off/attendance/now.tab_label": {
+    "text": "Today",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/now): its name in the sidebar, the breadcrumb and the menus."
   },
-  "nav./time-off/attendance/pay-period.short": {
-    "text": "Period",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/pay-period): its short name, on a tab under a finger."
+  "nav./time-off/attendance/pay-period.label": {
+    "text": "Close the pay period",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/attendance/pay-period): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/requests.label": {
-    "text": "Requests",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/requests): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/attendance/schedule.label": {
-    "text": "Schedule",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/schedule): its name in the sidebar, the breadcrumb and the menus."
+    "text": "Overtime and corrections",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/attendance/requests): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/timesheet.label": {
-    "text": "My timesheet",
+    "text": "My week",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/timesheet): its name in the sidebar, the breadcrumb and the menus."
   },
-  "nav./time-off/attendance/timesheet.short": {
-    "text": "Mine",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/timesheet): its short name, on a tab under a finger."
-  },
-  "nav./time-off/attendance/timesheets.label": {
-    "text": "Timesheets",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/timesheets): its name in the sidebar, the breadcrumb and the menus."
-  },
   "nav./time-off/calendar/month.description": {
-    "text": "Who is away, by month, as a timeline or across the year",
+    "text": "Who is away and when, by month, as a timeline or across the year",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/calendar/month): one sentence under its name in a menu or on a card."
   },
   "nav./time-off/calendar/month.group": {
@@ -2895,6 +2847,10 @@
     "text": "Who is away, and when",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/calendar/month): a short line under its name on a phone’s row."
   },
+  "nav./time-off/calendar/month.tab_label": {
+    "text": "Month",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Calendar (/time-off/calendar/month): its name in the sidebar, the breadcrumb and the menus."
+  },
   "nav./time-off/calendar/timeline.label": {
     "text": "Timeline",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Calendar (/time-off/calendar/timeline): its name in the sidebar, the breadcrumb and the menus."
@@ -2903,36 +2859,24 @@
     "text": "Year",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Calendar (/time-off/calendar/year): its name in the sidebar, the breadcrumb and the menus."
   },
-  "nav./time-off/insights/attendance.label": {
-    "text": "Attendance",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Insights (/time-off/insights/attendance): its name in the sidebar, the breadcrumb and the menus."
+  "nav./time-off/insights.description": {
+    "text": "What changed, time taken, attendance and balances across your people",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights): one sentence under its name in a menu or on a card."
   },
-  "nav./time-off/insights/balances.label": {
-    "text": "Balances",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Insights (/time-off/insights/balances): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/insights/time-off.label": {
+  "nav./time-off/insights.group": {
     "text": "Time off",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Insights (/time-off/insights/time-off): its name in the sidebar, the breadcrumb and the menus."
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights): the heading of the group it is listed under."
   },
-  "nav./time-off/insights/what-changed.description": {
-    "text": "Unbooked days, people who have not had a break, and attendance trends",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): one sentence under its name in a menu or on a card."
-  },
-  "nav./time-off/insights/what-changed.group": {
-    "text": "Time off",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): the heading of the group it is listed under."
-  },
-  "nav./time-off/insights/what-changed.label": {
+  "nav./time-off/insights.label": {
     "text": "Insights",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): its name in the sidebar, the breadcrumb and the menus."
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights): its name in the sidebar, the breadcrumb and the menus."
   },
-  "nav./time-off/insights/what-changed.summary": {
+  "nav./time-off/insights.summary": {
     "text": "Trends across the company",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): a short line under its name on a phone’s row."
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights): a short line under its name on a phone’s row."
   },
   "nav./time-off/overview.description": {
-    "text": "Your balances, the clock, what is coming up and who is away",
+    "text": "Your balances, what is coming up, and who is away",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/overview): one sentence under its name in a menu or on a card."
   },
   "nav./time-off/overview.group": {
@@ -2948,28 +2892,12 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/overview): a short line under its name on a phone’s row."
   },
   "nav./time-off/parental/cases.label": {
-    "text": "Parental leave",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/parental/cases): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/parental/cases.short": {
-    "text": "Parental",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/parental/cases): its short name, on a tab under a finger."
+    "text": "Parental leave cases",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/parental/cases): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/request.label": {
     "text": "Request time off",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/request): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/requests/cancelled.label": {
-    "text": "Cancelled",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/requests/cancelled): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/requests/past.label": {
-    "text": "Past",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/requests/past): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./time-off/requests/upcoming.label": {
-    "text": "Upcoming",
-    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/requests/upcoming): its name in the sidebar, the breadcrumb and the menus."
   },
   "overview.overview.a_year": {
     "text": "{{yearly}} a year",
@@ -3049,7 +2977,7 @@
   },
   "overview.overview.good": {
     "text": "Good {{partOfDay}}, {{firstName}}",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Ready: the title of <PageHeader>. Filled in: {{partOfDay}}, {{firstName}}."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Ready: the title of <Header>. Filled in: {{partOfDay}}, {{firstName}}."
   },
   "overview.overview.h": {
     "text": "{{h}}h",
@@ -3161,7 +3089,7 @@
   },
   "overview.overview.time_off": {
     "text": "Time off",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Overview: the title of <PageHeader>."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Overview: the title of <Header>."
   },
   "overview.overview.time_off_does_not_have_you": {
     "text": "Time Off does not have you as an employee yet, so there are no balances to show or time off to request. There will be once HR hires you in People.",
@@ -3214,6 +3142,10 @@
   "overview.overview.your_day_is": {
     "text": "Your day is {{plannedMinutes}}",
     "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ClockCard: text built in code. Filled in: {{plannedMinutes}}."
+  },
+  "overview.overview.your_requests": {
+    "text": "Your requests",
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: the actions of <a>."
   },
   "overview.overview.your_team_today": {
     "text": "Your team today",
@@ -4107,10 +4039,6 @@
     "text": "Your plan",
     "context": "Time Off: leave, absences, time tracking, policies. parental/shared.tsx, PlanTrack: the label of <TimelineChart>."
   },
-  "placeholder.loading": {
-    "text": "Loading {{title}}",
-    "context": "Time Off: leave, absences, time tracking, policies. placeholder.tsx, Placeholder: the label of <Skeleton>. Filled in: {{title}}."
-  },
   "request.describe.about_2_one": {
     "text": "About {{count}} day",
     "context": "Time Off: leave, absences, time tracking, policies. request/describe.tsx, Described: text inside <SelectItem>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
@@ -4651,6 +4579,10 @@
     "text": "Cancelled",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value."
   },
+  "requests.requests.cancelled_view": {
+    "text": "Cancelled",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, SHOW_LABEL: text built in code."
+  },
   "requests.requests.change": {
     "text": "Change {{label}}",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: text inside <DialogTitle>. Filled in: {{label}}."
@@ -4703,10 +4635,6 @@
     "text": "Move the dates",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: text inside <RadioCard>."
   },
-  "requests.requests.my_requests": {
-    "text": "My requests",
-    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, MyRequests: the title of <PageHeader>."
-  },
   "requests.requests.new_dates": {
     "text": "New dates",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the label of <Calendar>."
@@ -4743,9 +4671,17 @@
     "text": "Paid vacation, so your pay stays the same.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
   },
+  "requests.requests.past": {
+    "text": "Past",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, SHOW_LABEL: text built in code."
+  },
   "requests.requests.pick_new_dates_the_old_ones": {
     "text": "Pick new dates. The old ones stay booked until the new ones are approved.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the description of <RadioCard>."
+  },
+  "requests.requests.request_description": {
+    "text": "{{days}} · {{status}}",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Ready: the description of <Header>. Filled in: {{days}}, {{status}}."
   },
   "requests.requests.sent": {
     "text": "Sent",
@@ -4777,7 +4713,7 @@
   },
   "requests.requests.text": {
     "text": "{{value}}{{leaveTypeName}} · {{spanLabel}}",
-    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Ready: text built in code. Filled in: {{value}}, {{leaveTypeName}}, {{spanLabel}}."
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Ready: the title of <Header>. Filled in: {{value}}, {{leaveTypeName}}, {{spanLabel}}."
   },
   "requests.requests.text_2": {
     "text": "{{spanLabel}} · {{days}}",
@@ -4807,6 +4743,10 @@
     "text": "Up to {{days}} back",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the impact of <RadioCard>. Filled in: {{days}}."
   },
+  "requests.requests.upcoming": {
+    "text": "Upcoming",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, SHOW_LABEL: text built in code."
+  },
   "requests.requests.waiting_for": {
     "text": "Waiting for {{role}}",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value. Filled in: {{role}}."
@@ -4818,6 +4758,10 @@
   "requests.requests.what_to_do": {
     "text": "What to do",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the aria-label of <RadioGroup>."
+  },
+  "requests.requests.which_requests": {
+    "text": "Which requests",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Ready: the aria-label of <SegmentedControl>."
   },
   "requests.requests.withdraw": {
     "text": "Withdraw {{label}}",
@@ -4858,6 +4802,14 @@
   "requests.requests.your_requests": {
     "text": "your requests",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, MyRequests: the what of <Loaded>."
+  },
+  "requests.requests.your_requests_description": {
+    "text": "Everything you asked for, and where each request stands",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ListHeader: the description of <Header>."
+  },
+  "requests.requests.your_requests_title": {
+    "text": "Your requests",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ListHeader: the title of <Header>."
   },
   "requests.requests.youre_off": {
     "text": "You’re off",

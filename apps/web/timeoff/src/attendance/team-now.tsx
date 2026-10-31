@@ -5,7 +5,6 @@ import {
   Button,
   List,
   ListItem,
-  PageHeader,
   PageSection,
   Skeleton,
   Stat,
@@ -27,6 +26,8 @@ import {
   type WorkModel,
 } from './time';
 import { t } from '../i18n';
+import { Header } from '../frame';
+import { ATTENDANCE } from './section';
 
 /**
  * Team, right now (T22, MT19, PRD §11.6): a calm live board of the people who
@@ -75,9 +76,7 @@ export function TeamNow({ load }: TeamNowProps): JSX.Element {
   if (load.status === 'loading') return <TeamNowSkeleton />;
   return (
     <div className="@container/now flex flex-col gap-6">
-      {load.status === 'error' ? (
-        <PageHeader title={t('attendance.team-now.attendance', 'Attendance')} />
-      ) : null}
+      {load.status === 'error' ? <Header fallback={ATTENDANCE()} /> : null}
       <Loaded
         load={load}
         what={t('attendance.team-now.your_team_right_now', 'your team right now')}
@@ -181,14 +180,7 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
 
   return (
     <>
-      <PageHeader
-        title={t('attendance.team-now.attendance', 'Attendance')}
-        description={t(
-          'attendance.team-now.to_you',
-          { one: '{{count}} person reports to you', other: '{{count}} people report to you' },
-          { count: data.people.length },
-        )}
-      />
+      <Header fallback={ATTENDANCE()} />
       <div className={body}>
         <div className="flex min-w-0 flex-col gap-5">
           <div className={counts}>
@@ -293,11 +285,8 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
                     trailing={
                       <Button size="xs" asChild>
                         <a
-                          href={
-                            n.kind === 'overtime'
-                              ? '/time-off/attendance/requests'
-                              : `/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`
-                          }
+                          // Overtime and late corrections are decided in one place.
+                          href="/time-off/attendance/requests"
                           aria-label={
                             n.kind === 'correction'
                               ? t(
@@ -359,7 +348,7 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
 export function TeamNowSkeleton(): JSX.Element {
   return (
     <div className="@container/now flex flex-col gap-6">
-      <PageHeader title={t('attendance.team-now.attendance', 'Attendance')} description={' '} />
+      <Header fallback={ATTENDANCE()} />
       <div role="status" className={body}>
         <span className="sr-only">
           {t('attendance.team-now.loading_your_team_right_now', 'Loading your team right now')}

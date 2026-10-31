@@ -8,7 +8,6 @@ import {
   dateFormat,
   List,
   ListItem,
-  PageHeader,
   PageSection,
   Separator,
   Skeleton,
@@ -27,6 +26,7 @@ import { Loaded, type Loadable } from '../load';
 import { amount, longDate, shortDate } from '../words';
 import { Nudge, type NudgeData, type NudgeProps } from './nudge';
 import { t as tr } from '../i18n';
+import { Header } from '../frame';
 
 /**
  * Insights (T27, PRD §14.2): time off and attendance across the company for
@@ -42,10 +42,8 @@ import { t as tr } from '../i18n';
  */
 
 type PointKind = 'unbooked' | 'no_break' | 'missed_clock_outs' | 'overtime';
-export type InsightsTab = 'what-changed' | 'time-off' | 'attendance' | 'balances';
 
 export interface InsightsData {
-  readonly tab: InsightsTab;
   /** The point whose people are open beside it. */
   readonly point: string | null;
   readonly asOf: string;
@@ -131,31 +129,46 @@ export function Insights({ load, onAsk, onSendNudges }: InsightsProps): JSX.Elem
   return (
     <div className="@container/insights flex flex-col gap-6">
       {load.status === 'error' ? (
-        <PageHeader title={tr('insights.insights.insights', 'Insights')} />
+        <Header
+          fallback={{
+            title: tr('insights.insights.insights', 'Insights'),
+            description: tr(
+              'insights.insights.description',
+              'What changed, time taken, attendance and balances across your people',
+            ),
+          }}
+        />
       ) : null}
       <Loaded load={load} what={tr('insights.insights.the_insights', 'the insights')}>
         {(data) => (
           <>
-            <PageHeader
-              title={tr('insights.insights.insights', 'Insights')}
-              description={
-                data.scope === 'company'
-                  ? tr(
-                      'insights.insights.across_the_company_as_of',
-                      'Time off and attendance across the company · {{people}} · as of {{longDate}}',
-                      { people: people(data.people.length), longDate: longDate(data.asOf) },
-                    )
-                  : tr(
-                      'insights.insights.for_your_team_as_of',
-                      'Time off and attendance for your team · {{people}} · as of {{longDate}}',
-                      { people: people(data.people.length), longDate: longDate(data.asOf) },
-                    )
-              }
+            <Header
+              fallback={{
+                title: tr('insights.insights.insights', 'Insights'),
+                description: tr(
+                  'insights.insights.description',
+                  'What changed, time taken, attendance and balances across your people',
+                ),
+              }}
             />
-            {data.tab === 'what-changed' ? <WhatChanged data={data} /> : null}
-            {data.tab === 'time-off' ? <TimeOffTab data={data} /> : null}
-            {data.tab === 'attendance' ? <AttendanceTab data={data} /> : null}
-            {data.tab === 'balances' ? <BalancesTab data={data} /> : null}
+            <p className="-mt-2 text-sm text-fg-muted">
+              {data.scope === 'company'
+                ? tr(
+                    'insights.insights.across_the_company_as_of',
+                    'Across the company · {{people}} · as of {{longDate}}',
+                    { people: people(data.people.length), longDate: longDate(data.asOf) },
+                  )
+                : tr(
+                    'insights.insights.for_your_team_as_of',
+                    'Your team · {{people}} · as of {{longDate}}',
+                    { people: people(data.people.length), longDate: longDate(data.asOf) },
+                  )}
+            </p>
+            {/* One page, read top to bottom: what changed first, then the detail behind it. */}
+            <WhatChanged data={data} />
+            <TimeOffTab data={data} />
+            <AttendanceTab data={data} />
+            <BalancesTab data={data} />
             <p className="text-xs text-fg-muted">
               {data.hiddenTeams === 0
                 ? tr(
@@ -194,7 +207,8 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
   const month = data.asOf.slice(0, 7);
   const open = data.points.find((p) => p.kind === data.point && p.personIds.length > 0);
   return (
-    <div className={body}>
+    // The people behind a point open beside it; until then the points have the width.
+    <div className={open === undefined ? undefined : body}>
       <AssistantCard
         level={2}
         title={tr(
@@ -244,7 +258,7 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
                       {p.personIds.length === 0 || BEHIND[p.kind] === '' ? null : (
                         <Button asChild size="xs" variant="ghost">
                           <a
-                            href={`/time-off/insights/what-changed?point=${p.kind}`}
+                            href={`/time-off/insights?point=${p.kind}`}
                             aria-label={tr(
                               'insights.insights.see_the',
                               'See the {{length}}: {{BEHIND}}',
@@ -265,7 +279,7 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
           </ol>
         )}
       </AssistantCard>
-      {open === undefined ? <DaysTaken data={data} /> : <Behind data={data} point={open} />}
+      {open === undefined ? null : <Behind data={data} point={open} />}
     </div>
   );
 }
@@ -291,7 +305,7 @@ function Behind({
       actions={
         point.kind === 'no_break' ? (
           <Button asChild size="sm" variant="primary">
-            <a href={`/time-off/insights/what-changed?point=no_break&nudge=no_break`}>
+            <a href={`/time-off/insights?point=no_break&nudge=no_break`}>
               {tr('insights.insights.nudge_the', 'Nudge the {{length}}', {
                 length: String(who.length),
               })}
@@ -424,10 +438,10 @@ function Teams({
 function TimeOffTab({ data }: { readonly data: InsightsData }): JSX.Element {
   return (
     <div className={body}>
-      <PageSection title={tr('insights.insights.by_month', 'By month')}>
+      <PageSection title={tr('insights.insights.time_off_by_month', 'Time off by month')}>
         <DaysTaken data={data} />
       </PageSection>
-      <PageSection title={tr('insights.insights.by_team', 'By team')} surface>
+      <PageSection title={tr('insights.insights.time_off_by_team', 'Time off by team')} surface>
         <Teams
           data={data}
           label={tr('insights.insights.days_taken_by_team', 'Days taken by team')}
@@ -443,7 +457,7 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
   const now = data.months.at(-1);
   return (
     <div className={body}>
-      <PageSection title={tr('insights.insights.by_month', 'By month')}>
+      <PageSection title={tr('insights.insights.attendance_by_month', 'Attendance by month')}>
         <ChartCard
           title={tr('insights.insights.missed_clock_outs_by_month', 'Missed clock-outs by month')}
           value={String(now?.missedClockOuts ?? 0)}
@@ -556,7 +570,15 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
 export function InsightsSkeleton(): JSX.Element {
   return (
     <div className="@container/insights flex flex-col gap-6">
-      <PageHeader title={tr('insights.insights.insights', 'Insights')} description={' '} />
+      <Header
+        fallback={{
+          title: tr('insights.insights.insights', 'Insights'),
+          description: tr(
+            'insights.insights.description',
+            'What changed, time taken, attendance and balances across your people',
+          ),
+        }}
+      />
       <div role="status" className={body}>
         <span className="sr-only">
           {tr('insights.insights.loading_the_insights', 'Loading the insights')}

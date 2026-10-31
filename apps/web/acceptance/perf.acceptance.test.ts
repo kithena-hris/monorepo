@@ -687,7 +687,7 @@ describe(`Every page at ${String(N)} people`, () => {
     }
     for (const [name, path] of [
       ['approvals', '/time-off/approvals/waiting'],
-      ['requests', '/time-off/requests/upcoming'],
+      ['attendance', '/time-off/attendance/now'],
     ] as const) {
       const target = link(page, path);
       if (!(await reach(page, target))) continue;

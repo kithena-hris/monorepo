@@ -3903,6 +3903,10 @@
     "text": "Cycles",
     "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): a short line under its name on a phone’s row."
   },
+  "nav./performance/cycles.tab_label": {
+    "text": "Cycles",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Cycles (/performance/cycles): its name in the sidebar, the breadcrumb and the menus."
+  },
   "nav./performance/feedback.description": {
     "text": "Feedback and praise, given whenever it is useful",
     "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): one sentence under its name in a menu or on a card."
@@ -3918,6 +3922,10 @@
   "nav./performance/feedback.summary": {
     "text": "Feedback",
     "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): a short line under its name on a phone’s row."
+  },
+  "nav./performance/feedback.tab_label": {
+    "text": "Received",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/feedback): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./performance/feedback/praise.label": {
     "text": "Praise",
@@ -3946,6 +3954,10 @@
   "nav./performance/goals.summary": {
     "text": "Goals",
     "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): a short line under its name on a phone’s row."
+  },
+  "nav./performance/goals.tab_label": {
+    "text": "Mine",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Goals (/performance/goals): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./performance/goals/company.label": {
     "text": "Company",
@@ -3987,6 +3999,10 @@
     "text": "Learning",
     "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): a short line under its name on a phone’s row."
   },
+  "nav./performance/learning.tab_label": {
+    "text": "My learning",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Learning (/performance/learning): its name in the sidebar, the breadcrumb and the menus."
+  },
   "nav./performance/learning/catalogue.label": {
     "text": "Catalogue",
     "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Learning (/performance/learning/catalogue): its name in the sidebar, the breadcrumb and the menus."
@@ -4014,6 +4030,10 @@
   "nav./performance/reviews.summary": {
     "text": "Reviews",
     "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): a short line under its name on a phone’s row."
+  },
+  "nav./performance/reviews.tab_label": {
+    "text": "I owe",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of My reviews (/performance/reviews): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./performance/reviews/done.label": {
     "text": "Done",

@@ -49,6 +49,8 @@ const Tab = z.object({
    * "Waiting" (`label`) for the rest.
    */
   labelFor: z.record(z.string(), z.string().min(1)).optional(),
+  /** An action that is not the page's one thing: in the header's More menu, not a button. */
+  menu: z.boolean().optional(),
 });
 const Place = Tab.extend({
   /** A shorter line than `description`, under the label on a phone's row. */

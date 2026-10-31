@@ -142,11 +142,12 @@ const sections = () => {
 describe('Time off in the shell', () => {
   it('lists an employee’s sections under Time off, without Insights, the current one marked', () => {
     renderShell({ hr: false, admin: false, finance: false });
-    expect(sections()).toEqual(['Overview', 'Calendar', 'My requests', 'Attendance']);
+    expect(sections()).toEqual(['Overview', 'Calendar', 'Attendance']);
     const list = within(screen.getByRole('navigation', { name: 'Time off sections' }));
     expect(list.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
-    expect(list.getByRole('link', { name: 'My requests' }).getAttribute('href')).toBe(
-      '/time-off/requests/upcoming',
+    // An employee's Attendance opens on their own week: Today is the team's.
+    expect(list.getByRole('link', { name: 'Attendance' }).getAttribute('href')).toBe(
+      '/time-off/attendance/timesheet',
     );
   });
 
@@ -162,22 +163,22 @@ describe('Time off in the shell', () => {
         counts: { requestsWaiting: 2, attendanceExceptions: 1 },
       },
     );
-    // Each count is read out after its section: "Requests 2 waiting".
+    // Each count is read out after its section: "Approvals 2 waiting".
     expect(sections()).toEqual([
       'Overview',
+      'Approvals2 waiting',
       'Calendar',
-      'Requests2 waiting',
       'Attendance1 waiting',
       'Insights',
     ]);
     const list = within(screen.getByRole('navigation', { name: 'Time off sections' }));
-    expect(list.getByRole('link', { name: /^Requests/ }).getAttribute('href')).toBe(
+    expect(list.getByRole('link', { name: /^Approvals/ }).getAttribute('href')).toBe(
       '/time-off/approvals/waiting',
     );
   });
 
   it('keeps Adam, who approves nobody, on his own requests, with no queue and no counts', () => {
-    pathname = '/time-off/requests/upcoming';
+    pathname = '/time-off/requests';
     renderShell(
       { hr: false, admin: false, finance: false },
       {
@@ -187,17 +188,17 @@ describe('Time off in the shell', () => {
         counts: { requestsWaiting: 0, attendanceExceptions: 0 },
       },
     );
-    expect(sections()).toEqual(['Overview', 'Calendar', 'My requests', 'Attendance']);
+    expect(sections()).toEqual(['Overview', 'Calendar', 'Attendance']);
     expect(screen.queryByText(/waiting/)).toBeNull();
   });
 
-  it('gives HR Insights, and their Requests open on what waits for them', () => {
+  it('gives HR Insights, and their Approvals open on what waits for them', () => {
     pathname = '/time-off/approvals/decided';
     renderShell({ hr: true, admin: false, finance: false });
-    expect(sections()).toEqual(['Overview', 'Calendar', 'Requests', 'Attendance', 'Insights']);
+    expect(sections()).toEqual(['Overview', 'Approvals', 'Calendar', 'Attendance', 'Insights']);
     const requests = within(
       screen.getByRole('navigation', { name: 'Time off sections' }),
-    ).getByRole('link', { name: 'Requests' });
+    ).getByRole('link', { name: 'Approvals' });
     expect(requests.getAttribute('href')).toBe('/time-off/approvals/waiting');
     expect(requests.getAttribute('aria-current')).toBe('page');
   });
