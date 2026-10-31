@@ -1335,25 +1335,37 @@
     "text": "across {{peopleCount}}",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: text inside <p>. Filled in: {{peopleCount}}."
   },
-  "completeness.completeness-grid.action": {
-    "text": "Action",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <span>."
-  },
   "completeness.completeness-grid.already_filled_in": {
     "text": "Already filled in",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: the aria-label of <span>."
+  },
+  "completeness.completeness-grid.any_field": {
+    "text": "Any missing field",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the filters of <SelectItem>."
   },
   "completeness.completeness-grid.back_to_the_list": {
     "text": "Back to the list",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: text inside <Button>."
   },
-  "completeness.completeness-grid.bank_tax_or_id_details": {
-    "text": "Bank, tax or ID details",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the description of <Stat>."
+  "completeness.completeness-grid.blocking_payroll_count_one": {
+    "text": "{{count}} blocks payroll",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <Badge>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
-  "completeness.completeness-grid.blocking_payroll": {
-    "text": "Blocking payroll",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the label of <Stat>."
+  "completeness.completeness-grid.blocking_payroll_count_other": {
+    "text": "{{count}} block payroll",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <Badge>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "completeness.completeness-grid.by_manager": {
+    "text": "By manager",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, GROUP_LABEL: text built in code."
+  },
+  "completeness.completeness-grid.by_missing_field": {
+    "text": "By missing field",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, GROUP_LABEL: text built in code."
+  },
+  "completeness.completeness-grid.by_team": {
+    "text": "By team",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, GROUP_LABEL: text built in code."
   },
   "completeness.completeness-grid.cancel": {
     "text": "Cancel",
@@ -1363,17 +1375,9 @@
     "text": "Check the marked cells. If they’re correct, save anyway and HR will review them.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: text inside <Alert>."
   },
-  "completeness.completeness-grid.complete": {
-    "text": "Complete",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the label of <Stat>."
-  },
-  "completeness.completeness-grid.complete_2": {
-    "text": "complete",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <span>."
-  },
-  "completeness.completeness-grid.complete_records_by_month": {
-    "text": "Complete records by month",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the label of <Sparkline>."
+  "completeness.completeness-grid.clear": {
+    "text": "Clear",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the filters of <Button>."
   },
   "completeness.completeness-grid.could_not_be_sent": {
     "text": "{{n}} could not be sent.",
@@ -1415,10 +1419,6 @@
     "text": "Each person’s edits go out as one change. Sensitive values wait for approval; doubted identifiers go to HR’s review.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: text inside <p>."
   },
-  "completeness.completeness-grid.employee": {
-    "text": "Employee",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, WhoFills: text inside <Badge>."
-  },
   "completeness.completeness-grid.every_gap_left_is_a_persons": {
     "text": "Every gap left is a person’s own: remind them from the list.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: the description of <EmptyState>."
@@ -1426,6 +1426,10 @@
   "completeness.completeness-grid.every_required_field_has_a_value": {
     "text": "Every required field has a value for everybody it applies to.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, NOTHING: text built in code."
+  },
+  "completeness.completeness-grid.every_team": {
+    "text": "Every team",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the filters of <SelectItem>."
   },
   "completeness.completeness-grid.fill_in": {
     "text": "Fill in",
@@ -1447,17 +1451,13 @@
     "text": "Fill in for HR",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: text inside <h2>."
   },
-  "completeness.completeness-grid.fill_them_in_below": {
-    "text": "Fill them in below",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the description of <Stat>."
+  "completeness.completeness-grid.find_a_person": {
+    "text": "Find a person",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the aria-label of <SearchField>."
   },
   "completeness.completeness-grid.for": {
     "text": "{{label}} for {{name}}",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Cell: text built in code. Filled in: {{label}}, {{name}}."
-  },
-  "completeness.completeness-grid.for_hr_to_fill_in": {
-    "text": "For HR to fill in",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the label of <Stat>."
   },
   "completeness.completeness-grid.for_hrs_approval_and_not_applied_one": {
     "text": "{{count}} value waits for HR’s approval and is not applied until then.",
@@ -1467,37 +1467,81 @@
     "text": "{{count}} values wait for HR’s approval and are not applied until then.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"text\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
-  "completeness.completeness-grid.hr": {
-    "text": "HR",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, WhoFills: text inside <Badge>."
+  "completeness.completeness-grid.for_you": {
+    "text": "For you to fill in",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <SegmentedControlItem>."
+  },
+  "completeness.completeness-grid.group_by": {
+    "text": "Group by",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the aria-label of <SelectTrigger>."
   },
   "completeness.completeness-grid.hr_keeps_nothing_is_saved_until": {
     "text": "{{details}} HR keeps. Nothing is saved until you press Save.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, PersonFill: text inside <DialogDescription>. Filled in: {{details}}."
   },
-  "completeness.completeness-grid.last_reminded": {
-    "text": "Last reminded {{shortDay}}",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the description of <Stat>. Filled in: {{shortDay}}."
+  "completeness.completeness-grid.lane_employees_hint": {
+    "text": "Each person fills in their own. They are reminded by email once a week.",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <p>."
+  },
+  "completeness.completeness-grid.lane_employees_hint_last": {
+    "text": "Each person fills in their own. Reminded by email once a week, last {{shortDay}}.",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <p>. Filled in: {{shortDay}}."
+  },
+  "completeness.completeness-grid.lane_hr_hint": {
+    "text": "Only HR can fill these in. Fill in one person, or everybody at once in a grid.",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <p>."
   },
   "completeness.completeness-grid.missing": {
     "text": "Missing: {{join}}",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the description of <ListItem>. Filled in: {{join}}."
-  },
-  "completeness.completeness-grid.missing_2": {
-    "text": "Missing",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx: text built in code. Filled in: {{join}}."
   },
   "completeness.completeness-grid.missing_details_for": {
     "text": "Missing details for {{name}}",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, PersonFill: the section of <SectionForm>. Filled in: {{name}}."
   },
+  "completeness.completeness-grid.missing_field": {
+    "text": "Missing field",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the aria-label of <SelectTrigger>."
+  },
   "completeness.completeness-grid.missing_information": {
     "text": "Missing information",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the title of <PageSection>."
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the label of <VirtualList>."
+  },
+  "completeness.completeness-grid.missing_more": {
+    "text": "Missing: {{shown}} +{{count}}",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx: text built in code. Filled in: {{shown}}, {{count}}."
   },
   "completeness.completeness-grid.missing_values": {
     "text": "Missing values",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: the label of <DataTable>."
+  },
+  "completeness.completeness-grid.no_grouping": {
+    "text": "No grouping",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, GROUP_LABEL: text built in code."
+  },
+  "completeness.completeness-grid.no_manager": {
+    "text": "No manager",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx: text built in code."
+  },
+  "completeness.completeness-grid.no_match": {
+    "text": "Nobody matches",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"title\" value."
+  },
+  "completeness.completeness-grid.no_match_body": {
+    "text": "Nobody loaded so far matches the search or the filters. Clear them to see everybody.",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"body\" value."
+  },
+  "completeness.completeness-grid.no_team": {
+    "text": "No team",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the filters of <SelectItem>."
+  },
+  "completeness.completeness-grid.nobody_waiting": {
+    "text": "Nobody to chase",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"title\" value."
+  },
+  "completeness.completeness-grid.nobody_waiting_body": {
+    "text": "Everybody has filled in what they were asked for.",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"body\" value."
   },
   "completeness.completeness-grid.nobody_was_due_a_reminder": {
     "text": "Nobody was due a reminder.",
@@ -1515,6 +1559,14 @@
     "text": "Nothing for HR to fill in",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: the title of <EmptyState>."
   },
+  "completeness.completeness-grid.nothing_for_you": {
+    "text": "Nothing for you to fill in",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"title\" value."
+  },
+  "completeness.completeness-grid.nothing_for_you_body": {
+    "text": "Every field HR fills in has a value. Gaps people fill in themselves are under Waiting on employees.",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"body\" value."
+  },
   "completeness.completeness-grid.nothing_is_missing": {
     "text": "Nothing is missing",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, NOTHING: text built in code."
@@ -1531,21 +1583,17 @@
     "text": "Our checks suggest this may be wrong: {{join}}",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx: text built in code. Filled in: {{join}}."
   },
+  "completeness.completeness-grid.percent_complete": {
+    "text": "{{percent}}% complete",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <span>. Filled in: {{percent}}."
+  },
   "completeness.completeness-grid.person": {
     "text": "Person",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"header\" value."
-  },
-  "completeness.completeness-grid.pts": {
-    "text": "{{value}}{{abs}} pts",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <Stat>. Filled in: {{value}}, {{abs}}."
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: a \"header\" value."
   },
   "completeness.completeness-grid.records_complete": {
     "text": "Records complete",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the label of <Progress>."
-  },
-  "completeness.completeness-grid.records_incomplete": {
-    "text": "{{toLocaleString}} records incomplete",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <Stat>. Filled in: {{toLocaleString}}."
   },
   "completeness.completeness-grid.remind": {
     "text": "Remind",
@@ -1566,10 +1614,6 @@
   "completeness.completeness-grid.reminded_2": {
     "text": "Reminded {{name}}",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the aria-label of <Button>. Filled in: {{name}}."
-  },
-  "completeness.completeness-grid.reminded_by_email_once_a_week": {
-    "text": "Reminded by email once a week",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the description of <Stat>."
   },
   "completeness.completeness-grid.save": {
     "text": "Save",
@@ -1623,6 +1667,10 @@
     "text": "{{count}} details{{value2}}. Tab moves across, ↵ moves down. Nothing is saved until you press Save.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, FillGrid: text inside <p>. Filled in: {{count}}, {{value2}}. Plural: the words for any other {{count}}."
   },
+  "completeness.completeness-grid.team": {
+    "text": "Team",
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the aria-label of <SelectTrigger>."
+  },
   "completeness.completeness-grid.text_one": {
     "text": "{{count}} detail",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, PersonFill: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
@@ -1635,10 +1683,6 @@
     "text": "That reminder was not sent",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the title of <Alert>."
   },
-  "completeness.completeness-grid.this_month": {
-    "text": "this month",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <Stat>."
-  },
   "completeness.completeness-grid.to_hrs_review_one": {
     "text": "{{count}} value our checks doubted went to HR’s review.",
     "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"text\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
@@ -1649,15 +1693,11 @@
   },
   "completeness.completeness-grid.waiting_on_employees": {
     "text": "Waiting on employees",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the label of <Stat>."
-  },
-  "completeness.completeness-grid.waiting_on_employees_for_hr": {
-    "text": "waiting on employees · {{toLocaleString}} for HR",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <p>. Filled in: {{toLocaleString}}."
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: text inside <SegmentedControlItem>."
   },
   "completeness.completeness-grid.who_fills_it_in": {
     "text": "Who fills it in",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, Missing: the aria-label of <SegmentedControl>."
   },
   "directory.directory.a_to_z": {
     "text": "A to Z",
@@ -8151,9 +8191,21 @@
     "text": "Lapsed",
     "context": "People: employee records, org chart, HR settings. review/review.tsx, ExportDetail: text inside <Badge>."
   },
+  "review.review.missing_complete": {
+    "text": "{{percent}}% complete",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, MissingSummary: text built in code. Filled in: {{percent}}."
+  },
   "review.review.missing_details": {
     "text": "Missing details",
     "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: text built in code."
+  },
+  "review.review.missing_for_you": {
+    "text": "{{count}} for you to fill in",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, MissingSummary: text built in code. Filled in: {{count}}."
+  },
+  "review.review.missing_waiting": {
+    "text": "{{count}} waiting on employees",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, MissingSummary: text built in code. Filled in: {{count}}."
   },
   "review.review.no_change_waiting_for_you_looks": {
     "text": "No change waiting for you looks unusual.",
@@ -8238,6 +8290,10 @@
   "review.review.nothing_waiting_for_you": {
     "text": "Nothing waiting for you",
     "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"all\" value."
+  },
+  "review.review.open_missing_details": {
+    "text": "Open missing details",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, MissingSummary: text inside <Button>."
   },
   "review.review.optional_shown_to_whoever_asked": {
     "text": "Optional. Shown to whoever asked.",

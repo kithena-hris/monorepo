@@ -45,10 +45,6 @@ async function press(key: string): Promise<void> {
       }),
   );
 }
-const bodyRows = (grid: HTMLElement): HTMLElement[] =>
-  within(grid)
-    .getAllByRole('row')
-    .filter((r) => r.hasAttribute('data-row-id'));
 
 describe('Duplicates from the keyboard', () => {
   it('compares the focused pair with M and keeps it apart with N', async () => {
@@ -166,13 +162,12 @@ describe('Completeness from the keyboard', () => {
     ],
   };
 
-  it('reminds the focused person with R, fills in with F, and offers both to the palette', async () => {
-    const onRemind = vi.fn(done);
+  it('offers Remind and Fill in for all to the palette, and no keys on the rows', () => {
     render(
       <MissingDetails
         state={state}
         onSave={vi.fn()}
-        onRemind={onRemind}
+        onRemind={vi.fn(done)}
         onRemindAll={vi.fn(() =>
           Promise.resolve({ ok: true as const, sent: 1, failed: 0, skipped: 0 }),
         )}
@@ -181,14 +176,5 @@ describe('Completeness from the keyboard', () => {
     expect(screenCommands().map((c) => c.label)).toEqual(
       expect.arrayContaining(['Remind 1 person waiting', 'Fill in for all']),
     );
-    const [lena, lucia] = bodyRows(screen.getByRole('grid', { name: 'Missing information' }));
-    lucia?.focus();
-    await press('r');
-    expect(onRemind).toHaveBeenCalledWith('u', ['desk']);
-    lena?.focus();
-    await press('f');
-    // That person's own dialog, at once.
-    const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });
-    expect(within(dialog).getByRole('textbox', { name: 'Desk' })).toBeInTheDocument();
   });
 });

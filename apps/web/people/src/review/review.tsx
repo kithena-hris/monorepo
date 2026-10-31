@@ -58,6 +58,7 @@ import {
   MissingDetails,
   type CompletenessState,
   type MissingActions,
+  type MissingView,
 } from '../completeness/completeness-grid';
 import type { ShareRequest } from '../export/export-done';
 import {
@@ -197,6 +198,9 @@ export interface ReviewProps extends ChangeActions {
   /** What is filled in (`?fill=`): `all`, the grid; a person's id, their dialog. */
   readonly fill?: string | null;
   readonly onFillChange?: (fill: string | null) => void;
+  /** How missing details are seen: lane, search, filters, grouping, from the address. */
+  readonly missingView?: MissingView;
+  readonly onMissingViewChange?: (patch: Partial<MissingView>) => void;
   readonly searchPeople?: SearchPeople;
 }
 
@@ -809,8 +813,14 @@ function Queue({
     }
     // Missing details: its own chip, below the decisions in All (which counts
     // it), and the whole page while the grid over everybody is open.
+    // In All, missing details are one line that opens them (their chip); the
+    // list itself is the chip's, or open wherever something is being filled in.
     const listsMissing =
-      tab === 'waiting' && viewer === 'hr' && (kind === null || kind === 'missing');
+      tab === 'waiting' && viewer === 'hr' && (kind === 'missing' || fill !== null);
+    const summary =
+      tab === 'waiting' && viewer === 'hr' && kind === null && fill === null
+        ? state.completeness
+        : null;
     const missing =
       !listsMissing && fill !== FILL_ALL ? null : state.completeness === null ? (
         kind === 'missing' ? (
@@ -835,6 +845,10 @@ function Queue({
           now={now}
           fill={fill}
           onFillChange={setFill}
+          {...(actions.missingView === undefined ? {} : { view: actions.missingView })}
+          {...(actions.onMissingViewChange === undefined
+            ? {}
+            : { onViewChange: actions.onMissingViewChange })}
           searchPeople={actions.searchPeople}
         />
       );
@@ -851,15 +865,18 @@ function Queue({
         </Stack>
       );
     }
-    // Nothing to decide, and missing details below: they are what All lists.
-    const nothingElse =
-      rows.length === 0 &&
-      kind === null &&
-      missing !== null &&
-      state.completeness?.rows.length !== 0;
     return (
       <Stack gap={5}>
-        {nothingElse ? null : queue()}
+        {summary === null || summary.rows.length === 0 ? null : (
+          <MissingSummary
+            state={summary}
+            onOpen={() => {
+              setChosen('missing');
+              pick(null);
+            }}
+          />
+        )}
+        {queue()}
         {missing}
       </Stack>
     );
@@ -1815,5 +1832,61 @@ function Finance({
         </PageSection>
       )}
     </Stack>
+  );
+}
+
+/**
+ * Missing details in All: one line, not the list. How many HR fills in, how
+ * many wait on the people themselves, how complete the records are, and the
+ * way to them (their chip). Deciding is All's work; filling in is the chip's.
+ */
+function MissingSummary({
+  state,
+  onOpen,
+}: {
+  readonly state: CompletenessState;
+  readonly onOpen: () => void;
+}): JSX.Element {
+  const forHr = state.hrListed ?? state.rows.filter((r) => r.owner === 'hr').length;
+  const waiting = state.waiting.people;
+  const parts = [
+    forHr > 0
+      ? t('review.review.missing_for_you', '{{count}} for you to fill in', {
+          count: forHr.toLocaleString(locale()),
+        })
+      : null,
+    waiting > 0
+      ? t('review.review.missing_waiting', '{{count}} waiting on employees', {
+          count: waiting.toLocaleString(locale()),
+        })
+      : null,
+    state.complete == null
+      ? null
+      : t('review.review.missing_complete', '{{percent}}% complete', {
+          percent: String(state.complete.percent),
+        }),
+  ].filter((x): x is string => x !== null);
+  return (
+    <Card padded>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <span aria-hidden className="text-fg-muted [&>svg]:size-5">
+            <icons.missing />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold text-fg">{CHIP.missing}</p>
+            <p className="text-sm text-fg-muted tabular-nums">{parts.join(' · ')}</p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          endIcon={<icons.forward aria-hidden />}
+          onClick={onOpen}
+        >
+          {t('review.review.open_missing_details', 'Open missing details')}
+        </Button>
+      </div>
+    </Card>
   );
 }

@@ -19,13 +19,18 @@ import {
   icons,
   InlineCell,
   ListItem,
+  SearchField,
+  SegmentedControl,
+  SegmentedControlItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Toolbar,
   locale,
-  PageSection,
   Progress,
-  type RowAction,
-  Sparkline,
   Stack,
-  Stat,
   useScreenCommand,
   VirtualList,
   type VirtualRowProps,
@@ -43,7 +48,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { useHeldAtOnce } from '../held';
+import { useHeldAtOnce, useTyped } from '../held';
 import type { Checked, IdentifierFinding, Outcome } from '../load';
 import { AttributeControl, PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { isMissing, type AttributeValue, type RecordField, type Values } from '../record/model';
@@ -167,6 +172,15 @@ export type GridOutcome =
 /** `fill` for the grid over everybody's HR gaps, rather than one person's. */
 export const FILL_ALL = 'all';
 
+/** The list's view, as the address holds it: null for the default. */
+export interface MissingView {
+  readonly lane: string | null;
+  readonly q: string | null;
+  readonly team: string | null;
+  readonly field: string | null;
+  readonly group: string | null;
+}
+
 /** What Review's Missing details may do (design E6, E7). */
 export interface MissingActions {
   readonly onSave: (changes: readonly GridSave[]) => Promise<GridOutcome>;
@@ -191,6 +205,13 @@ export interface MissingActions {
    */
   readonly fill?: string | null;
   readonly onFillChange?: (fill: string | null) => void;
+  /**
+   * How the list is seen: its lane, search, filters and grouping, from the
+   * address (`?lane=`, `?q=`, `?team=`, `?field=`, `?group=`), so a link opens
+   * it. Kept here without a host.
+   */
+  readonly view?: MissingView;
+  readonly onViewChange?: (patch: Partial<MissingView>) => void;
   /** When the page was read (epoch ms): what "reminded within the day" is measured from, the same on the server and in the browser. */
   readonly now?: number;
 }
@@ -396,6 +417,8 @@ function Missing({
   onRemind,
   fill: heldFill,
   onFillChange,
+  view,
+  onViewChange,
   now,
 }: MissingActions & { readonly state: CompletenessState }): JSX.Element {
   const [fill, setFill] = useHeldAtOnce<string | null>(heldFill, onFillChange, heldFill ?? null);
@@ -598,13 +621,12 @@ function Missing({
     </>
   );
 
-  // The table's columns and row actions, held between renders: a page
-  // landing redraws only the rows it brought, and a reminder only redraws
-  // with what it changed (`recently`). The rest is read from `live` when used.
+  // What each row does, held between renders: a page landing redraws only
+  // the rows it brought, and a reminder only with what it changed (`recently`).
   const live = useRef({ labelOf, remind, setFill });
   live.current = { labelOf, remind, setFill };
   // Whether there is a Remind at all, not which function: the host's is new on
-  // every render, and the columns drawn from it redrew every row each time.
+  // every render, and a row drawn from it redrew every row each time.
   const canRemind = onRemind !== undefined;
   const fillIn = useCallback((r: GapRow): void => {
     setOutcome(null);
@@ -615,11 +637,11 @@ function Missing({
       r.owner === 'hr' ? (
         <Button
           size="sm"
-          variant="primary"
+          variant="secondary"
+          startIcon={<icons.edit aria-hidden />}
           aria-label={t('completeness.completeness-grid.fill_in_2', 'Fill in {{name}}', {
             name: r.name,
           })}
-          shortcut="row.fill"
           onClick={() => {
             fillIn(r);
           }}
@@ -640,10 +662,11 @@ function Missing({
       ) : (
         <Button
           size="sm"
+          variant="secondary"
+          startIcon={<icons.notifications aria-hidden />}
           aria-label={t('completeness.completeness-grid.remind_2', 'Remind {{name}}', {
             name: r.name,
           })}
-          shortcut="row.remind"
           onClick={() => {
             void live.current.remind(r);
           }}
@@ -653,98 +676,129 @@ function Missing({
       ),
     [fillIn, canRemind, recently],
   );
-  // The row's own action, from its menu or its key: F fills in HR's gaps, R reminds a person.
-  const rowActions = useCallback(
-    (r: GapRow): readonly RowAction[] =>
-      r.owner === 'hr'
-        ? [
-            {
-              id: 'fill',
-              label: t('completeness.completeness-grid.fill_in', 'Fill in'),
-              shortcut: 'row.fill',
-              icon: <icons.edit aria-hidden />,
-              onSelect: () => {
-                fillIn(r);
-              },
-            },
-          ]
-        : !canRemind
-          ? []
-          : [
-              {
-                id: 'remind',
-                label: recently(r)
-                  ? t('completeness.completeness-grid.reminded', 'Reminded')
-                  : t('completeness.completeness-grid.remind', 'Remind'),
-                shortcut: 'row.remind',
-                icon: <icons.notifications aria-hidden />,
-                disabled: recently(r),
-                onSelect: () => {
-                  void live.current.remind(r);
-                },
-              },
-            ],
-    [fillIn, canRemind, recently],
+
+  /* ---------------------------------------- the view: lane, find, group -- */
+  // Two lanes, by who fills the gap in: HR's own, or the person's, chased.
+  // Each part of the view is in the address (`view`), so a link opens it.
+  const employeeRows = useMemo(() => rows.filter((r) => r.owner !== 'hr'), [rows]);
+  const employeeTotal =
+    listedTotal === undefined || hrTotal === undefined
+      ? undefined
+      : Math.max(employeeRows.length, listedTotal - hrTotal);
+  const [heldLane, setLane] = useHeldAtOnce<string | null>(
+    view?.lane,
+    onViewChange === undefined
+      ? undefined
+      : (lane) => {
+          onViewChange({ lane });
+        },
+    view?.lane ?? null,
   );
-  // A phone row, held between renders like the table's columns, so a scroll
-  // or a page landing redraws only the rows it brings (`VirtualList`).
-  const phoneRow = useCallback(
-    (r: GapRow, _i: number, item: VirtualRowProps) => (
-      <ListItem
-        key={rowId(r)}
-        {...item}
-        leading={<Avatar size="lg" name={r.name} />}
-        description={t('completeness.completeness-grid.missing', 'Missing: {{join}}', {
-          join: r.missing.map(live.current.labelOf).join(', '),
-        })}
-        trailing={action(r)}
-      >
-        {r.name}
-      </ListItem>
-    ),
-    [action],
+  // Without a lane chosen, HR's own: theirs to do now; the other when HR has none.
+  const lane: Lane =
+    heldLane === 'employees' ||
+    (heldLane !== 'hr' && hrRows.length === 0 && employeeRows.length > 0)
+      ? 'employees'
+      : 'hr';
+  const [team, setTeam] = useHeldAtOnce<string | null>(
+    view?.team,
+    onViewChange === undefined
+      ? undefined
+      : (next) => {
+          onViewChange({ team: next });
+        },
+    view?.team ?? null,
   );
-  const columns = useMemo(
-    (): DataColumn<GapRow>[] => [
-      {
-        id: 'person',
-        header: t('completeness.completeness-grid.person', 'Person'),
-        width: '15rem',
-        cell: (r) => <PersonCell row={r} />,
-      },
-      {
-        id: 'missing',
-        header: t('completeness.completeness-grid.missing_2', 'Missing'),
-        // One line, clipped at the cell's end: badges that wrapped made a row
-        // taller than the table counts it, and the list jumped as it scrolled.
-        cell: (r) => (
-          <span className="flex gap-1.5 overflow-hidden [&>*]:shrink-0">
-            {r.missing.map(live.current.labelOf).map((label) => (
-              <Badge key={label} size="sm">
-                {label}
-              </Badge>
-            ))}
-          </span>
-        ),
-      },
-      {
-        id: 'who',
-        header: t('completeness.completeness-grid.who_fills_it_in', 'Who fills it in'),
-        width: '9rem',
-        cell: (r) => <WhoFills owner={r.owner} />,
-      },
-      {
-        id: 'act',
-        header: (
-          <span className="sr-only">{t('completeness.completeness-grid.action', 'Action')}</span>
-        ),
-        width: '8rem',
-        cell: action,
-      },
-    ],
+  const [field, setField] = useHeldAtOnce<string | null>(
+    view?.field,
+    onViewChange === undefined
+      ? undefined
+      : (next) => {
+          onViewChange({ field: next });
+        },
+    view?.field ?? null,
+  );
+  const [heldGroup, setGroup] = useHeldAtOnce<string | null>(
+    view?.group,
+    onViewChange === undefined
+      ? undefined
+      : (next) => {
+          onViewChange({ group: next });
+        },
+    view?.group ?? null,
+  );
+  const group: GroupBy = GROUPS.find((g) => g === heldGroup) ?? 'none';
+  const [query, type] = useTyped(
+    view?.q ?? '',
+    onViewChange === undefined
+      ? undefined
+      : (q) => {
+          onViewChange({ q: q === '' ? null : q });
+        },
+  );
+  const laneRows = lane === 'hr' ? hrRows : employeeRows;
+  // The choices are what the lane holds, so a filter never offers an empty list.
+  const teams = useMemo(
+    () => [...new Set(laneRows.map((r) => r.department ?? ''))].sort((a, b) => a.localeCompare(b)),
+    [laneRows],
+  );
+  const fieldsMissing = useMemo(() => {
+    const by = new Map<string, number>();
+    for (const r of laneRows) for (const k of r.missing) by.set(k, (by.get(k) ?? 0) + 1);
+    return [...by].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  }, [laneRows]);
+  const needle = query.trim().toLocaleLowerCase();
+  const shown = useMemo(
+    () =>
+      laneRows.filter(
+        (r) =>
+          (team === null || (r.department ?? '') === team) &&
+          (field === null || r.missing.includes(field)) &&
+          (needle === '' || r.name.toLocaleLowerCase().includes(needle)),
+      ),
+    [laneRows, team, field, needle],
+  );
+  const narrowed = team !== null || field !== null || needle !== '';
+  const items = useMemo(() => grouped(shown, group, live.current.labelOf), [shown, group]);
+  const laneTotal = narrowed ? undefined : lane === 'hr' ? hrTotal : employeeTotal;
+
+  // One row: who, what is missing, and the one thing to do, beside them.
+  const listRow = useCallback(
+    (entry: Entry, _i: number, item: VirtualRowProps) =>
+      entry.kind === 'head' ? (
+        <li
+          key={entry.key}
+          {...item}
+          className="flex items-baseline justify-between gap-3 px-4 pt-5 pb-1.5 first:pt-2"
+        >
+          <span className="text-sm font-semibold text-fg">{entry.label}</span>
+          <span className="text-xs text-fg-muted tabular-nums">{peopleCount(entry.count)}</span>
+        </li>
+      ) : (
+        <ListItem
+          key={entry.key}
+          {...item}
+          leading={<Avatar size="md" name={entry.row.name} />}
+          description={missingText(entry.row.missing.map(live.current.labelOf))}
+          {...(entry.row.department === null && entry.row.manager === null
+            ? {}
+            : {
+                // Beside the name at a desk; on a phone the name has the line.
+                meta: (
+                  <span className="@max-md/page:hidden">
+                    {[entry.row.department, entry.row.manager].filter((x) => x !== null).join(' · ')}
+                  </span>
+                ),
+              })}
+          trailing={action(entry.row)}
+        >
+          {entry.row.name}
+        </ListItem>
+      ),
     [action],
   );
 
+  // Everybody's gaps HR fills, one grid: the whole page while it is open.
   if (fill === FILL_ALL) {
     return (
       <FillGrid
@@ -778,189 +832,279 @@ function Missing({
       : (hrRows.find((r) => r.personId === fill) ??
         state.named?.find((r) => r.owner === 'hr' && r.personId === fill && !filled[r.personId]));
 
-  const change = state.complete?.change ?? null;
-  const trend = state.complete?.trend ?? [];
+  const complete = state.complete ?? null;
   const empty = (
     <EmptyState icon={<icons.missing />} title={NOTHING.title} description={NOTHING.body} />
   );
+  const laneEmpty =
+    lane === 'hr'
+      ? {
+          title: t('completeness.completeness-grid.nothing_for_you', 'Nothing for you to fill in'),
+          body: t(
+            'completeness.completeness-grid.nothing_for_you_body',
+            'Every field HR fills in has a value. Gaps people fill in themselves are under Waiting on employees.',
+          ),
+        }
+      : {
+          title: t('completeness.completeness-grid.nobody_waiting', 'Nobody to chase'),
+          body: t(
+            'completeness.completeness-grid.nobody_waiting_body',
+            'Everybody has filled in what they were asked for.',
+          ),
+        };
+  const noMatch = {
+    title: t('completeness.completeness-grid.no_match', 'Nobody matches'),
+    body: t(
+      'completeness.completeness-grid.no_match_body',
+      'Nobody loaded so far matches the search or the filters. Clear them to see everybody.',
+    ),
+  };
+  const laneCount = (n: number | undefined, listedHere: number): string =>
+    (n ?? listedHere).toLocaleString(locale());
+
   return (
-    <Stack gap={4}>
-      {/* At a desk, the four figures; a phone gets the one that matters, as a bar. */}
-      <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4 touch:hidden">
-        {state.complete == null ? null : (
-          <Stat
-            label={t('completeness.completeness-grid.complete', 'Complete')}
-            value={state.complete.percent}
-            unit="%"
-            {...(change === null
-              ? {
-                  description: t(
-                    'completeness.completeness-grid.records_incomplete',
-                    '{{toLocaleString}} records incomplete',
-                    { toLocaleString: state.complete.incomplete.toLocaleString(locale()) },
-                  ),
-                }
-              : {
-                  delta: t('completeness.completeness-grid.pts', '{{value}}{{abs}} pts', {
-                    value: change > 0 ? '+' : change < 0 ? '−' : '',
-                    abs: String(Math.abs(change)),
-                  }),
-                  deltaLabel: t('completeness.completeness-grid.this_month', 'this month'),
-                  direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
-                  sentiment: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral',
-                })}
-            chart={
-              trend.length > 1 ? (
-                <Sparkline
-                  data={trend}
-                  label={t(
-                    'completeness.completeness-grid.complete_records_by_month',
-                    'Complete records by month',
-                  )}
-                  {...(change === null || change === 0
-                    ? {}
-                    : { tone: change > 0 ? ('success' as const) : ('danger' as const) })}
-                />
-              ) : undefined
-            }
-          />
+    <Stack gap={4} className="mx-auto w-full max-w-3xl">
+      {/* One figure, not four: how complete the records are, and what blocks payroll. */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        {complete === null ? null : (
+          <div className="flex min-w-56 flex-1 items-center gap-3">
+            <Progress
+              value={complete.percent}
+              label={t('completeness.completeness-grid.records_complete', 'Records complete')}
+              className="max-w-80 flex-1"
+            />
+            <span className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
+              {t('completeness.completeness-grid.percent_complete', '{{percent}}% complete', {
+                percent: String(complete.percent),
+              })}
+            </span>
+          </div>
         )}
-        <Stat
-          label={t('completeness.completeness-grid.waiting_on_employees', 'Waiting on employees')}
-          value={state.waiting.people}
-          description={
-            state.waiting.lastReminded === null
-              ? t(
-                  'completeness.completeness-grid.reminded_by_email_once_a_week',
-                  'Reminded by email once a week',
-                )
-              : t('completeness.completeness-grid.last_reminded', 'Last reminded {{shortDay}}', {
-                  shortDay: shortDay(state.waiting.lastReminded),
-                })
-          }
-        />
-        <Stat
-          label={t('completeness.completeness-grid.for_hr_to_fill_in', 'For HR to fill in')}
-          value={toFill}
-          description={t('completeness.completeness-grid.fill_them_in_below', 'Fill them in below')}
-        />
-        {state.blocking === null ? null : (
-          <Stat
-            label={t('completeness.completeness-grid.blocking_payroll', 'Blocking payroll')}
-            value={state.blocking}
-            description={t(
-              'completeness.completeness-grid.bank_tax_or_id_details',
-              'Bank, tax or ID details',
+        {state.blocking === null || state.blocking === 0 ? null : (
+          <Badge tone="warning" dot>
+            {t(
+              'completeness.completeness-grid.blocking_payroll_count',
+              { one: '{{count}} blocks payroll', other: '{{count}} block payroll' },
+              { count: state.blocking },
             )}
-          />
+          </Badge>
         )}
       </div>
-      <Card padded className="hidden touch:block">
-        {state.complete == null ? null : (
-          <p className="mb-2 flex items-baseline gap-2">
-            <span className="font-display text-3xl font-bold tabular-nums">
-              {state.complete.percent}%
-            </span>
-            <span className="text-sm text-fg-muted">
-              {t('completeness.completeness-grid.complete_2', 'complete')}
-            </span>
-          </p>
-        )}
-        {state.complete == null ? null : (
-          <Progress
-            value={state.complete.percent}
-            label={t('completeness.completeness-grid.records_complete', 'Records complete')}
-            className="mb-2"
-          />
-        )}
-        <p className="text-sm text-fg-muted">
-          {state.waiting.people.toLocaleString(locale())}{' '}
-          {t(
-            'completeness.completeness-grid.waiting_on_employees_for_hr',
-            'waiting on employees · {{toLocaleString}} for HR',
-            { toLocaleString: toFill.toLocaleString(locale()) },
-          )}
-        </p>
-      </Card>
 
       {notices}
 
       {rows.length === 0 ? (
         <Card padded>{empty}</Card>
       ) : (
-        <PageSection
-          surface
-          title={t('completeness.completeness-grid.missing_information', 'Missing information')}
-          // A desk's (V4): on a phone each row carries its own Remind and Fill in (MV2).
-          actions={
-            canRemindAll || hrRows.length > 0 ? (
-              <span className="flex flex-wrap gap-2 touch:hidden">
-                {canRemindAll ? (
-                  <Button
-                    size="sm"
-                    startIcon={<icons.notifications aria-hidden />}
-                    loading={reminding}
-                    loadingLabel={t('completeness.completeness-grid.sending', 'Sending')}
-                    onClick={() => {
-                      void remindAll();
-                    }}
-                  >
-                    {t('completeness.completeness-grid.remind', 'Remind')} {peopleCount(due)}
-                  </Button>
-                ) : null}
-                {hrRows.length > 0 ? (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    startIcon={<icons.edit aria-hidden />}
-                    onClick={() => {
-                      setOutcome(null);
-                      setFill(FILL_ALL);
-                    }}
-                  >
-                    {t('completeness.completeness-grid.fill_in_for_all', 'Fill in for all')}
-                  </Button>
-                ) : null}
-              </span>
-            ) : undefined
-          }
-        >
-          <DataTable
-            label={t('completeness.completeness-grid.missing_information', 'Missing information')}
-            rows={rows}
-            columns={columns}
-            rowId={rowId}
-            describeRow={nameOf}
-            rowActions={rowActions}
-            // Infinite: the window scrolls it, the next page loads as the
-            // page nears its end, and only the rows on screen are drawn.
-            fill
-            containerClassName="touch:hidden"
-            {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
-            loadingMore={pages.loading}
-            {...(listedTotal === undefined ? {} : { total: listedTotal })}
-            virtualize
-            empty={empty}
-          />
-          {/* A phone's list: the page is its scroll, only the rows near the view are
-              drawn, and the next people load a screen ahead (not while a dialog is open). */}
-          <div className="hidden touch:block">
-            <VirtualList
-              label={t('completeness.completeness-grid.missing_information', 'Missing information')}
-              items={rows}
-              itemKey={rowId}
-              scroll="page"
-              listItems
-              estimateItemHeight={PHONE_ROW}
-              {...(fill !== null || pages.loadMore === undefined
-                ? {}
-                : { onEndReached: pages.loadMore })}
-              loadingMore={pages.loading}
-              {...(listedTotal === undefined ? {} : { total: listedTotal })}
-              renderItem={phoneRow}
-            />
+        <>
+          {/* Whose gaps, and the one thing that does them all, on one line. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SegmentedControl
+              aria-label={t('completeness.completeness-grid.who_fills_it_in', 'Who fills it in')}
+              value={lane}
+              onValueChange={(next) => {
+                if (next !== '') setLane(next);
+              }}
+            >
+              <SegmentedControlItem value="hr">
+                {t('completeness.completeness-grid.for_you', 'For you to fill in')}{' '}
+                <span className="opacity-60 tabular-nums">{laneCount(hrTotal, hrRows.length)}</span>
+              </SegmentedControlItem>
+              <SegmentedControlItem value="employees">
+                {t('completeness.completeness-grid.waiting_on_employees', 'Waiting on employees')}{' '}
+                <span className="opacity-60 tabular-nums">
+                  {laneCount(employeeTotal, employeeRows.length)}
+                </span>
+              </SegmentedControlItem>
+            </SegmentedControl>
+            {lane === 'hr' && hrRows.length > 0 ? (
+              <Button
+                variant="primary"
+                startIcon={<icons.edit aria-hidden />}
+                onClick={() => {
+                  setOutcome(null);
+                  setFill(FILL_ALL);
+                }}
+              >
+                {t('completeness.completeness-grid.fill_in_for_all', 'Fill in for all')}
+              </Button>
+            ) : lane === 'employees' && canRemindAll ? (
+              <Button
+                startIcon={<icons.notifications aria-hidden />}
+                loading={reminding}
+                loadingLabel={t('completeness.completeness-grid.sending', 'Sending')}
+                onClick={() => {
+                  void remindAll();
+                }}
+              >
+                {t(
+                  'completeness.completeness-grid.remind_waiting',
+                  'Remind {{peopleCount}} waiting',
+                  { peopleCount: peopleCount(due) },
+                )}
+              </Button>
+            ) : null}
           </div>
-        </PageSection>
+          <p className="-mt-1 text-sm text-fg-muted">
+            {lane === 'hr'
+              ? t(
+                  'completeness.completeness-grid.lane_hr_hint',
+                  'Only HR can fill these in. Fill in one person, or everybody at once in a grid.',
+                )
+              : state.waiting.lastReminded === null
+                ? t(
+                    'completeness.completeness-grid.lane_employees_hint',
+                    'Each person fills in their own. They are reminded by email once a week.',
+                  )
+                : t(
+                    'completeness.completeness-grid.lane_employees_hint_last',
+                    'Each person fills in their own. Reminded by email once a week, last {{shortDay}}.',
+                    { shortDay: shortDay(state.waiting.lastReminded) },
+                  )}
+          </p>
+
+          <Toolbar
+            search={
+              <SearchField
+                aria-label={t('completeness.completeness-grid.find_a_person', 'Find a person')}
+                placeholder={t('completeness.completeness-grid.find_a_person', 'Find a person')}
+                value={query}
+                onValueChange={type}
+              />
+            }
+            filters={
+              <>
+                <Select
+                  value={team === null ? ANY : team === '' ? NO_TEAM : team}
+                  onValueChange={(v) => {
+                    setTeam(v === ANY ? null : v === NO_TEAM ? '' : v);
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="w-auto min-w-36"
+                    aria-label={t('completeness.completeness-grid.team', 'Team')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ANY}>
+                      {t('completeness.completeness-grid.every_team', 'Every team')}
+                    </SelectItem>
+                    {teams.map((name) => (
+                      <SelectItem
+                        key={name === '' ? NO_TEAM : name}
+                        value={name === '' ? NO_TEAM : name}
+                      >
+                        {name === ''
+                          ? t('completeness.completeness-grid.no_team', 'No team')
+                          : name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={field ?? ANY}
+                  onValueChange={(v) => {
+                    setField(v === ANY ? null : v);
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="w-auto min-w-36"
+                    aria-label={t('completeness.completeness-grid.missing_field', 'Missing field')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ANY}>
+                      {t('completeness.completeness-grid.any_field', 'Any missing field')}
+                    </SelectItem>
+                    {fieldsMissing.map((key) => (
+                      <SelectItem key={key} value={key}>
+                        {labelOf(key)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={group}
+                  onValueChange={(v) => {
+                    setGroup(v === 'none' ? null : v);
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="w-auto min-w-36"
+                    aria-label={t('completeness.completeness-grid.group_by', 'Group by')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GROUPS.map((g) => (
+                      <SelectItem key={g} value={g}>
+                        {GROUP_LABEL[g]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {narrowed ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setTeam(null);
+                      setField(null);
+                      type('');
+                    }}
+                  >
+                    {t('completeness.completeness-grid.clear', 'Clear')}
+                  </Button>
+                ) : null}
+              </>
+            }
+          />
+
+          {/* A column to read, not a table to cross: the action sits beside the name. */}
+          <div>
+            {laneRows.length === 0 ? (
+              <Card padded>
+                <EmptyState
+                  icon={<icons.success />}
+                  title={laneEmpty.title}
+                  description={laneEmpty.body}
+                />
+              </Card>
+            ) : (
+              <VirtualList
+                label={t(
+                  'completeness.completeness-grid.missing_information',
+                  'Missing information',
+                )}
+                items={items}
+                itemKey={entryKey}
+                scroll="page"
+                listItems
+                estimateItemHeight={ROW}
+                {...(fill !== null || pages.loadMore === undefined
+                  ? {}
+                  : { onEndReached: pages.loadMore })}
+                loadingMore={pages.loading}
+                {...(laneTotal === undefined ? {} : { total: laneTotal })}
+                // People, not entries: a heading is not one, and by field a person is under each gap.
+                loaded={shown.length}
+                empty={
+                  <EmptyState
+                    icon={<icons.search />}
+                    title={noMatch.title}
+                    description={noMatch.body}
+                  />
+                }
+                renderItem={listRow}
+              />
+            )}
+          </div>
+        </>
       )}
       {person === undefined ? null : (
         <PersonFill
@@ -981,7 +1125,94 @@ function Missing({
   );
 }
 
-const nameOf = (r: GapRow): string => r.name;
+/* ------------------------------------------------- the list's entries -- */
+
+type Lane = 'hr' | 'employees';
+const GROUPS = ['none', 'team', 'manager', 'field'] as const;
+type GroupBy = (typeof GROUPS)[number];
+const GROUP_LABEL: Readonly<Record<GroupBy, string>> = {
+  get none(): string {
+    return t('completeness.completeness-grid.no_grouping', 'No grouping');
+  },
+  get team(): string {
+    return t('completeness.completeness-grid.by_team', 'By team');
+  },
+  get manager(): string {
+    return t('completeness.completeness-grid.by_manager', 'By manager');
+  },
+  get field(): string {
+    return t('completeness.completeness-grid.by_missing_field', 'By missing field');
+  },
+};
+/** A Select's value for "no filter", and for people with no team: Radix gives an empty string no item. */
+const ANY = 'any';
+const NO_TEAM = 'none';
+
+/** A row of the list: a person, or the heading of a group of them. */
+type Entry =
+  | { readonly kind: 'row'; readonly key: string; readonly row: GapRow }
+  | { readonly kind: 'head'; readonly key: string; readonly label: string; readonly count: number };
+const entryKey = (e: Entry): string => e.key;
+
+/**
+ * The rows as the list draws them, grouped under headings when asked. By
+ * missing field, a person is under every field they lack: the group is the
+ * work ("Bank details · 24 people"), largest first. Teams and managers in
+ * alphabetical order, the people without one last.
+ */
+export function grouped(
+  rows: readonly GapRow[],
+  by: GroupBy,
+  labelOf: (key: string) => string,
+): Entry[] {
+  const person = (r: GapRow, under = ''): Entry => ({
+    kind: 'row',
+    key: `${under}${rowId(r)}`,
+    row: r,
+  });
+  if (by === 'none') return rows.map((r) => person(r));
+  const groups = new Map<string, GapRow[]>();
+  for (const r of rows) {
+    const keys = by === 'field' ? r.missing : [(by === 'team' ? r.department : r.manager) ?? ''];
+    for (const k of keys) groups.set(k, [...(groups.get(k) ?? []), r]);
+  }
+  const none =
+    by === 'team'
+      ? t('completeness.completeness-grid.no_team', 'No team')
+      : t('completeness.completeness-grid.no_manager', 'No manager');
+  const ordered = [...groups].sort(([a, ra], [b, rb]) =>
+    by === 'field'
+      ? rb.length - ra.length || labelOf(a).localeCompare(labelOf(b))
+      : a === ''
+        ? 1
+        : b === ''
+          ? -1
+          : a.localeCompare(b),
+  );
+  return ordered.flatMap(([k, members]) => [
+    {
+      kind: 'head' as const,
+      key: `head:${k}`,
+      label: by === 'field' ? labelOf(k) : k === '' ? none : k,
+      count: members.length,
+    },
+    ...members.map((r) => person(r, `${k}:`)),
+  ]);
+}
+
+/** "Missing: Bank details, Tax ID, Address +2": three named, the rest counted. */
+function missingText(labels: readonly string[]): string {
+  const shown = labels.slice(0, 3).join(', ');
+  return labels.length > 3
+    ? t('completeness.completeness-grid.missing_more', 'Missing: {{shown}} +{{count}}', {
+        shown,
+        count: String(labels.length - 3),
+      })
+    : t('completeness.completeness-grid.missing', 'Missing: {{join}}', { join: shown });
+}
+
+/** A row's height, for the list to place rows it has not measured yet. */
+const ROW = 56;
 
 const NOTHING = {
   get title(): string {
@@ -995,9 +1226,6 @@ const NOTHING = {
   },
 };
 
-/** A phone row's height, for the list to place rows it has not measured yet. */
-const PHONE_ROW = 72;
-
 function PersonCell({ row }: { readonly row: GapRow }): JSX.Element {
   return (
     <span className="flex items-center gap-2.5">
@@ -1009,16 +1237,6 @@ function PersonCell({ row }: { readonly row: GapRow }): JSX.Element {
         </span>
       </span>
     </span>
-  );
-}
-
-function WhoFills({ owner }: { readonly owner: GapRow['owner'] }): JSX.Element {
-  return owner === 'hr' ? (
-    <Badge size="sm" tone="accent">
-      {t('completeness.completeness-grid.hr', 'HR')}
-    </Badge>
-  ) : (
-    <Badge size="sm">{t('completeness.completeness-grid.employee', 'Employee')}</Badge>
   );
 }
 

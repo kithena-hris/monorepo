@@ -1264,6 +1264,18 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onFillChange: (fill: string | null) => {
             note({ fill }, 'push');
           },
+          // Missing details' lane, search, filters and grouping: each a link of its own.
+          missingView: {
+            lane: at('lane'),
+            q: at('q'),
+            team: at('team'),
+            field: at('field'),
+            group: at('group'),
+          },
+          onMissingViewChange: (patch: Readonly<Record<string, string | null>>) => {
+            // Typing replaces the entry it is in; a lane, filter or grouping is a step Back undoes.
+            note(patch, 'q' in patch ? 'replace' : 'push');
+          },
           onDecide: actions.decidePendingChange,
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
