@@ -167,7 +167,7 @@ export function PopoverContent({
           className,
           // Whatever width the anchored panel asked for, a sheet spans the edge,
           // with the sheet's own gutters and room for the home indicator.
-          'w-full max-w-none overflow-y-auto overscroll-contain touch:w-full',
+          'w-full max-w-none overflow-y-auto overscroll-none touch:w-full',
           'touch:px-5 touch:pb-[max(1.25rem,var(--spacing-safe-bottom))]',
         )}
         {...withoutPlacement(props)}
@@ -199,7 +199,7 @@ export function PopoverContent({
         // a 375px phone and one with its Save button off-screen.
         'max-w-[calc(100vw-1.5rem)]',
         matchTriggerWidth && 'w-(--radix-popover-trigger-width)',
-        'max-h-(--radix-popover-content-available-height) overflow-y-auto overscroll-contain',
+        'max-h-(--radix-popover-content-available-height) overflow-y-auto overscroll-none',
         'origin-(--radix-popover-content-transform-origin)',
         'popover-motion',
         className,

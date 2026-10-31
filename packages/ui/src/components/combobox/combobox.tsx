@@ -452,7 +452,7 @@ export function Combobox({
           role="listbox"
           aria-label={label}
           aria-multiselectable={multiple || undefined}
-          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height,16rem)-7rem))] min-h-24 overflow-y-auto overscroll-contain touch:max-h-[min(50vh,calc(var(--radix-popover-content-available-height,50vh)-7rem))]"
+          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height,16rem)-7rem))] min-h-24 overflow-y-auto overscroll-none touch:max-h-[min(50vh,calc(var(--radix-popover-content-available-height,50vh)-7rem))]"
         >
           {loading ? (
             <li className="px-3 py-6 text-center text-sm text-fg-muted">

@@ -31,7 +31,7 @@ export function lockAxis(el: HTMLElement): () => void {
     rest = setTimeout(release, WHEEL_REST_MS);
     if (moving) return;
     moving = true;
-    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) el.style.overscrollBehaviorY = 'contain';
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) el.style.overscrollBehaviorY = 'none';
   };
   el.addEventListener('wheel', onWheel, { passive: true });
   return () => {

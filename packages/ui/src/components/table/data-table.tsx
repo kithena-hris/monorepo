@@ -1314,7 +1314,7 @@ export function DataTable<T extends TableRow>({
       // of what has loaded: WebKit handed it to the page, which slid away
       // under the reader until the next page arrived.
       containerClassName={cn(
-        onEndReached !== undefined && !page && 'overscroll-y-contain',
+        onEndReached !== undefined && !page && 'overscroll-y-none',
         // Not a scroll container at all: the header pins to the window, which
         // a box that scrolls, even one that never needs to, would stop.
         page && !wide && 'overflow-visible [--reach-table-top:var(--reach-sticky-top,0px)]',

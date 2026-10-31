@@ -148,10 +148,10 @@ export function TabsList({
          * `pb-px` is what makes that safe. `overflow-x` clips at the padding
          * box, and both the marker and each trigger's own underline sit one
          * pixel below the content — the padding gives them that pixel back.
-         * `overscroll-contain` stops a swipe that runs off the end of the strip
+         * `overscroll-none` stops a swipe that runs off the end of the strip
          * from turning into a back-navigation gesture.
          */
-        'overflow-x-auto overscroll-x-contain pb-px',
+        'overflow-x-auto overscroll-x-none pb-px',
         className,
       )}
       {...props}

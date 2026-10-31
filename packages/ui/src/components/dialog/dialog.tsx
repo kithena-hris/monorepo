@@ -192,7 +192,7 @@ export function DialogBody({ className, ...props }: ComponentPropsWithoutRef<'di
   return (
     <div
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-2 touch:px-5.5',
+        'min-h-0 flex-1 overflow-y-auto overscroll-none px-6 pb-2 touch:px-5.5',
         className,
       )}
       {...props}

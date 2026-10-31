@@ -1326,7 +1326,7 @@ export function OrgChart({
       )}
       tabIndex={0}
       className={cn(
-        'relative overflow-auto overscroll-contain rounded-lg bg-canvas touch:rounded-[22px]',
+        'relative overflow-auto overscroll-none rounded-lg bg-canvas touch:rounded-[22px]',
         // A dot grid, so the canvas reads as a surface that pans, and a hairline
         // ring rather than a border so the grid runs to the very edge.
         'bg-[radial-gradient(var(--color-border-strong)_1px,transparent_1px)] bg-size-[18px_18px]',

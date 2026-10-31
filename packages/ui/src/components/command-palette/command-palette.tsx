@@ -277,7 +277,7 @@ export function Command({
         role="listbox"
         aria-label={page ? page.label : label}
         aria-busy={loading || undefined}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 empty:hidden"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-none p-1.5 empty:hidden"
       >
         {loading
           ? null
