@@ -24,13 +24,13 @@
     "@simplewebauthn/server": "^14.0.3",
     "drizzle-orm": "^0.45.4",
     "ioredis": "^6.0.0",
-    "jose": "^6.2.12",
+    "jose": "^6.2.13",
     "kafkajs": "^2.2.4",
     "postgres": "^3.4.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }

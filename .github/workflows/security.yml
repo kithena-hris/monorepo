@@ -89,7 +89,6 @@ jobs:
       # gate deliberately does not fail on. Each is here only because it has no
       # patched release and is reachable only from build tooling that never
       # ships, and comes out the day a fix exists:
-      #   GHSA-86w9-cpqp-85rv  node-forge <=1.4.0   apps/mobile > expo > @expo/cli
       #   GHSA-vfj7-8cjw-p6xm  braces <=3.0.3       apps/mobile > expo > @expo/cli
       #   GHSA-mrhx-c7xc-m3w5  zod 3 (fixed in 4.6.6 only) apps/mobile > expo > @expo/cli
       #   GHSA-gcqx-w48m-w2h4  deepmerge <=4.3.1    apps/mobile > expo > @expo/config
@@ -98,6 +97,14 @@ jobs:
       # development build and runs `expo export`, and none of it is in the app
       # bundle. The audit counts it because `expo` is the app's runtime
       # dependency.
+      #
+      # One more, on a different footing: shipped, but without the code it is about.
+      #   GHSA-g3hv-75wg-m249  minimatch <11.0.1    services/people > exceljs > archiver,
+      #                                             packages/testing > testcontainers > archiver
+      # The advisory is a pattern amplification in `firstPhasePreProcess`, run
+      # only at `optimizationLevel >= 2`, which minimatch has had since 9. The
+      # copies left are 3.1.5 and 5.1.9, which have neither, and no patched 3.x
+      # or 5.x exists; every 9.x and 10.x is overridden to 11.0.1 (package.json).
       - name: audit production deps
         run: pnpm audit --prod --audit-level low
 
