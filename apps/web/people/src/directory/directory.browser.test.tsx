@@ -152,7 +152,7 @@ function gap(box: HTMLElement, rowsOnly = false): number {
     ...box.querySelectorAll<HTMLElement>(
       rowsOnly
         ? 'tbody tr[data-row-id]'
-        : 'tbody tr[data-row-id], tbody [aria-busy], [data-spacer]',
+        : 'tbody tr[data-row-id], tbody tr[data-coming], [data-spacer]',
     ),
   ]
     .map((el) => el.getBoundingClientRect())
@@ -210,7 +210,8 @@ async function fling(box: HTMLElement, budget: number, step: number) {
     sawSkeleton = false;
     if (gap(box) > 2) late += 1;
     const count = Number(table?.getAttribute('aria-rowcount') ?? 1) - 1;
-    const busy = box.querySelector('tbody [aria-busy]') === null ? 0 : ROW;
+    // The rows still to come at the foot, each a row tall (`DataTable`'s `data-coming`).
+    const busy = box.querySelectorAll('tbody tr[data-coming]').length * ROW;
     if (Math.abs(box.scrollHeight - (head + count * ROW + busy)) > 2) off += 1;
     // The same rows, yet a different height: a row measured off its estimate.
     const shape = `${String(count)}:${String(busy)}`;
