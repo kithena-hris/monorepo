@@ -45,6 +45,7 @@ import {
 } from '../approvals/words';
 import { ClashCard } from './clash';
 import { t as tr } from '../i18n';
+import { PeriodNav } from '../period';
 import { Header } from '../frame';
 
 /**
@@ -213,100 +214,84 @@ function Ready({
 
   return (
     <>
-      {/* Where, and which way: a month at a desk, a week on a phone, a year. */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/*
+        One row: where, and which way (a month at a desk, a week on a phone, a
+        year), then whose time off and which holidays, then the feed.
+      */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {data.view === 'year' ? (
-          <>
-            <Button
-              size="sm"
-              onClick={() => {
+          <PeriodNav
+            title={data.year}
+            today={{
+              label: tr('calendar.calendar.this_year', 'This year'),
+              onPress: () => {
                 go({ year: null });
-              }}
-            >
-              {tr('calendar.calendar.this_year', 'This year')}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label={tr('calendar.calendar.previous_year', 'Previous year')}
-              startIcon={<icons.previous aria-hidden />}
-              onClick={() => {
+              },
+            }}
+            previous={{
+              label: tr('calendar.calendar.previous_year', 'Previous year'),
+              onPress: () => {
                 go({ year: String(data.year - 1) });
-              }}
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label={tr('calendar.calendar.next_year', 'Next year')}
-              startIcon={<icons.next aria-hidden />}
-              onClick={() => {
+              },
+            }}
+            next={{
+              label: tr('calendar.calendar.next_year', 'Next year'),
+              onPress: () => {
                 go({ year: String(data.year + 1) });
-              }}
-            />
-            <h2 className="text-lg font-bold">{data.year}</h2>
-          </>
+              },
+            }}
+          />
         ) : (
           <>
-            <Button
-              size="sm"
-              onClick={() => {
-                go({ month: null, week: null });
+            <PeriodNav
+              className={deskOnly}
+              title={monthName(data.month)}
+              today={{
+                label: tr('calendar.calendar.today', 'Today'),
+                onPress: () => {
+                  go({ month: null, week: null });
+                },
               }}
-            >
-              {tr('calendar.calendar.today', 'Today')}
-            </Button>
-            <span className={`gap-1 ${deskOnly} flex`}>
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={tr('calendar.calendar.previous_month', 'Previous month')}
-                startIcon={<icons.previous aria-hidden />}
-                onClick={() => {
+              previous={{
+                label: tr('calendar.calendar.previous_month', 'Previous month'),
+                onPress: () => {
                   go({ month: shiftMonth(data.month, -1), week: null });
-                }}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={tr('calendar.calendar.next_month', 'Next month')}
-                startIcon={<icons.next aria-hidden />}
-                onClick={() => {
+                },
+              }}
+              next={{
+                label: tr('calendar.calendar.next_month', 'Next month'),
+                onPress: () => {
                   go({ month: shiftMonth(data.month, 1), week: null });
-                }}
-              />
-            </span>
-            <span className={`gap-1 ${phoneOnly}`}>
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={tr('calendar.calendar.previous_week', 'Previous week')}
-                startIcon={<icons.previous aria-hidden />}
-                onClick={() => {
+                },
+              }}
+            />
+            <PeriodNav
+              className={phoneOnly}
+              title={spanLabel(data.week, weekEnd)}
+              today={{
+                label: tr('calendar.calendar.today', 'Today'),
+                onPress: () => {
+                  go({ month: null, week: null });
+                },
+              }}
+              previous={{
+                label: tr('calendar.calendar.previous_week', 'Previous week'),
+                onPress: () => {
                   const week = addDays(data.week, -7);
                   go({ week, month: addDays(week, 4).slice(0, 7) });
-                }}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={tr('calendar.calendar.next_week', 'Next week')}
-                startIcon={<icons.next aria-hidden />}
-                onClick={() => {
+                },
+              }}
+              next={{
+                label: tr('calendar.calendar.next_week', 'Next week'),
+                onPress: () => {
                   const week = addDays(data.week, 7);
                   go({ week, month: week.slice(0, 7) });
-                }}
-              />
-            </span>
-            <h2 className={`text-lg font-bold ${deskOnly}`}>{monthName(data.month)}</h2>
-            <h2 className={`text-lg font-bold ${phoneOnly}`}>{spanLabel(data.week, weekEnd)}</h2>
+                },
+              }}
+            />
           </>
         )}
         <span className="flex-1" />
-        <Subscribe scope={data.scope} onSubscribe={onSubscribe} />
-      </div>
-
-      {/* Who: the team, the company or me, and which team. */}
-      <div className="flex flex-wrap items-center gap-2">
         <SegmentedControl
           aria-label={tr('calendar.calendar.whose_time_off', 'Whose time off')}
           size="sm"
@@ -380,6 +365,7 @@ function Ready({
             </SelectContent>
           </Select>
         )}
+        <Subscribe scope={data.scope} onSubscribe={onSubscribe} />
       </div>
 
       {data.view === 'year' ? (

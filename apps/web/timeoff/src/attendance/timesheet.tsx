@@ -55,6 +55,7 @@ import {
 import { t } from '../i18n';
 import { Header } from '../frame';
 import { ATTENDANCE } from './section';
+import { PeriodNav } from '../period';
 
 /**
  * My timesheet (T20, MT17, PRD §11.3): a week or a month, each day a bar from
@@ -192,60 +193,67 @@ function Ready({
   return (
     <>
       <Header fallback={ATTENDANCE()} />
-      {/* The period and its steps: the view's own, under a header every tab shares. */}
+      {/* The period and its steps, and week or month: the view's own, under a header every tab shares. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-md font-semibold text-fg">
-          {week
-            ? t(
-                'attendance.timesheet.week_of_scheduled',
-                'Week of {{dayMonth}} · {{planned}} scheduled',
-                { dayMonth: dayMonth(period.from), planned: duration(planned) },
-              )
-            : t('attendance.timesheet.scheduled', '{{monthName}} · {{planned}} scheduled', {
-                monthName: monthName(period.from),
-                planned: duration(planned),
-              })}
-        </h2>
-        <div className="flex items-center gap-2">
-          <Button asChild size="sm" variant="ghost" startIcon={<icons.previous aria-hidden />}>
-            <a
-              href={previous}
-              aria-label={
-                week
-                  ? t('attendance.timesheet.previous_week', 'Previous week')
-                  : t('attendance.timesheet.previous_month', 'Previous month')
+        <PeriodNav
+          title={
+            week
+              ? t(
+                  'attendance.timesheet.week_of_scheduled',
+                  'Week of {{dayMonth}} · {{planned}} scheduled',
+                  { dayMonth: dayMonth(period.from), planned: duration(planned) },
+                )
+              : t('attendance.timesheet.scheduled', '{{monthName}} · {{planned}} scheduled', {
+                  monthName: monthName(period.from),
+                  planned: duration(planned),
+                })
+          }
+          {...(week && period.from !== thisMonday
+            ? {
+                today: {
+                  label: t('attendance.timesheet.this_week', 'This week'),
+                  href: weekHref(thisMonday),
+                },
               }
-            />
-          </Button>
-          <TertiaryNav
-            label={t('attendance.timesheet.show_by', 'Show by')}
-            orientation="horizontal"
-            current="page"
-            activeId={period.kind}
-            items={[
-              {
-                id: 'week',
-                label: t('attendance.timesheet.week', 'Week'),
-                href: weekHref(week ? period.from : thisMonday),
-              },
-              {
-                id: 'month',
-                label: t('attendance.timesheet.month', 'Month'),
-                href: monthHref(period.from),
-              },
-            ]}
-          />
-          <Button asChild size="sm" variant="ghost" startIcon={<icons.next aria-hidden />}>
-            <a
-              href={next}
-              aria-label={
-                week
-                  ? t('attendance.timesheet.next_week', 'Next week')
-                  : t('attendance.timesheet.next_month', 'Next month')
-              }
-            />
-          </Button>
-        </div>
+            : !week && period.from.slice(0, 7) !== today.slice(0, 7)
+              ? {
+                  today: {
+                    label: t('attendance.timesheet.this_month', 'This month'),
+                    href: monthHref(today),
+                  },
+                }
+              : {})}
+          previous={{
+            label: week
+              ? t('attendance.timesheet.previous_week', 'Previous week')
+              : t('attendance.timesheet.previous_month', 'Previous month'),
+            href: previous,
+          }}
+          next={{
+            label: week
+              ? t('attendance.timesheet.next_week', 'Next week')
+              : t('attendance.timesheet.next_month', 'Next month'),
+            href: next,
+          }}
+        />
+        <TertiaryNav
+          label={t('attendance.timesheet.show_by', 'Show by')}
+          orientation="horizontal"
+          current="page"
+          activeId={period.kind}
+          items={[
+            {
+              id: 'week',
+              label: t('attendance.timesheet.week', 'Week'),
+              href: weekHref(week ? period.from : thisMonday),
+            },
+            {
+              id: 'month',
+              label: t('attendance.timesheet.month', 'Month'),
+              href: monthHref(period.from),
+            },
+          ]}
+        />
       </div>
       <div className={body}>
         <div className={column}>

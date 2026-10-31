@@ -165,6 +165,64 @@ export function Decision({
         </Badge>
       </div>
 
+      {/* The decision first, where the eye lands; at the foot of a phone, under the thumb. */}
+      {data.canDecide ? (
+        <div className="flex items-center gap-2 @max-[40rem]/approvals:sticky @max-[40rem]/approvals:bottom-0 @max-[40rem]/approvals:order-last @max-[40rem]/approvals:bg-surface @max-[40rem]/approvals:py-3">
+          <Button
+            variant="ghost"
+            startIcon={<icons.close aria-hidden />}
+            disabled={onDecide === undefined || pending}
+            onClick={() => {
+              decide('decline');
+            }}
+          >
+            {t('approvals.decision.decline', 'Decline')}
+          </Button>
+          <span className="ms-auto flex gap-2">
+            <Button asChild startIcon={<icons.calendar aria-hidden />}>
+              <a href={suggestHref}>
+                {t('approvals.decision.suggest_other_dates', 'Suggest other dates')}
+              </a>
+            </Button>
+            <Button
+              variant="primary"
+              startIcon={<icons.confirm aria-hidden />}
+              disabled={onDecide === undefined || pending}
+              loading={pending}
+              onClick={() => {
+                decide('approve');
+              }}
+            >
+              {t('approvals.decision.approve', 'Approve')}
+            </Button>
+          </span>
+        </div>
+      ) : (
+        <Alert
+          className="@max-[40rem]/approvals:order-last"
+          tone="neutral"
+          title={
+            request.waitingOn === 'hr'
+              ? t('approvals.decision.waiting_on_hr', 'Waiting on HR')
+              : t('approvals.decision.not_yours_to_decide', 'Not yours to decide')
+          }
+        >
+          {request.waitingOn === 'hr'
+            ? t(
+                'approvals.decision.you_approved_your_part_hr_decides',
+                'You approved your part. HR decides the rest.',
+              )
+            : t(
+                'approvals.decision.somebody_else_decides_this_request',
+                'Somebody else decides this request.',
+              )}
+        </Alert>
+      )}
+      {failed === null ? null : (
+        <Alert tone="danger" title={t('approvals.decision.nothing_changed', 'Nothing changed')}>
+          {failed}
+        </Alert>
+      )}
       <div className="grid grid-cols-2 gap-2.5">
         {data.balance === null ? (
           <Stat inset label={look.name} value={dayCount(request.workingDays)} />
@@ -188,6 +246,8 @@ export function Decision({
           }
         />
       </div>
+
+      <WhatToKnow data={data} />
 
       {data.team === null ? null : (
         <>
@@ -228,8 +288,6 @@ export function Decision({
         </>
       )}
 
-      <WhatToKnow data={data} />
-
       {swap === undefined || swap.swapped === null || !data.canDecide ? null : (
         <Alert
           tone="info"
@@ -240,64 +298,6 @@ export function Decision({
           {t('approvals.decision.can_accept_in_one_tap', '{{firstName}} can accept in one tap.', {
             firstName: firstName(member.displayName),
           })}
-        </Alert>
-      )}
-
-      {failed === null ? null : (
-        <Alert tone="danger" title={t('approvals.decision.nothing_changed', 'Nothing changed')}>
-          {failed}
-        </Alert>
-      )}
-
-      {data.canDecide ? (
-        <div className="flex items-center gap-2 @max-[40rem]/approvals:sticky @max-[40rem]/approvals:bottom-0 @max-[40rem]/approvals:bg-surface @max-[40rem]/approvals:py-3">
-          <Button
-            variant="ghost"
-            startIcon={<icons.close aria-hidden />}
-            disabled={onDecide === undefined || pending}
-            onClick={() => {
-              decide('decline');
-            }}
-          >
-            {t('approvals.decision.decline', 'Decline')}
-          </Button>
-          <span className="ms-auto flex gap-2">
-            <Button asChild startIcon={<icons.calendar aria-hidden />}>
-              <a href={suggestHref}>
-                {t('approvals.decision.suggest_other_dates', 'Suggest other dates')}
-              </a>
-            </Button>
-            <Button
-              variant="primary"
-              startIcon={<icons.confirm aria-hidden />}
-              disabled={onDecide === undefined || pending}
-              loading={pending}
-              onClick={() => {
-                decide('approve');
-              }}
-            >
-              {t('approvals.decision.approve', 'Approve')}
-            </Button>
-          </span>
-        </div>
-      ) : (
-        <Alert
-          tone="neutral"
-          title={
-            request.waitingOn === 'hr'
-              ? t('approvals.decision.waiting_on_hr', 'Waiting on HR')
-              : t('approvals.decision.not_yours_to_decide', 'Not yours to decide')
-          }
-        >
-          {request.waitingOn === 'hr'
-            ? t(
-                'approvals.decision.you_approved_your_part_hr_decides',
-                'You approved your part. HR decides the rest.',
-              )
-            : t(
-                'approvals.decision.somebody_else_decides_this_request',
-                'Somebody else decides this request.',
-              )}
         </Alert>
       )}
     </div>

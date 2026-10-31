@@ -1,4 +1,8 @@
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Avatar,
   Button,
   List,
@@ -170,37 +174,36 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
   return (
     <>
       <Header fallback={ATTENDANCE()} />
-      {/* The month and its exports: the view's own, under a header every tab shares. */}
+      {/* The month and its export: the view's own, under a header every tab shares. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-md font-semibold text-fg">
-          {t('attendance.exceptions.everyone', 'Everyone · {{monthLabel}}', {
-            monthLabel: monthLabel(data.month),
-          })}
-        </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="secondary" startIcon={<icons.download aria-hidden />}>
-            <a href={file('csv')} download>
+        <MonthNav month={data.month} path="/time-off/attendance/exceptions" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="secondary"
+              startIcon={<icons.download aria-hidden />}
+              endIcon={<icons.expand aria-hidden />}
+            >
               {t(
                 'attendance.exceptions.export_for_the_labour_inspector',
                 'Export for the labour inspector',
               )}
-            </a>
-          </Button>
-          <Button asChild variant="secondary">
-            <a
-              href={file('pdf')}
-              download
-              aria-label={t(
-                'attendance.exceptions.export_for_the_labour_inspector_as',
-                'Export for the labour inspector as PDF',
-              )}
-            >
-              {t('attendance.exceptions.pdf', 'PDF')}
-            </a>
-          </Button>
-        </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <a href={file('csv')} download>
+                {t('attendance.exceptions.as_a_spreadsheet', 'As a spreadsheet (CSV)')}
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={file('pdf')} download>
+                {t('attendance.exceptions.as_a_pdf', 'As a PDF')}
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <MonthNav month={data.month} path="/time-off/attendance/exceptions" />
       {data.items.length === 0 ? (
         <p className="text-sm text-fg-muted">
           {t('attendance.exceptions.nothing_needs_you_in', 'Nothing needs you in {{monthLabel}}.', {
