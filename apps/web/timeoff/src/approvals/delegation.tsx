@@ -12,7 +12,6 @@ import {
   FieldLabel,
   List,
   ListItem,
-  PageHeader,
   PageSection,
   Skeleton,
   icons,
@@ -22,6 +21,7 @@ import { useState, useTransition, type JSX } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { firstName, spanLabel, type Range } from './words';
 import { t } from '../i18n';
+import { Header } from '../frame';
 
 /**
  * Delegating approvals (T19, §9.7): who decides for me while I am away, for
@@ -74,8 +74,8 @@ export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Ele
   if (load.status === 'loading') return <DelegationSkeleton />;
   return (
     <div className="@container/delegation flex flex-col gap-6">
-      <PageHeader
-        title={t('approvals.delegation.requests', 'Requests')}
+      <Header
+        title={t('approvals.delegation.delegate_approvals', 'Delegate approvals')}
         description={DESCRIPTION()}
       />
       <Loaded load={load} what={t('approvals.delegation.your_delegation', 'your delegation')}>
@@ -92,8 +92,8 @@ export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Ele
   );
 }
 
-const body =
-  'flex flex-col gap-5 @min-[56rem]/delegation:grid @min-[56rem]/delegation:grid-cols-2 @min-[56rem]/delegation:items-start';
+// One column: the form, then whom you cover for.
+const body = 'flex max-w-3xl flex-col gap-6';
 
 function Ready({
   data,
@@ -128,7 +128,7 @@ function Ready({
   };
   return (
     <div className={body}>
-      <PageSection title={t('approvals.delegation.while_im_away', 'While I’m away')}>
+      <PageSection title={t('approvals.delegation.while_im_away', 'While I’m away')} surface>
         <div className="flex flex-col gap-4">
           <Field>
             <FieldLabel>{t('approvals.delegation.delegate', 'Delegate')}</FieldLabel>
@@ -148,7 +148,7 @@ function Ready({
               />
             </FieldControl>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-4">
             <Field invalid={rangeWrong}>
               <FieldLabel>{t('approvals.delegation.from', 'From')}</FieldLabel>
               <FieldControl>
@@ -273,7 +273,7 @@ function Ready({
           </div>
         </div>
       </PageSection>
-      <PageSection title={t('approvals.delegation.you_cover_for', 'You cover for')}>
+      <PageSection title={t('approvals.delegation.you_cover_for', 'You cover for')} surface>
         {data.coveringFor.length === 0 ? (
           <p className="text-sm text-fg-muted">
             {t(
@@ -321,8 +321,8 @@ function Ready({
 export function DelegationSkeleton(): JSX.Element {
   return (
     <div className="@container/delegation flex flex-col gap-6">
-      <PageHeader
-        title={t('approvals.delegation.requests', 'Requests')}
+      <Header
+        title={t('approvals.delegation.delegate_approvals', 'Delegate approvals')}
         description={DESCRIPTION()}
       />
       <div role="status" className={body}>
@@ -332,7 +332,7 @@ export function DelegationSkeleton(): JSX.Element {
         <div className="flex flex-col gap-4">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-16 rounded-md" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-4">
             <Skeleton className="h-16 rounded-md" />
             <Skeleton className="h-16 rounded-md" />
           </div>

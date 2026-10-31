@@ -1,10 +1,13 @@
-import { Button, icons } from '@reach/ui';
 import type { JSX } from 'react';
 
+import { PeriodNav } from '../period';
 import { monthName, shiftMonth } from './time';
 import { t } from '../i18n';
 
-/** The month before and after (`YYYY-MM`) as links to the same page, `?month=` in the address. */
+/**
+ * A month of a page that walks month by month (`?month=YYYY-MM`): its name,
+ * and the months either side as links to the same page.
+ */
 export function MonthNav({
   month,
   path,
@@ -12,18 +15,19 @@ export function MonthNav({
   readonly month: string;
   readonly path: string;
 }): JSX.Element {
-  const link = (by: number): JSX.Element => {
+  const step = (by: number) => {
     const to = shiftMonth(month, by);
-    return <a href={`${path}?month=${to}`}>{monthName(`${to}-01`)}</a>;
+    return {
+      label:
+        by < 0
+          ? t('attendance.month-nav.previous', 'Previous month, {{month}}', {
+              month: monthName(`${to}-01`),
+            })
+          : t('attendance.month-nav.next', 'Next month, {{month}}', {
+              month: monthName(`${to}-01`),
+            }),
+      href: `${path}?month=${to}`,
+    };
   };
-  return (
-    <nav aria-label={t('attendance.month-nav.month', 'Month')} className="flex items-center gap-2">
-      <Button asChild size="sm" variant="ghost" startIcon={<icons.previous aria-hidden />}>
-        {link(-1)}
-      </Button>
-      <Button asChild size="sm" variant="ghost" endIcon={<icons.next aria-hidden />}>
-        {link(1)}
-      </Button>
-    </nav>
-  );
+  return <PeriodNav title={monthName(`${month}-01`)} previous={step(-1)} next={step(1)} />;
 }

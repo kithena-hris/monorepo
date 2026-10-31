@@ -395,7 +395,8 @@ describe('the Time Off manifest', () => {
       component: 'RequestDetail',
       params: { id: 'r-1' },
     });
-    expect(matchRoute(timeOff, '/time-off/requests/past')?.component).toBe('MyRequestsPast');
+    expect(matchRoute(timeOff, '/time-off/requests')?.component).toBe('MyRequests');
+    expect(matchRoute(timeOff, '/time-off/insights')?.component).toBe('Insights');
     expect(matchRoute(timeOff, '/time-off')).toBeUndefined();
   });
 
@@ -410,8 +411,20 @@ describe('the Time Off manifest', () => {
 
   it('frames a screen as Time off › section, with the section’s tabs', () => {
     const frame = headerFrame(hr, '/time-off/approvals/decided', '/time-off', {}, 'Time off');
-    expect(frame).toMatchObject({ section: 'Requests', siblingsLabel: 'Time off sections' });
+    expect(frame).toMatchObject({
+      section: 'Approvals',
+      // The section's line, the same on each of its tabs.
+      description: 'Time off waiting for your decision, coming up and decided',
+      siblingsLabel: 'Time off sections',
+    });
+    expect(frame.tabs?.map((t) => t.label)).toEqual(['Waiting', 'Coming up', 'Decided']);
     expect(frame.tabs?.find((t) => t.current)?.label).toBe('Decided');
+    // Delegation and adjustments are the page's More menu, not buttons beside its one action.
+    expect(frame.actions.filter((a) => a.menu === true).map((a) => a.label)).toEqual([
+      'Delegate approvals',
+      'Adjust a balance',
+      'Parental leave cases',
+    ]);
     expect(frame.siblings[0]?.label).toBe('Time off');
   });
 });

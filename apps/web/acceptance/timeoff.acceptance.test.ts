@@ -275,7 +275,7 @@ describe('A day off, requested, approved and seen approved', () => {
     await priya.close();
 
     // Adam sees it approved among what is coming up.
-    await page.goto(`${stack.shell}/time-off/requests/upcoming`);
+    await page.goto(`${stack.shell}/time-off/requests`);
     await page.getByText('Approved').first().waitFor({ timeout: 30_000 });
     await adam.close();
   });
@@ -343,12 +343,11 @@ describe('Moving between Time Off’s sections and tabs', () => {
     await move(sidebar('Time off'), /\/time-off\/overview/);
     await move(sidebar('Calendar'), /\/time-off\/calendar\/month/);
     await move(tab('Calendar', 'Timeline'), /\/time-off\/calendar\/timeline/);
-    // A manager's and HR's name for My requests.
-    await move(sidebar('Requests'), /\/time-off\/approvals\/waiting/);
-    await move(tab('Requests', 'Decided'), /\/time-off\/approvals\/decided/);
-    await move(tab('Requests', 'Upcoming'), /\/time-off\/requests\/upcoming/);
-    await move(sidebar('Insights'), /\/time-off\/insights\/what-changed/);
-    await move(tab('Insights', 'Balances'), /\/time-off\/insights\/balances/);
+    await move(sidebar('Approvals'), /\/time-off\/approvals\/waiting/);
+    await move(tab('Approvals', 'Decided'), /\/time-off\/approvals\/decided/);
+    await move(sidebar('Attendance'), /\/time-off\/attendance\/now/);
+    await move(tab('Attendance', 'My week'), /\/time-off\/attendance\/timesheet/);
+    await move(sidebar('Insights'), /\/time-off\/insights/);
     await move(sidebar('Overview'), /\/time-off\/overview/);
 
     // The request panel, from the overview's action: open, with the overview behind it.

@@ -84,8 +84,8 @@ export interface DescribePolicyProps {
 }
 
 const CONTAINER = '@container/policy';
-const COLUMNS =
-  'flex flex-col gap-5 @min-[56rem]/policy:grid @min-[56rem]/policy:grid-cols-2 @min-[56rem]/policy:items-start';
+// One column: settings read top to bottom, one setting per row.
+const COLUMNS = 'flex max-w-4xl flex-col gap-6';
 const TITLE = (): string => tr('settings.describe-policy.new_policy', 'New policy');
 const DESCRIPTION = (): string =>
   tr(

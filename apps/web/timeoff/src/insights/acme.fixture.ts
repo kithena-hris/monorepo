@@ -10,7 +10,6 @@ import type { InsightsData } from './insights';
 const P = (n: number): string => `7ac0e000-0000-7000-8000-${String(n).padStart(12, '0')}`;
 
 export const adaInsights = (over: Partial<InsightsData> = {}): InsightsData => ({
-  tab: 'what-changed',
   point: null,
   asOf: '2026-10-01',
   scope: 'company',

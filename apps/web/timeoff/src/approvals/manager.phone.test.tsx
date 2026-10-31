@@ -43,16 +43,16 @@ async function violations(): Promise<string[]> {
 }
 
 const frame = {
-  section: 'Requests',
+  section: 'Approvals',
+  description: 'Time off waiting for your decision, coming up and decided',
   tabs: [
-    {
-      href: '/time-off/approvals/waiting',
-      label: 'Waiting for me',
-      short: 'Waiting',
-      current: true,
-      count: 5,
-    },
+    { href: '/time-off/approvals/waiting', label: 'Waiting', current: true, count: 5 },
     { href: '/time-off/approvals/coming-up', label: 'Coming up', current: false },
+    { href: '/time-off/approvals/decided', label: 'Decided', current: false },
+  ],
+  actions: [
+    { href: '/time-off/approvals/delegation', label: 'Delegate approvals', menu: true },
+    { href: '/time-off/approvals/adjustments', label: 'Adjust a balance', menu: true },
   ],
 };
 

@@ -130,7 +130,7 @@ describe('the request panel', () => {
 });
 
 describe('my requests', () => {
-  it('reads the tab its name says, and the first request in full', async () => {
+  it('reads the view the address names, and the first request in full', async () => {
     answering({
       TimeOffMyRequests: () => ({
         ok: true,
@@ -138,7 +138,7 @@ describe('my requests', () => {
       }),
       TimeOffRequest: (v) => ({ ok: true, data: { request: { requestId: v['requestId'] } } }),
     });
-    const load = await loadScreen('MyRequestsPast', { params: {}, search: {} });
+    const load = await loadScreen('MyRequests', { params: {}, search: { show: 'past' } });
     expect(asked('TimeOffMyRequests')).toEqual([{ tab: 'past' }]);
     expect(load).toMatchObject({
       status: 'ready',
@@ -203,7 +203,7 @@ describe('HR’s attendance pages (TOF-095 onwards)', () => {
     });
   });
 
-  it('reads the insights, the tab and point from the address, and the nudge only when open', async () => {
+  it('reads the insights and the point from the address, and the nudge only when open', async () => {
     answering({
       TimeOffInsights: () => ({ ok: true, data: { points: [] } }),
       TimeOffNudge: () => ({ ok: true, data: { recipients: [] } }),
@@ -211,13 +211,13 @@ describe('HR’s attendance pages (TOF-095 onwards)', () => {
     const load = await loadScreen(
       'Insights',
       { params: {}, search: { point: 'no_break' } },
-      '/time-off/insights/balances',
+      '/time-off/insights',
     );
-    expect(load).toMatchObject({ status: 'ready', data: { tab: 'balances', nudge: null } });
+    expect(load).toMatchObject({ status: 'ready', data: { point: 'no_break', nudge: null } });
     const open = await loadScreen(
       'Insights',
       { params: {}, search: { point: 'no_break', nudge: 'no_break', bridge: '0', losing: '1' } },
-      '/time-off/insights/what-changed',
+      '/time-off/insights',
     );
     expect(asked('TimeOffNudge')).toEqual([{ balance: true, bridge: false, losing: true }]);
     expect(open).toMatchObject({

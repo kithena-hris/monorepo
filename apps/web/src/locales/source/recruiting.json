@@ -4563,6 +4563,10 @@
     "text": "Candidates, pools, agencies",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): a short line under its name on a phone’s row."
   },
+  "nav./recruiting/candidates.tab_label": {
+    "text": "Candidates",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/candidates): its name in the sidebar, the breadcrumb and the menus."
+  },
   "nav./recruiting/home.description": {
     "text": "Your tasks and your jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): one sentence under its name in a menu or on a card."
@@ -4610,6 +4614,10 @@
   "nav./recruiting/jobs.summary": {
     "text": "Jobs, requisitions, analytics",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/jobs.tab_label": {
+    "text": "Jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/jobs): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./recruiting/offers.description": {
     "text": "Offers, their approvals, contracts and the conditions before a start",

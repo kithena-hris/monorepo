@@ -235,19 +235,21 @@ function extract(ns) {
       summary: 'a short line under its name on a phone’s row',
       group: 'the heading of the group it is listed under',
     };
-    const place = (p, what) => {
+    // A section's first tab shares its path: its words are `tab_<field>`.
+    const place = (p, what, prefix = '') => {
       for (const [field, role] of Object.entries(FIELDS))
         if (typeof p[field] === 'string')
-          out[`nav.${p.path}.${field}`] ??= {
+          out[`nav.${p.path}.${prefix}${field}`] ??= {
             text: p[field],
             context: `${area}. Navigation, ${what} (${p.path}): ${role}.`,
           };
       for (const [r, text] of Object.entries(p.labelFor ?? {}))
-        out[`nav.${p.path}.label_for.${r}`] ??= {
+        out[`nav.${p.path}.${prefix}label_for.${r}`] ??= {
           text,
           context: `${area}. Navigation, ${what} (${p.path}): its name for a viewer whose role is ${r}.`,
         };
-      for (const tab of p.tabs ?? []) place(tab, `a tab of ${p.label}`);
+      for (const tab of p.tabs ?? [])
+        place(tab, `a tab of ${p.label}`, tab.path === p.path ? 'tab_' : '');
     };
     for (const [list, what] of Object.entries(PLACES))
       for (const p of manifest[list] ?? []) place(p, what);

@@ -1,9 +1,12 @@
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Avatar,
   Button,
   List,
   ListItem,
-  PageHeader,
   PageSection,
   Skeleton,
   icons,
@@ -15,6 +18,8 @@ import { Loaded, type Loadable } from '../load';
 import { MonthNav } from './month-nav';
 import { duration, monthName, shortDate } from './time';
 import { t } from '../i18n';
+import { Header } from '../frame';
+import { ATTENDANCE } from './section';
 
 /**
  * Exceptions for HR (T23, PRD §11.7): only what needs action in a month —
@@ -149,9 +154,7 @@ export function Exceptions({ load }: ExceptionsProps): JSX.Element {
   if (load.status === 'loading') return <ExceptionsSkeleton />;
   return (
     <div className="@container/exceptions flex flex-col gap-6">
-      {load.status === 'error' ? (
-        <PageHeader title={t('attendance.exceptions.attendance', 'Attendance')} />
-      ) : null}
+      {load.status === 'error' ? <Header fallback={ATTENDANCE()} /> : null}
       <Loaded load={load} what={t('attendance.exceptions.the_exceptions', 'the exceptions')}>
         {(data) => <Ready data={data} />}
       </Loaded>
@@ -170,37 +173,37 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
     `/time-off/downloads/inspector?from=${data.from}&to=${data.to}&format=${format}`;
   return (
     <>
-      <PageHeader
-        title={t('attendance.exceptions.attendance', 'Attendance')}
-        description={t('attendance.exceptions.everyone', 'Everyone · {{monthLabel}}', {
-          monthLabel: monthLabel(data.month),
-        })}
-        actions={
-          <>
-            <Button asChild variant="secondary" startIcon={<icons.download aria-hidden />}>
+      <Header fallback={ATTENDANCE()} />
+      {/* The month and its export: the view's own, under a header every tab shares. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <MonthNav month={data.month} path="/time-off/attendance/exceptions" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="secondary"
+              startIcon={<icons.download aria-hidden />}
+              endIcon={<icons.expand aria-hidden />}
+            >
+              {t(
+                'attendance.exceptions.export_for_the_labour_inspector',
+                'Export for the labour inspector',
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
               <a href={file('csv')} download>
-                {t(
-                  'attendance.exceptions.export_for_the_labour_inspector',
-                  'Export for the labour inspector',
-                )}
+                {t('attendance.exceptions.as_a_spreadsheet', 'As a spreadsheet (CSV)')}
               </a>
-            </Button>
-            <Button asChild variant="secondary">
-              <a
-                href={file('pdf')}
-                download
-                aria-label={t(
-                  'attendance.exceptions.export_for_the_labour_inspector_as',
-                  'Export for the labour inspector as PDF',
-                )}
-              >
-                {t('attendance.exceptions.pdf', 'PDF')}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={file('pdf')} download>
+                {t('attendance.exceptions.as_a_pdf', 'As a PDF')}
               </a>
-            </Button>
-          </>
-        }
-      />
-      <MonthNav month={data.month} path="/time-off/attendance/exceptions" />
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       {data.items.length === 0 ? (
         <p className="text-sm text-fg-muted">
           {t('attendance.exceptions.nothing_needs_you_in', 'Nothing needs you in {{monthLabel}}.', {
@@ -262,20 +265,6 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
                       leading={<Avatar name={i.displayName} />}
                       description={words(open, data.restMinutes).line(i)}
                       meta={i.teamName ?? undefined}
-                      trailing={
-                        <Button asChild size="xs" variant="secondary">
-                          <a
-                            href={`/time-off/attendance/timesheets?person=${i.personId}&week=${i.date}`}
-                            aria-label={t(
-                              'attendance.exceptions.open_s',
-                              'Open {{displayName}}’s {{date}}',
-                              { displayName: i.displayName, date: shortDate(i.date) },
-                            )}
-                          >
-                            {t('attendance.exceptions.open', 'Open')}
-                          </a>
-                        </Button>
-                      }
                     >
                       {i.displayName}
                     </ListItem>
@@ -301,7 +290,7 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
 export function ExceptionsSkeleton(): JSX.Element {
   return (
     <div className="@container/exceptions flex flex-col gap-6">
-      <PageHeader title={t('attendance.exceptions.attendance', 'Attendance')} description={' '} />
+      <Header fallback={ATTENDANCE()} />
       <div role="status" className="flex flex-col gap-6">
         <span className="sr-only">
           {t('attendance.exceptions.loading_the_exceptions', 'Loading the exceptions')}

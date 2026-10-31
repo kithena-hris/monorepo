@@ -1,4 +1,5 @@
 import {
+  Card,
   Alert,
   Badge,
   Button,
@@ -85,8 +86,8 @@ const DESCRIPTION = (): string =>
     'How people clock in, and what counts as a working day.',
   );
 const page = '@container/attendance flex flex-col gap-6';
-const columns =
-  'flex flex-col gap-6 @min-[60rem]/attendance:grid @min-[60rem]/attendance:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[60rem]/attendance:items-start';
+// One column: settings read top to bottom, one setting per row.
+const columns = 'flex max-w-4xl flex-col gap-6';
 
 export function AttendanceSettings({
   load,
@@ -130,174 +131,179 @@ function Ready({
     <>
       {form.refusal}
       <div className={columns}>
-        <FormSections>
-          <FormSection
-            title={tr('settings.attendance-settings.ways_to_clock_in', 'Ways to clock in')}
-            description={tr(
-              'settings.attendance-settings.where_a_punch_can_come_from',
-              'Where a punch can come from.',
-            )}
-          >
-            <List
-              aria-label={tr('settings.attendance-settings.ways_to_clock_in', 'Ways to clock in')}
+        <Card padded>
+          <FormSections>
+            <FormSection
+              title={tr('settings.attendance-settings.ways_to_clock_in', 'Ways to clock in')}
+              description={tr(
+                'settings.attendance-settings.where_a_punch_can_come_from',
+                'Where a punch can come from.',
+              )}
             >
-              <ListItem
-                icon={<icons.system aria-hidden />}
-                description={tr('settings.attendance-settings.everyone', 'Everyone')}
-                trailing={onOff(rules.clockIn?.web ?? true)}
+              <List
+                aria-label={tr('settings.attendance-settings.ways_to_clock_in', 'Ways to clock in')}
               >
-                {tr('settings.attendance-settings.web_from_the_top_bar', 'Web, from the top bar')}
-              </ListItem>
-              <ListItem
-                icon={<icons.phone aria-hidden />}
-                description={tr('settings.attendance-settings.everyone', 'Everyone')}
-                trailing={onOff(rules.clockIn?.mobile ?? true)}
-              >
-                {tr('settings.attendance-settings.mobile_app', 'Mobile app')}
-              </ListItem>
-              <ListItem
-                icon={<icons.location aria-hidden />}
-                description={tr(
-                  'settings.attendance-settings.location_is_only_checked_at_the',
-                  'Location is only checked at the moment of a punch, and never kept.',
-                )}
-                trailing={onOff(rules.clockIn?.area ?? false)}
-              >
-                {tr(
-                  'settings.attendance-settings.only_inside_the_office_area',
-                  'Only inside the office area',
-                )}
-              </ListItem>
-            </List>
-          </FormSection>
-          <FormSection
-            title={tr('settings.attendance-settings.breaks_and_limits', 'Breaks and limits')}
-            description={tr(
-              'settings.attendance-settings.what_the_working_time_law_asks',
-              'What the working-time law asks for.',
-            )}
-          >
-            <div className="grid grid-cols-1 gap-3 @min-[28rem]/attendance:grid-cols-2">
-              <NumberField
-                label={tr('settings.attendance-settings.break_after_hours', 'Break after (hours)')}
-                value={hours(rules.breakAfterMinutes)}
-                min={0}
-                max={24}
-                step={0.5}
-                onChange={(n) => {
-                  set({ breakAfterMinutes: minutes(n, 60) });
-                }}
-              />
-              <NumberField
-                label={tr(
-                  'settings.attendance-settings.break_length_minutes',
-                  'Break length (minutes)',
-                )}
-                value={rules.breakMinutes}
-                min={0}
-                max={240}
-                step={5}
-                onChange={(n) => {
-                  set({ breakMinutes: minutes(n, 1) });
-                }}
-              />
-              <NumberField
-                label={tr(
-                  'settings.attendance-settings.rest_between_days_hours',
-                  'Rest between days (hours)',
-                )}
-                value={hours(rules.restMinutes)}
-                min={0}
-                max={48}
-                step={0.5}
-                onChange={(n) => {
-                  set({ restMinutes: minutes(n, 60) });
-                }}
-              />
-              <NumberField
-                label={tr(
-                  'settings.attendance-settings.weekly_maximum_hours',
-                  'Weekly maximum (hours)',
-                )}
-                hint={tr('settings.attendance-settings.overtime_included', 'Overtime included')}
-                value={hours(rules.weeklyMaxMinutes)}
-                min={0}
-                max={168}
-                step={0.5}
-                onChange={(n) => {
-                  set({ weeklyMaxMinutes: minutes(n, 60) });
-                }}
-              />
-            </div>
-          </FormSection>
-          <FormSection
-            title={tr('settings.attendance-settings.overtime_becomes', 'Overtime becomes')}
-            description={tr(
-              'settings.attendance-settings.once_a_manager_approves_it',
-              'Once a manager approves it.',
-            )}
-          >
-            <SegmentedControl
-              aria-label={tr('settings.attendance-settings.overtime_becomes', 'Overtime becomes')}
-              value={rules.overtime.becomes}
-              onValueChange={(becomes) => {
-                if (becomes !== '')
-                  set({
-                    overtime: {
-                      ...rules.overtime,
-                      becomes: becomes as AttendanceRules['overtime']['becomes'],
-                    },
-                  });
-              }}
+                <ListItem
+                  icon={<icons.system aria-hidden />}
+                  description={tr('settings.attendance-settings.everyone', 'Everyone')}
+                  trailing={onOff(rules.clockIn?.web ?? true)}
+                >
+                  {tr('settings.attendance-settings.web_from_the_top_bar', 'Web, from the top bar')}
+                </ListItem>
+                <ListItem
+                  icon={<icons.phone aria-hidden />}
+                  description={tr('settings.attendance-settings.everyone', 'Everyone')}
+                  trailing={onOff(rules.clockIn?.mobile ?? true)}
+                >
+                  {tr('settings.attendance-settings.mobile_app', 'Mobile app')}
+                </ListItem>
+                <ListItem
+                  icon={<icons.location aria-hidden />}
+                  description={tr(
+                    'settings.attendance-settings.location_is_only_checked_at_the',
+                    'Location is only checked at the moment of a punch, and never kept.',
+                  )}
+                  trailing={onOff(rules.clockIn?.area ?? false)}
+                >
+                  {tr(
+                    'settings.attendance-settings.only_inside_the_office_area',
+                    'Only inside the office area',
+                  )}
+                </ListItem>
+              </List>
+            </FormSection>
+            <FormSection
+              title={tr('settings.attendance-settings.breaks_and_limits', 'Breaks and limits')}
+              description={tr(
+                'settings.attendance-settings.what_the_working_time_law_asks',
+                'What the working-time law asks for.',
+              )}
             >
-              <SegmentedControlItem value="comp">
-                {tr('settings.attendance-settings.comp_time', 'Comp time')}
-              </SegmentedControlItem>
-              <SegmentedControlItem value="paid">
-                {tr('settings.attendance-settings.paid', 'Paid')}
-              </SegmentedControlItem>
-              <SegmentedControlItem value="choose">
-                {tr('settings.attendance-settings.person_chooses', 'Person chooses')}
-              </SegmentedControlItem>
-            </SegmentedControl>
-            {paid ? (
-              <NumberField
-                label={tr(
-                  'settings.attendance-settings.paid_at_the_hourly_rate',
-                  'Paid at (× the hourly rate)',
-                )}
-                value={Number(rules.overtime.multiplier)}
-                min={1}
-                max={5}
-                step={0.05}
-                precision={2}
-                onChange={(n) => {
-                  set({ overtime: { ...rules.overtime, multiplier: String(n ?? 1) } });
+              <div className="flex flex-col gap-3">
+                <NumberField
+                  label={tr(
+                    'settings.attendance-settings.break_after_hours',
+                    'Break after (hours)',
+                  )}
+                  value={hours(rules.breakAfterMinutes)}
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  onChange={(n) => {
+                    set({ breakAfterMinutes: minutes(n, 60) });
+                  }}
+                />
+                <NumberField
+                  label={tr(
+                    'settings.attendance-settings.break_length_minutes',
+                    'Break length (minutes)',
+                  )}
+                  value={rules.breakMinutes}
+                  min={0}
+                  max={240}
+                  step={5}
+                  onChange={(n) => {
+                    set({ breakMinutes: minutes(n, 1) });
+                  }}
+                />
+                <NumberField
+                  label={tr(
+                    'settings.attendance-settings.rest_between_days_hours',
+                    'Rest between days (hours)',
+                  )}
+                  value={hours(rules.restMinutes)}
+                  min={0}
+                  max={48}
+                  step={0.5}
+                  onChange={(n) => {
+                    set({ restMinutes: minutes(n, 60) });
+                  }}
+                />
+                <NumberField
+                  label={tr(
+                    'settings.attendance-settings.weekly_maximum_hours',
+                    'Weekly maximum (hours)',
+                  )}
+                  hint={tr('settings.attendance-settings.overtime_included', 'Overtime included')}
+                  value={hours(rules.weeklyMaxMinutes)}
+                  min={0}
+                  max={168}
+                  step={0.5}
+                  onChange={(n) => {
+                    set({ weeklyMaxMinutes: minutes(n, 60) });
+                  }}
+                />
+              </div>
+            </FormSection>
+            <FormSection
+              title={tr('settings.attendance-settings.overtime_becomes', 'Overtime becomes')}
+              description={tr(
+                'settings.attendance-settings.once_a_manager_approves_it',
+                'Once a manager approves it.',
+              )}
+            >
+              <SegmentedControl
+                aria-label={tr('settings.attendance-settings.overtime_becomes', 'Overtime becomes')}
+                value={rules.overtime.becomes}
+                onValueChange={(becomes) => {
+                  if (becomes !== '')
+                    set({
+                      overtime: {
+                        ...rules.overtime,
+                        becomes: becomes as AttendanceRules['overtime']['becomes'],
+                      },
+                    });
                 }}
-              />
-            ) : null}
-            <p className="text-sm text-fg-muted">
-              {
+              >
+                <SegmentedControlItem value="comp">
+                  {tr('settings.attendance-settings.comp_time', 'Comp time')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="paid">
+                  {tr('settings.attendance-settings.paid', 'Paid')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="choose">
+                  {tr('settings.attendance-settings.person_chooses', 'Person chooses')}
+                </SegmentedControlItem>
+              </SegmentedControl>
+              {paid ? (
+                <NumberField
+                  label={tr(
+                    'settings.attendance-settings.paid_at_the_hourly_rate',
+                    'Paid at (× the hourly rate)',
+                  )}
+                  value={Number(rules.overtime.multiplier)}
+                  min={1}
+                  max={5}
+                  step={0.05}
+                  precision={2}
+                  onChange={(n) => {
+                    set({ overtime: { ...rules.overtime, multiplier: String(n ?? 1) } });
+                  }}
+                />
+              ) : null}
+              <p className="text-sm text-fg-muted">
                 {
-                  comp: tr(
-                    'settings.attendance-settings.banked_hour_for_hour_as_comp',
-                    'Banked hour for hour as comp time.',
-                  ),
-                  paid: tr(
-                    'settings.attendance-settings.sent_to_payroll_at',
-                    'Sent to Payroll at {{multiplier}}×.',
-                    { multiplier: rules.overtime.multiplier },
-                  ),
-                  choose: tr(
-                    'settings.attendance-settings.comp_time_hour_for_hour_or',
-                    'Comp time hour for hour, or paid at {{multiplier}}× through Payroll, as the person chooses.',
-                    { multiplier: rules.overtime.multiplier },
-                  ),
-                }[rules.overtime.becomes]
-              }
-            </p>
-          </FormSection>
-        </FormSections>
+                  {
+                    comp: tr(
+                      'settings.attendance-settings.banked_hour_for_hour_as_comp',
+                      'Banked hour for hour as comp time.',
+                    ),
+                    paid: tr(
+                      'settings.attendance-settings.sent_to_payroll_at',
+                      'Sent to Payroll at {{multiplier}}×.',
+                      { multiplier: rules.overtime.multiplier },
+                    ),
+                    choose: tr(
+                      'settings.attendance-settings.comp_time_hour_for_hour_or',
+                      'Comp time hour for hour, or paid at {{multiplier}}× through Payroll, as the person chooses.',
+                      { multiplier: rules.overtime.multiplier },
+                    ),
+                  }[rules.overtime.becomes]
+                }
+              </p>
+            </FormSection>
+          </FormSections>
+        </Card>
         <div className="flex min-w-0 flex-col gap-6">
           <PageSection
             title={tr('settings.attendance-settings.working_week', 'Working week')}

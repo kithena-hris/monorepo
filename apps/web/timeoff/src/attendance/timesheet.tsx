@@ -20,7 +20,6 @@ import {
   IconListItem,
   icons,
   KeyValues,
-  PageHeader,
   PageSection,
   Skeleton,
   Stat,
@@ -54,6 +53,9 @@ import {
   type PunchKind,
 } from './time';
 import { t } from '../i18n';
+import { Header } from '../frame';
+import { ATTENDANCE } from './section';
+import { PeriodNav } from '../period';
 
 /**
  * My timesheet (T20, MT17, PRD §11.3): a week or a month, each day a bar from
@@ -138,9 +140,7 @@ export function Timesheet({ load, onCorrect }: TimesheetProps): JSX.Element {
   if (load.status === 'loading') return <TimesheetSkeleton />;
   return (
     <div className="@container/sheet flex flex-col gap-6">
-      {load.status === 'error' ? (
-        <PageHeader title={t('attendance.timesheet.attendance', 'Attendance')} />
-      ) : null}
+      {load.status === 'error' ? <Header fallback={ATTENDANCE()} /> : null}
       <Loaded load={load} what={t('attendance.timesheet.your_timesheet', 'your timesheet')}>
         {(data) => <Ready data={data} onCorrect={onCorrect} />}
       </Loaded>
@@ -192,63 +192,69 @@ function Ready({
 
   return (
     <>
-      <PageHeader
-        title={t('attendance.timesheet.attendance', 'Attendance')}
-        description={
-          week
-            ? t(
-                'attendance.timesheet.week_of_scheduled',
-                'Week of {{dayMonth}} · {{planned}} scheduled',
-                { dayMonth: dayMonth(period.from), planned: duration(planned) },
-              )
-            : t('attendance.timesheet.scheduled', '{{monthName}} · {{planned}} scheduled', {
-                monthName: monthName(period.from),
-                planned: duration(planned),
-              })
-        }
-        actions={
-          <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="ghost" startIcon={<icons.previous aria-hidden />}>
-              <a
-                href={previous}
-                aria-label={
-                  week
-                    ? t('attendance.timesheet.previous_week', 'Previous week')
-                    : t('attendance.timesheet.previous_month', 'Previous month')
-                }
-              />
-            </Button>
-            <TertiaryNav
-              label={t('attendance.timesheet.show_by', 'Show by')}
-              orientation="horizontal"
-              current="page"
-              activeId={period.kind}
-              items={[
-                {
-                  id: 'week',
-                  label: t('attendance.timesheet.week', 'Week'),
-                  href: weekHref(week ? period.from : thisMonday),
+      <Header fallback={ATTENDANCE()} />
+      {/* The period and its steps, and week or month: the view's own, under a header every tab shares. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PeriodNav
+          title={
+            week
+              ? t(
+                  'attendance.timesheet.week_of_scheduled',
+                  'Week of {{dayMonth}} · {{planned}} scheduled',
+                  { dayMonth: dayMonth(period.from), planned: duration(planned) },
+                )
+              : t('attendance.timesheet.scheduled', '{{monthName}} · {{planned}} scheduled', {
+                  monthName: monthName(period.from),
+                  planned: duration(planned),
+                })
+          }
+          {...(week && period.from !== thisMonday
+            ? {
+                today: {
+                  label: t('attendance.timesheet.this_week', 'This week'),
+                  href: weekHref(thisMonday),
                 },
-                {
-                  id: 'month',
-                  label: t('attendance.timesheet.month', 'Month'),
-                  href: monthHref(period.from),
-                },
-              ]}
-            />
-            <Button asChild size="sm" variant="ghost" startIcon={<icons.next aria-hidden />}>
-              <a
-                href={next}
-                aria-label={
-                  week
-                    ? t('attendance.timesheet.next_week', 'Next week')
-                    : t('attendance.timesheet.next_month', 'Next month')
+              }
+            : !week && period.from.slice(0, 7) !== today.slice(0, 7)
+              ? {
+                  today: {
+                    label: t('attendance.timesheet.this_month', 'This month'),
+                    href: monthHref(today),
+                  },
                 }
-              />
-            </Button>
-          </div>
-        }
-      />
+              : {})}
+          previous={{
+            label: week
+              ? t('attendance.timesheet.previous_week', 'Previous week')
+              : t('attendance.timesheet.previous_month', 'Previous month'),
+            href: previous,
+          }}
+          next={{
+            label: week
+              ? t('attendance.timesheet.next_week', 'Next week')
+              : t('attendance.timesheet.next_month', 'Next month'),
+            href: next,
+          }}
+        />
+        <TertiaryNav
+          label={t('attendance.timesheet.show_by', 'Show by')}
+          orientation="horizontal"
+          current="page"
+          activeId={period.kind}
+          items={[
+            {
+              id: 'week',
+              label: t('attendance.timesheet.week', 'Week'),
+              href: weekHref(week ? period.from : thisMonday),
+            },
+            {
+              id: 'month',
+              label: t('attendance.timesheet.month', 'Month'),
+              href: monthHref(period.from),
+            },
+          ]}
+        />
+      </div>
       <div className={body}>
         <div className={column}>
           {open.map((o) => (
@@ -760,7 +766,7 @@ function FixClockOut({
 export function TimesheetSkeleton(): JSX.Element {
   return (
     <div className="@container/sheet flex flex-col gap-6">
-      <PageHeader title={t('attendance.timesheet.attendance', 'Attendance')} description={' '} />
+      <Header fallback={ATTENDANCE()} />
       <div role="status" className={body}>
         <span className="sr-only">
           {t('attendance.timesheet.loading_your_timesheet', 'Loading your timesheet')}

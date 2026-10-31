@@ -2,8 +2,8 @@ import { Alert, AssistantCard, Badge, Button, RadioCard, RadioGroup, icons } fro
 import { useState, useTransition, type JSX } from 'react';
 
 import type { Outcome } from '../load';
-import { AiTag, swapWords, type Alternative, type DecisionData } from '../approvals/decision';
-import { impactOf } from '../approvals/suggest';
+import type { Alternative, DecisionData } from '../approvals/decision';
+import { AiTag, impactOf, swapWords } from '../approvals/words';
 import { dayCount, dayName, firstName, shortDate, spanLabel, type Range } from '../approvals/words';
 import { t } from '../i18n';
 

@@ -4,6 +4,7 @@ import {
   Button,
   Calendar,
   Card,
+  cn,
   type DateRange,
   Dialog,
   DialogBody,
@@ -17,10 +18,11 @@ import {
   icons,
   List,
   ListItem,
-  PageHeader,
   PageSection,
   RadioCard,
   RadioGroup,
+  SegmentedControl,
+  SegmentedControlItem,
   Skeleton,
   Stat,
   Timeline,
@@ -29,6 +31,7 @@ import {
 } from '@reach/ui';
 import { useState, useTransition, type JSX, type ReactNode } from 'react';
 
+import { Header } from '../frame';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import {
   addDays,
@@ -44,8 +47,9 @@ import {
 import { t } from '../i18n';
 
 /**
- * My requests and the timeline (T6, T7, MT10): the caller's requests,
- * upcoming, past or cancelled (each tab its own address), and one of them
+ * Your requests and the timeline (T6, T7, MT10): the caller's requests,
+ * upcoming, past or cancelled (a switch over the list, held in the address as
+ * `?show=`), and one of them
  * with what happened to it — sent, who approved it or who it waits on, a
  * change waiting, and what it does to pay (PRD §8.3, §8.4).
  *
@@ -128,6 +132,8 @@ export interface RequestsData {
 
 export interface RequestsProps {
   readonly load: Loadable<RequestsData>;
+  /** Another view of the list: the host puts it in the address and reads it again. */
+  readonly onShow?: ((show: Tab) => void) | undefined;
   readonly onCancel?: ((requestId: string) => Promise<Outcome>) | undefined;
   readonly onChange?: ((requestId: string, span: Span) => Promise<Outcome>) | undefined;
   readonly onShorten?: ((requestId: string, to: string) => Promise<Outcome>) | undefined;
@@ -154,9 +160,7 @@ export function MyRequests(props: RequestsProps): JSX.Element {
   if (load.status === 'loading') return <RequestsSkeleton />;
   return (
     <div className="@container/requests flex flex-col gap-6">
-      {load.status === 'error' ? (
-        <PageHeader title={t('requests.requests.my_requests', 'My requests')} />
-      ) : null}
+      {load.status === 'error' ? <ListHeader /> : null}
       <Loaded load={load} what={t('requests.requests.your_requests', 'your requests')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
@@ -180,22 +184,75 @@ const EMPTY: Record<Tab, string> = {
   },
 };
 
-function Ready({ data, ...actions }: { readonly data: RequestsData } & RequestsProps): JSX.Element {
+/** The list's header: the same whichever view of it is on show. */
+function ListHeader(): JSX.Element {
+  return (
+    <Header
+      title={t('requests.requests.your_requests_title', 'Your requests')}
+      description={t(
+        'requests.requests.your_requests_description',
+        'Everything you asked for, and where each request stands',
+      )}
+    />
+  );
+}
+
+const SHOWS: readonly Tab[] = ['upcoming', 'past', 'cancelled'];
+const SHOW_LABEL: Record<Tab, string> = {
+  get upcoming(): string {
+    return t('requests.requests.upcoming', 'Upcoming');
+  },
+  get past(): string {
+    return t('requests.requests.past', 'Past');
+  },
+  get cancelled(): string {
+    return t('requests.requests.cancelled_view', 'Cancelled');
+  },
+};
+
+function Ready({
+  data,
+  onShow,
+  ...actions
+}: { readonly data: RequestsData } & RequestsProps): JSX.Element {
   const { selected, single } = data;
-  const title =
-    single && selected !== null
-      ? t('requests.requests.text', '{{value}}{{leaveTypeName}} · {{spanLabel}}', {
-          value: selected.mine ? '' : `${selected.request.displayName} · `,
-          leaveTypeName: selected.request.leaveTypeName,
-          spanLabel: spanLabel(selected.request.span.from, selected.request.span.to),
-        })
-      : t('requests.requests.my_requests', 'My requests');
   return (
     <>
-      <PageHeader title={title} />
+      {single && selected !== null ? (
+        <Header
+          title={t('requests.requests.text', '{{value}}{{leaveTypeName}} · {{spanLabel}}', {
+            value: selected.mine ? '' : `${selected.request.displayName} · `,
+            leaveTypeName: selected.request.leaveTypeName,
+            spanLabel: spanLabel(selected.request.span.from, selected.request.span.to),
+          })}
+          description={t('requests.requests.request_description', '{{days}} · {{status}}', {
+            days: days(selected.request.workingDays),
+            status: statusOf(selected.request.status).label,
+          })}
+        />
+      ) : (
+        <ListHeader />
+      )}
       <div className={body}>
         {single && selected !== null && !selected.mine ? null : (
-          <div className={single ? '@max-[40rem]/requests:hidden' : undefined}>
+          <div className={cn('flex flex-col gap-3', single && '@max-[40rem]/requests:hidden')}>
+            {single ? null : (
+              <SegmentedControl
+                fullWidth
+                aria-label={t('requests.requests.which_requests', 'Which requests')}
+                value={data.tab}
+                onValueChange={(next) => {
+                  const show = SHOWS.find((v) => v === next);
+                  if (show !== undefined) onShow?.(show);
+                }}
+              >
+                {SHOWS.map((v) => (
+                  <SegmentedControlItem key={v} value={v}>
+                    {SHOW_LABEL[v]}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+            )}
             {data.items.length === 0 ? (
               <p className="text-sm text-fg-muted">{EMPTY[data.tab]}</p>
             ) : (
@@ -791,7 +848,7 @@ function ChangeDialog({
 export function RequestsSkeleton(): JSX.Element {
   return (
     <div className="@container/requests flex flex-col gap-6">
-      <PageHeader title={t('requests.requests.my_requests', 'My requests')} />
+      <ListHeader />
       <div role="status" className={body}>
         <span className="sr-only">
           {t('requests.requests.loading_your_requests', 'Loading your requests')}

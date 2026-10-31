@@ -23,9 +23,13 @@ import { timed } from './timing';
  */
 type Tab = NonNullable<Place['tabs']>[number];
 
-/** One place's words, `nav.<path>.<field>`, in the reader's language. */
-function wordsIn<P extends Tab>(place: P, t: T): P {
-  const key = (field: string) => `nav.${place.path}.${field}`;
+/**
+ * One place's words, `nav.<path>.<field>`, in the reader's language. A
+ * section's first tab shares its path, so its words are `tab_<field>`: the
+ * Month tab is not called Calendar.
+ */
+function wordsIn<P extends Tab>(place: P, t: T, prefix = ''): P {
+  const key = (field: string) => `nav.${place.path}.${prefix}${field}`;
   const out: P = { ...place, label: t(key('label'), place.label) };
   for (const field of ['short', 'description', 'group'] as const) {
     const english = place[field];
@@ -50,7 +54,8 @@ function wordsIn<P extends Tab>(place: P, t: T): P {
 function placeIn(place: Place, t: T): Place {
   const out = wordsIn(place, t);
   if (place.summary !== undefined) out.summary = t(`nav.${place.path}.summary`, place.summary);
-  if (place.tabs !== undefined) out.tabs = place.tabs.map((tab) => wordsIn(tab, t));
+  if (place.tabs !== undefined)
+    out.tabs = place.tabs.map((tab) => wordsIn(tab, t, tab.path === place.path ? 'tab_' : ''));
   return out;
 }
 

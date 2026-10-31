@@ -1,4 +1,5 @@
 import {
+  Card,
   Alert,
   Avatar,
   Badge,
@@ -178,8 +179,8 @@ function StartPolicy({ onStart }: { readonly onStart: () => Promise<Outcome> }):
 }
 
 const page = '@container/policy flex flex-col gap-6';
-const columns =
-  'flex flex-col gap-6 @min-[64rem]/policy:grid @min-[64rem]/policy:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] @min-[64rem]/policy:items-start';
+// One column: settings read top to bottom, one setting per row.
+const columns = 'flex max-w-4xl flex-col gap-6';
 
 export function LeaveType(props: LeaveTypeProps): JSX.Element {
   const { load } = props;
@@ -419,256 +420,263 @@ function Rules({
   const monthly = (Math.round((Number(first) * 1000) / 12) / 1000).toFixed(2);
   const carry = value.carryOver;
   return (
-    <FormSections>
-      <FormSection
-        title={t('settings.leave-type.allowance', 'Allowance')}
-        description={t(
-          'settings.leave-type.a_years_by_years_of_service',
-          'A year’s {{unit}}, by years of service. Each band starts on the anniversary.',
-          { unit },
-        )}
-      >
-        <ul
-          aria-label={t(
-            'settings.leave-type.allowance_by_years_of_service',
-            'Allowance by years of service',
+    <Card padded>
+      <FormSections>
+        <FormSection
+          title={t('settings.leave-type.allowance', 'Allowance')}
+          description={t(
+            'settings.leave-type.a_years_by_years_of_service',
+            'A year’s {{unit}}, by years of service. Each band starts on the anniversary.',
+            { unit },
           )}
-          className="flex flex-col gap-3"
         >
-          {bands.map((band, i) => (
-            <li
-              key={i}
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-3"
+          <ul
+            aria-label={t(
+              'settings.leave-type.allowance_by_years_of_service',
+              'Allowance by years of service',
+            )}
+            className="flex flex-col gap-3"
+          >
+            {bands.map((band, i) => (
+              <li
+                key={i}
+                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-3"
+              >
+                <NumberField
+                  label={t('settings.leave-type.from_year', 'From year')}
+                  value={band.fromYears}
+                  min={i === 0 ? 0 : (bands[i - 1]?.fromYears ?? 0) + 1}
+                  step={1}
+                  readOnly={i === 0}
+                  onChange={(fromYears) => {
+                    set({
+                      allowance: bands.map((b, j) =>
+                        j === i ? { ...b, fromYears: fromYears ?? 0 } : b,
+                      ),
+                    });
+                  }}
+                />
+                <NumberField
+                  label={t('settings.leave-type.a_year', '{{charAt}}{{slice}} a year', {
+                    charAt: unit.charAt(0).toUpperCase(),
+                    slice: unit.slice(1),
+                  })}
+                  value={Number(band.days)}
+                  min={0}
+                  step={0.5}
+                  precision={1}
+                  onChange={(days) => {
+                    set({
+                      allowance: bands.map((b, j) =>
+                        j === i ? { ...b, days: asAmount(days) } : b,
+                      ),
+                    });
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  aria-label={t(
+                    'settings.leave-type.remove_the_band_from_year',
+                    'Remove the band from year {{fromYears}}',
+                    { fromYears: String(band.fromYears) },
+                  )}
+                  disabled={i === 0}
+                  startIcon={<icons.delete aria-hidden />}
+                  onClick={() => {
+                    set({ allowance: bands.filter((_, j) => j !== i) });
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+          <div>
+            <Button
+              size="sm"
+              variant="ghost"
+              startIcon={<icons.add aria-hidden />}
+              onClick={() => {
+                const last = bands.at(-1) ?? { fromYears: 0, days: first };
+                set({ allowance: [...bands, { fromYears: last.fromYears + 1, days: last.days }] });
+              }}
             >
+              {t('settings.leave-type.add_a_band', 'Add a band')}
+            </Button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium" id="earned">
+              {t('settings.leave-type.earned', 'Earned')}
+            </span>
+            <SegmentedControl
+              aria-labelledby="earned"
+              value={value.earning}
+              onValueChange={(earning) => {
+                if (earning === 'upfront' || earning === 'monthly') set({ earning });
+              }}
+            >
+              <SegmentedControlItem value="upfront">
+                {t('settings.leave-type.all_on_the_first_day', 'All on the first day')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="monthly">
+                {t('settings.leave-type.monthly', 'Monthly')}
+              </SegmentedControlItem>
+            </SegmentedControl>
+            <p className="text-sm text-fg-muted">
+              {value.earning === 'monthly'
+                ? t(
+                    'settings.leave-type.on_the_1st_of_each_month',
+                    '{{monthly}} {{unit}} on the 1st of each month, in the first band.',
+                    { monthly, unit },
+                  )
+                : t(
+                    'settings.leave-type.the_years_on_the_first_day',
+                    'The year’s {{unit}} on the first day of the leave year.',
+                    { unit },
+                  )}
+            </p>
+          </div>
+          <MonthDayField
+            legend={t('settings.leave-type.the_leave_year_starts_on', 'The leave year starts on')}
+            value={value.year}
+            onChange={(year) => {
+              set({ year });
+            }}
+          />
+          <Toggle
+            kind="checkbox"
+            label={t(
+              'settings.leave-type.pro_rata_for_joiners_and_leavers',
+              'Pro-rata for joiners and leavers',
+            )}
+            description={t(
+              'settings.leave-type.rounded_up_to_the_nearest_half',
+              'Rounded up to the nearest half day',
+            )}
+            checked={value.proRata}
+            onChange={(proRata) => {
+              set({ proRata });
+            }}
+          />
+          <Toggle
+            kind="checkbox"
+            label={t(
+              'settings.leave-type.keep_earning_during_parental_leave',
+              'Keep earning during parental leave',
+            )}
+            description={t(
+              'settings.leave-type.spanish_law_requires_it',
+              'Spanish law requires it',
+            )}
+            checked={value.keepEarningOnParental}
+            onChange={(keepEarningOnParental) => {
+              set({ keepEarningOnParental });
+            }}
+          />
+          <NumberField
+            label={t('settings.leave-type.can_book_after_months', 'Can book after (months)')}
+            hint={t(
+              'settings.leave-type.counted_from_the_first_day_and',
+              'Counted from the first day, and back-dated to it',
+            )}
+            value={value.probationMonths}
+            min={0}
+            max={24}
+            step={1}
+            onChange={(months) => {
+              set({ probationMonths: months ?? 0 });
+            }}
+          />
+        </FormSection>
+        <FormSection
+          title={t('settings.leave-type.carry_over', 'Carry-over')}
+          description={t(
+            'settings.leave-type.what_moves_into_next_year_and',
+            'What moves into next year, and until when it can be used.',
+          )}
+        >
+          <Toggle
+            label={t('settings.leave-type.carry_days_into_next_year', 'Carry days into next year')}
+            checked={carry !== null}
+            onChange={(on) => {
+              set({ carryOver: on ? { maxDays: '5.000', useBy: { month: 3, day: 31 } } : null });
+            }}
+          />
+          {carry === null ? (
+            <p className="text-sm text-fg-muted">
+              {t(
+                'settings.leave-type.anything_left_is_lost_at_the',
+                'Anything left is lost at the end of the year.',
+              )}
+            </p>
+          ) : (
+            <>
               <NumberField
-                label={t('settings.leave-type.from_year', 'From year')}
-                value={band.fromYears}
-                min={i === 0 ? 0 : (bands[i - 1]?.fromYears ?? 0) + 1}
-                step={1}
-                readOnly={i === 0}
-                onChange={(fromYears) => {
-                  set({
-                    allowance: bands.map((b, j) =>
-                      j === i ? { ...b, fromYears: fromYears ?? 0 } : b,
-                    ),
-                  });
-                }}
-              />
-              <NumberField
-                label={t('settings.leave-type.a_year', '{{charAt}}{{slice}} a year', {
-                  charAt: unit.charAt(0).toUpperCase(),
-                  slice: unit.slice(1),
-                })}
-                value={Number(band.days)}
+                label={t('settings.leave-type.up_to', 'Up to ({{unit}})', { unit })}
+                value={Number(carry.maxDays)}
                 min={0}
                 step={0.5}
                 precision={1}
-                onChange={(days) => {
-                  set({
-                    allowance: bands.map((b, j) => (j === i ? { ...b, days: asAmount(days) } : b)),
-                  });
+                onChange={(n) => {
+                  set({ carryOver: { ...carry, maxDays: asAmount(n) } });
                 }}
               />
-              <Button
-                variant="ghost"
-                aria-label={t(
-                  'settings.leave-type.remove_the_band_from_year',
-                  'Remove the band from year {{fromYears}}',
-                  { fromYears: String(band.fromYears) },
-                )}
-                disabled={i === 0}
-                startIcon={<icons.delete aria-hidden />}
-                onClick={() => {
-                  set({ allowance: bands.filter((_, j) => j !== i) });
+              <MonthDayField
+                legend={t('settings.leave-type.use_carried_days_by', 'Use carried days by')}
+                value={carry.useBy}
+                onChange={(useBy) => {
+                  set({ carryOver: { ...carry, useBy } });
                 }}
               />
-            </li>
-          ))}
-        </ul>
-        <div>
-          <Button
-            size="sm"
-            variant="ghost"
-            startIcon={<icons.add aria-hidden />}
-            onClick={() => {
-              const last = bands.at(-1) ?? { fromYears: 0, days: first };
-              set({ allowance: [...bands, { fromYears: last.fromYears + 1, days: last.days }] });
-            }}
-          >
-            {t('settings.leave-type.add_a_band', 'Add a band')}
-          </Button>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium" id="earned">
-            {t('settings.leave-type.earned', 'Earned')}
-          </span>
-          <SegmentedControl
-            aria-labelledby="earned"
-            value={value.earning}
-            onValueChange={(earning) => {
-              if (earning === 'upfront' || earning === 'monthly') set({ earning });
-            }}
-          >
-            <SegmentedControlItem value="upfront">
-              {t('settings.leave-type.all_on_the_first_day', 'All on the first day')}
-            </SegmentedControlItem>
-            <SegmentedControlItem value="monthly">
-              {t('settings.leave-type.monthly', 'Monthly')}
-            </SegmentedControlItem>
-          </SegmentedControl>
-          <p className="text-sm text-fg-muted">
-            {value.earning === 'monthly'
-              ? t(
-                  'settings.leave-type.on_the_1st_of_each_month',
-                  '{{monthly}} {{unit}} on the 1st of each month, in the first band.',
-                  { monthly, unit },
-                )
-              : t(
-                  'settings.leave-type.the_years_on_the_first_day',
-                  'The year’s {{unit}} on the first day of the leave year.',
-                  { unit },
+              <p className="text-sm text-fg-muted">
+                {t(
+                  'settings.leave-type.anything_above_is_lost_at_the',
+                  'Anything above {{daysLabel}} is lost at the end of the year, and carried days still unused on {{monthDay}} are lost then.',
+                  { daysLabel: daysLabel(amount(carry.maxDays)), monthDay: monthDay(carry.useBy) },
                 )}
-          </p>
-        </div>
-        <MonthDayField
-          legend={t('settings.leave-type.the_leave_year_starts_on', 'The leave year starts on')}
-          value={value.year}
-          onChange={(year) => {
-            set({ year });
-          }}
-        />
-        <Toggle
-          kind="checkbox"
-          label={t(
-            'settings.leave-type.pro_rata_for_joiners_and_leavers',
-            'Pro-rata for joiners and leavers',
+              </p>
+            </>
           )}
+        </FormSection>
+        <FormSection
+          title={t('settings.leave-type.requests', 'Requests')}
           description={t(
-            'settings.leave-type.rounded_up_to_the_nearest_half',
-            'Rounded up to the nearest half day',
+            'settings.leave-type.what_people_can_ask_for_and',
+            'What people can ask for, and what they see first.',
           )}
-          checked={value.proRata}
-          onChange={(proRata) => {
-            set({ proRata });
-          }}
-        />
-        <Toggle
-          kind="checkbox"
-          label={t(
-            'settings.leave-type.keep_earning_during_parental_leave',
-            'Keep earning during parental leave',
-          )}
-          description={t('settings.leave-type.spanish_law_requires_it', 'Spanish law requires it')}
-          checked={value.keepEarningOnParental}
-          onChange={(keepEarningOnParental) => {
-            set({ keepEarningOnParental });
-          }}
-        />
-        <NumberField
-          label={t('settings.leave-type.can_book_after_months', 'Can book after (months)')}
-          hint={t(
-            'settings.leave-type.counted_from_the_first_day_and',
-            'Counted from the first day, and back-dated to it',
-          )}
-          value={value.probationMonths}
-          min={0}
-          max={24}
-          step={1}
-          onChange={(months) => {
-            set({ probationMonths: months ?? 0 });
-          }}
-        />
-      </FormSection>
-      <FormSection
-        title={t('settings.leave-type.carry_over', 'Carry-over')}
-        description={t(
-          'settings.leave-type.what_moves_into_next_year_and',
-          'What moves into next year, and until when it can be used.',
-        )}
-      >
-        <Toggle
-          label={t('settings.leave-type.carry_days_into_next_year', 'Carry days into next year')}
-          checked={carry !== null}
-          onChange={(on) => {
-            set({ carryOver: on ? { maxDays: '5.000', useBy: { month: 3, day: 31 } } : null });
-          }}
-        />
-        {carry === null ? (
-          <p className="text-sm text-fg-muted">
-            {t(
-              'settings.leave-type.anything_left_is_lost_at_the',
-              'Anything left is lost at the end of the year.',
+        >
+          <Toggle
+            label={t('settings.leave-type.half_days_allowed', 'Half days allowed')}
+            checked={value.requests.halfDays}
+            onChange={(halfDays) => {
+              set({ requests: { ...value.requests, halfDays } });
+            }}
+          />
+          <Toggle
+            label={t(
+              'settings.leave-type.show_who_else_is_off_before',
+              'Show who else is off before sending',
             )}
-          </p>
-        ) : (
-          <>
-            <NumberField
-              label={t('settings.leave-type.up_to', 'Up to ({{unit}})', { unit })}
-              value={Number(carry.maxDays)}
-              min={0}
-              step={0.5}
-              precision={1}
-              onChange={(n) => {
-                set({ carryOver: { ...carry, maxDays: asAmount(n) } });
-              }}
-            />
-            <MonthDayField
-              legend={t('settings.leave-type.use_carried_days_by', 'Use carried days by')}
-              value={carry.useBy}
-              onChange={(useBy) => {
-                set({ carryOver: { ...carry, useBy } });
-              }}
-            />
-            <p className="text-sm text-fg-muted">
-              {t(
-                'settings.leave-type.anything_above_is_lost_at_the',
-                'Anything above {{daysLabel}} is lost at the end of the year, and carried days still unused on {{monthDay}} are lost then.',
-                { daysLabel: daysLabel(amount(carry.maxDays)), monthDay: monthDay(carry.useBy) },
-              )}
-            </p>
-          </>
-        )}
-      </FormSection>
-      <FormSection
-        title={t('settings.leave-type.requests', 'Requests')}
-        description={t(
-          'settings.leave-type.what_people_can_ask_for_and',
-          'What people can ask for, and what they see first.',
-        )}
-      >
-        <Toggle
-          label={t('settings.leave-type.half_days_allowed', 'Half days allowed')}
-          checked={value.requests.halfDays}
-          onChange={(halfDays) => {
-            set({ requests: { ...value.requests, halfDays } });
-          }}
-        />
-        <Toggle
-          label={t(
-            'settings.leave-type.show_who_else_is_off_before',
-            'Show who else is off before sending',
-          )}
-          checked={value.requests.showWhoIsOff}
-          onChange={(showWhoIsOff) => {
-            set({ requests: { ...value.requests, showWhoIsOff } });
-          }}
-        />
-        <Toggle
-          label={t(
-            'settings.leave-type.block_requests_below_the_team_minimum',
-            'Block requests below the team minimum',
-          )}
-          description={t(
-            'settings.leave-type.off_show_a_warning_and_let',
-            'Off: show a warning and let the manager decide',
-          )}
-          checked={value.requests.blockBelowMinimum}
-          onChange={(blockBelowMinimum) => {
-            set({ requests: { ...value.requests, blockBelowMinimum } });
-          }}
-        />
-      </FormSection>
-    </FormSections>
+            checked={value.requests.showWhoIsOff}
+            onChange={(showWhoIsOff) => {
+              set({ requests: { ...value.requests, showWhoIsOff } });
+            }}
+          />
+          <Toggle
+            label={t(
+              'settings.leave-type.block_requests_below_the_team_minimum',
+              'Block requests below the team minimum',
+            )}
+            description={t(
+              'settings.leave-type.off_show_a_warning_and_let',
+              'Off: show a warning and let the manager decide',
+            )}
+            checked={value.requests.blockBelowMinimum}
+            onChange={(blockBelowMinimum) => {
+              set({ requests: { ...value.requests, blockBelowMinimum } });
+            }}
+          />
+        </FormSection>
+      </FormSections>
+    </Card>
   );
 }
 

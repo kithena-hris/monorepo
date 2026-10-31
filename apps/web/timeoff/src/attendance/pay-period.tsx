@@ -108,7 +108,7 @@ export function PayPeriod(props: PayPeriodProps): JSX.Element {
   return (
     <div className="@container/period flex flex-col gap-6">
       {load.status === 'error' ? (
-        <PageHeader title={tr('attendance.pay-period.attendance', 'Attendance')} />
+        <PageHeader title={tr('attendance.pay-period.pay_period', 'Pay period')} />
       ) : null}
       <Loaded load={load} what={tr('attendance.pay-period.the_pay_period', 'the pay period')}>
         {(data) => <Ready {...props} data={data} />}
@@ -147,7 +147,7 @@ function Ready({
   return (
     <>
       <PageHeader
-        title={tr('attendance.pay-period.attendance', 'Attendance')}
+        title={tr('attendance.pay-period.pay_period', 'Pay period')}
         description={
           data.closedAt === null
             ? over
@@ -397,7 +397,7 @@ function Ready({
 export function PayPeriodSkeleton(): JSX.Element {
   return (
     <div className="@container/period flex flex-col gap-6">
-      <PageHeader title={tr('attendance.pay-period.attendance', 'Attendance')} description={' '} />
+      <PageHeader title={tr('attendance.pay-period.pay_period', 'Pay period')} description={' '} />
       <div role="status" className="flex flex-col gap-6">
         <span className="sr-only">
           {tr('attendance.pay-period.loading_the_pay_period', 'Loading the pay period')}

@@ -10,7 +10,6 @@ import {
   icons,
   List,
   ListItem,
-  PageHeader,
   PageSection,
   Progress,
   RangeBar,
@@ -30,6 +29,7 @@ import {
 } from 'react';
 
 import { ClockIn, ClockOutSheet } from '../clock/clock';
+import { Header } from '../frame';
 import { insideFor, type Office } from '../clock/location';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import {
@@ -58,9 +58,11 @@ import { t } from '../i18n';
  * shell's (`onPunch`); a punch that goes through comes back as the page
  * drawn again.
  *
- * One component at two widths. Under 40rem of its own width it is MT1: the
- * title, the clock, the balances as a row to swipe, one suggestion and what
- * is coming up; the team and the second suggestion are the desk's.
+ * The balances lead, the width of the page: they are what a person comes to
+ * read. Under them, what is coming up and who is away beside the clock and
+ * the days worth taking. Under 40rem of its own width it is MT1: the
+ * balances to swipe, the clock, one suggestion and what is coming up; the
+ * team and the second suggestion are the desk's.
  */
 
 type ClockState = 'out' | 'in' | 'on_break';
@@ -173,7 +175,7 @@ export function Overview({ load, onPunch }: OverviewProps): JSX.Element {
   return (
     <div className="@container/overview flex flex-col gap-6">
       {load.status === 'error' ? (
-        <PageHeader title={t('overview.overview.time_off', 'Time off')} />
+        <Header title={t('overview.overview.time_off', 'Time off')} />
       ) : null}
       <Loaded load={load} what={t('overview.overview.your_time_off', 'your time off')}>
         {(data) => <Ready data={data} onPunch={onPunch} />}
@@ -202,7 +204,7 @@ function Ready({
   const tracked = data.balances.find((b) => b.unit === 'day' && b.yearly !== null);
   return (
     <>
-      <PageHeader
+      <Header
         title={
           data.member === null
             ? t('overview.overview.time_off', 'Time off')
@@ -215,6 +217,7 @@ function Ready({
         actions={
           <Button
             asChild
+            variant="ghost"
             startIcon={<icons.parental aria-hidden />}
             className={'@max-[40rem]/overview:hidden'}
           >
@@ -236,19 +239,19 @@ function Ready({
           )}
         </Alert>
       ) : null}
+      <Balances balances={data.balances} />
       <div className={body}>
+        <div className={column}>
+          <ComingUp data={data} today={today} />
+          <TeamToday data={data} today={today} />
+        </div>
         <div className={column}>
           {data.clock === null ? null : (
             <ClockCard clock={data.clock} now={data.now} zone={zone} onPunch={onPunch} />
           )}
-          <Balances balances={data.balances} />
-          <ComingUp data={data} today={today} />
-        </div>
-        <div className={column}>
           {data.bridges.length === 0 || tracked === undefined ? null : (
             <Bridges bridges={data.bridges} left={amount(tracked.left)} type={tracked} />
           )}
-          <TeamToday data={data} today={today} />
         </div>
       </div>
     </>
@@ -427,7 +430,7 @@ function ClockCard({
         )}
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-60 flex-1">
+        <div className="min-w-44 flex-1">
           <LiveTimer workedMinutes={worked} running={state === 'in'} since={now} />
           <p className="mt-2 text-sm text-fg-muted">{sub}</p>
         </div>
@@ -533,7 +536,7 @@ function LiveTimer({
         '{{h}} hours {{m}} minutes worked today',
         { h: String(h), m: String(m) },
       )}
-      className="font-display text-5xl leading-none font-bold tracking-[-0.04em] tabular-nums text-fg"
+      className="font-display text-4xl leading-none font-bold tracking-[-0.04em] tabular-nums text-fg"
     >
       {`${String(h)}:${pad(m)}:${pad(s)}`}
     </p>
@@ -552,7 +555,6 @@ function Balances({
     <Carousel
       label={t('overview.overview.your_balances', 'Your balances')}
       controls="none"
-      className={'@max-[40rem]/overview:order-2'}
       itemClassName="w-56 @min-[40rem]/overview:w-auto @min-[40rem]/overview:min-w-0 @min-[40rem]/overview:flex-1 @min-[40rem]/overview:shrink"
     >
       {balances.map((b) => {
@@ -639,11 +641,16 @@ function ComingUp({
       title={t('overview.overview.coming_up', 'Coming up')}
       className={'@max-[40rem]/overview:order-4'}
       actions={
-        <Button variant="ghost" size="sm" asChild>
-          <a href={`/time-off/holidays/${year}`}>
-            {t('overview.overview.all_holidays', 'All holidays')}
-          </a>
-        </Button>
+        <>
+          <Button variant="ghost" size="sm" asChild>
+            <a href={`/time-off/holidays/${year}`}>
+              {t('overview.overview.all_holidays', 'All holidays')}
+            </a>
+          </Button>
+          <Button variant="ghost" size="sm" asChild endIcon={<icons.forward aria-hidden />}>
+            <a href="/time-off/requests">{t('overview.overview.your_requests', 'Your requests')}</a>
+          </Button>
+        </>
       }
     >
       {rows.length === 0 ? (
@@ -846,27 +853,29 @@ export function OverviewSkeleton(): JSX.Element {
   const block = (className: string): JSX.Element => <Skeleton className={className} />;
   return (
     <div className="@container/overview flex flex-col gap-6">
-      {/* A no-break space holds the description's line until the date is known. */}
-      <PageHeader title={t('overview.overview.time_off', 'Time off')} description={' '} />
-      <div role="status" className={body}>
+      {/* The header keeps a line for the date until it is known. */}
+      <Header title={t('overview.overview.time_off', 'Time off')} />
+      <div role="status" className="flex flex-col gap-6">
         <span className="sr-only">
           {t('overview.overview.loading_your_time_off', 'Loading your time off')}
         </span>
-        <div className={column}>
-          {block(`h-60 rounded-lg @max-[40rem]/overview:order-1`)}
-          <div className={`flex gap-3 overflow-hidden @max-[40rem]/overview:order-2`}>
-            {[0, 1, 2, 3].map((n) => (
-              <Skeleton
-                key={n}
-                className="h-36 w-56 shrink-0 rounded-lg @min-[40rem]/overview:w-auto @min-[40rem]/overview:flex-1"
-              />
-            ))}
-          </div>
-          {block(`h-72 rounded-lg @max-[40rem]/overview:order-4`)}
+        <div className="flex gap-3 overflow-hidden">
+          {[0, 1, 2, 3].map((n) => (
+            <Skeleton
+              key={n}
+              className="h-36 w-56 shrink-0 rounded-lg @min-[40rem]/overview:w-auto @min-[40rem]/overview:flex-1"
+            />
+          ))}
         </div>
-        <div className={column}>
-          {block(`h-56 rounded-lg @max-[40rem]/overview:order-3`)}
-          {block(`h-48 rounded-lg @max-[40rem]/overview:hidden`)}
+        <div className={body}>
+          <div className={column}>
+            {block(`h-72 rounded-lg @max-[40rem]/overview:order-4`)}
+            {block(`h-48 rounded-lg @max-[40rem]/overview:hidden`)}
+          </div>
+          <div className={column}>
+            {block(`h-60 rounded-lg @max-[40rem]/overview:order-1`)}
+            {block(`h-56 rounded-lg @max-[40rem]/overview:order-3`)}
+          </div>
         </div>
       </div>
     </div>

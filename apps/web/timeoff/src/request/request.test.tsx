@@ -49,7 +49,7 @@ describe('requesting time off', () => {
   it('shows T3’s consequences: the days, the balance after, the clash and who else is off', async () => {
     render(<RequestTimeOff load={ready(october())} />);
     expect(panel().getByText('Marco Ruiz approves.')).toBeTruthy();
-    expect(panel().getByText('Mon 19 – Fri 23 Oct')).toBeTruthy();
+    expect(panel().getAllByText('19–23 Oct').length).toBeGreaterThan(0);
     expect(panel().getByText('Vacation · 5 days · 9 days away')).toBeTruthy();
     expect(panel().getByText('6.5')).toBeTruthy();
     const clash = panel().getByRole('alert');

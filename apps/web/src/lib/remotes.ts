@@ -94,10 +94,17 @@ export interface PlaceCounts {
 /** What the host puts in a screen's header (`frame.tsx`'s `Frame`), as JSON. */
 export interface HeaderFrame {
   readonly section: string | null;
+  /**
+   * The section's one line, the same on each of its tabs, so a header keeps
+   * its height as the tabs change.
+   */
+  readonly description?: string;
   readonly actions: readonly {
     readonly href: string;
     readonly label: string;
     readonly icon?: string;
+    /** Not the page's one thing: the header's More menu has it. */
+    readonly menu?: true;
   }[];
   readonly siblings: readonly Siblings[];
   readonly siblingsLabel: string;
@@ -136,6 +143,7 @@ export function headerFrame(
   return {
     // Every People page opens as "People › section", its siblings a click away.
     section: here === undefined ? null : here.label,
+    ...(section?.description === undefined ? {} : { description: section.description }),
     siblings: siblingsOf(places.sections, here, counts.sections),
     siblingsLabel: t('lib.remotes.sections', '{{area}} sections', { area }),
     ...(section?.tabs === undefined || !umbrella
@@ -159,6 +167,7 @@ export function headerFrame(
         href: a.path,
         label: a.label,
         ...(a.icon === undefined ? {} : { icon: a.icon }),
+        ...(a.menu === true ? { menu: true as const } : {}),
       })),
   };
 }

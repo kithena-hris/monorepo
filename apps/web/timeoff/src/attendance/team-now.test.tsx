@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { marcoBoard } from './acme.fixture';
@@ -13,18 +13,25 @@ import { TeamNow } from './team-now';
 const ready = () => ({ status: 'ready' as const, data: marcoBoard() });
 
 describe('team, right now', () => {
-  it('counts who is in, on a break, not in yet and away', async () => {
-    const { container } = render(<TeamNow load={ready()} />);
+  it('counts who is in, on a break, not in yet and away, each count a filter of the list', async () => {
+    const onShow = vi.fn();
+    const { container } = render(<TeamNow load={ready()} onShow={onShow} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Attendance' })).toBeTruthy();
-    expect(screen.getByText('6 people report to you')).toBeTruthy();
-    const count = (label: string): string | undefined =>
-      screen.getAllByText(label).find((el) => el.closest('[class*="flex-col"]') !== null)
-        ?.parentElement?.parentElement?.textContent ?? undefined;
-    expect(count('In')).toContain('4');
-    expect(count('On a break')).toContain('1');
-    expect(count('Not in yet')).toContain('0');
-    expect(count('Away')).toContain('1');
+    expect(screen.getByRole('radio', { name: 'Everyone 6' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'In 4' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'On a break 1' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Not in yet 0' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Away 1' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Away 1' }));
+    expect(onShow).toHaveBeenCalledWith('away');
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('lists only the people a count names', () => {
+    render(<TeamNow load={ready()} show="away" onShow={vi.fn()} />);
+    const team = within(screen.getByRole('list', { name: 'Your team' }));
+    expect(team.getAllByRole('listitem')).toHaveLength(1);
+    expect(team.getByText('Hana Kim')).toBeTruthy();
   });
 
   it('shows each person’s status, office or remote, and today’s bar, and no trail', () => {

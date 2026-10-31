@@ -60,12 +60,13 @@ export async function loadScreen(
       return requestPanel(query.search);
     case 'DescribeRequest':
       return describeRequest(query.search);
-    case 'MyRequestsUpcoming':
-      return myRequests('upcoming');
-    case 'MyRequestsPast':
-      return myRequests('past');
-    case 'MyRequestsCancelled':
-      return myRequests('cancelled');
+    // One list, its view in the address (`?show=past`), upcoming without one.
+    case 'MyRequests':
+      return myRequests(
+        query.search['show'] === 'past' || query.search['show'] === 'cancelled'
+          ? query.search['show']
+          : 'upcoming',
+      );
     case 'RequestDetail':
       return requestDetail(query.params['id'] ?? '');
     case 'Balance':
@@ -90,7 +91,7 @@ export async function loadScreen(
     case 'PayPeriod':
       return payPeriod(query.search);
     case 'Insights':
-      return insights(path, query.search);
+      return insights(query.search);
     // Settings (TOF-078 to TOF-083), HR only: Time Off refuses anyone else.
     case 'LeaveTypes':
       return leaveTypeSettings(query.search);
@@ -389,20 +390,12 @@ async function payPeriod(search: Readonly<Record<string, string>>): Promise<Scre
   };
 }
 
-const INSIGHT_TABS = new Set(['what-changed', 'time-off', 'attendance', 'balances']);
-
 /**
- * T27, T28: the tab the address names, the point whose people are open
- * beside it (`?point=`) and, on What changed, the nudge being written
- * (`?nudge=`): the screen's to apply.
+ * T27, T28, one page: the point whose people are open beside it (`?point=`)
+ * and the nudge being written (`?nudge=`): the screen's to apply.
  */
-async function insights(
-  path: string,
-  search: Readonly<Record<string, string>>,
-): Promise<ScreenLoad> {
-  const last = path.split('/').at(-1) ?? '';
-  const tab = INSIGHT_TABS.has(last) ? last : 'what-changed';
-  const nudging = tab === 'what-changed' && search['nudge'] === 'no_break';
+async function insights(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const nudging = search['nudge'] === 'no_break';
   // What the nudge includes, each a switch in the address: `0` is off.
   const include = {
     balance: search['balance'] !== '0',
@@ -418,7 +411,6 @@ async function insights(
     status: 'ready',
     data: {
       ...(answer.data as object),
-      tab,
       point: search['point'] ?? null,
       nudge: nudge?.ok === true ? { ...(nudge.data as object), include } : null,
     },

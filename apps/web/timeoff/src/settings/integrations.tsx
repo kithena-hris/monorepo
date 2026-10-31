@@ -110,8 +110,8 @@ const DESCRIPTION = (): string =>
     'Where time off and attendance show up outside this module.',
   );
 const page = '@container/integrations flex flex-col gap-6';
-const columns =
-  'flex flex-col gap-6 @min-[60rem]/integrations:grid @min-[60rem]/integrations:grid-cols-2 @min-[60rem]/integrations:items-start';
+// One column: settings read top to bottom, one setting per row.
+const columns = 'flex max-w-4xl flex-col gap-6';
 
 const icon = (name: IconName): ReactNode => createElement(icons[name], { 'aria-hidden': true });
 

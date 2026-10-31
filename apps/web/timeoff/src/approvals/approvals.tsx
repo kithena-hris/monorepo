@@ -8,7 +8,6 @@ import {
   List,
   ListDetail,
   ListItem,
-  PageHeader,
   Skeleton,
   VirtualList,
   icons,
@@ -30,6 +29,7 @@ import {
   type Written,
 } from './words';
 import { t } from '../i18n';
+import { Header } from '../frame';
 
 /**
  * Requests, for an approver (T16–T18, MT15, MT16): what waits for them,
@@ -107,8 +107,8 @@ const tabOf = (path: string | undefined): ApprovalsTab =>
 
 const DESCRIPTION = (): string =>
   t(
-    'approvals.approvals.time_off_waiting_for_you_coming_up',
-    'Time off waiting for you, coming up and decided.',
+    'approvals.approvals.waiting_for_your_decision',
+    'Time off waiting for your decision, coming up and decided',
   );
 
 export function Approvals({
@@ -125,9 +125,11 @@ export function Approvals({
     return <ApprovalsSkeleton tab={tabOf(path)} opened={id !== null} />;
   return (
     <div className="@container/approvals flex flex-col gap-6">
-      <PageHeader
-        title={t('approvals.approvals.requests', 'Requests')}
-        description={DESCRIPTION()}
+      <Header
+        fallback={{
+          title: t('approvals.approvals.approvals', 'Approvals'),
+          description: DESCRIPTION(),
+        }}
       />
       <Loaded load={load} what="requests">
         {(data) =>
@@ -624,9 +626,11 @@ export function ApprovalsSkeleton({
 }): JSX.Element {
   return (
     <div className="@container/approvals flex flex-col gap-6">
-      <PageHeader
-        title={t('approvals.approvals.requests', 'Requests')}
-        description={DESCRIPTION()}
+      <Header
+        fallback={{
+          title: t('approvals.approvals.approvals', 'Approvals'),
+          description: DESCRIPTION(),
+        }}
       />
       <div role="status" className="flex flex-col gap-4">
         <span className="sr-only">

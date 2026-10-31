@@ -68,10 +68,11 @@ it('fixes Wednesday in a sheet, as MT18, with the phone’s own time wheel', asy
   );
 });
 
-it('draws the team as MT19: the counts, and one row each without the bar', async () => {
+it('draws the team as MT19: the counts as a filter, and one row each without the bar', async () => {
   render(<TeamNow load={{ status: 'ready', data: marcoBoard() }} />);
   expect(screen.queryByRole('figure', { name: 'Omar Haddad today' })).toBeNull();
-  expect(shown(screen.getByText('Not in yet'))).toBe(false);
+  // Every count is there; the switch scrolls on its own rather than widening the page.
+  expect(shown(screen.getByRole('radio', { name: 'Not in yet 0' }))).toBe(true);
   expect(shown(screen.getByText('Back Mon 5 Oct'))).toBe(true);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
   await clean();

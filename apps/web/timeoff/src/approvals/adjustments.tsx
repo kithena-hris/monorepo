@@ -20,7 +20,6 @@ import {
   List,
   ListItem,
   NumberField,
-  PageHeader,
   PageSection,
   SegmentedControl,
   SegmentedControlItem,
@@ -38,6 +37,7 @@ import { useState, type JSX } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { amount, shortDate } from '../words';
 import { t as tr } from '../i18n';
+import { Header } from '../frame';
 
 /**
  * Balance adjustments (PRD §7.1): adding to or taking from someone's balance
@@ -139,9 +139,7 @@ export function Adjustments(props: AdjustmentsProps): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
       {load.status === 'error' ? (
-        <PageHeader
-          title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
-        />
+        <Header title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')} />
       ) : null}
       <Loaded
         load={load}
@@ -217,7 +215,7 @@ function Ready({
   );
   return (
     <>
-      <PageHeader
+      <Header
         title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
         description={
           data.hr
@@ -569,7 +567,7 @@ function Decline({
 export function AdjustmentsSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
+      <Header
         title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
         description={' '}
       />
