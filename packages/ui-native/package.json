@@ -36,15 +36,15 @@
     "@rn-primitives/toggle-group": "^1.5.2",
     "@rn-primitives/tooltip": "^1.5.2",
     "@shopify/flash-list": "2.0.2",
-    "@tiptap/core": "^3.31.4",
-    "@tiptap/extension-text-align": "^3.31.4",
-    "@tiptap/extensions": "^3.31.4",
-    "@tiptap/pm": "^3.31.4",
-    "@tiptap/react": "^3.31.4",
-    "@tiptap/starter-kit": "^3.31.4",
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/extension-text-align": "^3.32.0",
+    "@tiptap/extensions": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react-native": "^1.55.0",
+    "lucide-react-native": "^1.61.0",
     "nativewind": "5.0.0-rc.0",
     "react-native-css": "3.1.0-rc.0",
     "react-native-sortables": "1.10.1",
@@ -78,6 +78,6 @@
     "react-native-worklets": "0.10.1",
     "storybook": "10.6.3",
     "tailwindcss": "^4.3.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }

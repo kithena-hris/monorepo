@@ -72,7 +72,7 @@ export interface ResolvedAddress {
 export type Resolver = (hostname: string) => Promise<readonly ResolvedAddress[]>;
 
 export const systemResolver: Resolver = (hostname) =>
-  dnsLookup(hostname, { all: true, verbatim: true });
+  dnsLookup(hostname, { all: true, order: 'verbatim' });
 
 export interface EgressPolicy {
   readonly resolve: Resolver;
