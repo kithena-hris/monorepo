@@ -109,8 +109,6 @@ export const yogaOptions = {
   schema,
   graphqlEndpoint: '/graphql',
   multipart: false,
-  // Warnings and errors only: Yoga 6 otherwise logs every request at info.
-  logging: 'warn',
   maskedErrors: {
     maskError: (error: unknown, message: string, isDev?: boolean) => {
       const original = (error as { originalError?: unknown } | null)?.originalError;

@@ -1454,8 +1454,6 @@ export const yogaOptions = {
   graphqlEndpoint: '/graphql',
   multipart: false,
   plugins: [viewOnly] as Plugin[],
-  // Warnings and errors only: Yoga 6 otherwise logs every request at info.
-  logging: 'warn',
   maskedErrors: {
     // Yoga loads graphql's CommonJS build and `toGraphQLError` its ESM one, so
     // Yoga's `instanceof` took every domain refusal for an unexpected error and
