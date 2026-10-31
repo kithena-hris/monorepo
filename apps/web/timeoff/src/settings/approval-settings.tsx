@@ -1,4 +1,5 @@
 import {
+  Card,
   Alert,
   Button,
   Field,
@@ -88,8 +89,8 @@ const DESCRIPTION = (): string =>
     'Who approves each kind of request, and when it’s automatic.',
   );
 const page = '@container/approvals flex flex-col gap-6';
-const columns =
-  'flex flex-col gap-6 @min-[60rem]/approvals:grid @min-[60rem]/approvals:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[60rem]/approvals:items-start';
+// One column: settings read top to bottom, one setting per row.
+const columns = 'flex max-w-4xl flex-col gap-6';
 
 export function ApprovalSettings({ load, onSave }: ApprovalSettingsProps): JSX.Element {
   if (load.status === 'loading') return <ApprovalSettingsSkeleton />;
@@ -280,149 +281,151 @@ function Ready({
     <>
       {form.refusal}
       <div className={columns}>
-        <FormSections>
-          <FormSection
-            title={tr('settings.approval-settings.who_approves', 'Who approves')}
-            description={tr(
-              'settings.approval-settings.each_kind_of_request_and_who',
-              'Each kind of request, and who decides it, in order.',
-            )}
-          >
-            {rules.length === 0 ? (
-              <p className="text-sm text-fg-muted">
-                {tr(
-                  'settings.approval-settings.no_rules_yet_every_request_goes',
-                  'No rules yet: every request goes to the person’s manager.',
-                )}
-              </p>
-            ) : (
-              rules.map((rule, i) => (
-                <Field key={i} orientation="horizontal">
-                  <div className="min-w-0 flex-1">
-                    <FieldLabel>{ruleTitle(rule, names)}</FieldLabel>
-                    <FieldDescription>
-                      {[
-                        SUBJECT[rule.subject],
-                        ...rule.approvers.map((a) =>
-                          a === 'hr' ? 'HR' : tr('settings.approval-settings.manager', 'Manager'),
-                        ),
-                      ].join(' → ')}
-                    </FieldDescription>
-                  </div>
-                  <Select
-                    value={chainOf(rule.approvers)}
-                    onValueChange={(chain) => {
-                      const approvers = CHAINS[chain] ?? rule.approvers;
-                      set({ rules: rules.map((r, j) => (j === i ? { ...r, approvers } : r)) });
-                    }}
-                  >
-                    <FieldControl>
-                      <SelectTrigger className="w-48 shrink-0">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FieldControl>
-                    <SelectContent>
-                      {Object.entries(CHAINS).map(([value, chain]) => (
-                        <SelectItem key={value} value={value}>
-                          {approversLabel(chain)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="ghost"
-                    aria-label={tr(
-                      'settings.approval-settings.remove_the_rule_for',
-                      'Remove the rule for {{ruleTitle}}',
-                      { ruleTitle: ruleTitle(rule, names) },
-                    )}
-                    startIcon={<icons.delete aria-hidden />}
-                    onClick={() => {
-                      set({ rules: rules.filter((_, j) => j !== i) });
-                    }}
-                  />
-                </Field>
-              ))
-            )}
-            <AddRule
-              types={data.leaveTypes.filter((t) => !t.deleted)}
-              onAdd={(rule) => {
-                set({ rules: [...rules, rule] });
-              }}
-            />
-          </FormSection>
-          <FormSection
-            title={tr(
-              'settings.approval-settings.approved_automatically',
-              'Approved automatically',
-            )}
-            description={tr(
-              'settings.approval-settings.requests_that_only_give_time_back',
-              'Requests that only give time back, or that nobody needs to weigh.',
-            )}
-          >
-            <Toggle
-              kind="checkbox"
-              label={tr(
-                'settings.approval-settings.shortening_or_cancelling_time_off',
-                'Shortening or cancelling time off',
+        <Card padded>
+          <FormSections>
+            <FormSection
+              title={tr('settings.approval-settings.who_approves', 'Who approves')}
+              description={tr(
+                'settings.approval-settings.each_kind_of_request_and_who',
+                'Each kind of request, and who decides it, in order.',
               )}
-              checked={auto.shortenOrCancel}
-              onChange={(shortenOrCancel) => {
-                set({ autoApproval: { ...auto, shortenOrCancel } });
-              }}
-            />
-            <Toggle
-              kind="checkbox"
-              label={tr('settings.approval-settings.short_sick_leave', 'Short sick leave')}
-              description={
-                auto.sickUnderDays === null
-                  ? tr(
-                      'settings.approval-settings.off_every_sick_day_goes_to',
-                      'Off: every sick day goes to the manager',
-                    )
-                  : tr(
-                      'settings.approval-settings.under_days_manager_told',
-                      {
-                        one: 'Under {{count}} day; the manager is told',
-                        other: 'Under {{count}} days; the manager is told',
-                      },
-                      { count: auto.sickUnderDays },
-                    )
-              }
-              checked={auto.sickUnderDays !== null}
-              onChange={(on) => {
-                set({ autoApproval: { ...auto, sickUnderDays: on ? 3 : null } });
-              }}
-            />
-            {auto.sickUnderDays === null ? null : (
-              <NumberField
-                label={tr(
-                  'settings.approval-settings.sick_leave_approved_automatically_under_days',
-                  'Sick leave approved automatically under (days)',
-                )}
-                value={auto.sickUnderDays}
-                min={1}
-                max={30}
-                step={1}
-                onChange={(n) => {
-                  set({ autoApproval: { ...auto, sickUnderDays: Math.max(1, n ?? 1) } });
+            >
+              {rules.length === 0 ? (
+                <p className="text-sm text-fg-muted">
+                  {tr(
+                    'settings.approval-settings.no_rules_yet_every_request_goes',
+                    'No rules yet: every request goes to the person’s manager.',
+                  )}
+                </p>
+              ) : (
+                rules.map((rule, i) => (
+                  <Field key={i} orientation="horizontal">
+                    <div className="min-w-0 flex-1">
+                      <FieldLabel>{ruleTitle(rule, names)}</FieldLabel>
+                      <FieldDescription>
+                        {[
+                          SUBJECT[rule.subject],
+                          ...rule.approvers.map((a) =>
+                            a === 'hr' ? 'HR' : tr('settings.approval-settings.manager', 'Manager'),
+                          ),
+                        ].join(' → ')}
+                      </FieldDescription>
+                    </div>
+                    <Select
+                      value={chainOf(rule.approvers)}
+                      onValueChange={(chain) => {
+                        const approvers = CHAINS[chain] ?? rule.approvers;
+                        set({ rules: rules.map((r, j) => (j === i ? { ...r, approvers } : r)) });
+                      }}
+                    >
+                      <FieldControl>
+                        <SelectTrigger className="w-48 shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FieldControl>
+                      <SelectContent>
+                        {Object.entries(CHAINS).map(([value, chain]) => (
+                          <SelectItem key={value} value={value}>
+                            {approversLabel(chain)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      aria-label={tr(
+                        'settings.approval-settings.remove_the_rule_for',
+                        'Remove the rule for {{ruleTitle}}',
+                        { ruleTitle: ruleTitle(rule, names) },
+                      )}
+                      startIcon={<icons.delete aria-hidden />}
+                      onClick={() => {
+                        set({ rules: rules.filter((_, j) => j !== i) });
+                      }}
+                    />
+                  </Field>
+                ))
+              )}
+              <AddRule
+                types={data.leaveTypes.filter((t) => !t.deleted)}
+                onAdd={(rule) => {
+                  set({ rules: [...rules, rule] });
                 }}
               />
-            )}
-            <Toggle
-              kind="checkbox"
-              label={tr(
-                'settings.approval-settings.one_day_of_vacation_with_the',
-                'One day of vacation with the team above its minimum',
+            </FormSection>
+            <FormSection
+              title={tr(
+                'settings.approval-settings.approved_automatically',
+                'Approved automatically',
               )}
-              checked={auto.oneDayAboveMinimum}
-              onChange={(oneDayAboveMinimum) => {
-                set({ autoApproval: { ...auto, oneDayAboveMinimum } });
-              }}
-            />
-          </FormSection>
-        </FormSections>
+              description={tr(
+                'settings.approval-settings.requests_that_only_give_time_back',
+                'Requests that only give time back, or that nobody needs to weigh.',
+              )}
+            >
+              <Toggle
+                kind="checkbox"
+                label={tr(
+                  'settings.approval-settings.shortening_or_cancelling_time_off',
+                  'Shortening or cancelling time off',
+                )}
+                checked={auto.shortenOrCancel}
+                onChange={(shortenOrCancel) => {
+                  set({ autoApproval: { ...auto, shortenOrCancel } });
+                }}
+              />
+              <Toggle
+                kind="checkbox"
+                label={tr('settings.approval-settings.short_sick_leave', 'Short sick leave')}
+                description={
+                  auto.sickUnderDays === null
+                    ? tr(
+                        'settings.approval-settings.off_every_sick_day_goes_to',
+                        'Off: every sick day goes to the manager',
+                      )
+                    : tr(
+                        'settings.approval-settings.under_days_manager_told',
+                        {
+                          one: 'Under {{count}} day; the manager is told',
+                          other: 'Under {{count}} days; the manager is told',
+                        },
+                        { count: auto.sickUnderDays },
+                      )
+                }
+                checked={auto.sickUnderDays !== null}
+                onChange={(on) => {
+                  set({ autoApproval: { ...auto, sickUnderDays: on ? 3 : null } });
+                }}
+              />
+              {auto.sickUnderDays === null ? null : (
+                <NumberField
+                  label={tr(
+                    'settings.approval-settings.sick_leave_approved_automatically_under_days',
+                    'Sick leave approved automatically under (days)',
+                  )}
+                  value={auto.sickUnderDays}
+                  min={1}
+                  max={30}
+                  step={1}
+                  onChange={(n) => {
+                    set({ autoApproval: { ...auto, sickUnderDays: Math.max(1, n ?? 1) } });
+                  }}
+                />
+              )}
+              <Toggle
+                kind="checkbox"
+                label={tr(
+                  'settings.approval-settings.one_day_of_vacation_with_the',
+                  'One day of vacation with the team above its minimum',
+                )}
+                checked={auto.oneDayAboveMinimum}
+                onChange={(oneDayAboveMinimum) => {
+                  set({ autoApproval: { ...auto, oneDayAboveMinimum } });
+                }}
+              />
+            </FormSection>
+          </FormSections>
+        </Card>
         <div className="flex min-w-0 flex-col gap-6">
           <PageSection
             title={tr('settings.approval-settings.team_minimums', 'Team minimums')}

@@ -77,6 +77,11 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 - **Your requests is one list**, `/time-off/requests`, with Upcoming, Past and Cancelled as a switch over it (`?show=`), reached from Overview's Coming up.
 - **Overview leads with the balances**, the page's width. Under them: Coming up and the team on the left; the clock and the days worth taking on the right.
 - **Insights is one page**, read top to bottom: what changed, then time off, attendance and balances, each section named for what it measures.
+- **One way through time** (`PeriodNav` in `period.tsx`): "Today ‹ › October 2026" at the start of the page's one toolbar row, on the calendar, My week, Exceptions and Pay period alike. What filters the view (whose time off, which holidays, week or month) and what leaves it (a feed, an export) share that row, at its end.
+- **A count is a filter.** Today's In, On a break, Not in yet and Away are one switch with their counts that narrows the list (`?show=`), not four tiles beside it.
+- **The decision where the eye lands.** On a request waiting for you, Approve, Suggest other dates and Decline sit under the person at a desk and at the foot of a phone, and What to know comes before the team it summarises.
+- **The request panel** puts the types beside the dates at a desk; under a finger it is a step at a time.
+- **Settings are one column**: the form in a padded card (`FormSections`), anything beside it stacked under it, one field per row.
 
 ## Colour and motion
 

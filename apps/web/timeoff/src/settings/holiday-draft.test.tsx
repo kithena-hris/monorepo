@@ -48,7 +48,9 @@ describe('drafting a year from a list (TOF-112)', () => {
   it('shows the draft with the days to confirm, and saves only the confirmed ones, added to the calendar', async () => {
     const onSaveCalendar = vi.fn(() => Promise.resolve({ ok: true as const }));
     const data = { ...holidays(), year: 2027, draft: draft() };
-    const { container } = render(<HolidaySettings load={ready(data)} onSaveCalendar={onSaveCalendar} />);
+    const { container } = render(
+      <HolidaySettings load={ready(data)} onSaveCalendar={onSaveCalendar} />,
+    );
     const c = card(/Madrid city for 2027 is ready to review/);
     expect(c.getByText(/1 is not confirmed yet and stays with you/)).toBeTruthy();
     expect(c.queryByText('AI')).toBeNull();

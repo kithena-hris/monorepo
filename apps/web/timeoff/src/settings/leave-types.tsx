@@ -163,7 +163,7 @@ function CompanyWeeks({
     >
       <div className="flex flex-col gap-4">
         {form.refusal}
-        <div className="grid grid-cols-1 gap-3 @min-[36rem]/types:grid-cols-2">
+        <div className="flex flex-col gap-3">
           <NumberField
             label={tr('settings.leave-types.extra_weeks', 'Extra weeks')}
             hint={tr('settings.leave-types.0_for_none', '0 for none')}

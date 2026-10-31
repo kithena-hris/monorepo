@@ -1,4 +1,5 @@
 import {
+  Card,
   Alert,
   Badge,
   Field,
@@ -71,8 +72,8 @@ const DESCRIPTION = (): string =>
     'What happens when someone books more than they’ve earned.',
   );
 const page = '@container/negative flex flex-col gap-6';
-const columns =
-  'flex flex-col gap-6 @min-[60rem]/negative:grid @min-[60rem]/negative:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] @min-[60rem]/negative:items-start';
+// One column: settings read top to bottom, one setting per row.
+const columns = 'flex max-w-4xl flex-col gap-6';
 
 const DEFAULT_RULE: Rule = {
   limit: '3.000',
@@ -162,183 +163,188 @@ function Editor({
       ) : null}
       {form.refusal}
       <div className={columns}>
-        <FormSections>
-          <FormSection
-            title={t('settings.negative-balance.borrowing', 'Borrowing')}
-            description={t(
-              'settings.negative-balance.how_far_below_zero_and_who',
-              'How far below zero, and who says yes.',
-            )}
-          >
-            {data.policies.length > 1 ? (
-              <Field>
-                <FieldLabel>{t('settings.negative-balance.for', 'For')}</FieldLabel>
-                <Select value={policy.policyId} onValueChange={onChoose}>
-                  <FieldControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FieldControl>
-                  <SelectContent>
-                    {data.policies.map((p) => (
-                      <SelectItem key={p.policyId} value={p.policyId}>
-                        {p.leaveTypeName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            ) : null}
-            <Toggle
-              label={t(
-                'settings.negative-balance.let_people_go_below_zero',
-                'Let people go below zero',
-              )}
-              checked={rule !== null}
-              onChange={(on) => {
-                form.set(on ? (policy.rule ?? DEFAULT_RULE) : null);
-              }}
-            />
-            {rule === null ? null : (
-              <>
-                <NumberField
-                  label={t('settings.negative-balance.up_to_days', 'Up to (days)')}
-                  value={Number(rule.limit)}
-                  min={0}
-                  step={0.5}
-                  precision={1}
-                  onChange={(n) => {
-                    set({ limit: (n ?? 0).toFixed(3) });
-                  }}
-                />
-                <div className="flex flex-col gap-1.5">
-                  <span id="negative-approvers" className="text-sm font-medium">
-                    {t('settings.negative-balance.who_approves', 'Who approves')}
-                  </span>
-                  <SegmentedControl
-                    aria-labelledby="negative-approvers"
-                    value={rule.approvers}
-                    onValueChange={(approvers) => {
-                      if (approvers !== '') set({ approvers: approvers as Rule['approvers'] });
-                    }}
-                  >
-                    <SegmentedControlItem value="manager">
-                      {t('settings.negative-balance.manager', 'Manager')}
-                    </SegmentedControlItem>
-                    <SegmentedControlItem value="manager_then_hr">
-                      {t('settings.negative-balance.manager_then_hr', 'Manager, then HR')}
-                    </SegmentedControlItem>
-                    <SegmentedControlItem value="hr">
-                      {t('settings.negative-balance.hr_only', 'HR only')}
-                    </SegmentedControlItem>
-                  </SegmentedControl>
-                </div>
-              </>
-            )}
-          </FormSection>
-          {rule === null ? null : (
+        <Card padded>
+          <FormSections>
             <FormSection
-              title={t('settings.negative-balance.what_happens_next', 'What happens next')}
+              title={t('settings.negative-balance.borrowing', 'Borrowing')}
               description={t(
-                'settings.negative-balance.when_the_days_are_not_earned',
-                'When the days are not earned back.',
+                'settings.negative-balance.how_far_below_zero_and_who',
+                'How far below zero, and who says yes.',
               )}
             >
-              <fieldset className="flex min-w-0 flex-col gap-2">
-                <legend className="mb-2 text-sm font-medium">
-                  {t('settings.negative-balance.at_the_end_of_the_year', 'At the end of the year')}
-                </legend>
-                <RadioGroup
-                  value={rule.atYearEnd}
-                  onValueChange={(atYearEnd) => {
-                    set({ atYearEnd: atYearEnd as Rule['atYearEnd'] });
-                  }}
-                >
-                  <RadioCard
-                    value="next_year"
-                    description={t(
-                      'settings.negative-balance.the_person_starts_the_year_with',
-                      'The person starts the year with fewer days.',
-                    )}
-                    badge={
-                      <Badge size="sm">
-                        {t('settings.negative-balance.most_common', 'Most common')}
-                      </Badge>
-                    }
-                  >
-                    {t(
-                      'settings.negative-balance.take_it_from_next_years_allowance',
-                      'Take it from next year’s allowance',
-                    )}
-                  </RadioCard>
-                  <RadioCard
-                    value="unpaid"
-                    description={t(
-                      'settings.negative-balance.deducted_from_decembers_pay',
-                      'Deducted from December’s pay.',
-                    )}
-                  >
-                    {t('settings.negative-balance.make_it_unpaid', 'Make it unpaid')}
-                  </RadioCard>
-                  <RadioCard
-                    value="write_off"
-                    description={t(
-                      'settings.negative-balance.the_company_absorbs_it',
-                      'The company absorbs it.',
-                    )}
-                  >
-                    {t('settings.negative-balance.write_it_off', 'Write it off')}
-                  </RadioCard>
-                </RadioGroup>
-              </fieldset>
-              <fieldset className="flex min-w-0 flex-col gap-2">
-                <legend className="mb-2 text-sm font-medium">
-                  {t(
-                    'settings.negative-balance.if_someone_leaves_while_negative',
-                    'If someone leaves while negative',
-                  )}
-                </legend>
-                <RadioGroup
-                  value={rule.onLeaving}
-                  onValueChange={(onLeaving) => {
-                    set({ onLeaving: onLeaving as Rule['onLeaving'] });
-                  }}
-                >
-                  <RadioCard
-                    value="final_pay"
-                    description={t(
-                      'settings.negative-balance.shown_on_the_leavers_checklist_and',
-                      'Shown on the leaver’s checklist and sent to Payroll.',
-                    )}
-                  >
-                    {t(
-                      'settings.negative-balance.deduct_it_from_final_pay',
-                      'Deduct it from final pay',
-                    )}
-                  </RadioCard>
-                  <RadioCard
-                    value="write_off"
-                    description={t(
-                      'settings.negative-balance.the_company_absorbs_it',
-                      'The company absorbs it.',
-                    )}
-                  >
-                    {t('settings.negative-balance.write_it_off', 'Write it off')}
-                  </RadioCard>
-                  <RadioCard
-                    value="hr_decides"
-                    description={t(
-                      'settings.negative-balance.hr_is_asked_when_someone_leaves',
-                      'HR is asked when someone leaves.',
-                    )}
-                  >
-                    {t('settings.negative-balance.hr_decides_each_time', 'HR decides each time')}
-                  </RadioCard>
-                </RadioGroup>
-              </fieldset>
+              {data.policies.length > 1 ? (
+                <Field>
+                  <FieldLabel>{t('settings.negative-balance.for', 'For')}</FieldLabel>
+                  <Select value={policy.policyId} onValueChange={onChoose}>
+                    <FieldControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FieldControl>
+                    <SelectContent>
+                      {data.policies.map((p) => (
+                        <SelectItem key={p.policyId} value={p.policyId}>
+                          {p.leaveTypeName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
+              <Toggle
+                label={t(
+                  'settings.negative-balance.let_people_go_below_zero',
+                  'Let people go below zero',
+                )}
+                checked={rule !== null}
+                onChange={(on) => {
+                  form.set(on ? (policy.rule ?? DEFAULT_RULE) : null);
+                }}
+              />
+              {rule === null ? null : (
+                <>
+                  <NumberField
+                    label={t('settings.negative-balance.up_to_days', 'Up to (days)')}
+                    value={Number(rule.limit)}
+                    min={0}
+                    step={0.5}
+                    precision={1}
+                    onChange={(n) => {
+                      set({ limit: (n ?? 0).toFixed(3) });
+                    }}
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <span id="negative-approvers" className="text-sm font-medium">
+                      {t('settings.negative-balance.who_approves', 'Who approves')}
+                    </span>
+                    <SegmentedControl
+                      aria-labelledby="negative-approvers"
+                      value={rule.approvers}
+                      onValueChange={(approvers) => {
+                        if (approvers !== '') set({ approvers: approvers as Rule['approvers'] });
+                      }}
+                    >
+                      <SegmentedControlItem value="manager">
+                        {t('settings.negative-balance.manager', 'Manager')}
+                      </SegmentedControlItem>
+                      <SegmentedControlItem value="manager_then_hr">
+                        {t('settings.negative-balance.manager_then_hr', 'Manager, then HR')}
+                      </SegmentedControlItem>
+                      <SegmentedControlItem value="hr">
+                        {t('settings.negative-balance.hr_only', 'HR only')}
+                      </SegmentedControlItem>
+                    </SegmentedControl>
+                  </div>
+                </>
+              )}
             </FormSection>
-          )}
-        </FormSections>
+            {rule === null ? null : (
+              <FormSection
+                title={t('settings.negative-balance.what_happens_next', 'What happens next')}
+                description={t(
+                  'settings.negative-balance.when_the_days_are_not_earned',
+                  'When the days are not earned back.',
+                )}
+              >
+                <fieldset className="flex min-w-0 flex-col gap-2">
+                  <legend className="mb-2 text-sm font-medium">
+                    {t(
+                      'settings.negative-balance.at_the_end_of_the_year',
+                      'At the end of the year',
+                    )}
+                  </legend>
+                  <RadioGroup
+                    value={rule.atYearEnd}
+                    onValueChange={(atYearEnd) => {
+                      set({ atYearEnd: atYearEnd as Rule['atYearEnd'] });
+                    }}
+                  >
+                    <RadioCard
+                      value="next_year"
+                      description={t(
+                        'settings.negative-balance.the_person_starts_the_year_with',
+                        'The person starts the year with fewer days.',
+                      )}
+                      badge={
+                        <Badge size="sm">
+                          {t('settings.negative-balance.most_common', 'Most common')}
+                        </Badge>
+                      }
+                    >
+                      {t(
+                        'settings.negative-balance.take_it_from_next_years_allowance',
+                        'Take it from next year’s allowance',
+                      )}
+                    </RadioCard>
+                    <RadioCard
+                      value="unpaid"
+                      description={t(
+                        'settings.negative-balance.deducted_from_decembers_pay',
+                        'Deducted from December’s pay.',
+                      )}
+                    >
+                      {t('settings.negative-balance.make_it_unpaid', 'Make it unpaid')}
+                    </RadioCard>
+                    <RadioCard
+                      value="write_off"
+                      description={t(
+                        'settings.negative-balance.the_company_absorbs_it',
+                        'The company absorbs it.',
+                      )}
+                    >
+                      {t('settings.negative-balance.write_it_off', 'Write it off')}
+                    </RadioCard>
+                  </RadioGroup>
+                </fieldset>
+                <fieldset className="flex min-w-0 flex-col gap-2">
+                  <legend className="mb-2 text-sm font-medium">
+                    {t(
+                      'settings.negative-balance.if_someone_leaves_while_negative',
+                      'If someone leaves while negative',
+                    )}
+                  </legend>
+                  <RadioGroup
+                    value={rule.onLeaving}
+                    onValueChange={(onLeaving) => {
+                      set({ onLeaving: onLeaving as Rule['onLeaving'] });
+                    }}
+                  >
+                    <RadioCard
+                      value="final_pay"
+                      description={t(
+                        'settings.negative-balance.shown_on_the_leavers_checklist_and',
+                        'Shown on the leaver’s checklist and sent to Payroll.',
+                      )}
+                    >
+                      {t(
+                        'settings.negative-balance.deduct_it_from_final_pay',
+                        'Deduct it from final pay',
+                      )}
+                    </RadioCard>
+                    <RadioCard
+                      value="write_off"
+                      description={t(
+                        'settings.negative-balance.the_company_absorbs_it',
+                        'The company absorbs it.',
+                      )}
+                    >
+                      {t('settings.negative-balance.write_it_off', 'Write it off')}
+                    </RadioCard>
+                    <RadioCard
+                      value="hr_decides"
+                      description={t(
+                        'settings.negative-balance.hr_is_asked_when_someone_leaves',
+                        'HR is asked when someone leaves.',
+                      )}
+                    >
+                      {t('settings.negative-balance.hr_decides_each_time', 'HR decides each time')}
+                    </RadioCard>
+                  </RadioGroup>
+                </fieldset>
+              </FormSection>
+            )}
+          </FormSections>
+        </Card>
         <div className="flex min-w-0 flex-col gap-6">
           <WhatPeopleSee rule={rule} typeName={policy.leaveTypeName} />
           {rule?.onLeaving === 'final_pay' ? (

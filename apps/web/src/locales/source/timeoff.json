@@ -731,6 +731,14 @@
     "text": "A day in lieu is owed for each one.",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"why\" value."
   },
+  "attendance.exceptions.as_a_pdf": {
+    "text": "As a PDF",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <a>."
+  },
+  "attendance.exceptions.as_a_spreadsheet": {
+    "text": "As a spreadsheet (CSV)",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <a>."
+  },
   "attendance.exceptions.by_person": {
     "text": "{{title}}, by person",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the aria-label of <List>. Filled in: {{title}}."
@@ -743,17 +751,9 @@
     "text": "Each day’s record has to say when work ended. Each person is asked when they finished.",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"why\" value."
   },
-  "attendance.exceptions.everyone": {
-    "text": "Everyone · {{monthLabel}}",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <h2>. Filled in: {{monthLabel}}."
-  },
   "attendance.exceptions.export_for_the_labour_inspector": {
     "text": "Export for the labour inspector",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <a>."
-  },
-  "attendance.exceptions.export_for_the_labour_inspector_as": {
-    "text": "Export for the labour inspector as PDF",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the aria-label of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <Button>."
   },
   "attendance.exceptions.less_than_rest_between_days": {
     "text": "Less than {{rest}} rest between days",
@@ -786,10 +786,6 @@
   "attendance.exceptions.overtime_waiting_for_approval": {
     "text": "Overtime waiting for approval",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"title\" value."
-  },
-  "attendance.exceptions.pdf": {
-    "text": "PDF",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <a>."
   },
   "attendance.exceptions.people_one": {
     "text": "{{count}} person",
@@ -831,9 +827,13 @@
     "text": "Worked on a holiday",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"title\" value."
   },
-  "attendance.month-nav.month": {
-    "text": "Month",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/month-nav.tsx, MonthNav: the aria-label of <nav>."
+  "attendance.month-nav.next": {
+    "text": "Next month, {{month}}",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/month-nav.tsx, MonthNav: a \"label\" value. Filled in: {{month}}."
+  },
+  "attendance.month-nav.previous": {
+    "text": "Previous month, {{month}}",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/month-nav.tsx, MonthNav: a \"label\" value. Filled in: {{month}}."
   },
   "attendance.pay-period.closes_for_payroll_after": {
     "text": "{{monthName}} · closes for Payroll after {{date}}",
@@ -1183,6 +1183,10 @@
     "text": "Clocked out",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, NOW: a \"done\" value."
   },
+  "attendance.team-now.everyone": {
+    "text": "Everyone",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: text inside <SegmentedControlItem>."
+  },
   "attendance.team-now.in": {
     "text": "In",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, NOW: a \"in\" value."
@@ -1242,6 +1246,10 @@
   "attendance.team-now.today_in_a_sentence": {
     "text": "Today, in a sentence",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the title of <AssistantCard>."
+  },
+  "attendance.team-now.who_to_show": {
+    "text": "Who to show",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the aria-label of <SegmentedControl>."
   },
   "attendance.team-now.your_team": {
     "text": "Your team",
@@ -1401,11 +1409,11 @@
   },
   "attendance.timesheet.next_month": {
     "text": "Next month",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the aria-label of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the next of <PeriodNav>."
   },
   "attendance.timesheet.next_week": {
     "text": "Next week",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the aria-label of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the next of <PeriodNav>."
   },
   "attendance.timesheet.no_clock_out": {
     "text": "No clock-out",
@@ -1453,11 +1461,11 @@
   },
   "attendance.timesheet.previous_month": {
     "text": "Previous month",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the aria-label of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the previous of <PeriodNav>."
   },
   "attendance.timesheet.previous_week": {
     "text": "Previous week",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the aria-label of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the previous of <PeriodNav>."
   },
   "attendance.timesheet.save": {
     "text": "Save",
@@ -1473,7 +1481,7 @@
   },
   "attendance.timesheet.scheduled": {
     "text": "{{monthName}} · {{planned}} scheduled",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: text inside <h2>. Filled in: {{monthName}}, {{planned}}."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the title of <PeriodNav>. Filled in: {{monthName}}, {{planned}}."
   },
   "attendance.timesheet.show_by": {
     "text": "Show by",
@@ -1485,11 +1493,11 @@
   },
   "attendance.timesheet.this_month": {
     "text": "This month",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the label of <Stat>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: text inside <PeriodNav>."
   },
   "attendance.timesheet.this_week": {
     "text": "This week",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the label of <Stat>."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: text inside <PeriodNav>."
   },
   "attendance.timesheet.waiting_for_approval": {
     "text": "Waiting for approval",
@@ -1501,7 +1509,7 @@
   },
   "attendance.timesheet.week_of_scheduled": {
     "text": "Week of {{dayMonth}} · {{planned}} scheduled",
-    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: text inside <h2>. Filled in: {{dayMonth}}, {{planned}}."
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Ready: the title of <PeriodNav>. Filled in: {{dayMonth}}, {{planned}}."
   },
   "attendance.timesheet.when_did_you_finish_on": {
     "text": "When did you finish on {{weekdayName}}?",
@@ -1691,21 +1699,25 @@
     "text": "Me",
     "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: text inside <SegmentedControlItem>."
   },
+  "calendar.calendar.month": {
+    "text": "Month",
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the label of <PeriodNav>."
+  },
   "calendar.calendar.new_dates_suggested": {
     "text": "New dates suggested",
     "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, STATUS: a \"counter_proposed\" value."
   },
   "calendar.calendar.next_month": {
     "text": "Next month",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the aria-label of <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the next of <PeriodNav>."
   },
   "calendar.calendar.next_week": {
     "text": "Next week",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the aria-label of <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the next of <PeriodNav>."
   },
   "calendar.calendar.next_year": {
     "text": "Next year",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the aria-label of <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the next of <PeriodNav>."
   },
   "calendar.calendar.no_feed_address": {
     "text": "No feed address",
@@ -1737,15 +1749,15 @@
   },
   "calendar.calendar.previous_month": {
     "text": "Previous month",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the aria-label of <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the previous of <PeriodNav>."
   },
   "calendar.calendar.previous_week": {
     "text": "Previous week",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the aria-label of <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the previous of <PeriodNav>."
   },
   "calendar.calendar.previous_year": {
     "text": "Previous year",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the aria-label of <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the previous of <PeriodNav>."
   },
   "calendar.calendar.public_holiday": {
     "text": "Public holiday · {{placeName}}",
@@ -1785,11 +1797,11 @@
   },
   "calendar.calendar.this_year": {
     "text": "This year",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: text inside <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the today of <PeriodNav>."
   },
   "calendar.calendar.today": {
     "text": "Today",
-    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: text inside <Button>."
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the today of <PeriodNav>."
   },
   "calendar.calendar.waiting": {
     "text": "Waiting",
@@ -1798,6 +1810,10 @@
   "calendar.calendar.waiting_for_approval": {
     "text": "{{name}}, waiting for approval",
     "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx: a \"detail\" value. Filled in: {{name}}."
+  },
+  "calendar.calendar.week": {
+    "text": "Week",
+    "context": "Time Off: leave, absences, time tracking, policies. calendar/calendar.tsx, Ready: the label of <PeriodNav>."
   },
   "calendar.calendar.whose_time_off": {
     "text": "Whose time off",
@@ -4038,6 +4054,10 @@
   "parental.shared.your_plan": {
     "text": "Your plan",
     "context": "Time Off: leave, absences, time tracking, policies. parental/shared.tsx, PlanTrack: the label of <TimelineChart>."
+  },
+  "period.period": {
+    "text": "Period",
+    "context": "Time Off: leave, absences, time tracking, policies. period.tsx, PeriodNav: the aria-label of <nav>."
   },
   "request.describe.about_2_one": {
     "text": "About {{count}} day",
