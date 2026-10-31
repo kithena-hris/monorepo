@@ -320,7 +320,12 @@ const listedSize = (): string | null =>
   queue().querySelector('li[aria-setsize]')?.getAttribute('aria-setsize') ?? null;
 const hasRow = (name: string): boolean =>
   [...queue().querySelectorAll('[data-list-row]')].some((row) => row.textContent.includes(name));
-const missingTable = () => screen.getByRole('grid', { name: 'Missing information' });
+const missingList = () => screen.getByRole('list', { name: 'Missing information' });
+/** A row of the missing list by the person's name, or null where it is not drawn. */
+const gapRow = (name: string): Element | null =>
+  [...missingList().querySelectorAll('[data-index]')].find(
+    (row) => /Gap \d+/u.exec(row.textContent)?.[0] === name,
+  ) ?? null;
 /** The queue's list, or null where it is not on the page at all. */
 const listed = (): Element | null =>
   document.querySelector('ul[aria-label="Waiting for a decision"]');
@@ -342,7 +347,7 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
       const first = rowOf('Person 0, ID checks');
       // Whether each was still the element it was, not one drawn again in its
       // place: the list from one kind of decision to another and back, a row
-      // listed under both, and missing details between All and their chip.
+      // listed under both.
       const kept: Record<string, boolean> = {};
 
       const ids = await timed(chip(/^ID checks/u), () => {
@@ -355,15 +360,14 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
       });
       kept['list, All'] = queue() === list;
       kept['row, All'] = rowOf('Person 0, ID checks') === first;
-      const table = missingTable();
+      // All sums missing details up in a line; their chip lists them.
       const missing = await timed(chip(/^Missing details/u), () => {
         expect(listed()).toBeNull();
+        expect(missingList()).toBeInTheDocument();
       });
-      kept['table, Missing details'] = missingTable() === table;
       const all = await timed(chip(/^All/u), () => {
         expect(rowOf('Person 0, ID checks')).toBeVisible();
       });
-      kept['table, All'] = missingTable() === table;
       const again = queue();
       const dups = await timed(chip(/^Duplicates/u), () => {
         expect(hasRow('Twin 0, Duplicates')).toBe(true);
@@ -415,27 +419,36 @@ describe.skipIf(coarse)('Review at ten thousand items waiting', () => {
       moved.widths = 0;
       moved.heights = 0;
       await vi.waitFor(() => {
-        expect(missingTable()).toBeInTheDocument();
+        expect(listed()).not.toBeNull();
       });
-      const table = missingTable();
-      const box = scrollerOf(table.querySelector('tbody tr[data-row-id]') as Element);
+      act(() => {
+        fireEvent.click(chip(/^Missing details/u));
+      });
+      await vi.waitFor(() => {
+        expect(missingList()).toBeInTheDocument();
+      });
+      const table = missingList();
+      const box = scrollerOf(table.querySelector('[data-index]') as Element);
       // To the end of the first page: the next is asked for, and lands under
       // the last rows, which stay the rows they were. The window scrolls the
-      // table, with more of the page under it: to the table's end, not the page's.
-      box.scrollTop =
-        box === document.scrollingElement
-          ? table.getBoundingClientRect().bottom + window.scrollY - window.innerHeight
-          : box.scrollHeight;
+      // list, with more of the page under it: to the list's end, not the page's.
+      const lastName = `Gap ${String(MISSING_PAGE - 1)}`;
+      await vi.waitFor(() => {
+        box.scrollTop =
+          box === document.scrollingElement
+            ? table.getBoundingClientRect().bottom + window.scrollY - window.innerHeight
+            : box.scrollHeight;
+        expect(gapRow(lastName)).not.toBeNull();
+      });
       await painted();
-      const last = table.querySelector(`tr[data-row-id="g${String(MISSING_PAGE - 1)}-hr"]`);
-      expect(last).not.toBeNull();
+      const last = gapRow(lastName);
       let landing = performance.now();
       await pages.land();
       await painted();
       landing = performance.now() - landing;
       const kept: Record<string, boolean> = {
-        table: missingTable() === table,
-        row: table.querySelector(`tr[data-row-id="g${String(MISSING_PAGE - 1)}-hr"]`) === last,
+        list: missingList() === table,
+        row: gapRow(lastName) === last,
         place: box.scrollTop > 0,
       };
       box.scrollTop = 0;

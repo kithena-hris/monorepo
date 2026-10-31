@@ -145,6 +145,12 @@ export interface VirtualListProps<T> {
    * given this) also offers a way back to the top once its top has gone by.
    */
   total?: number;
+  /**
+   * How many are loaded, where the items are not one each: headings drawn
+   * between them, or one thing listed under several groups. The items' count
+   * by default.
+   */
+  loaded?: number;
   /** On a `self` list, the height goes here. Without a bounded height nothing scrolls. */
   className?: string;
   itemClassName?: string;
@@ -247,6 +253,7 @@ export function VirtualList<T>({
   loadingMore = false,
   moreLoaded = moreLoadedDefault,
   total,
+  loaded = items.length,
   className,
   itemClassName,
   ref,
@@ -456,8 +463,8 @@ export function VirtualList<T>({
     items.length > 0 ? (
       <ScrollPositionRail
         list={outerRef}
-        loaded={items.length}
-        total={total ?? (onEndReached === undefined ? items.length : null)}
+        loaded={loaded}
+        total={total ?? (onEndReached === undefined ? loaded : null)}
         className="mt-3"
       />
     ) : null;
