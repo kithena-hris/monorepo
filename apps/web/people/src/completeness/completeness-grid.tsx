@@ -918,8 +918,10 @@ function Missing({
               </SegmentedControlItem>
             </SegmentedControl>
             {lane === 'hr' && hrRows.length > 0 ? (
+              // A desk's, both (MA E5): on a phone each row carries its own Fill in and Remind.
               <Button
                 variant="primary"
+                className="touch:hidden"
                 startIcon={<icons.edit aria-hidden />}
                 onClick={() => {
                   setOutcome(null);
@@ -930,6 +932,7 @@ function Missing({
               </Button>
             ) : lane === 'employees' && canRemindAll ? (
               <Button
+                className="touch:hidden"
                 startIcon={<icons.notifications aria-hidden />}
                 loading={reminding}
                 loadingLabel={t('completeness.completeness-grid.sending', 'Sending')}
