@@ -4,7 +4,6 @@ import { KbdShortcut, armSequence, chordOf } from '@reach/ui';
 import { createContext, use, useSyncExternalStore, type JSX, type ReactNode } from 'react';
 
 import { isCharacterKey, type Shortcut, type ShortcutPrefs } from '../lib/shortcuts';
-import { t } from '../lib/t';
 
 /**
  * The shortcuts as the shell runs them: the one key handler, what every hint
