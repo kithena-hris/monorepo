@@ -392,7 +392,7 @@ export function DocumentToSign({
       <PdfPages
         src={url}
         label={env.title}
-        className="max-h-[80dvh] overflow-y-auto overscroll-y-contain rounded-md bg-surface-sunken p-3"
+        className="max-h-[80dvh] overflow-y-auto overscroll-y-none rounded-md bg-surface-sunken p-3"
         onLoad={() => {
           setShown(true);
           setLoaded(url);

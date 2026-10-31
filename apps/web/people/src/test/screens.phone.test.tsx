@@ -839,13 +839,22 @@ describe('at 390×844, with a finger', () => {
     expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
     // Reminding everybody and the grid over everybody are a desk's (MA E5).
     expect(screen.queryByRole('button', { name: 'Fill in for all' })).toBeNull();
-    // A phone gets the percentage as a bar, and a row a person (MV2); the table is a desk's.
-    expect(screen.queryByRole('table', { name: 'Missing information' })).toBeNull();
+    // A row a person (MV2), HR's own first; the people's own are the other lane.
     const people = screen.getByRole('list', { name: 'Missing information' });
-    expect(within(people).getAllByText('Missing: Cost centre')).toHaveLength(3);
+    expect(within(people).getAllByText('Missing: Cost centre')).toHaveLength(2);
+    await userEvent.click(screen.getByRole('radio', { name: /^Waiting on employees/ }));
     // Hers to give: Remind, not Fill in.
-    expect(within(people).getByRole('button', { name: 'Remind Lucía Fernández' })).toBeVisible();
-    await userEvent.click(within(people).getByRole('button', { name: 'Fill in Lena Moreau' }));
+    expect(
+      within(screen.getByRole('list', { name: 'Missing information' })).getByRole('button', {
+        name: 'Remind Lucía Fernández',
+      }),
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole('radio', { name: /^For you to fill in/ }));
+    await userEvent.click(
+      within(screen.getByRole('list', { name: 'Missing information' })).getByRole('button', {
+        name: 'Fill in Lena Moreau',
+      }),
+    );
     await settled();
     // Her gaps alone, in a dialog centred on the phone, not a sheet.
     const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });

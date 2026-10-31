@@ -3525,19 +3525,19 @@
   },
   "components.shortcuts.change_shortcuts": {
     "text": "Change shortcuts",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the footer of <Link>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts-help.tsx, ShortcutsHelp: the footer of <Link>."
   },
   "components.shortcuts.press_g_then_a_letter_to": {
     "text": "Press G, then a letter, to go somewhere. Not while you are typing in a field.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the description of <ShortcutsDialog>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts-help.tsx, ShortcutsHelp: the description of <ShortcutsDialog>."
   },
   "components.shortcuts.single_key_shortcuts": {
     "text": "Single-key shortcuts",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the footer of <FieldLabel>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts-help.tsx, ShortcutsHelp: the footer of <FieldLabel>."
   },
   "components.shortcuts.single_key_shortcuts_are_off_those": {
     "text": "Single-key shortcuts are off. Those with ⌘ or Ctrl still work.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the description of <ShortcutsDialog>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts-help.tsx, ShortcutsHelp: the description of <ShortcutsDialog>."
   },
   "components.signature-settings.add_a_field_of_the_type": {
     "text": "Add a field of the type “A signature” in Settings › Employee fields, and choose when people are asked for it: at sign-up, during onboarding, or any time.",

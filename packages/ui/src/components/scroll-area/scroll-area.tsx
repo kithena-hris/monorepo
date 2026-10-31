@@ -14,7 +14,7 @@ import { cn } from '../../lib/cn';
  *
  * It does *not* replace native scrolling: the viewport is a real scroll
  * container, so momentum, rubber-banding, keyboard paging and screen-reader
- * scroll-into-view all behave normally. `overscroll-contain` stops a flick
+ * scroll-into-view all behave normally. `overscroll-none` stops a flick
  * inside the panel from scrolling the page behind it.
  */
 
@@ -48,7 +48,7 @@ export function ScrollArea({
         data-scroll-lock
         tabIndex={0}
         className={cn(
-          'size-full overscroll-contain rounded-[inherit]',
+          'size-full overscroll-none rounded-[inherit]',
           'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
           viewportClassName,
         )}

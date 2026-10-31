@@ -54,7 +54,9 @@ describe('Review’s chips', () => {
   };
   const counts = { changes: 3, identifiers: 2, duplicates: 1, accessRequests: 0, exports: 0 };
   const chips = () =>
-    screen.getAllByRole('radio').map((chip) => chip.textContent.replace(/\s+/gu, ' ').trim());
+    within(screen.getByRole('radiogroup', { name: 'What kind' }))
+      .getAllByRole('radio')
+      .map((chip) => chip.textContent.replace(/\s+/gu, ' ').trim());
 
   it('counts every kind over everybody, All the most, the same whichever chip is chosen', async () => {
     renderReview(
@@ -78,14 +80,14 @@ describe('Review’s chips', () => {
     }
   });
 
-  it('lists missing details in All, below the decisions, as it counts them', () => {
+  it('sums up missing details in All, and opens the chip from there', () => {
     renderReview(
       { completeness, counts },
       { onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) },
     );
-    expect(screen.getByRole('grid', { name: 'Missing information' })).toBeInTheDocument();
-    // Nothing to decide is not said over a list of what is missing.
-    expect(screen.queryByText('Nothing waiting for you')).toBeNull();
+    // A line that counts them and opens the chip, not the list itself.
+    expect(screen.queryByRole('list', { name: 'Missing information' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open missing details' })).toBeInTheDocument();
   });
 });
 

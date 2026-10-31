@@ -13,6 +13,7 @@ const acme: Tenant = {
     logoUrl: null,
     coverImageUrl: null,
     themeId: null,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- written until nothing reads it (themeId supersedes it)
     accentColor: null,
   },
   location: null,

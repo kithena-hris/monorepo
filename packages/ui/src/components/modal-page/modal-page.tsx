@@ -262,7 +262,7 @@ export function ModalPageBody({
 }: ComponentPropsWithoutRef<'div'>): JSX.Element {
   return (
     <div
-      className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth', className)}
+      className={cn('min-h-0 flex-1 overflow-y-auto overscroll-none scroll-smooth', className)}
       {...props}
     />
   );

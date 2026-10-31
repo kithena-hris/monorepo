@@ -145,6 +145,12 @@ export interface VirtualListProps<T> {
    * given this) also offers a way back to the top once its top has gone by.
    */
   total?: number;
+  /**
+   * How many are loaded, where the items are not one each: headings drawn
+   * between them, or one thing listed under several groups. The items' count
+   * by default.
+   */
+  loaded?: number;
   /** On a `self` list, the height goes here. Without a bounded height nothing scrolls. */
   className?: string;
   itemClassName?: string;
@@ -158,7 +164,7 @@ export interface VirtualListProps<T> {
  */
 const SURFACE = 'rounded-lg bg-surface shadow-sm';
 const SCROLLS =
-  'overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus';
+  'overflow-y-auto overscroll-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus';
 
 /** How close to the end, in items, the next page is asked for. */
 const AHEAD = 10;
@@ -247,6 +253,7 @@ export function VirtualList<T>({
   loadingMore = false,
   moreLoaded = moreLoadedDefault,
   total,
+  loaded = items.length,
   className,
   itemClassName,
   ref,
@@ -456,8 +463,8 @@ export function VirtualList<T>({
     items.length > 0 ? (
       <ScrollPositionRail
         list={outerRef}
-        loaded={items.length}
-        total={total ?? (onEndReached === undefined ? items.length : null)}
+        loaded={loaded}
+        total={total ?? (onEndReached === undefined ? loaded : null)}
         className="mt-3"
       />
     ) : null;

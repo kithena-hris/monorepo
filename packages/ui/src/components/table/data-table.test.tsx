@@ -671,10 +671,10 @@ describe('<DataTable> pinned header and a virtualized body', () => {
     rerender(<DataTable {...props} loadingMore />);
     expect(extent()).toBe(57 + (many.length + 1) * 57);
     // While more is coming the wheel stays with the table; at the end it may go on to the page.
-    expect(box).toHaveClass('overscroll-y-contain');
+    expect(box).toHaveClass('overscroll-y-none');
     const { onEndReached: _more, ...done } = props;
     rerender(<DataTable {...done} />);
-    expect(box).not.toHaveClass('overscroll-y-contain');
+    expect(box).not.toHaveClass('overscroll-y-none');
     vi.restoreAllMocks();
   });
 });
@@ -719,7 +719,7 @@ describe('<DataTable scroll="page">', () => {
     );
     const box = screen.getByRole('region', { name: 'People' });
     expect(box.className).toContain('overflow-visible');
-    expect(box.className).not.toContain('overscroll-y-contain');
+    expect(box.className).not.toContain('overscroll-y-none');
   });
 
   it('keeps a sideways gesture from sliding the window, without taking the scroll', async () => {
@@ -755,7 +755,7 @@ describe('<DataTable scroll="page">', () => {
       vi.advanceTimersByTime(200);
     });
     expect(wheel(30, 3)).toBe(true);
-    expect(box.style.overscrollBehaviorY).toBe('contain');
+    expect(box.style.overscrollBehaviorY).toBe('none');
     act(() => {
       vi.advanceTimersByTime(200);
     });

@@ -847,7 +847,7 @@ export function Kanban<T extends { id: string }>({
         }}
         className={cn(
           // Room under the columns, so the scrollbar is not drawn on their edge.
-          'flex min-h-0 gap-3 overflow-x-auto overscroll-x-contain pb-4',
+          'flex min-h-0 gap-3 overflow-x-auto overscroll-x-none pb-4',
           // One column per screen under a finger, snapped, so a swipe moves
           // exactly one stage.
           'touch:[&>section]:w-full!',
@@ -1372,7 +1372,7 @@ function KanbanColumn<T extends { id: string }>({
           // top padding the first card in a column had its ring sheared off.
           // Contained only up and down: a sideways swipe over the cards
           // passes to the board, which scrolls from anywhere on it.
-          '-m-1 flex min-h-24 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-y-contain p-1',
+          '-m-1 flex min-h-24 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-y-none p-1',
           'scroll-smooth',
           // A locked column is not dimmed: its cards are still people to read,
           // and at 70% their secondary text fell below the contrast minimum.

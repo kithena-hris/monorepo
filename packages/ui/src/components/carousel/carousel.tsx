@@ -238,7 +238,7 @@ export function Carousel({
           onKeyDown(event);
         }}
         className={cn(
-          'flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain rounded-lg',
+          'flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-none rounded-lg',
           '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
         )}

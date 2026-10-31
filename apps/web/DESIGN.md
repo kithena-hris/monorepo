@@ -83,6 +83,14 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 - **The request panel** puts the types beside the dates at a desk; under a finger it is a step at a time.
 - **Settings are one column**: the form in a padded card (`FormSections`), anything beside it stacked under it, one field per row.
 
+## People › Review
+
+- **All sums up, the chip lists.** Under All, missing details are one card (`MissingSummary`): how many HR fills in, how many wait on employees, how complete the records are, and Open missing details. The list lives under its own chip, never stacked under the decisions.
+- **One figure, not four**: a `Progress` with "79% complete", and a warning `Badge` for what blocks payroll. No stat grid, no sparkline.
+- **Two lanes, by who fills the gap in** (`SegmentedControl` with counts): For you to fill in (the default) and Waiting on employees (the default only when HR has nothing). Each lane has its one bulk action at the line's end: Fill in for all (the grid) or Remind N waiting.
+- **A column to read, not a table to cross** (`VirtualList`, `max-w-3xl`): a row is the face, the name, "Missing: a, b, c +N", team · manager, and its one action beside it. Nothing scrolls sideways.
+- **Find, narrow, group** (`Toolbar`): search by name, a team and a missing-field `Select` built from what the lane holds, and Group by team, manager or missing field. By missing field a person is under each field they lack, the largest group first. Every part is in the address (`lane`, `q`, `team`, `field`, `group`).
+
 ## Colour and motion
 
 - Restrained: neutrals from the canvas and surfaces. The accent is reserved for the primary action, the current stage and progress.

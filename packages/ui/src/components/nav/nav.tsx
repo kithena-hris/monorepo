@@ -1029,13 +1029,13 @@ export function TertiaryNav({
             : tabs
               ? // Tabs over a hairline the marker sits on, scrolling when
                 // there are more than fit.
-                'flex gap-1 overflow-x-auto overscroll-x-contain shadow-[inset_0_-1px_0_var(--color-border)] [scrollbar-width:none] touch:gap-0'
+                'flex gap-1 overflow-x-auto overscroll-x-none shadow-[inset_0_-1px_0_var(--color-border)] [scrollbar-width:none] touch:gap-0'
               : // A scrolling row of pills, as a phone shows it under the title.
                 // The vertical padding is the room each pill's tap-target hit
                 // area needs inside a strip that clips.
-                'flex gap-1.5 overflow-x-auto overscroll-x-contain py-1',
+                'flex gap-1.5 overflow-x-auto overscroll-x-none py-1',
           touchPills &&
-            'touch:flex touch:gap-1.5 touch:space-y-0 touch:overflow-x-auto touch:overscroll-x-contain touch:border-0 touch:py-1 touch:shadow-none',
+            'touch:flex touch:gap-1.5 touch:space-y-0 touch:overflow-x-auto touch:overscroll-x-none touch:border-0 touch:py-1 touch:shadow-none',
           touchList &&
             'touch:space-y-0 touch:overflow-hidden touch:rounded-xl touch:border-0 touch:bg-surface touch:shadow-sm',
         )}

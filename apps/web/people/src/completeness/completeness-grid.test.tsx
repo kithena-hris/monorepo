@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
-import { MissingDetails, type CompletenessState, type GapRow } from './completeness-grid';
+import {
+  MissingDetails,
+  grouped,
+  type CompletenessState,
+  type GapRow,
+  type MissingView,
+} from './completeness-grid';
 import { renderReview } from '../review/review.fixture';
 
 const state: CompletenessState = {
@@ -86,6 +92,12 @@ const state: CompletenessState = {
   ],
 };
 
+/** The view opened on the people who fill in their own. */
+const employees: MissingView = { lane: 'employees', q: null, team: null, field: null, group: null };
+
+/** The rows in the list, as text. */
+const listed = () => screen.getByRole('list', { name: 'Missing information' });
+
 const kai: GapRow = {
   personId: 'k',
   name: 'Kai Lund',
@@ -118,20 +130,94 @@ const pick = async (name: string, option: string) => {
 };
 
 describe('Missing details', () => {
-  it('lists who is missing what', async () => {
+  it('lists HR’s own gaps first, one narrow row each, its action beside the name', async () => {
     const { container } = render(<MissingDetails state={state} onSave={vi.fn()} />);
-    expect(screen.getByText('Waiting on employees')).toBeInTheDocument();
-    expect(screen.getByText('For HR to fill in')).toBeInTheDocument();
-    const table = screen.getByRole('grid', { name: 'Missing information' });
-    expect(within(table).getByText('Desk')).toBeInTheDocument();
-    expect(within(table).getAllByText('HR')).toHaveLength(3);
-    // The person's own gaps are listed too, as theirs to fill.
-    expect(within(table).getAllByText('Employee')).toHaveLength(2);
-    expect(within(table).getByText('Bank account')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^For you to fill in/ })).toBeChecked();
+    expect(within(listed()).getByText('Missing: Cost centre, Desk')).toBeInTheDocument();
+    expect(within(listed()).getAllByText('Engineering · Tomás Oliveira')).toHaveLength(2);
+    expect(within(listed()).getAllByRole('button', { name: /^Fill in / })).toHaveLength(3);
+    // The people's own gaps are the other lane, not mixed in.
+    expect(within(listed()).queryByText('Omar Haddad')).toBeNull();
     // Nothing to fill in yet: the grid opens from "Fill in for all", one person from their row.
     expect(screen.getByRole('button', { name: 'Fill in for all' })).toBeInTheDocument();
-    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('textbox', { name: /for Lena Moreau$/ })).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('switches to the people who fill in their own, and chases them from there', async () => {
+    const onViewChange = vi.fn();
+    render(
+      <MissingDetails
+        state={state}
+        onSave={vi.fn()}
+        onRemind={vi.fn()}
+        onRemindAll={vi.fn()}
+        onViewChange={onViewChange}
+      />,
+    );
+    await fast().click(screen.getByRole('radio', { name: /^Waiting on employees/ }));
+    expect(onViewChange).toHaveBeenCalledWith({ lane: 'employees' });
+    expect(within(listed()).getByText('Missing: Bank account')).toBeInTheDocument();
+    expect(within(listed()).queryByText('Lena Moreau')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Remind 61 people waiting' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fill in for all' })).toBeNull();
+  });
+
+  it('opens on the people’s lane when HR has nothing of its own to fill in', () => {
+    render(
+      <MissingDetails
+        state={{ ...state, rows: state.rows.filter((r) => r.owner !== 'hr') }}
+        onSave={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: /^Waiting on employees/ })).toBeChecked();
+  });
+
+  it('finds a person, narrows by team and by field, and clears it all at once', async () => {
+    const user = fast();
+    const { container } = render(<MissingDetails state={state} onSave={vi.fn()} />);
+    await user.type(screen.getByRole('searchbox', { name: 'Find a person' }), 'joan');
+    expect(within(listed()).getByText('Joan Bosch')).toBeInTheDocument();
+    expect(within(listed()).queryByText('Lena Moreau')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(within(listed()).getByText('Lena Moreau')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: 'Team' }));
+    await user.click(await screen.findByRole('option', { name: 'Design' }));
+    expect(within(listed()).getByText('Nadia Petrova')).toBeInTheDocument();
+    expect(within(listed()).queryByText('Joan Bosch')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+    await user.click(screen.getByRole('combobox', { name: 'Missing field' }));
+    await user.click(await screen.findByRole('option', { name: 'Desk' }));
+    expect(within(listed()).getByText('Lena Moreau')).toBeInTheDocument();
+    expect(within(listed()).queryByText('Joan Bosch')).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('says so when nobody loaded matches, rather than an empty list', () => {
+    render(
+      <MissingDetails
+        state={state}
+        onSave={vi.fn()}
+        view={{ ...employees, lane: 'hr', q: 'zzz' }}
+        onViewChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Nobody matches')).toBeInTheDocument();
+  });
+
+  it('groups the rows under headings a link can name', () => {
+    render(
+      <MissingDetails
+        state={state}
+        onSave={vi.fn()}
+        view={{ ...employees, lane: 'hr', group: 'team' }}
+        onViewChange={vi.fn()}
+      />,
+    );
+    expect(within(listed()).getByText('Design')).toBeInTheDocument();
+    expect(within(listed()).getByText('Engineering')).toBeInTheDocument();
   });
 
   it('opens one grid over every gap HR fills from "Fill in for all", and back', async () => {
@@ -141,7 +227,7 @@ describe('Missing details', () => {
     expect(screen.getAllByRole('textbox', { name: /^Cost centre for / })).toHaveLength(3);
     expect(await axeViolations(container)).toEqual([]);
     await fast().click(screen.getByRole('button', { name: 'Back to the list' }));
-    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Fill in for HR' })).toBeNull();
   });
 
   it('opens a dialog for one person’s gaps alone from Fill in on their row (E6)', async () => {
@@ -174,10 +260,9 @@ describe('Missing details', () => {
       await screen.findByText(/Lena Moreau’s record now carries what you filled in/),
     ).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).toBeNull();
-    // The desk is no longer missing; the cost centre still is, and the count says so.
-    const table = screen.getByRole('grid', { name: 'Missing information' });
-    expect(within(table).queryByText('Desk')).toBeNull();
-    expect(screen.getByText('3')).toBeInTheDocument();
+    // The desk is no longer missing; the cost centre still is.
+    expect(within(listed()).queryByText('Missing: Cost centre, Desk')).toBeNull();
+    expect(within(listed()).getAllByText('Missing: Cost centre')).toHaveLength(3);
   });
 
   it('opens the dialog a link names, as the server sends it (E6)', () => {
@@ -407,13 +492,13 @@ describe('Missing details', () => {
     );
     const { container } = render(
       <MissingDetails
-        state={{ ...state, toFill: 4210, next: 'n' }}
+        state={{ ...state, hrListed: 4210, next: 'n' }}
         onSave={vi.fn()}
         onLoadMore={onLoadMore}
       />,
     );
-    // The stat is People's count over every page, not this page's three rows.
-    expect(screen.getByText('4210')).toBeInTheDocument();
+    // The lane counts People's total over every page, not this page's three rows.
+    expect(screen.getByRole('radio', { name: /^For you to fill in 4,210/ })).toBeInTheDocument();
     // No page buttons: the next people load as the end of the list nears.
     expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
     expect(await screen.findAllByText('Kai Lund')).not.toHaveLength(0);
@@ -557,27 +642,18 @@ describe('Missing details', () => {
 });
 
 describe('Missing details, the figures and reminders (E6, MA E5)', () => {
-  it('shows the four figures, with the change this month and its sparkline', () => {
-    render(<MissingDetails state={state} onSave={vi.fn()} />);
-    expect(screen.getByText('+6 pts')).toBeInTheDocument();
-    expect(screen.getByText('this month')).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'Complete records by month' })).toBeInTheDocument();
-    expect(screen.getByText(/^Last reminded 21 Sept?$/)).toBeInTheDocument();
-    expect(screen.getByText('Blocking payroll')).toBeInTheDocument();
-    expect(screen.getByText('Bank, tax or ID details')).toBeInTheDocument();
+  it('shows one figure, how complete the records are, and what blocks payroll', () => {
+    render(<MissingDetails state={state} onSave={vi.fn()} view={employees} />);
+    expect(screen.getByRole('progressbar', { name: 'Records complete' })).toBeInTheDocument();
+    expect(screen.getByText('79% complete')).toBeInTheDocument();
+    expect(screen.getByText('4 block payroll')).toBeInTheDocument();
+    expect(screen.getByText(/last 21 Sept?\.$/)).toBeInTheDocument();
   });
 
   it('shows no figure People could not give, rather than a zero', () => {
-    const bare: CompletenessState = {
-      ...state,
-      blocking: null,
-      complete: { percent: 79, incomplete: 88, change: null, trend: [] },
-    };
-    render(<MissingDetails state={bare} onSave={vi.fn()} />);
-    expect(screen.queryByText('Blocking payroll')).toBeNull();
-    expect(screen.queryByText(/pts/)).toBeNull();
-    expect(screen.queryByRole('table', { name: 'Complete records by month' })).toBeNull();
-    expect(screen.getByText('88 records incomplete')).toBeInTheDocument();
+    render(<MissingDetails state={{ ...state, blocking: null }} onSave={vi.fn()} />);
+    expect(screen.queryByText(/block payroll/)).toBeNull();
+    expect(screen.getByText('79% complete')).toBeInTheDocument();
   });
 
   it('reminds everybody due at once, and says who was not due', async () => {
@@ -585,9 +661,9 @@ describe('Missing details, the figures and reminders (E6, MA E5)', () => {
       Promise.resolve({ ok: true as const, sent: 40, failed: 0, skipped: 21 }),
     );
     const { container } = render(
-      <MissingDetails state={state} onSave={vi.fn()} onRemindAll={onRemindAll} />,
+      <MissingDetails state={state} onSave={vi.fn()} onRemindAll={onRemindAll} view={employees} />,
     );
-    await fast().click(screen.getByRole('button', { name: 'Remind 61 people' }));
+    await fast().click(screen.getByRole('button', { name: 'Remind 61 people waiting' }));
     expect(onRemindAll).toHaveBeenCalledOnce();
     expect(
       await screen.findByText(/Sent 40 reminders\. 21 people were not due/),
@@ -601,10 +677,11 @@ describe('Missing details, the figures and reminders (E6, MA E5)', () => {
         state={{ ...state, waiting: { ...state.waiting, due: 0 } }}
         onSave={vi.fn()}
         onRemindAll={vi.fn()}
+        view={employees}
       />,
     );
     expect(screen.queryByRole('button', { name: /^Remind \d/ })).toBeNull();
-    rerender(<MissingDetails state={state} onSave={vi.fn()} />);
+    rerender(<MissingDetails state={state} onSave={vi.fn()} view={employees} />);
     expect(screen.queryByRole('button', { name: /^Remind \d/ })).toBeNull();
   });
 
@@ -621,6 +698,7 @@ describe('Missing details, the figures and reminders (E6, MA E5)', () => {
         now={Date.now()}
         onSave={vi.fn()}
         onRemind={onRemind}
+        view={employees}
       />,
     );
     // Lucía was asked today: nothing to press.
@@ -639,5 +717,34 @@ describe('Missing details, the figures and reminders (E6, MA E5)', () => {
     await fillAll();
     expect(screen.queryByRole('textbox', { name: /Bank account/ })).toBeNull();
     expect(screen.queryByText('Omar Haddad')).toBeNull();
+  });
+});
+
+describe('grouped', () => {
+  const labelOf = (key: string): string => key;
+  const heads = (by: Parameters<typeof grouped>[1]) =>
+    grouped(state.rows, by, labelOf).flatMap((e) =>
+      e.kind === 'head' ? [`${e.label} ${String(e.count)}`] : [],
+    );
+
+  it('lists the rows as they are, ungrouped', () => {
+    expect(grouped(state.rows, 'none', labelOf)).toHaveLength(state.rows.length);
+  });
+
+  it('puts teams and managers in order, the people without one last', () => {
+    expect(heads('team')).toEqual(['Design 1', 'Engineering 2', 'Sales 2']);
+    expect(heads('manager')).toEqual(['Ingrid Sø 1', 'Tomás Oliveira 2', 'No manager 2']);
+  });
+
+  it('puts a person under every field they lack, the largest group first', () => {
+    expect(heads('field')).toEqual([
+      'cost_centre 3',
+      'desk 1',
+      'emergency_contact 1',
+      'iban 1',
+    ]);
+    // Lena twice, under each, and each row keyed apart.
+    const keys = grouped(state.rows, 'field', labelOf).map((e) => e.key);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });

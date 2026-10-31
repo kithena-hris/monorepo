@@ -515,7 +515,7 @@ export function PageLayout({
               // reserved a header's worth of space it never filled — the
               // sidebar stuck 56px down the page and stopped 56px short of the
               // bottom.
-              '@min-[40rem]/page:sticky @min-[40rem]/page:overscroll-contain',
+              '@min-[40rem]/page:sticky @min-[40rem]/page:overscroll-none',
               header
                 ? '@min-[40rem]/page:top-14 @min-[40rem]/page:max-h-[calc(100dvh-3.5rem)]'
                 : '@min-[40rem]/page:top-0 @min-[40rem]/page:max-h-dvh',
@@ -712,7 +712,7 @@ export function PageLayout({
             className={cn(
               'row-start-3 hidden shrink-0 border-s border-border bg-surface @7xl/page:block',
               'pe-safe-right',
-              '@7xl/page:sticky @7xl/page:top-14 @7xl/page:max-h-[calc(100dvh-3.5rem)] @7xl/page:overflow-y-auto @7xl/page:overscroll-contain',
+              '@7xl/page:sticky @7xl/page:top-14 @7xl/page:max-h-[calc(100dvh-3.5rem)] @7xl/page:overflow-y-auto @7xl/page:overscroll-none',
               asideState.enabled &&
                 'overflow-x-hidden transition-[width] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
               asideState.enabled &&

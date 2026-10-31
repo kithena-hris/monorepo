@@ -26,7 +26,7 @@
     "@temporalio/client": "^1.24.0",
     "@temporalio/worker": "^1.24.0",
     "@temporalio/workflow": "^1.24.0",
-    "bullmq": "^6.3.12",
+    "bullmq": "^6.4.2",
     "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.45.4",
     "graphql": "^16.11.0",
@@ -39,7 +39,7 @@
   "devDependencies": {
     "@kithena/testing": "workspace:*",
     "@temporalio/testing": "^1.24.0",
-    "@types/pdfkit": "^0.17.6",
-    "vitest": "^5.0.3"
+    "@types/pdfkit": "^0.17.7",
+    "vitest": "^5.0.5"
   }
 }

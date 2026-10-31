@@ -164,7 +164,7 @@ export function ColumnChooser({
         />
       ) : null}
 
-      <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
+      <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-none">
         {needle ? (
           <ul
             aria-label={t('components.table.column-chooser.columns', 'Columns')}
