@@ -79,7 +79,6 @@ import {
 import { RemoteSlot } from './remote-slot';
 import {
   Shortcuts,
-  ShortcutsHelp,
   focusList,
   focusPageSearch,
   shortcutHandler,
@@ -754,6 +753,8 @@ export function AppShell({
     : null;
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  // Fetched the first time `?` asks for it (`shortcuts-help.tsx`), kept after.
+  const [helpWanted, setHelpWanted] = useState(false);
   const keys = useShortcutsFor({
     prefs: shortcuts,
     shell,
@@ -764,6 +765,7 @@ export function AppShell({
       setPaletteOpen(true);
     }, []),
     openHelp: useCallback(() => {
+      setHelpWanted(true);
       setHelpOpen(true);
     }, []),
     viewing: person.viewing != null,
@@ -935,7 +937,11 @@ export function AppShell({
             {children}
           </PageLayout>
           <Assistant />
-          <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
+          {helpWanted ? (
+            <Suspense fallback={null}>
+              <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
+            </Suspense>
+          ) : null}
         </TooltipProvider>
       </Shortcuts>
     </ShellContext>
@@ -964,6 +970,9 @@ function rememberCommand(id: string): void {
 }
 
 /** In a chunk of its own, fetched when the palette is first opened: no page's first load pays for it. */
+const ShortcutsHelp = lazy(() =>
+  import('./shortcuts-help').then((m) => ({ default: m.ShortcutsHelp })),
+);
 const CommandPalette = lazy(() =>
   import('@reach/ui/command-palette').then((m) => ({ default: m.CommandPalette })),
 );

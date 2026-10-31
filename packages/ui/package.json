@@ -15,6 +15,7 @@
     "./motion": "./src/lib/motion.ts",
     "./filter-model": "./src/components/filter-builder/filter-model.ts",
     "./command-palette": "./src/components/command-palette/command-palette.tsx",
+    "./shortcuts-dialog": "./src/components/shortcuts/shortcuts-dialog.tsx",
     "./placement": "./src/lib/placement.ts",
     "./brand/mark-data-uri": "./src/brand/mark-data-uri.ts",
     "./brand/kithena-mark-data-uri": "./src/brand/kithena-mark-data-uri.ts",

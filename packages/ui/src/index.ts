@@ -798,7 +798,7 @@ export type { SettingsCardProps } from './components/settings-card/settings-card
 
 export { KeyRecorder } from './components/shortcuts/key-recorder';
 export type { KeyRecorderProps } from './components/shortcuts/key-recorder';
-export { ShortcutsDialog } from './components/shortcuts/shortcuts-dialog';
+// The dialog itself from `@reach/ui/shortcuts-dialog`: opened on `?`, so no page's first load carries it.
 export type { ShortcutGroup, ShortcutsDialogProps } from './components/shortcuts/shortcuts-dialog';
 
 export { TreeView } from './components/tree-view/tree-view';
