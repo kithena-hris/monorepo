@@ -17,8 +17,8 @@
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",
-    "testcontainers": "^12.2.0",
-    "@testcontainers/postgresql": "^12.2.0",
+    "testcontainers": "^12.2.1",
+    "@testcontainers/postgresql": "^12.2.1",
     "zod": "^4.6.5"
   }
 }

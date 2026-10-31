@@ -17,8 +17,8 @@
     "bucket": "tsx --env-file-if-exists=../../.env src/configure-bucket.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1148.0",
-    "@aws-sdk/s3-request-presigner": "^3.1148.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/s3-request-presigner": "^3.1156.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",
@@ -26,7 +26,7 @@
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
     "@pdf-lib/fontkit": "1.1.1",
-    "compromise": "^14.18.0",
+    "compromise": "^14.19.0",
     "drizzle-orm": "^0.45.4",
     "graphql": "^16.11.0",
     "graphql-yoga": "^5.24.4",
@@ -38,6 +38,6 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }

@@ -17,8 +17,8 @@
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1148.0",
-    "@aws-sdk/s3-request-presigner": "^3.1148.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/s3-request-presigner": "^3.1156.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",
@@ -30,7 +30,7 @@
     "@temporalio/client": "^1.24.0",
     "@temporalio/worker": "^1.24.0",
     "@temporalio/workflow": "^1.24.0",
-    "bullmq": "^6.3.12",
+    "bullmq": "^6.4.2",
     "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.45.4",
     "exceljs": "4.4.0",
@@ -45,9 +45,9 @@
   "devDependencies": {
     "@kithena/testing": "workspace:*",
     "@temporalio/testing": "^1.24.0",
-    "@types/pdfkit": "^0.17.6",
+    "@types/pdfkit": "^0.17.7",
     "fast-formula-parser": "1.0.19",
-    "jose": "^6.2.12",
-    "vitest": "^5.0.3"
+    "jose": "^6.2.13",
+    "vitest": "^5.0.5"
   }
 }
