@@ -3069,7 +3069,7 @@
   },
   "components.inbox.screen.show": {
     "text": "Show",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <ChipGroup>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <SegmentedControl>."
   },
   "components.inbox.screen.snooze_puts_a_task_away": {
     "text": "Snooze puts a task away until the day you pick; it comes back as new.",

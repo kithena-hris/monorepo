@@ -77,7 +77,7 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
   - **Waiting on others**: the person's requests.
   - **For your information**: read updates, newest first.
 - **Three of one kind stack** under one row (`StackRow`): the first item, "and N more like it", and its count; pressing it opens the rest beneath it.
-- **Three views** (chips): **Action required** (the Inbox itself, `/inbox`: your tasks, then an Awaiting response section for what you asked of others until it is answered; counted as the sidebar counts it), **Notifications** (`/inbox/updates`: what is only for you to know, New then Earlier, counted while unread) and **Completed** (`/inbox/done`: everything done or decided). One filter menu holds the module and Snoozed, with its count. Under a finger, Select is gone: rows swipe instead.
+- **Three views**, a segmented control (one view at a time, so never chips): **Action required** (the Inbox itself, `/inbox`: your tasks, then an Awaiting response section for what you asked of others until it is answered; counted as the sidebar counts it), **Notifications** (`/inbox/updates`: what is only for you to know, New then Earlier, counted while unread) and **Completed** (`/inbox/done`: everything done or decided). One filter menu holds the module and Snoozed, with its count. Under a finger, Select is gone: rows swipe instead.
 - **One place in the sidebar**: Inbox, with its count and no sections under it; what it shows is chosen on the page.
 - **Every view is an address**: `/inbox` (Action required), `/inbox/updates`, `/inbox/done`, `/inbox/snoozed`, each with `?item=`.
 - **An item stays where it was while you are there**: opening one marks it seen without moving it; the next visit, or Mark all seen, sorts again.

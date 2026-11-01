@@ -28,14 +28,14 @@ import {
   PageHeader,
   ScrollPositionRail,
   SearchField,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Badge,
-  ChipGroup,
-  ChipGroupItem,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -436,24 +436,23 @@ function Screen({
           </Button>
         )}
       </div>
-      <ChipGroup
-        type="single"
-        scroll
+      {/* One view at a time: a segmented control, never chips that look combinable. */}
+      <SegmentedControl
+        fullWidth
         aria-label={t('components.inbox.screen.show', 'Show')}
         value={view}
         onValueChange={(v) => {
           if (v !== '') go(v as View);
         }}
-        className="min-w-0"
       >
         {[...CHIPS, ...(CHIPS.includes(view as (typeof CHIPS)[number]) ? [] : [view])].map((v) => (
-          <ChipGroupItem key={v} value={v}>
+          <SegmentedControlItem key={v} value={v}>
             {v !== 'done' && counts[v] > 0
               ? `${VIEW_LABEL[v]()} · ${String(counts[v])}`
               : VIEW_LABEL[v]()}
-          </ChipGroupItem>
+          </SegmentedControlItem>
         ))}
-      </ChipGroup>
+      </SegmentedControl>
       {view === 'done' ? (
         <Select
           value={outcome ?? 'all'}
