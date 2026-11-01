@@ -118,7 +118,7 @@ function withDefined(
   definitions: readonly AttributeDefinition[],
 ): PersonFacts {
   const known = new Set(facts.knownAttributes);
-  for (const d of definitions) known.add(d.key as string);
+  for (const d of definitions) known.add(d.key);
   return { ...facts, knownAttributes: known };
 }
 
