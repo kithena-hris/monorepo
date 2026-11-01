@@ -29,15 +29,15 @@ are open to it.
 
 ## Design system (packages/ui)
 
-| Component | Change |
-| --- | --- |
+| Component              | Change                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------- |
 | `Widget`, `WidgetGrid` | New. Titled card with icon tile, count, one action, flush body; fixed-width grid. |
-| `List` | Flush inside any surface: no card inside a card. |
-| `Card` | Marks itself a surface, so lists in it are flush. |
-| `PageSection` | A surfaced section marks itself a surface. |
-| `DataTable` | The card is as wide as its columns, not the page; column dividers only on hover. |
-| `Stat` | Used only as a fixed-size tile (`WidgetGrid size="sm"`). |
-| `TertiaryNav` | Formal labels come from the manifests; at most three tabs a section. |
+| `List`                 | Flush inside any surface: no card inside a card.                                  |
+| `Card`                 | Marks itself a surface, so lists in it are flush.                                 |
+| `PageSection`          | A surfaced section marks itself a surface.                                        |
+| `DataTable`            | The card is as wide as its columns, not the page; column dividers only on hover.  |
+| `Stat`                 | Used only as a fixed-size tile (`WidgetGrid size="sm"`).                          |
+| `TertiaryNav`          | Formal labels come from the manifests; at most three tabs a section.              |
 
 ## Navigation, by module
 

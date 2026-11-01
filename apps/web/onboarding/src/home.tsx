@@ -2,8 +2,6 @@ import {
   Badge,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   EmptyState,
   PageHeader,
   Progress,

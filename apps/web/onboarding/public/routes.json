@@ -34,9 +34,7 @@
       "icon": "overview",
       "description": "Who is arriving, and how far along each plan is",
       "summary": "Plans in flight",
-      "owns": [
-        "/onboarding/plans/:id"
-      ]
+      "owns": ["/onboarding/plans/:id"]
     },
     {
       "path": "/onboarding/tasks",

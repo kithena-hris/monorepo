@@ -96,7 +96,10 @@ describe('Analytics', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Export' }));
     const turnover = await screen.findByRole('menuitem', { name: 'Turnover' });
-    expect(turnover).toHaveAttribute('href', '/people/downloads/insights?tab=turnover&segment=seg-1');
+    expect(turnover).toHaveAttribute(
+      'href',
+      '/people/downloads/insights?tab=turnover&segment=seg-1',
+    );
     expect(turnover).toHaveAttribute('download');
     expect(screen.getByRole('menuitem', { name: 'Headcount' })).toHaveAttribute(
       'href',
@@ -142,7 +145,6 @@ describe('Analytics', () => {
           status: 'ready',
           data: { ...workforce, attrition: null, completenessBySection: null, funnel: null },
         }}
-       
       />,
     );
     for (const gone of ['Attrition', 'Where our data is thin', 'Where new joiners stall']) {
@@ -152,9 +154,7 @@ describe('Analytics', () => {
 
   it('draws what expires as one lane per person, with the dates in its table (PEO-122)', async () => {
     const user = fast();
-    const { container } = render(
-      <Analytics load={{ status: 'ready', data: workforce }} />,
-    );
+    const { container } = render(<Analytics load={{ status: 'ready', data: workforce }} />);
     const section = screen.getByRole('heading', { name: 'What expires next' }).closest('section');
     if (section === null) throw new Error('no expiry section');
     // Sana's permit and certification share her lane; Rui has his own.
@@ -191,7 +191,6 @@ describe('Analytics', () => {
   it('says when nothing expires, and draws nothing for a viewer who may see no expiry', () => {
     const { rerender } = render(
       <Analytics
-       
         load={{
           status: 'ready',
           data: { ...workforce, expiries: { today: '2026-09-22', items: [] } },
@@ -201,7 +200,6 @@ describe('Analytics', () => {
     expect(screen.getByText('Nothing expires in the next 90 days.')).toBeInTheDocument();
     rerender(
       <Analytics
-       
         load={{ status: 'ready', data: { ...workforce, expiries: null, expiringIn90Days: null } }}
       />,
     );
@@ -305,9 +303,7 @@ describe('Analytics', () => {
   });
 
   it('shows a withheld self-ID question as insufficient data, with no number to read (PEO-070)', async () => {
-    const { container } = render(
-      <Analytics load={{ status: 'ready', data: remaining }} />,
-    );
+    const { container } = render(<Analytics load={{ status: 'ready', data: remaining }} />);
     const withheld = screen.getByRole('heading', { name: 'Disability' }).closest('section');
     if (withheld === null) throw new Error('no section for Disability');
     expect(within(withheld).getByText('Insufficient data')).toBeInTheDocument();
@@ -332,7 +328,6 @@ describe('Analytics', () => {
           data: { ...remaining, segments: [{ id: 'seg-1', name: 'Engineering' }] },
         }}
         onSegmentChange={onSegmentChange}
-       
       />,
     );
     await user.click(screen.getByRole('combobox', { name: 'Segment' }));
@@ -354,7 +349,6 @@ describe('Analytics', () => {
         }}
         segmentId="seg-1"
         onSegmentChange={onSegmentChange}
-       
       />,
     );
     expect(screen.getByText(/Showing the people you may see in Engineering/)).toBeInTheDocument();

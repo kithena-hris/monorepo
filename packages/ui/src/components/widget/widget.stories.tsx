@@ -58,12 +58,7 @@ export const Dashboard: Story = {
       <Widget title="Vacation" icon={<icons.vacation />} tone="chart-2">
         <Stat label="Days left" value="11.5" />
       </Widget>
-      <Widget
-        title="Who is away"
-        icon={<icons.calendar />}
-        meta={<Badge size="sm">2</Badge>}
-        flush
-      >
+      <Widget title="Who is away" icon={<icons.calendar />} meta={<Badge size="sm">2</Badge>} flush>
         <List>
           <ListItem description="Back Mon 5 Oct">Hana Kim</ListItem>
           <ListItem description="Back Fri 9 Oct">Ravi Patel</ListItem>

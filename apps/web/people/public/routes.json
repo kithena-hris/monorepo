@@ -157,14 +157,8 @@
     {
       "path": "/people/directory/list?add=person",
       "label": "Add person",
-      "for": [
-        "hr"
-      ],
-      "on": [
-        "/people/directory/list",
-        "/people/directory/cards",
-        "/people/directory/org-chart"
-      ],
+      "for": ["hr"],
+      "on": ["/people/directory/list", "/people/directory/cards", "/people/directory/org-chart"],
       "icon": "hire"
     }
   ],
@@ -202,16 +196,12 @@
         {
           "path": "/people/review/flagged",
           "label": "Flagged",
-          "for": [
-            "hr"
-          ]
+          "for": ["hr"]
         },
         {
           "path": "/people/review/asked",
           "label": "Submitted",
-          "for": [
-            "hr"
-          ]
+          "for": ["hr"]
         },
         {
           "path": "/people/review/decided",
@@ -226,25 +216,17 @@
       "icon": "transfer",
       "description": "Bring people in, take data out",
       "summary": "Move data in and out",
-      "owns": [
-        "/people/import",
-        "/people/export"
-      ]
+      "owns": ["/people/import", "/people/export"]
     },
     {
       "path": "/people/insights/what-changed",
       "label": "Insights",
       "group": "People",
-      "for": [
-        "hr"
-      ],
+      "for": ["hr"],
       "icon": "analytics",
       "description": "Summary, charts and scheduled reports",
       "summary": "Analytics and reports",
-      "owns": [
-        "/people/reports",
-        "/people/reports/:id"
-      ],
+      "owns": ["/people/reports", "/people/reports/:id"],
       "tabs": [
         {
           "path": "/people/insights/what-changed",
@@ -261,12 +243,8 @@
     {
       "path": "/settings/people/fields",
       "label": "Employee fields",
-      "for": [
-        "admin"
-      ],
-      "owns": [
-        "/people/setup"
-      ],
+      "for": ["admin"],
+      "owns": ["/people/setup"],
       "description": "What you keep about each person, who sees it and when it’s asked.",
       "icon": "document"
     },
@@ -288,19 +266,14 @@
     {
       "path": "/settings/people/roles",
       "label": "Roles",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Who has administrator, HR and finance access.",
       "icon": "permission"
     },
     {
       "path": "/settings/people/integrations",
       "label": "Integrations",
-      "for": [
-        "admin"
-      ],
+      "for": ["admin"],
       "owns": [
         "/settings/people/integrations/slack",
         "/settings/people/integrations/webhooks",
@@ -313,10 +286,7 @@
     {
       "path": "/settings/activity?area=fields,organisation,roles,integrations",
       "label": "Activity log",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Who did what, and when. Never the values themselves.",
       "icon": "history"
     }

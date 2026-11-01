@@ -143,20 +143,14 @@
       "label": "Internal job board",
       "icon": "work",
       "menu": true,
-      "on": [
-        "/recruiting/jobs",
-        "/recruiting/requisitions"
-      ]
+      "on": ["/recruiting/jobs", "/recruiting/requisitions"]
     },
     {
       "path": "/recruiting/agencies",
       "label": "Agencies",
       "icon": "company",
       "menu": true,
-      "on": [
-        "/recruiting/candidates",
-        "/recruiting/pools"
-      ]
+      "on": ["/recruiting/candidates", "/recruiting/pools"]
     }
   ],
   "sections": [
@@ -223,9 +217,7 @@
       "icon": "meeting",
       "description": "Interviews you run and the scorecards you owe",
       "summary": "Interviews and scorecards",
-      "owns": [
-        "/recruiting/interviews/:id"
-      ]
+      "owns": ["/recruiting/interviews/:id"]
     },
     {
       "path": "/recruiting/offers",
@@ -247,9 +239,7 @@
       "icon": "analytics",
       "description": "How hiring performs: time to hire, sources and the funnel",
       "summary": "Hiring analytics",
-      "owns": [
-        "/recruiting/analytics/:id"
-      ]
+      "owns": ["/recruiting/analytics/:id"]
     }
   ],
   "slots": {},

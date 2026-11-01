@@ -221,44 +221,30 @@
       "label": "Unlock requests",
       "icon": "unlocked",
       "menu": true,
-      "for": [
-        "hr"
-      ],
-      "on": [
-        "/performance/cycles"
-      ]
+      "for": ["hr"],
+      "on": ["/performance/cycles"]
     },
     {
       "path": "/performance/templates",
       "label": "Form templates",
       "icon": "table",
       "menu": true,
-      "for": [
-        "hr"
-      ],
+      "for": ["hr"],
       "owns": [
         "/performance/templates/:id",
         "/performance/templates/:id/preview",
         "/performance/templates/:id/history"
       ],
-      "on": [
-        "/performance/cycles"
-      ]
+      "on": ["/performance/cycles"]
     },
     {
       "path": "/performance/automations",
       "label": "Automations",
       "icon": "system",
       "menu": true,
-      "for": [
-        "hr"
-      ],
-      "owns": [
-        "/performance/automations/:id"
-      ],
-      "on": [
-        "/performance/cycles"
-      ]
+      "for": ["hr"],
+      "owns": ["/performance/automations/:id"],
+      "on": ["/performance/cycles"]
     }
   ],
   "sections": [
@@ -326,9 +312,7 @@
       "icon": "goal",
       "description": "Goals and key results: personal, team and company",
       "summary": "Goals",
-      "owns": [
-        "/performance/goals/:id"
-      ],
+      "owns": ["/performance/goals/:id"],
       "tabs": [
         {
           "path": "/performance/goals",
@@ -337,10 +321,7 @@
         {
           "path": "/performance/goals/team",
           "label": "Team",
-          "for": [
-            "hr",
-            "manager"
-          ]
+          "for": ["hr", "manager"]
         },
         {
           "path": "/performance/goals/company",
@@ -379,11 +360,7 @@
       "label": "Cycles",
       "group": "Performance",
       "icon": "calendar",
-      "for": [
-        "hr",
-        "manager",
-        "calibrator"
-      ],
+      "for": ["hr", "manager", "calibrator"],
       "description": "Review cycles: set up, live, closed",
       "summary": "Cycles",
       "owns": [
@@ -397,16 +374,10 @@
       "label": "Calibration",
       "group": "Performance",
       "icon": "people",
-      "for": [
-        "hr",
-        "calibrator",
-        "manager"
-      ],
+      "for": ["hr", "calibrator", "manager"],
       "description": "Scores compared across teams before release",
       "summary": "Calibration",
-      "owns": [
-        "/performance/calibration/:id"
-      ]
+      "owns": ["/performance/calibration/:id"]
     }
   ],
   "slots": {},
@@ -414,129 +385,91 @@
     {
       "path": "/settings/performance/general",
       "label": "General",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "The rating scale and the parts of Performance the company uses.",
       "icon": "settings"
     },
     {
       "path": "/settings/performance/release",
       "label": "Release",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "The defaults a cycle starts from: who releases, the response minimum, acknowledgement.",
       "icon": "review"
     },
     {
       "path": "/settings/performance/feedback",
       "label": "Feedback",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Who gives feedback, whether names are shown, praise and company values.",
       "icon": "message"
     },
     {
       "path": "/settings/performance/goals",
       "label": "Goals",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Goal periods, check-in cadence and weighting.",
       "icon": "goal"
     },
     {
       "path": "/settings/performance/learning",
       "label": "Learning",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Learning platforms and session attendance.",
       "icon": "document"
     },
     {
       "path": "/settings/performance/calibration",
       "label": "Calibration",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "The nine-box guide and who sees what in a session.",
       "icon": "people"
     },
     {
       "path": "/settings/performance/ai",
       "label": "AI",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Each AI feature, on or off; every output is logged.",
       "icon": "assistant"
     },
     {
       "path": "/settings/performance/connections",
       "label": "Connections",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Calendars, chat and the tools people may let Kithena read.",
       "icon": "link"
     },
     {
       "path": "/settings/performance/webhooks",
       "label": "Webhooks",
-      "for": [
-        "admin"
-      ],
+      "for": ["admin"],
       "description": "Performance’s events sent to your own systems, signed.",
       "icon": "link"
     },
     {
       "path": "/settings/performance/retention",
       "label": "Retention",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "How long records are kept, and legal holds.",
       "icon": "archive"
     },
     {
       "path": "/settings/performance/works-councils",
       "label": "Works councils",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Where a works council has agreed, and to what.",
       "icon": "agreement"
     },
     {
       "path": "/settings/performance/access",
       "label": "Access",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Who is HR to Performance.",
       "icon": "permission"
     },
     {
       "path": "/settings/performance/ai-log",
       "label": "AI log",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Every AI output, for whom and on what.",
       "icon": "assistant"
     },

@@ -290,11 +290,7 @@ export function Analytics({
   return (
     <Loaded load={load} what={t('analytics.analytics.the_analytics', 'the analytics')}>
       {(state) => (
-        <Workforce
-          state={state}
-          segmentId={segmentId}
-          onSegmentChange={onSegmentChange}
-        />
+        <Workforce state={state} segmentId={segmentId} onSegmentChange={onSegmentChange} />
       )}
     </Loaded>
   );
@@ -893,10 +889,7 @@ function Workforce({
         figures.length === 0 ? (
           <EmptyState
             icon={<icons.analytics />}
-            title={t(
-              'analytics.analytics.nothing_to_show_yet',
-              'Nothing to show yet',
-            )}
+            title={t('analytics.analytics.nothing_to_show_yet', 'Nothing to show yet')}
             description={t(
               'analytics.analytics.none_of_its_figures_are_yours',
               'None of its figures are yours to see, or People has none to draw yet.',
