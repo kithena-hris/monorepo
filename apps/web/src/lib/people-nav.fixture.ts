@@ -56,11 +56,8 @@ export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[]
       summary: 'Analytics and reports',
       owns: ['/people/reports', '/people/reports/:id'],
       tabs: [
-        { path: '/people/insights/what-changed', label: 'What changed' },
-        { path: '/people/insights/headcount', label: 'Headcount' },
-        { path: '/people/insights/turnover', label: 'Turnover' },
-        { path: '/people/insights/data-quality', label: 'Data quality', short: 'Quality' },
-        { path: '/people/insights/pay', label: 'Pay & diversity', short: 'Pay' },
+        { path: '/people/insights/what-changed', label: 'Summary' },
+        { path: '/people/insights/workforce', label: 'Workforce' },
       ],
     },
   ],
