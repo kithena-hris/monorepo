@@ -9,6 +9,7 @@ import {
   filtered,
   groupsOf,
   itemsOf,
+  opensScreen,
   prune,
   shape,
   snoozedOf,
@@ -253,5 +254,42 @@ describe('the feed: new on top, then what each needs from you', () => {
   it('counts a task weeks old as seen, so a first visit is not all new', () => {
     expect(shown.find((i) => i.id === 'old-task')?.unread).toBe(false);
     expect(shown.find((i) => i.id === 'fresh-task')?.unread).toBe(true);
+  });
+});
+
+describe('opensScreen', () => {
+  it('draws the module’s screen for a task the Inbox has no form of its own for', () => {
+    const review = item({
+      id: 'r',
+      lane: 'task',
+      module: 'performance',
+      kind: 'performance.review',
+    });
+    const unlock = item({
+      id: 'u',
+      lane: 'task',
+      module: 'performance',
+      kind: 'performance.unlock',
+      detail: { kind: 'unlock', reviewId: 'r1' },
+    });
+    const sign = item({ id: 's', lane: 'task', module: 'documents', kind: 'documents.sign' });
+    const scorecard = item({
+      id: 'c',
+      lane: 'task',
+      module: 'recruiting',
+      kind: 'recruiting.scorecard',
+    });
+    const reply = item({ id: 'y', lane: 'task', module: 'recruiting', kind: 'recruiting.reply' });
+    expect(opensScreen(review)).toBe(true);
+    expect(opensScreen(unlock)).toBe(false);
+    expect(opensScreen(sign)).toBe(true);
+    expect(opensScreen(scorecard)).toBe(false);
+    expect(opensScreen(reply)).toBe(true);
+  });
+
+  it('leaves updates, requests and the modules with forms of their own alone', () => {
+    expect(opensScreen(item({ id: 'a', lane: 'update', module: 'performance' }))).toBe(false);
+    expect(opensScreen(item({ id: 'b', lane: 'task', module: 'people' }))).toBe(false);
+    expect(opensScreen(item({ id: 'c', lane: 'task', module: 'timeoff' }))).toBe(false);
   });
 });

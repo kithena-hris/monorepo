@@ -15,6 +15,10 @@
     "text": "Against the company",
     "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: text inside <TableHead>."
   },
+  "analytics.all_cycles": {
+    "text": "All cycles",
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the action of <Go>."
+  },
   "analytics.analytics_arent_open_to_you": {
     "text": "Analytics aren’t open to you",
     "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, CycleAnalytics: the title of <EmptyState>."
@@ -41,7 +45,15 @@
   },
   "analytics.average_score_by_department": {
     "text": "Average score, by department",
-    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: text inside <CardTitle>."
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the title of <ChartCard>."
+  },
+  "analytics.calibrate": {
+    "text": "Calibrate",
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the action of <Go>."
+  },
+  "analytics.chase": {
+    "text": "Chase",
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the action of <Go>."
   },
   "analytics.completion_and_scores": {
     "text": "Completion and scores",
@@ -95,6 +107,10 @@
     "text": "On time",
     "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the label of <Stat>."
   },
+  "analytics.open_the_cycle": {
+    "text": "Open the cycle",
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the action of <Go>."
+  },
   "analytics.people_by_score": {
     "text": "People by score",
     "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the label of <BarChart>."
@@ -137,11 +153,11 @@
   },
   "analytics.scores": {
     "text": "Scores",
-    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: text inside <CardTitle>."
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the title of <ChartCard>."
   },
   "analytics.self_reviews_submitted_by_department": {
     "text": "Self reviews submitted, by department",
-    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: text inside <CardTitle>."
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the title of <ChartCard>."
   },
   "analytics.submitted": {
     "text": "Submitted",
@@ -149,7 +165,7 @@
   },
   "analytics.submitted_by_kind": {
     "text": "Submitted, by kind",
-    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: text inside <CardTitle>."
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the title of <ChartCard>."
   },
   "analytics.submitted_by_kind_2": {
     "text": "Submitted by kind",
@@ -157,7 +173,7 @@
   },
   "analytics.submitted_each_day": {
     "text": "Submitted each day",
-    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: text inside <CardTitle>."
+    "context": "Performance: reviews, goals, feedback, learning. analytics.tsx, Body: the title of <ChartCard>."
   },
   "analytics.the_numbers_are_kithenas_ai_chose": {
     "text": "The numbers are Kithena’s; AI chose the chart and wrote the sentences.",
@@ -1917,7 +1933,7 @@
   },
   "cycles.remind": {
     "text": "Remind",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, OverviewTable: the rowActions of <DataTable>."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Insights: text inside <Button>."
   },
   "cycles.remind_everyone_who_has_not_submitted": {
     "text": "Remind everyone who has not submitted…",
@@ -3331,6 +3347,10 @@
     "text": "All",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <To>."
   },
+  "home.all_cycles": {
+    "text": "All cycles",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <a>."
+  },
   "home.all_goals": {
     "text": "All goals",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <To>."
@@ -3398,6 +3418,10 @@
   "home.on_track": {
     "text": "On track",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, CONFIDENCE: a \"on_track\" value."
+  },
+  "home.open_inbox": {
+    "text": "Open Inbox",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <a>."
   },
   "home.overdue": {
     "text": "Overdue",

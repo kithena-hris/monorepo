@@ -30,7 +30,21 @@ export interface ActScreenProps {
   /** The route's own parts (`/jobs/:id/setup`) and the query: what the screen is of. */
   readonly params?: Readonly<Record<string, string>>;
   readonly search?: Readonly<Record<string, string>>;
+  /** Drawn inside another page, the Inbox's pane: where its links go instead. */
+  readonly embedded?: Embedded;
 }
+
+/**
+ * A screen drawn inside another page. Each link the screen follows is handed
+ * here, saying whether it came straight after a write (a review submitted
+ * goes on to the list of reviews): the host decides whether to follow it.
+ */
+export interface Embedded {
+  readonly navigate: (to: string, afterWrite: boolean) => void;
+}
+
+/** A link followed this soon after a write is the write's own way on. */
+const AFTER_WRITE_MS = 10_000;
 
 type Act = (name: string, variables: Readonly<Record<string, unknown>>) => Promise<Done>;
 
@@ -92,6 +106,7 @@ function ActScreen({
   search = {},
   area,
   act,
+  embedded,
 }: ActScreenProps & {
   readonly area: 'recruiting' | 'onboarding' | 'performance';
   readonly act: Act;
@@ -123,8 +138,18 @@ function ActScreen({
                 }),
           }
         : { status: 'loading' as const };
+  const wrote = useRef(0);
+  const acting: Act = useCallback(
+    async (name, variables) => {
+      const done = await act(name, variables);
+      if (done.ok) wrote.current = Date.now();
+      return done;
+    },
+    [act],
+  );
   const go = (to: string): void => {
-    router.push(to, { scroll: false });
+    if (embedded === undefined) router.push(to, { scroll: false });
+    else embedded.navigate(to, Date.now() - wrote.current < AFTER_WRITE_MS);
   };
   return (
     <RemoteScreen
@@ -138,9 +163,13 @@ function ActScreen({
         search,
         onNavigate: go,
         onFilter: (patch: Readonly<Record<string, string | null>>) => {
-          go(withQuery(window.location.pathname, window.location.search, patch));
+          go(
+            embedded === undefined || path === undefined
+              ? withQuery(window.location.pathname, window.location.search, patch)
+              : withQuery(path, search, patch),
+          );
         },
-        onAct: act,
+        onAct: acting,
         onRefresh: () => {
           router.refresh();
         },

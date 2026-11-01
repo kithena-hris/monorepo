@@ -2,8 +2,9 @@ import 'server-only';
 import type { JSX } from 'react';
 
 import { InboxScreen } from './screen';
-import type { View } from '../../lib/inbox/model';
+import { opensScreen, type View } from '../../lib/inbox/model';
 import { inboxNow } from '../../lib/inbox/server';
+import { taskScreen } from '../../lib/inbox/task-screen';
 import { timeOff } from '../../lib/people';
 import { signedIn } from '../../lib/signed-in';
 
@@ -26,6 +27,9 @@ export async function InboxView({
       ? timeOff<{ approves: boolean }>('TimeOffViewer')
       : Promise.resolve(null),
   ]);
+  // The open item's own screen, when the pane draws one: read now, not after the page arrives.
+  const open = read.items.find((i) => i.id === one('item'));
+  const screen = open !== undefined && opensScreen(open) ? await taskScreen(open.link) : undefined;
   return (
     <InboxScreen
       read={read}
@@ -35,6 +39,7 @@ export async function InboxView({
       q={one('q')}
       outcome={one('outcome')}
       approves={viewer?.ok === true && viewer.data.approves}
+      {...(screen === undefined ? {} : { screen })}
     />
   );
 }

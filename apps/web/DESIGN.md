@@ -24,6 +24,8 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 
 - **A dashboard is a `WidgetGrid`**: columns of one fixed width (19rem, or 13rem for one-figure tiles with `size="sm"`), as many as the page holds, and the rest of the row left empty. Nothing grows because the window is wide. A `Widget` spans one to four columns by what it holds (`span`), falling back to fewer where the container is narrower; anything else laid out beside widgets (a `ChartCard`, an assistant card) takes `widgetSpan(n)`.
 - **A figure is a `Stat` tile on `WidgetGrid size="sm"`**, all tiles one size, with an icon. A trend is a chart, never a sentence.
+- **Every widget leads somewhere.** A tile opens what it counts (`Stat`'s `href`: the label is the link, stretched over the tile, with a chevron); a widget or chart card carries its one action in its header (Open Inbox, All jobs, Calibrate, Remind, Team calendar). A figure with nothing to do about it is a figure nobody needed.
+- **A table never shows a loaded row empty.** Up to 1,000 rows every loaded row is drawn (`DRAW_ALL` in `lib/draw-ahead.ts`), so a fling, a scrollbar drag or Back to top lands on rows, not hairlines filling in; past that the list draws ahead in the direction it moves.
 - **A widget is a card with a header**: an icon in a tinted tile, the title (wrapped, never cut), a count or state as `meta`, and one way on. A list or a table inside it is its body, flush to its edges (`flush`); a card never holds a second card. `Card`, a surfaced `PageSection` and `Widget` mark themselves `data-surface`, and `List` and `Table` drop their own card inside one.
 - **A table's card is as wide as its columns**, not as wide as the page.
 - **Every titled group on a page is a card.** One column only where several would not read better; a profile's sections sit two to a row on a wide page.
@@ -76,9 +78,10 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
   - **For your information**: read updates, newest first.
 - **Three of one kind stack** under one row (`StackRow`): the first item, "and N more like it", and its count; pressing it opens the rest beneath it.
 - **The toolbar**: search, a filter menu for the module (an icon until one is chosen, then its name), the view menu (Inbox, Snoozed, Done) and Select. Under a finger, Select is gone: rows swipe instead. Under it, choice chips with counts: All, Needs you, Waiting, Updates.
+- **One place in the sidebar**: Inbox, with its count and no sections under it; what it shows is chosen on the page.
 - **Every view is an address**: `/inbox`, `/inbox/todo`, `/inbox/requests`, `/inbox/updates`, `/inbox/snoozed`, `/inbox/done`, each with `?item=`.
 - **An item stays where it was while you are there**: opening one marks it seen without moving it; the next visit, or Mark all seen, sorts again.
-- **The item opens beside the list** (`ListDetail`, list 30rem), riding beside it as the page scrolls, and is done there: each module's kind has its own body, and Open in … is the fallback, never the first action.
+- **The item opens beside the list** (`ListDetail`, list 30rem), riding beside it as the page scrolls, and is done there: each module's kind has its own body. A task with no body of its own (a review to write, feedback to give, peers to pick, an envelope to sign) draws its module's own screen in the pane (`task-screen.tsx`, `opensScreen`): filled in there, and once it is written the Inbox moves to the next. Open in … stays in the header for whoever wants the whole page.
 - **Push** (Settings › Notifications): one card, "Push notifications on this device", above the rows; the rows' Phone switches route to every device a person turned push on for.
 
 ## Time Off

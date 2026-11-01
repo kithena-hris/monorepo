@@ -9,6 +9,7 @@ import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS } from '../lib/remotes';
 import type { areaFrame } from '../lib/shell-data';
 import { withQuery } from '../lib/url-state';
+import type { Embedded } from './act-screen';
 import { useShellData } from './app-shell';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
@@ -21,11 +22,22 @@ export interface DocumentsScreenProps {
   readonly route: RemoteRoute | null;
   readonly load: ScreenLoad | { readonly status: 'loading' };
   readonly frame: ReturnType<typeof areaFrame>;
+  /** The address it is of, which inside another page is not the page's. */
+  readonly path?: string;
+  /** Drawn inside another page, the Inbox's pane: where its links go. */
+  readonly embedded?: Embedded;
 }
 
-export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): JSX.Element {
+export function DocumentsScreen({
+  route,
+  load,
+  frame,
+  path,
+  embedded,
+}: DocumentsScreenProps): JSX.Element {
   const router = useRouter();
-  const pathname = usePathname();
+  const here = usePathname();
+  const pathname = embedded === undefined || path === undefined ? here : path;
   // People is here: a document can fill the record of the person it is about.
   const shellData = useShellData();
   const people = shellData.sections.length > 0;
@@ -55,7 +67,8 @@ export function DocumentsScreen({ route, load, frame }: DocumentsScreenProps): J
   // screen until the next one is wholly ready, and a remote screen's switch
   // never was, so a link looked dead.
   const go = (to: string): void => {
-    router.push(to, { scroll: false });
+    if (embedded === undefined) router.push(to, { scroll: false });
+    else embedded.navigate(to, false);
   };
   /** A filter changed: the address holds it, and the server reads it again. */
   const filter = (patch: Readonly<Record<string, string | null>>): void => {

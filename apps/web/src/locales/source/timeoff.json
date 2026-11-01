@@ -1619,6 +1619,10 @@
     "text": "recorded {{recorded}}",
     "context": "Time Off: leave, absences, time tracking, policies. balance/balance.tsx, Ready: text inside <List>. Filled in: {{recorded}}."
   },
+  "balance.balance.request": {
+    "text": "Request",
+    "context": "Time Off: leave, absences, time tracking, policies. balance/balance.tsx, Ready: the action of <a>."
+  },
   "balance.balance.taken": {
     "text": "Taken",
     "context": "Time Off: leave, absences, time tracking, policies. balance/balance.tsx: a \"taken\" value."
@@ -2251,6 +2255,10 @@
     "text": "What changed, time taken, attendance and balances across your people",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: the fallback of <Header>."
   },
+  "insights.insights.exceptions": {
+    "text": "Exceptions",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, AttendanceTab: the action of <a>."
+  },
   "insights.insights.for_your_team_as_of": {
     "text": "Your team · {{people}} · as of {{longDate}}",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: text inside <p>. Filled in: {{people}}, {{longDate}}."
@@ -2375,6 +2383,10 @@
     "text": "Team",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Teams: text inside <TableHead>."
   },
+  "insights.insights.team_calendar": {
+    "text": "Team calendar",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, DaysTaken: the action of <a>."
+  },
   "insights.insights.templated": {
     "text": "Templated",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, WhatChanged: the action of <Badge>."
@@ -2402,6 +2414,10 @@
   "insights.insights.time_off_by_team": {
     "text": "Time off by team",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the title of <PageSection>."
+  },
+  "insights.insights.timesheets": {
+    "text": "Timesheets",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, AttendanceTab: the action of <a>."
   },
   "insights.insights.unbooked_days": {
     "text": "Unbooked days",

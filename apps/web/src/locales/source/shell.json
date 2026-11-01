@@ -847,30 +847,6 @@
     "text": "Inbox",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
   },
-  "components.app-shell.inbox_all": {
-    "text": "Everything",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
-  },
-  "components.app-shell.inbox_done": {
-    "text": "Done",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
-  },
-  "components.app-shell.inbox_needs_you": {
-    "text": "Needs you",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
-  },
-  "components.app-shell.inbox_snoozed": {
-    "text": "Snoozed",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
-  },
-  "components.app-shell.inbox_updates": {
-    "text": "Updates",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
-  },
-  "components.app-shell.inbox_waiting": {
-    "text": "Waiting on others",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
-  },
   "components.app-shell.keyboard_shortcuts": {
     "text": "Keyboard shortcuts",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
@@ -2359,6 +2335,10 @@
     "text": "Copy link",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
   },
+  "components.inbox.detail.done_title": {
+    "text": "Done: {{title}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the onDone of <TaskScreenPane>. Filled in: {{title}}."
+  },
   "components.inbox.detail.i_cant_do_this": {
     "text": "I can’t do this",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
@@ -2421,7 +2401,7 @@
   },
   "components.inbox.detail.open_in": {
     "text": "Open in {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Head: text inside <a>. Filled in: {{openIn}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/task-screen.tsx, TaskScreenPane: text inside <a>. Filled in: {{openIn}}."
   },
   "components.inbox.detail.persons_message": {
     "text": "{{name}}’s message",
@@ -3142,6 +3122,10 @@
   "components.inbox.stack.where": {
     "text": "{{module}} › {{area}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/stack.tsx, StackRow: text built in code. Filled in: {{module}}, {{area}}."
+  },
+  "components.inbox.task-screen.opening": {
+    "text": "Opening {{openIn}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/task-screen.tsx, TaskScreenPane: the label of <Spinner>. Filled in: {{openIn}}."
   },
   "components.kiosk-shell.hr_may_have_revoked_it_register": {
     "text": "HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations, and paste the new token here.",
