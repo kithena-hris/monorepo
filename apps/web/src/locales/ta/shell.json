@@ -758,6 +758,7 @@
   "components.inbox.screen.up_to_of_people_in_would": "{{team}} இல் {{of}} பேரில் {{out}} பேர் வரை ஒரே நேரத்தில் வெளியே இருப்பார்கள்.",
   "components.inbox.screen.updates_or_time_off_together": "புதுப்பிப்புகளை ஒன்றாகப் படிக்கலாம் அல்லது அகற்றலாம்; விடுப்பு ஒப்புதல்களை ஒன்றாக முடிவு செய்யலாம்",
   "components.inbox.screen.view_action_required": "நடவடிக்கை தேவை",
+  "components.inbox.screen.view_all": "அனைத்தும்",
   "components.inbox.screen.view_completed": "முடிந்தவை",
   "components.inbox.screen.view_notifications": "அறிவிப்புகள்",
   "components.inbox.screen.view_snoozed": "ஒத்திவைத்தவை",

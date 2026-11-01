@@ -114,7 +114,9 @@ export const PredicateClause = z.discriminatedUnion('operand', [
     in: z.array(PersonStatus).min(1, 'a clause with no values can never hold'),
   }),
   /**
-   * Another field being filled in, or holding a particular value.
+   * Another field being filled in, left empty, or holding a particular value.
+   * `empty` is how one of two fields becomes enough: a salary required while
+   * the hourly rate is empty, and the hourly rate while the salary is.
    *
    * `equals` is a string because it is compared against the stored value's
    * canonical form — a select's option key, a country code, a date in ISO
@@ -125,7 +127,7 @@ export const PredicateClause = z.discriminatedUnion('operand', [
     .object({
       operand: z.literal('attribute'),
       key: AttributeKey,
-      is: z.enum(['set', 'equals']).register(policy, asPublic()),
+      is: z.enum(['set', 'empty', 'equals']).register(policy, asPublic()),
       equals: z.string().max(200).nullable().default(null).register(policy, asInternal()),
     })
     .refine((c) => c.is !== 'equals' || c.equals !== null, {

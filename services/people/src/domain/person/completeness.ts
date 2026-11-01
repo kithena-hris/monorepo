@@ -107,6 +107,21 @@ function requirednessOf(
   return evaluateRequiredness(definition.requiredness, facts, clock, timeZone);
 }
 
+/**
+ * Every field the version defines is one a rule may read, blank or not. A
+ * batch reads only the keys a row holds, and a rule on a blank field would
+ * otherwise be broken rather than simply not holding — fatal to "required
+ * while the other one is empty".
+ */
+function withDefined(
+  facts: PersonFacts,
+  definitions: readonly AttributeDefinition[],
+): PersonFacts {
+  const known = new Set(facts.knownAttributes);
+  for (const d of definitions) known.add(d.key as string);
+  return { ...facts, knownAttributes: known };
+}
+
 export function assessCompleteness(
   definitions: readonly AttributeDefinition[],
   facts: PersonFacts,
@@ -120,6 +135,7 @@ export function assessCompleteness(
 
   const missing: MissingAttribute[] = [];
   const unevaluable: BrokenRule[] = [];
+  const known = withDefined(facts, definitions);
 
   for (const definition of definitions) {
     // A deprecated field is hidden from every form. Counting it would ask for
@@ -127,7 +143,7 @@ export function assessCompleteness(
     if (definition.deprecatedAt !== null) continue;
     if (!askable(definition, facts.status)) continue;
 
-    const verdict = requirednessOf(definition, definitions, facts, clock, timeZone);
+    const verdict = requirednessOf(definition, definitions, known, clock, timeZone);
     if (verdict.unevaluable.length > 0) {
       unevaluable.push({ key: definition.key, reads: verdict.unevaluable });
     }
@@ -172,7 +188,8 @@ export function notApplicable(
     .filter(
       (d) =>
         !askable(d, facts.status) ||
-        !requirednessOf(d, definitions, facts, clock, timeZone).required,
+        !requirednessOf(d, definitions, withDefined(facts, definitions), clock, timeZone)
+          .required,
     )
     .map((d) => d.key);
 }

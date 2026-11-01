@@ -3101,6 +3101,10 @@
   },
   "components.inbox.screen.view_action_required": {
     "text": "Action required",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"todo\" value."
+  },
+  "components.inbox.screen.view_all": {
+    "text": "All",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"all\" value."
   },
   "components.inbox.screen.view_completed": {

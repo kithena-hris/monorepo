@@ -141,6 +141,17 @@ describe('each operand', () => {
     expect(evaluate(rule, { values: { visa_type: { country: 'ES' } } }).required).toBe(true);
   });
 
+  it('reads whether another attribute is empty', () => {
+    // "Hourly rate, unless there is a salary": one of two fields, either one.
+    const rule = {
+      mode: 'conditional',
+      when: { clauses: [{ operand: 'attribute', key: 'work_permit_number', is: 'empty' }] },
+    };
+    expect(evaluate(rule).required).toBe(true);
+    expect(evaluate(rule, { values: { work_permit_number: '' } }).required).toBe(true);
+    expect(evaluate(rule, { values: { work_permit_number: 'X-1' } }).required).toBe(false);
+  });
+
   it('treats an empty string as unset, because a form posts one', () => {
     const rule = {
       mode: 'conditional',

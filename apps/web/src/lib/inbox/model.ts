@@ -253,10 +253,18 @@ export function groupsOf(
       return g === undefined ? [] : [{ label: heading(label), items: g }];
     });
   }
-  const year = today.slice(0, 4);
-  for (const i of mine.toSorted(newest)) {
+  return byMonth(mine, now, zone);
+}
+
+/** Newest first, by month (years before this one by year): Done, and All. */
+export function byMonth(items: readonly Shown[], now: string, zone: string): Group[] {
+  const year = dayIn(now, zone).slice(0, 4);
+  const groups = new Map<string, Shown[]>();
+  for (const i of items.toSorted(newest)) {
     const day = dayIn(i.at, zone);
-    put(day.slice(0, 4) === year ? MONTH.format(new Date(`${day}T12:00:00Z`)) : day.slice(0, 4), i);
+    const label =
+      day.slice(0, 4) === year ? MONTH.format(new Date(`${day}T12:00:00Z`)) : day.slice(0, 4);
+    groups.set(label, [...(groups.get(label) ?? []), i]);
   }
   return [...groups].map(([label, g]) => ({ label, items: g }));
 }

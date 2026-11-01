@@ -11591,6 +11591,10 @@
     "text": "{{legend}}: how the conditions combine",
     "context": "People: employee records, org chart, HR settings. settings/predicate-editor.tsx, PredicateEditor: the aria-label of <SelectTrigger>. Filled in: {{legend}}."
   },
+  "settings.predicate-editor.is_empty": {
+    "text": "is empty",
+    "context": "People: employee records, org chart, HR settings. settings/predicate-editor.tsx, PredicateEditor: text inside <SelectItem>."
+  },
   "settings.predicate-editor.is_filled_in": {
     "text": "is filled in",
     "context": "People: employee records, org chart, HR settings. settings/predicate-editor.tsx, PredicateEditor: text inside <SelectItem>."

@@ -181,6 +181,36 @@ describe('a requirement that depends on the person', () => {
   });
 });
 
+describe('one of two fields, either one', () => {
+  const eitherOf = (key: string, other: string) =>
+    define({
+      key,
+      requiredness: {
+        mode: 'conditional',
+        when: { clauses: [{ operand: 'attribute', key: other, is: 'empty' }] },
+      },
+    });
+  const pay = [eitherOf('salary', 'hourly_rate'), eitherOf('hourly_rate', 'salary')];
+  // As a batch reads a row: the keys it holds, not every field the version has.
+  const held = (values: Record<string, unknown>) =>
+    facts({ values, knownAttributes: new Set(Object.keys(values)) });
+
+  it('asks for both while neither is given', () => {
+    const verdict = assessCompleteness(pay, held({}), clock, 'Etc/UTC');
+    expect(verdict.missing.map((m) => m.key)).toEqual(['salary', 'hourly_rate']);
+    expect(verdict.unevaluable).toEqual([]);
+  });
+
+  it('is complete with either one', () => {
+    expect(assessCompleteness(pay, held({ salary: '50000' }), clock, 'Etc/UTC').state).toBe(
+      'complete',
+    );
+    expect(assessCompleteness(pay, held({ hourly_rate: '25' }), clock, 'Etc/UTC').state).toBe(
+      'complete',
+    );
+  });
+});
+
 describe('a rule that cannot be evaluated', () => {
   it('leaves the record complete and reports the broken rule', () => {
     // Failing towards "required" would lock a tenant out of their own records

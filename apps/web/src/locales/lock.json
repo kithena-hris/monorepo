@@ -17562,7 +17562,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34750,7 +34753,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -51938,7 +51944,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -69126,7 +69135,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -86691,7 +86703,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -104256,7 +104271,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -121444,7 +121462,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -139009,7 +139030,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -156197,7 +156221,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -174139,7 +174166,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -191704,7 +191734,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -209646,7 +209679,10 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -226834,6 +226870,9 @@
     "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
     "shell:components.inbox.screen.section_earlier": "e10ae9907401",
     "shell:components.inbox.screen.view_notifications": "788011833a5a",
-    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2",
+    "mobile:people.settings.field-editor.is_empty": "86aaa00d0f04",
+    "people:settings.predicate-editor.is_empty": "86aaa00d0f04",
+    "shell:components.inbox.screen.view_all": "a52ace420f21"
   }
 }

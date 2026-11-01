@@ -265,6 +265,7 @@ export function useShellData(): ShellData {
 const HOST_PAGES = new Set([
   '/',
   '/inbox',
+  '/inbox/all',
   '/inbox/todo',
   '/inbox/updates',
   '/inbox/requests',

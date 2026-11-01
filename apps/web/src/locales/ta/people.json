@@ -2847,6 +2847,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "ஒவ்வொரு நிபந்தனைக்கும் குறைந்தது ஒரு மதிப்பு தேவை.",
   "settings.predicate-editor.how_it_is_compared": "{{n}}: எப்படி ஒப்பிடப்படுகிறது",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}}: நிபந்தனைகள் எப்படி இணைகின்றன",
+  "settings.predicate-editor.is_empty": "காலியாக உள்ளது",
   "settings.predicate-editor.is_filled_in": "நிரப்பப்பட்டுள்ளது",
   "settings.predicate-editor.is_one_of": "{{n}}: இவற்றில் ஒன்று",
   "settings.predicate-editor.remove": "{{n}} நீக்கவும்",

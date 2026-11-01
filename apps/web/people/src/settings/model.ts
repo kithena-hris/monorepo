@@ -30,7 +30,7 @@ export type PredicateClause =
   | {
       readonly operand: 'attribute';
       readonly key: string;
-      readonly is: 'set' | 'equals';
+      readonly is: 'set' | 'empty' | 'equals';
       readonly equals: string | null;
     };
 export interface Predicate {

@@ -780,6 +780,7 @@
   "components.inbox.screen.up_to_of_people_in_would": "Hasta {{out}} de {{of}} personas de {{team}} estarían fuera a la vez.",
   "components.inbox.screen.updates_or_time_off_together": "Las novedades se leen o archivan juntas, y las aprobaciones de ausencias se deciden juntas",
   "components.inbox.screen.view_action_required": "Acción requerida",
+  "components.inbox.screen.view_all": "Todo",
   "components.inbox.screen.view_completed": "Completado",
   "components.inbox.screen.view_notifications": "Notificaciones",
   "components.inbox.screen.view_snoozed": "Pospuesto",

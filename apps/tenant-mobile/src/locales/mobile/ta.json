@@ -1649,6 +1649,7 @@
   "people.settings.field-editor.how_integrations_and_imports_name_it": "ஒருங்கிணைப்புகளும் இறக்குமதிகளும் இதை எப்படி அழைக்கின்றன. சேமித்ததும் நிலையானது.",
   "people.settings.field-editor.how_it_looks_on_a_form": "படிவத்தில் இது எப்படித் தெரியும்",
   "people.settings.field-editor.i_confirm_this_is_special_category": "இது சிறப்பு வகைத் தரவு என்பதை உறுதிசெய்கிறேன்",
+  "people.settings.field-editor.is_empty": "காலியாக உள்ளது",
   "people.settings.field-editor.is_filled_in": "நிரப்பப்பட்டுள்ளது",
   "people.settings.field-editor.is_it_required": "இது தேவையா?",
   "people.settings.field-editor.is_one_of": "{{n}}: இவற்றில் ஒன்று",

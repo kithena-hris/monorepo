@@ -807,6 +807,7 @@
   "components.inbox.screen.up_to_of_people_in_would": "Do {{out}} z {{of}} osób w zespole {{team}} byłoby nieobecnych jednocześnie.",
   "components.inbox.screen.updates_or_time_off_together": "Aktualności czytasz lub archiwizujesz razem, a wnioski urlopowe decydujesz razem",
   "components.inbox.screen.view_action_required": "Wymagane działanie",
+  "components.inbox.screen.view_all": "Wszystko",
   "components.inbox.screen.view_completed": "Zakończone",
   "components.inbox.screen.view_notifications": "Powiadomienia",
   "components.inbox.screen.view_snoozed": "Odłożone",

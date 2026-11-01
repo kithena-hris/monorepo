@@ -6611,6 +6611,10 @@
     "text": "I confirm this is special-category data",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, FieldEditor: the accessibilityLabel of <Checkbox>."
   },
+  "people.settings.field-editor.is_empty": {
+    "text": "is empty",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, PredicateEditor: text inside <Stack>."
+  },
   "people.settings.field-editor.is_filled_in": {
     "text": "is filled in",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, PredicateEditor: text inside <Stack>."

@@ -764,6 +764,7 @@
   "components.inbox.screen.up_to_of_people_in_would": "Jusqu’à {{out}} personnes sur {{of}} dans {{team}} seraient absentes en même temps.",
   "components.inbox.screen.updates_or_time_off_together": "Les mises à jour se lisent ou se rangent ensemble, et les approbations d’absences se décident ensemble",
   "components.inbox.screen.view_action_required": "Action requise",
+  "components.inbox.screen.view_all": "Tout",
   "components.inbox.screen.view_completed": "Terminé",
   "components.inbox.screen.view_snoozed": "Reporté",
   "components.inbox.screen.what_is_only_for_you_to_know": "Ce qui est seulement pour votre information arrive ici : une modification décidée, une arrivée dans votre équipe.",

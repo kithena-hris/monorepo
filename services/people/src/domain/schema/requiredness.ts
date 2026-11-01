@@ -153,6 +153,7 @@ function holds(clause: PredicateClause, facts: PersonFacts, unevaluable: string[
       // reading it as "set" would satisfy a rule nobody answered.
       const isSet = value !== undefined && value !== null && value !== '';
       if (clause.is === 'set') return isSet;
+      if (clause.is === 'empty') return !isSet;
 
       /*
        * Only a scalar can equal the string a rule was written against.

@@ -109,6 +109,8 @@ export interface PredicateEditorProps {
   readonly choices: RegistryDraft['choices'];
   /** The fields a clause may name — never the one being edited. */
   readonly fields: readonly PredicateField[];
+  /** "Is empty", for requiredness only: a visibility rule cannot tell a blank field from a removed one. */
+  readonly emptyAllowed?: boolean;
 }
 
 /**
@@ -125,6 +127,7 @@ export function PredicateEditor({
   onChange,
   choices,
   fields,
+  emptyAllowed = false,
 }: PredicateEditorProps): JSX.Element {
   const listed = (operand: ListOperand): readonly Choice[] =>
     ({
@@ -247,7 +250,7 @@ export function PredicateEditor({
                   onValueChange={(is) => {
                     set(index, {
                       ...clause,
-                      is: is as 'set' | 'equals',
+                      is: is as 'set' | 'empty' | 'equals',
                       equals: is === 'equals' ? '' : null,
                     });
                   }}
@@ -267,6 +270,11 @@ export function PredicateEditor({
                     <SelectItem value="set">
                       {t('settings.predicate-editor.is_filled_in', 'is filled in')}
                     </SelectItem>
+                    {emptyAllowed ? (
+                      <SelectItem value="empty">
+                        {t('settings.predicate-editor.is_empty', 'is empty')}
+                      </SelectItem>
+                    ) : null}
                     <SelectItem value="equals">
                       {t('settings.predicate-editor.equals', 'equals')}
                     </SelectItem>

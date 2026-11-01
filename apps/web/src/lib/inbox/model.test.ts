@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { InboxItem } from '@kithena/contracts';
 
 import {
+  byMonth,
   countsOf,
   changed,
   EMPTY_STATE,
@@ -160,6 +161,22 @@ describe('the Inbox, merged', () => {
       ['October', ['oct']],
       ['September', ['sep']],
       ['2024', ['y24']],
+    ]);
+  });
+
+  it('puts every lane together by month, newest first, for All', () => {
+    const shown = shape(
+      [
+        item({ id: 'done', lane: 'done', at: '2026-09-02T08:00:00.000Z' }),
+        item({ id: 'task', lane: 'task', at: '2026-10-06T08:00:00.000Z' }),
+        item({ id: 'update', lane: 'update', at: '2026-10-07T08:00:00.000Z' }),
+      ],
+      EMPTY_STATE,
+      NOW,
+    );
+    expect(byMonth(shown, NOW, ZONE).map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
+      ['October', ['update', 'task']],
+      ['September', ['done']],
     ]);
   });
 
