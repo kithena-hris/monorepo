@@ -5,6 +5,18 @@ import { join } from 'node:path';
 // expose, and the load fails before the build starts. JSDoc types give the same
 // checking here without the dependency.
 
+/** Every page: framed by the app's own pages, never by another site's. */
+const FRAME_HEADERS = [
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+];
+
+// JavaScript has no return annotation for the rule to find; the JSDoc type is the function's.
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+/** @type {NonNullable<import('next').NextConfig['headers']>} */
+const framedBySelfOnly = () => Promise.resolve([{ source: '/:path*', headers: FRAME_HEADERS }]);
+/* eslint-enable @typescript-eslint/explicit-module-boundary-types */
+
 /** @type {import('next').NextConfig} */
 const config = {
   // `@reach/ui` ships TypeScript source rather than build output, so Next
@@ -43,17 +55,7 @@ const config = {
   // Framed by its own pages only: the Inbox opens a task's page in a frame of
   // the same app (`components/inbox/frame-pane.tsx`), and no other site may,
   // so a page can never be laid under another site's clicks.
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-        ],
-      },
-    ];
-  },
+  headers: framedBySelfOnly,
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],
     // A page visited in the last thirty seconds is shown from the browser's
