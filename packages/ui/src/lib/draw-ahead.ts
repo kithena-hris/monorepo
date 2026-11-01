@@ -4,6 +4,14 @@ import { defaultRangeExtractor, type Range } from '@tanstack/react-virtual';
 export const AHEAD_PX = 3200;
 
 /**
+ * Up to this many rows a list draws every row it has loaded, scrolled or not.
+ * A row already loaded must never be shown empty: a fling, a drag of the
+ * scrollbar or Back to top outran any lead, and the reader saw blank rows
+ * fill in a frame later. Past it, the lead below takes over.
+ */
+export const DRAW_ALL = 1000;
+
+/**
  * A virtualizer's `rangeExtractor` that draws further ahead while the list
  * moves: `ahead` more rows past the overscan on the side the scroll is
  * heading, and none extra behind it or at rest. A fling outran a symmetric
@@ -18,8 +26,10 @@ export const AHEAD_PX = 3200;
 export function drawAhead(
   direction: () => 'forward' | 'backward' | null,
   ahead: number,
+  all = DRAW_ALL,
 ): (range: Range) => number[] {
   return (range) => {
+    if (range.count <= all) return Array.from({ length: range.count }, (_, i) => i);
     const going = direction();
     return defaultRangeExtractor({
       ...range,

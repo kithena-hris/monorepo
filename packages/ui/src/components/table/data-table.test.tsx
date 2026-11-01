@@ -332,7 +332,7 @@ describe('<DataTable> that keeps loading', () => {
     const html = renderToString(
       <DataTable
         label="People"
-        rows={[...people, ...more(150)]}
+        rows={[...people, ...more(1500)]}
         columns={columns}
         rowId={(p) => p.id}
         onEndReached={vi.fn()}
@@ -360,7 +360,7 @@ describe('<DataTable> that keeps loading', () => {
     rerender(
       <DataTable
         label="People"
-        rows={[...people, ...more(150)]}
+        rows={[...people, ...more(1500)]}
         columns={columns}
         rowId={(p) => p.id}
         onEndReached={vi.fn()}
@@ -375,7 +375,7 @@ describe('<DataTable> that keeps loading', () => {
     const html = renderToString(
       <DataTable
         label="People"
-        rows={more(500)}
+        rows={more(5000)}
         columns={columns}
         rowId={(p) => p.id}
         onEndReached={vi.fn()}
@@ -478,7 +478,7 @@ describe('<DataTable> that keeps loading', () => {
 });
 
 describe('<DataTable> pinned header and a virtualized body', () => {
-  const many = Array.from({ length: 400 }, (_, i) => ({
+  const many = Array.from({ length: 4000 }, (_, i) => ({
     id: String(i),
     name: `Person ${String(i)}`,
   }));

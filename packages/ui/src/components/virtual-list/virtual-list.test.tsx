@@ -14,7 +14,7 @@ function list(props: Partial<ComponentProps<typeof VirtualList<Item>>> = {}) {
   return (
     <VirtualList<Item>
       label="Things"
-      items={items(1000)}
+      items={items(5000)}
       itemKey={(it) => it.id}
       renderItem={(it) => <span>{it.id}</span>}
       estimateItemHeight={50}
@@ -30,7 +30,7 @@ describe('<VirtualList>', () => {
       expect(html).toContain('>i0<');
       expect(html).toContain('>i10<');
       expect(html).not.toContain('>i500<');
-      expect(html).toContain('aria-setsize="1000"');
+      expect(html).toContain('aria-setsize="5000"');
     }
   });
 
