@@ -1632,7 +1632,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       case 'Analytics':
         return {
           load: loadable,
-          tab: leaf,
           segmentId: at('segment'),
           onSegmentChange: (segment: string | null) => {
             navigate({ segment });

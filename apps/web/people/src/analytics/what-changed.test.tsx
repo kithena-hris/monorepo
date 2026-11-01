@@ -60,7 +60,7 @@ describe('What changed (AI5)', () => {
       )}`,
     );
     expect(sourceHref({ kind: 'span', label: '' }, 'seg')).toBe(
-      '/people/insights/turnover?segment=seg',
+      '/people/insights/workforce?segment=seg',
     );
     expect(sourceHref({ kind: 'org-chart', label: '' }, null)).toBe('/people/directory/org-chart');
     expect(sourceHref({ kind: 'section', label: 'Bank' }, null)).toBe(

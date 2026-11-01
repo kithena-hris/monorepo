@@ -1171,7 +1171,7 @@ function HrHome({
       <WidgetGrid size="sm">
         {headcount === null ? null : (
           <Figure
-            href="/people/insights/headcount"
+            href="/people/insights/workforce"
             label={tr('home.people-home.headcount', 'Headcount')}
             value={headcount.value.toLocaleString(locale())}
             description={
@@ -1222,7 +1222,7 @@ function HrHome({
         )}
         {hr.expiring === null ? null : (
           <Figure
-            href="/people/insights/data-quality"
+            href="/people/insights/workforce"
             label={tr('home.people-home.expiring_in_90_days', 'Expiring in 90 days')}
             value={hr.expiring}
             description={tr(

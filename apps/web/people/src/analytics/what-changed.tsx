@@ -242,8 +242,9 @@ const directory = (conditions: readonly object[]): string =>
 
 /** Where a source's records are, in this app. */
 export function sourceHref(source: Source, segmentId: string | null): string {
-  const insights = (tab: string) =>
-    `/people/insights/${tab}${segmentId === null ? '' : `?segment=${encodeURIComponent(segmentId)}`}`;
+  // Insights' four topics are one page: a topic is where it is on it.
+  const insights = (_topic: string) =>
+    `/people/insights/workforce${segmentId === null ? '' : `?segment=${encodeURIComponent(segmentId)}`}`;
   switch (source.kind) {
     case 'joiners':
       return directory([{ key: 'hire_date', op: 'between', values: [source.from, source.to] }]);

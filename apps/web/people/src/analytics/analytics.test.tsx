@@ -59,21 +59,13 @@ const workforce: AnalyticsState = {
 };
 
 describe('Analytics', () => {
-  it('draws the tab its route names, titled Insights, and no other tab’s questions', () => {
-    const { rerender } = render(<Analytics load={{ status: 'ready', data: workforce }} />);
+  it('draws every topic on one page, titled Insights', () => {
+    render(<Analytics load={{ status: 'ready', data: workforce }} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Headcount by month' })).toBeInTheDocument();
     expect(screen.getByText('11.4% attrition')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Where our data is thin' })).toBeNull();
-
-    rerender(<Analytics tab="data-quality" load={{ status: 'ready', data: workforce }} />);
     expect(screen.getByRole('heading', { name: 'Where our data is thin' })).toBeInTheDocument();
     expect(screen.getByText('Records complete')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Headcount by month' })).toBeNull();
-
-    // A tab with nothing this viewer may see says so, rather than an empty page.
-    rerender(<Analytics tab="pay" load={{ status: 'ready', data: workforce }} />);
-    expect(screen.getByText('Nothing to show on this tab')).toBeInTheDocument();
   });
 
   it('counts who starts soon beside the headcount, only where People sent the figure', () => {
@@ -91,17 +83,10 @@ describe('Analytics', () => {
     expect(screen.queryByText('Starting soon')).toBeNull();
   });
 
-  it('exports the tab on screen, for the segment on screen, as a file', () => {
-    const { rerender } = render(
-      <Analytics tab="turnover" load={{ status: 'ready', data: workforce }} />,
-    );
-    const link = screen.getByRole('link', { name: 'Export' });
-    expect(link).toHaveAttribute('href', '/people/downloads/insights?tab=turnover');
-    expect(link).toHaveAttribute('download');
-
-    rerender(
+  it('exports each topic, for the segment on screen, as a file', async () => {
+    const user = fast();
+    render(
       <Analytics
-        tab="headcount"
         segmentId="seg-1"
         load={{
           status: 'ready',
@@ -109,7 +94,11 @@ describe('Analytics', () => {
         }}
       />,
     );
-    expect(screen.getByRole('link', { name: 'Export' })).toHaveAttribute(
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const turnover = await screen.findByRole('menuitem', { name: 'Turnover' });
+    expect(turnover).toHaveAttribute('href', '/people/downloads/insights?tab=turnover&segment=seg-1');
+    expect(turnover).toHaveAttribute('download');
+    expect(screen.getByRole('menuitem', { name: 'Headcount' })).toHaveAttribute(
       'href',
       '/people/downloads/insights?tab=headcount&segment=seg-1',
     );
@@ -132,7 +121,7 @@ describe('Analytics', () => {
       screen.getByRole('table', { name: 'Where the change came from: the numbers' }),
     ).toHaveTextContent('Closing912');
 
-    rerender(<Analytics tab="data-quality" load={{ status: 'ready', data: workforce }} />);
+    rerender(<Analytics load={{ status: 'ready', data: workforce }} />);
     for (const title of [
       'Where our data is thin',
       'What expires next',
@@ -153,7 +142,7 @@ describe('Analytics', () => {
           status: 'ready',
           data: { ...workforce, attrition: null, completenessBySection: null, funnel: null },
         }}
-        tab="data-quality"
+       
       />,
     );
     for (const gone of ['Attrition', 'Where our data is thin', 'Where new joiners stall']) {
@@ -164,7 +153,7 @@ describe('Analytics', () => {
   it('draws what expires as one lane per person, with the dates in its table (PEO-122)', async () => {
     const user = fast();
     const { container } = render(
-      <Analytics tab="data-quality" load={{ status: 'ready', data: workforce }} />,
+      <Analytics load={{ status: 'ready', data: workforce }} />,
     );
     const section = screen.getByRole('heading', { name: 'What expires next' }).closest('section');
     if (section === null) throw new Error('no expiry section');
@@ -202,7 +191,7 @@ describe('Analytics', () => {
   it('says when nothing expires, and draws nothing for a viewer who may see no expiry', () => {
     const { rerender } = render(
       <Analytics
-        tab="data-quality"
+       
         load={{
           status: 'ready',
           data: { ...workforce, expiries: { today: '2026-09-22', items: [] } },
@@ -212,7 +201,7 @@ describe('Analytics', () => {
     expect(screen.getByText('Nothing expires in the next 90 days.')).toBeInTheDocument();
     rerender(
       <Analytics
-        tab="data-quality"
+       
         load={{ status: 'ready', data: { ...workforce, expiries: null, expiringIn90Days: null } }}
       />,
     );
@@ -287,7 +276,7 @@ describe('Analytics', () => {
   it('draws attrition, composition, tenure, span and joiners, each with its numbers (PEO-067)', async () => {
     const user = fast();
     const { container, rerender } = render(
-      <Analytics tab="turnover" load={{ status: 'ready', data: remaining }} />,
+      <Analytics load={{ status: 'ready', data: remaining }} />,
     );
     const open = async (title: string) => {
       const section = screen.getByRole('heading', { name: title }).closest('section');
@@ -307,7 +296,7 @@ describe('Analytics', () => {
     ).toHaveTextContent('6 to 12 months: left19');
     expect(await axeViolations(container)).toEqual([]);
 
-    rerender(<Analytics tab="headcount" load={{ status: 'ready', data: remaining }} />);
+    rerender(<Analytics load={{ status: 'ready', data: remaining }} />);
     for (const title of ['What we are made of', 'When people join']) await open(title);
     // Joined in 12 months: the joiners' heatmap, summed.
     expect(screen.getByText('Joined, 12M').parentElement?.parentElement).toHaveTextContent(
@@ -317,7 +306,7 @@ describe('Analytics', () => {
 
   it('shows a withheld self-ID question as insufficient data, with no number to read (PEO-070)', async () => {
     const { container } = render(
-      <Analytics tab="pay" load={{ status: 'ready', data: remaining }} />,
+      <Analytics load={{ status: 'ready', data: remaining }} />,
     );
     const withheld = screen.getByRole('heading', { name: 'Disability' }).closest('section');
     if (withheld === null) throw new Error('no section for Disability');
@@ -343,7 +332,7 @@ describe('Analytics', () => {
           data: { ...remaining, segments: [{ id: 'seg-1', name: 'Engineering' }] },
         }}
         onSegmentChange={onSegmentChange}
-        tab="turnover"
+       
       />,
     );
     await user.click(screen.getByRole('combobox', { name: 'Segment' }));
@@ -365,7 +354,7 @@ describe('Analytics', () => {
         }}
         segmentId="seg-1"
         onSegmentChange={onSegmentChange}
-        tab="turnover"
+       
       />,
     );
     expect(screen.getByText(/Showing the people you may see in Engineering/)).toBeInTheDocument();
@@ -440,7 +429,7 @@ describe('Analytics', () => {
   it('draws pay per currency, median inside the band, and a small group as words only (PEO-078)', async () => {
     const user = fast();
     const { container } = render(
-      <Analytics tab="pay" load={{ status: 'ready', data: { ...remaining, pay } }} />,
+      <Analytics load={{ status: 'ready', data: { ...remaining, pay } }} />,
     );
     for (const title of [
       'How pay sits in each band, EUR',
@@ -469,7 +458,7 @@ describe('Analytics', () => {
   });
 
   it('draws no pay section for anybody People sent none (PEO-078)', () => {
-    render(<Analytics tab="pay" load={{ status: 'ready', data: { ...remaining, pay: null } }} />);
+    render(<Analytics load={{ status: 'ready', data: { ...remaining, pay: null } }} />);
     expect(screen.queryByRole('heading', { name: /How pay sits/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: /Compa-ratio/ })).toBeNull();
   });

@@ -1,6 +1,9 @@
 import {
   Alert,
-  AutoGrid,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Avatar,
   BarChart,
   Button,
@@ -35,6 +38,7 @@ import {
   type ChartTone,
   type IsoDate,
   type TimelineRow,
+  WidgetGrid,
 } from '@reach/ui';
 import { useId, useState, type JSX, type ReactNode } from 'react';
 
@@ -181,8 +185,6 @@ export interface ExpiryItem {
 
 export interface AnalyticsProps {
   readonly load: Loadable<AnalyticsState>;
-  /** The tab its route names; the host draws the row of tabs. */
-  readonly tab?: InsightsTab;
   /** Applied by the shell, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
@@ -252,8 +254,15 @@ export function expiryRows(items: readonly ExpiryItem[]): TimelineRow[] {
   return [...lanes.values()];
 }
 
-/** Insights' four tabs, each a route: `/people/insights/<tab>`. */
+/** Insights' four topics, drawn on one page, each with its own export. */
 export type InsightsTab = 'headcount' | 'turnover' | 'data-quality' | 'pay';
+const INSIGHTS_TABS: readonly InsightsTab[] = ['headcount', 'turnover', 'data-quality', 'pay'];
+const TOPIC: Readonly<Record<InsightsTab, () => string>> = {
+  headcount: () => t('analytics.analytics.topic_headcount', 'Headcount'),
+  turnover: () => t('analytics.analytics.topic_turnover', 'Turnover'),
+  'data-quality': () => t('analytics.analytics.topic_data_quality', 'Data quality'),
+  pay: () => t('analytics.analytics.topic_pay', 'Pay and diversity'),
+};
 
 const grid = 'grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2';
 
@@ -275,7 +284,6 @@ export const exportUrl = (tab: InsightsTab, segmentId: string | null): string =>
  */
 export function Analytics({
   load,
-  tab = 'headcount',
   segmentId = null,
   onSegmentChange,
 }: AnalyticsProps): JSX.Element {
@@ -284,7 +292,6 @@ export function Analytics({
       {(state) => (
         <Workforce
           state={state}
-          tab={tab}
           segmentId={segmentId}
           onSegmentChange={onSegmentChange}
         />
@@ -387,12 +394,10 @@ export function SchedulesRow({
 
 function Workforce({
   state,
-  tab,
   segmentId,
   onSegmentChange,
 }: {
   readonly state: AnalyticsState;
-  readonly tab: InsightsTab;
   readonly segmentId: string | null;
   readonly onSegmentChange: AnalyticsProps['onSegmentChange'];
 }): JSX.Element {
@@ -404,402 +409,414 @@ function Workforce({
 
   const figures: JSX.Element[] = [];
   const sections: JSX.Element[] = [];
-  if (tab === 'headcount') {
-    figures.push(
-      <Stat
-        key="headcount"
-        label={t('analytics.analytics.headcount', 'Headcount')}
-        value={headcount.value.toLocaleString()}
-        {...(headcount.change === null
-          ? {}
-          : {
-              delta: `${headcount.change > 0 ? '+' : ''}${String(headcount.change)}`,
-              deltaLabel: t('analytics.analytics.since_last_month', 'since last month'),
-              direction:
-                headcount.change > 0
-                  ? ('up' as const)
-                  : headcount.change < 0
-                    ? ('down' as const)
-                    : ('flat' as const),
-            })}
-        chart={
-          headcount.trend.length > 1 ? (
-            <Sparkline
-              data={headcount.trend}
-              label={t('analytics.analytics.headcount_by_month', 'Headcount by month')}
-            />
-          ) : undefined
-        }
-      />,
-    );
-    if (joined !== null)
+  // One page: every topic's figures as tiles, then every topic's sections.
+  for (const tab of INSIGHTS_TABS) {
+    if (tab === 'headcount') {
       figures.push(
         <Stat
-          key="joined"
-          label={t('analytics.analytics.joined_12m', 'Joined, 12M')}
-          value={joined}
-        />,
-      );
-    if (attrition !== null) {
-      figures.push(
-        <Stat
-          key="left"
-          label={t('analytics.analytics.left_12m', 'Left, 12M')}
-          value={attrition.leavers}
-          description={t('analytics.analytics.attrition', '{{percent}} attrition', {
-            percent: percent(attrition.percent),
-          })}
-        />,
-      );
-    }
-    // The design's fourth figure was open roles, which are recruiting's to
-    // count; pre-hires are People's, and the honest figure in that place.
-    if (state.startingSoon != null) {
-      figures.push(
-        <Stat
-          key="starting"
-          label={t('analytics.analytics.starting_soon', 'Starting soon')}
-          value={state.startingSoon}
-          description={t('analytics.analytics.hired_not_started_yet', 'Hired, not started yet')}
-        />,
-      );
-    }
-    if (headcount.trend.length > 1) {
-      sections.push(
-        <ChartSection
-          key="trend"
-          title={t('analytics.analytics.headcount_by_month', 'Headcount by month')}
-          description={t('analytics.analytics.today', '{{toLocaleString}} today', {
-            toLocaleString: headcount.value.toLocaleString(),
-          })}
-          numbers={headcount.trend.map((p) => [p.label, p.value])}
-        >
-          <TrendChart
-            label={t('analytics.analytics.headcount_by_month', 'Headcount by month')}
-            series={[
-              { label: t('analytics.analytics.headcount', 'Headcount'), data: headcount.trend },
-            ]}
-            area
-            showLastPoint
-          />
-        </ChartSection>,
-      );
-    }
-    if (movement !== null) {
-      sections.push(
-        <ChartSection
-          key="movement"
-          title={t('analytics.analytics.where_the_change_came_from', 'Where the change came from')}
-          description={t(
-            'analytics.analytics.the_numbers_reconcile_to_the_closing',
-            '{{period}} · the numbers reconcile to the closing headcount',
-            { period: movement.period },
-          )}
-          numbers={[
-            [t('analytics.analytics.opening', 'Opening'), movement.opening],
-            [t('analytics.analytics.joiners', 'Joiners'), movement.joiners],
-            [t('analytics.analytics.internal_moves', 'Internal moves'), movement.moves],
-            [t('analytics.analytics.leavers', 'Leavers'), -movement.leavers],
-            [t('analytics.analytics.closing', 'Closing'), movement.closing],
-          ]}
-        >
-          <WaterfallChart
-            label={t('analytics.analytics.headcount_movement', 'Headcount movement')}
-            data={[
-              {
-                label: t('analytics.analytics.opening', 'Opening'),
-                value: movement.opening,
-                total: true,
-              },
-              {
-                label: t('analytics.analytics.joiners', 'Joiners'),
-                value: movement.joiners,
-                tone: 'success',
-              },
-              { label: t('analytics.analytics.moves', 'Moves'), value: movement.moves },
-              {
-                label: t('analytics.analytics.leavers', 'Leavers'),
-                value: -movement.leavers,
-                tone: 'danger',
-              },
-              {
-                label: t('analytics.analytics.closing', 'Closing'),
-                value: movement.closing,
-                total: true,
-              },
-            ]}
-          />
-        </ChartSection>,
-      );
-    }
-    if (state.composition != null && state.composition.categories.length > 0) {
-      const composition = state.composition;
-      sections.push(
-        <ChartSection
-          key="composition"
-          title={t('analytics.analytics.what_we_are_made_of', 'What we are made of')}
-          description={t(
-            'analytics.analytics.headcount_by_department_split_by_employment',
-            'Headcount by department, split by employment type',
-          )}
-          numbers={composition.categories.flatMap((category, i) =>
-            composition.series.map((s): [string, number] => [
-              `${category}, ${s.label}`,
-              s.values[i] ?? 0,
-            ]),
-          )}
-        >
-          <StackedBarChart
-            label={t(
-              'analytics.analytics.headcount_by_department_and_employment_type',
-              'Headcount by department and employment type',
-            )}
-            categories={composition.categories}
-            series={composition.series}
-          />
-        </ChartSection>,
-      );
-    }
-    if (state.joiners != null && state.joiners.cells.length > 0) {
-      const joiners = state.joiners;
-      sections.push(
-        <ChartSection
-          key="joiners"
-          title={t('analytics.analytics.when_people_join', 'When people join')}
-          description={t(
-            'analytics.analytics.joiners_by_department_and_month_the',
-            'Joiners by department and month, the last 12 months',
-          )}
-          numbers={joiners.cells.map((c) => [`${c.row}, ${c.column}`, c.value])}
-        >
-          <ScrollArea className="w-full">
-            <div className="min-w-[36rem]">
-              <HeatmapChart
-                label={t(
-                  'analytics.analytics.joiners_by_department_and_month',
-                  'Joiners by department and month',
-                )}
-                rows={joiners.departments}
-                columns={joiners.months}
-                cells={joiners.cells}
-                describe={(value, row, column) =>
-                  `${String(value)} ${value === 1 ? 'joiner' : 'joiners'} in ${row}, ${column}`
-                }
+          key="headcount"
+          label={t('analytics.analytics.headcount', 'Headcount')}
+          value={headcount.value.toLocaleString()}
+          {...(headcount.change === null
+            ? {}
+            : {
+                delta: `${headcount.change > 0 ? '+' : ''}${String(headcount.change)}`,
+                deltaLabel: t('analytics.analytics.since_last_month', 'since last month'),
+                direction:
+                  headcount.change > 0
+                    ? ('up' as const)
+                    : headcount.change < 0
+                      ? ('down' as const)
+                      : ('flat' as const),
+              })}
+          chart={
+            headcount.trend.length > 1 ? (
+              <Sparkline
+                data={headcount.trend}
+                label={t('analytics.analytics.headcount_by_month', 'Headcount by month')}
               />
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </ChartSection>,
-      );
-    }
-  }
-
-  if (tab === 'turnover') {
-    if (attrition !== null) {
-      figures.push(
-        <Stat
-          key="attrition"
-          label={t(
-            'analytics.analytics.attrition_rolling_12_months',
-            'Attrition, rolling 12 months',
-          )}
-          value={percent(attrition.percent)}
-          description={t(
-            'analytics.analytics.annualised_over_leavers',
-            'Annualised over {{leavers}} leavers: {{formula}}',
-            { leavers: String(attrition.leavers), formula: attrition.formula },
-          )}
+            ) : undefined
+          }
         />,
       );
+      if (joined !== null)
+        figures.push(
+          <Stat
+            key="joined"
+            label={t('analytics.analytics.joined_12m', 'Joined, 12M')}
+            value={joined}
+          />,
+        );
+      if (attrition !== null) {
+        figures.push(
+          <Stat
+            key="left"
+            label={t('analytics.analytics.left_12m', 'Left, 12M')}
+            value={attrition.leavers}
+            description={t('analytics.analytics.attrition', '{{percent}} attrition', {
+              percent: percent(attrition.percent),
+            })}
+          />,
+        );
+      }
+      // The design's fourth figure was open roles, which are recruiting's to
+      // count; pre-hires are People's, and the honest figure in that place.
+      if (state.startingSoon != null) {
+        figures.push(
+          <Stat
+            key="starting"
+            label={t('analytics.analytics.starting_soon', 'Starting soon')}
+            value={state.startingSoon}
+            description={t('analytics.analytics.hired_not_started_yet', 'Hired, not started yet')}
+          />,
+        );
+      }
+      if (headcount.trend.length > 1) {
+        sections.push(
+          <ChartSection
+            key="trend"
+            title={t('analytics.analytics.headcount_by_month', 'Headcount by month')}
+            description={t('analytics.analytics.today', '{{toLocaleString}} today', {
+              toLocaleString: headcount.value.toLocaleString(),
+            })}
+            numbers={headcount.trend.map((p) => [p.label, p.value])}
+          >
+            <TrendChart
+              label={t('analytics.analytics.headcount_by_month', 'Headcount by month')}
+              series={[
+                { label: t('analytics.analytics.headcount', 'Headcount'), data: headcount.trend },
+              ]}
+              area
+              showLastPoint
+            />
+          </ChartSection>,
+        );
+      }
+      if (movement !== null) {
+        sections.push(
+          <ChartSection
+            key="movement"
+            title={t(
+              'analytics.analytics.where_the_change_came_from',
+              'Where the change came from',
+            )}
+            description={t(
+              'analytics.analytics.the_numbers_reconcile_to_the_closing',
+              '{{period}} · the numbers reconcile to the closing headcount',
+              { period: movement.period },
+            )}
+            numbers={[
+              [t('analytics.analytics.opening', 'Opening'), movement.opening],
+              [t('analytics.analytics.joiners', 'Joiners'), movement.joiners],
+              [t('analytics.analytics.internal_moves', 'Internal moves'), movement.moves],
+              [t('analytics.analytics.leavers', 'Leavers'), -movement.leavers],
+              [t('analytics.analytics.closing', 'Closing'), movement.closing],
+            ]}
+          >
+            <WaterfallChart
+              label={t('analytics.analytics.headcount_movement', 'Headcount movement')}
+              data={[
+                {
+                  label: t('analytics.analytics.opening', 'Opening'),
+                  value: movement.opening,
+                  total: true,
+                },
+                {
+                  label: t('analytics.analytics.joiners', 'Joiners'),
+                  value: movement.joiners,
+                  tone: 'success',
+                },
+                { label: t('analytics.analytics.moves', 'Moves'), value: movement.moves },
+                {
+                  label: t('analytics.analytics.leavers', 'Leavers'),
+                  value: -movement.leavers,
+                  tone: 'danger',
+                },
+                {
+                  label: t('analytics.analytics.closing', 'Closing'),
+                  value: movement.closing,
+                  total: true,
+                },
+              ]}
+            />
+          </ChartSection>,
+        );
+      }
+      if (state.composition != null && state.composition.categories.length > 0) {
+        const composition = state.composition;
+        sections.push(
+          <ChartSection
+            key="composition"
+            title={t('analytics.analytics.what_we_are_made_of', 'What we are made of')}
+            description={t(
+              'analytics.analytics.headcount_by_department_split_by_employment',
+              'Headcount by department, split by employment type',
+            )}
+            numbers={composition.categories.flatMap((category, i) =>
+              composition.series.map((s): [string, number] => [
+                `${category}, ${s.label}`,
+                s.values[i] ?? 0,
+              ]),
+            )}
+          >
+            <StackedBarChart
+              label={t(
+                'analytics.analytics.headcount_by_department_and_employment_type',
+                'Headcount by department and employment type',
+              )}
+              categories={composition.categories}
+              series={composition.series}
+            />
+          </ChartSection>,
+        );
+      }
+      if (state.joiners != null && state.joiners.cells.length > 0) {
+        const joiners = state.joiners;
+        sections.push(
+          <ChartSection
+            key="joiners"
+            title={t('analytics.analytics.when_people_join', 'When people join')}
+            description={t(
+              'analytics.analytics.joiners_by_department_and_month_the',
+              'Joiners by department and month, the last 12 months',
+            )}
+            numbers={joiners.cells.map((c) => [`${c.row}, ${c.column}`, c.value])}
+          >
+            <ScrollArea className="w-full">
+              <div className="min-w-[36rem]">
+                <HeatmapChart
+                  label={t(
+                    'analytics.analytics.joiners_by_department_and_month',
+                    'Joiners by department and month',
+                  )}
+                  rows={joiners.departments}
+                  columns={joiners.months}
+                  cells={joiners.cells}
+                  describe={(value, row, column) =>
+                    `${String(value)} ${value === 1 ? 'joiner' : 'joiners'} in ${row}, ${column}`
+                  }
+                />
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </ChartSection>,
+        );
+      }
     }
-    if (attrition?.trend !== undefined && attrition.trend.length >= 2) {
-      sections.push(
-        <ChartSection
-          key="attrition"
-          title={t('analytics.analytics.are_people_leaving_faster', 'Are people leaving faster')}
-          description={t(
-            'analytics.analytics.rolling_12_months',
-            'Rolling 12 months: {{formula}}',
-            { formula: attrition.formula },
-          )}
-          numbers={attrition.trend.map((p) => [p.label, percent(p.value)])}
-        >
-          <TrendChart
+
+    if (tab === 'turnover') {
+      if (attrition !== null) {
+        figures.push(
+          <Stat
+            key="attrition"
             label={t(
               'analytics.analytics.attrition_rolling_12_months',
               'Attrition, rolling 12 months',
             )}
-            series={[
-              {
-                label: t('analytics.analytics.attrition_series', 'Attrition'),
-                tone: 'danger',
-                data: attrition.trend,
-              },
-            ]}
-            format={percent}
-          />
-        </ChartSection>,
-      );
+            value={percent(attrition.percent)}
+            description={t(
+              'analytics.analytics.annualised_over_leavers',
+              'Annualised over {{leavers}} leavers: {{formula}}',
+              { leavers: String(attrition.leavers), formula: attrition.formula },
+            )}
+          />,
+        );
+      }
+      if (attrition?.trend !== undefined && attrition.trend.length >= 2) {
+        sections.push(
+          <ChartSection
+            key="attrition"
+            title={t('analytics.analytics.are_people_leaving_faster', 'Are people leaving faster')}
+            description={t(
+              'analytics.analytics.rolling_12_months',
+              'Rolling 12 months: {{formula}}',
+              { formula: attrition.formula },
+            )}
+            numbers={attrition.trend.map((p) => [p.label, percent(p.value)])}
+          >
+            <TrendChart
+              label={t(
+                'analytics.analytics.attrition_rolling_12_months',
+                'Attrition, rolling 12 months',
+              )}
+              series={[
+                {
+                  label: t('analytics.analytics.attrition_series', 'Attrition'),
+                  tone: 'danger',
+                  data: attrition.trend,
+                },
+              ]}
+              format={percent}
+            />
+          </ChartSection>,
+        );
+      }
+      if (state.tenure != null) {
+        const tenure = state.tenure;
+        sections.push(
+          <ChartSection
+            key="tenure"
+            title={t('analytics.analytics.who_is_at_risk_of_leaving', 'Who is at risk of leaving')}
+            description={t(
+              'analytics.analytics.tenure_today_beside_the_tenure_at',
+              "Tenure today, beside the tenure at leaving of the last 12 months' leavers",
+            )}
+            numbers={tenure.flatMap((b): [string, number][] => [
+              [`${b.label}: here now`, b.headcount],
+              [`${b.label}: left`, b.leavers],
+            ])}
+          >
+            <StackedBarChart
+              label={t('analytics.analytics.tenure_bands', 'Tenure bands')}
+              categories={tenure.map((b) => b.label)}
+              series={[
+                {
+                  label: t(
+                    'analytics.analytics.left_in_the_last_12_months',
+                    'Left in the last 12 months',
+                  ),
+                  tone: 'danger',
+                  values: tenure.map((b) => b.leavers),
+                },
+                {
+                  label: t('analytics.analytics.here_now', 'Here now'),
+                  tone: 'accent',
+                  values: tenure.map((b) => b.headcount),
+                },
+              ]}
+            />
+          </ChartSection>,
+        );
+      }
+      if (state.span != null && state.span.length > 0) {
+        const span = state.span;
+        sections.push(
+          <ChartSection
+            key="span"
+            title={t(
+              'analytics.analytics.is_the_org_shaped_sensibly',
+              'Is the org shaped sensibly',
+            )}
+            description={t(
+              'analytics.analytics.how_many_managers_have_how_many',
+              'How many managers have how many direct reports',
+            )}
+            numbers={span.map((p) => [p.label, p.value])}
+          >
+            <BarChart
+              label={t('analytics.analytics.span_of_control', 'Span of control')}
+              data={span}
+              showValues
+            />
+          </ChartSection>,
+        );
+      }
     }
-    if (state.tenure != null) {
-      const tenure = state.tenure;
-      sections.push(
-        <ChartSection
-          key="tenure"
-          title={t('analytics.analytics.who_is_at_risk_of_leaving', 'Who is at risk of leaving')}
-          description={t(
-            'analytics.analytics.tenure_today_beside_the_tenure_at',
-            "Tenure today, beside the tenure at leaving of the last 12 months' leavers",
-          )}
-          numbers={tenure.flatMap((b): [string, number][] => [
-            [`${b.label}: here now`, b.headcount],
-            [`${b.label}: left`, b.leavers],
-          ])}
-        >
-          <StackedBarChart
-            label={t('analytics.analytics.tenure_bands', 'Tenure bands')}
-            categories={tenure.map((b) => b.label)}
-            series={[
-              {
-                label: t(
-                  'analytics.analytics.left_in_the_last_12_months',
-                  'Left in the last 12 months',
-                ),
-                tone: 'danger',
-                values: tenure.map((b) => b.leavers),
-              },
-              {
-                label: t('analytics.analytics.here_now', 'Here now'),
-                tone: 'accent',
-                values: tenure.map((b) => b.headcount),
-              },
-            ]}
-          />
-        </ChartSection>,
-      );
-    }
-    if (state.span != null && state.span.length > 0) {
-      const span = state.span;
-      sections.push(
-        <ChartSection
-          key="span"
-          title={t('analytics.analytics.is_the_org_shaped_sensibly', 'Is the org shaped sensibly')}
-          description={t(
-            'analytics.analytics.how_many_managers_have_how_many',
-            'How many managers have how many direct reports',
-          )}
-          numbers={span.map((p) => [p.label, p.value])}
-        >
-          <BarChart
-            label={t('analytics.analytics.span_of_control', 'Span of control')}
-            data={span}
-            showValues
-          />
-        </ChartSection>,
-      );
-    }
-  }
 
-  if (tab === 'data-quality') {
-    if (complete !== null) {
-      figures.push(
-        <Stat
-          key="complete"
-          label={t('analytics.analytics.records_complete', 'Records complete')}
-          value={percent(complete.percent)}
-          description={t(
-            'analytics.analytics.records_are_incomplete',
-            '{{incomplete}} records are incomplete',
-            { incomplete: String(complete.incomplete) },
-          )}
-        />,
-      );
+    if (tab === 'data-quality') {
+      if (complete !== null) {
+        figures.push(
+          <Stat
+            key="complete"
+            label={t('analytics.analytics.records_complete', 'Records complete')}
+            value={percent(complete.percent)}
+            description={t(
+              'analytics.analytics.records_are_incomplete',
+              '{{incomplete}} records are incomplete',
+              { incomplete: String(complete.incomplete) },
+            )}
+          />,
+        );
+      }
+      if (state.expiringIn90Days !== null) {
+        figures.push(
+          <Stat
+            key="expiring"
+            label={t('analytics.analytics.expiring_in_90_days', 'Expiring in 90 days')}
+            value={state.expiringIn90Days}
+          />,
+        );
+      }
+      if (state.completenessBySection !== null) {
+        const bySection = state.completenessBySection;
+        sections.push(
+          <ChartSection
+            key="sections"
+            title={t('analytics.analytics.where_our_data_is_thin', 'Where our data is thin')}
+            description={t(
+              'analytics.analytics.completeness_by_section',
+              'Completeness by section',
+            )}
+            numbers={bySection.map((p) => [p.label, percent(p.value)])}
+          >
+            <HorizontalBarChart
+              label={t('analytics.analytics.completeness_by_section', 'Completeness by section')}
+              data={bySection}
+              format={percent}
+              showValues
+            />
+          </ChartSection>,
+        );
+      }
+      if (state.expiries !== null) {
+        const expiries = state.expiries;
+        sections.push(
+          <ChartSection
+            key="expiries"
+            title={t('analytics.analytics.what_expires_next', 'What expires next')}
+            description={t(
+              'analytics.analytics.work_permits_fixed_term_contracts_probation',
+              'Work permits, fixed-term contracts, probation and certifications over the next 90 days',
+            )}
+            numbers={expiries.items.map((item): [string, string] => [
+              `${item.name ?? 'Unnamed'}: ${expiryOf(item.kind).label}`,
+              item.day,
+            ])}
+          >
+            {/* A time axis squeezed to a phone is a smear: it scrolls instead. */}
+            <ScrollArea className="w-full">
+              <div className="min-w-[36rem]">
+                <TimelineChart
+                  label={t('analytics.analytics.expiries', 'Expiries')}
+                  rows={expiryRows(expiries.items)}
+                  today={expiries.today}
+                  unit="week"
+                  empty={t(
+                    'analytics.analytics.nothing_expires_in_the_next_90',
+                    'Nothing expires in the next 90 days.',
+                  )}
+                />
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </ChartSection>,
+        );
+      }
+      if (state.funnel !== null) {
+        sections.push(
+          <ChartSection
+            key="funnel"
+            title={t('analytics.analytics.where_new_joiners_stall', 'Where new joiners stall')}
+            description={t(
+              'analytics.analytics.invited_through_to_a_complete_record',
+              'Invited through to a complete record',
+            )}
+            numbers={state.funnel.map((s) => [s.label, s.value])}
+          >
+            <FunnelChart
+              label={t('analytics.analytics.onboarding_funnel', 'Onboarding funnel')}
+              data={state.funnel}
+              showConversion
+            />
+          </ChartSection>,
+        );
+      }
     }
-    if (state.expiringIn90Days !== null) {
-      figures.push(
-        <Stat
-          key="expiring"
-          label={t('analytics.analytics.expiring_in_90_days', 'Expiring in 90 days')}
-          value={state.expiringIn90Days}
-        />,
-      );
-    }
-    if (state.completenessBySection !== null) {
-      const bySection = state.completenessBySection;
-      sections.push(
-        <ChartSection
-          key="sections"
-          title={t('analytics.analytics.where_our_data_is_thin', 'Where our data is thin')}
-          description={t('analytics.analytics.completeness_by_section', 'Completeness by section')}
-          numbers={bySection.map((p) => [p.label, percent(p.value)])}
-        >
-          <HorizontalBarChart
-            label={t('analytics.analytics.completeness_by_section', 'Completeness by section')}
-            data={bySection}
-            format={percent}
-            showValues
-          />
-        </ChartSection>,
-      );
-    }
-    if (state.expiries !== null) {
-      const expiries = state.expiries;
-      sections.push(
-        <ChartSection
-          key="expiries"
-          title={t('analytics.analytics.what_expires_next', 'What expires next')}
-          description={t(
-            'analytics.analytics.work_permits_fixed_term_contracts_probation',
-            'Work permits, fixed-term contracts, probation and certifications over the next 90 days',
-          )}
-          numbers={expiries.items.map((item): [string, string] => [
-            `${item.name ?? 'Unnamed'}: ${expiryOf(item.kind).label}`,
-            item.day,
-          ])}
-        >
-          {/* A time axis squeezed to a phone is a smear: it scrolls instead. */}
-          <ScrollArea className="w-full">
-            <div className="min-w-[36rem]">
-              <TimelineChart
-                label={t('analytics.analytics.expiries', 'Expiries')}
-                rows={expiryRows(expiries.items)}
-                today={expiries.today}
-                unit="week"
-                empty={t(
-                  'analytics.analytics.nothing_expires_in_the_next_90',
-                  'Nothing expires in the next 90 days.',
-                )}
-              />
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </ChartSection>,
-      );
-    }
-    if (state.funnel !== null) {
-      sections.push(
-        <ChartSection
-          key="funnel"
-          title={t('analytics.analytics.where_new_joiners_stall', 'Where new joiners stall')}
-          description={t(
-            'analytics.analytics.invited_through_to_a_complete_record',
-            'Invited through to a complete record',
-          )}
-          numbers={state.funnel.map((s) => [s.label, s.value])}
-        >
-          <FunnelChart
-            label={t('analytics.analytics.onboarding_funnel', 'Onboarding funnel')}
-            data={state.funnel}
-            showConversion
-          />
-        </ChartSection>,
-      );
-    }
-  }
 
-  if (tab === 'pay') {
-    if (state.pay != null) sections.push(<PaySections key="pay" pay={state.pay} />);
-    for (const q of state.selfId ?? []) sections.push(<SelfIdSection key={q.key} question={q} />);
+    if (tab === 'pay') {
+      if (state.pay != null) sections.push(<PaySections key="pay" pay={state.pay} />);
+      for (const q of state.selfId ?? []) sections.push(<SelfIdSection key={q.key} question={q} />);
+    }
   }
 
   return (
@@ -828,17 +845,28 @@ function Workforce({
         onSegmentChange={onSegmentChange}
         reports={reports}
         exportAction={
-          // This tab's numbers as a file, at a desk (V7).
-          <Button
-            asChild
-            variant="secondary"
-            startIcon={<icons.download aria-hidden />}
-            className="touch:hidden"
-          >
-            <a href={exportUrl(tab, state.segment?.id ?? null)} download>
-              {t('analytics.analytics.export', 'Export')}
-            </a>
-          </Button>
+          // Each topic's numbers as a file, at a desk (V7).
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="secondary"
+                startIcon={<icons.download aria-hidden />}
+                endIcon={<icons.expand aria-hidden />}
+                className="touch:hidden"
+              >
+                {t('analytics.analytics.export', 'Export')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {INSIGHTS_TABS.map((topic) => (
+                <DropdownMenuItem key={topic} asChild>
+                  <a href={exportUrl(topic, state.segment?.id ?? null)} download>
+                    {TOPIC[topic]()}
+                  </a>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
       />
       {state.segment ? (
@@ -859,18 +887,15 @@ function Workforce({
         </Alert>
       ) : null}
 
-      {figures.length === 0 ? null : (
-        <AutoGrid minItemWidth="11rem" gap={3}>
-          {figures}
-        </AutoGrid>
-      )}
+      {/* The figures: tiles of one size, never stretched to the row. */}
+      {figures.length === 0 ? null : <WidgetGrid size="sm">{figures}</WidgetGrid>}
       {sections.length === 0 ? (
         figures.length === 0 ? (
           <EmptyState
             icon={<icons.analytics />}
             title={t(
-              'analytics.analytics.nothing_to_show_on_this_tab',
-              'Nothing to show on this tab',
+              'analytics.analytics.nothing_to_show_yet',
+              'Nothing to show yet',
             )}
             description={t(
               'analytics.analytics.none_of_its_figures_are_yours',
