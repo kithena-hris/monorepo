@@ -57,11 +57,20 @@ export function pinHead(el: HTMLElement, head: HTMLElement): () => void {
       : 0;
     head.style.transform = by > 0 ? `translateY(${String(by)}px)` : '';
   };
+  // Again once the frame's layout has settled: rows drawn in the same scroll
+  // event (`useCatchUp`) can move the box after the first reading.
+  let settle = 0;
+  const onScroll = (): void => {
+    pin();
+    cancelAnimationFrame(settle);
+    settle = requestAnimationFrame(pin);
+  };
   pin();
-  window.addEventListener('scroll', pin, { passive: true });
+  window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', pin);
   return () => {
-    window.removeEventListener('scroll', pin);
+    cancelAnimationFrame(settle);
+    window.removeEventListener('scroll', onScroll);
     window.removeEventListener('resize', pin);
     head.style.transform = '';
   };
