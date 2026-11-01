@@ -619,26 +619,31 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               <Stat
                 icon={<icons.work aria-hidden />}
                 label={tr('analytics.open_jobs', 'Open jobs')}
+                href="/recruiting/jobs"
                 value={String(o.openJobs)}
               />
               <Stat
                 icon={<icons.people aria-hidden />}
                 label={tr('analytics.applications', 'Applications')}
+                href="/recruiting/candidates"
                 value={String(o.applications)}
               />
               <Stat
                 icon={<icons.hire aria-hidden />}
                 label={tr('analytics.hires', 'Hires')}
+                href="/recruiting/analytics/hires-by-month"
                 value={String(o.hires)}
               />
               <Stat
                 icon={<icons.agreement aria-hidden />}
                 label={tr('analytics.offers_out', 'Offers out')}
+                href="/recruiting/offers"
                 value={String(o.offersOut)}
               />
               <Stat
                 icon={<icons.approve aria-hidden />}
                 label={tr('analytics.acceptance_rate', 'Acceptance rate')}
+                href="/recruiting/offers"
                 value={data.offers.rate === null ? '—' : `${data.offers.rate}%`}
                 description={tr('analytics.accepted_of_sent', '{{accepted}} of {{sent}} sent', {
                   accepted: String(data.offers.accepted),
@@ -648,6 +653,7 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               <Stat
                 icon={<icons.pending aria-hidden />}
                 label={tr('analytics.median_time_to_hire', 'Median time to hire')}
+                href="/recruiting/analytics/time-to-fill"
                 value={days(o.timeToHire.median)}
                 description={tr('analytics.85th_percentile_value', '85th percentile {{value}}', {
                   value: days(o.timeToHire.p85),

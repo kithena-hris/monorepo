@@ -19,6 +19,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  icons,
 } from '@reach/ui';
 import type { JSX } from 'react';
 
@@ -354,6 +355,13 @@ function DaysTaken({ data }: { readonly data: InsightsData }): JSX.Element {
     <ChartCard
       title={tr('insights.insights.days_taken_by_month', 'Days taken by month')}
       value={amount(total.toFixed(3))}
+      action={
+        <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+          <a href="/time-off/calendar/month">
+            {tr('insights.insights.team_calendar', 'Team calendar')}
+          </a>
+        </Button>
+      }
       description={tr('insights.insights.the_last_months', 'The last {{length}} months', {
         length: String(data.months.length),
       })}
@@ -461,6 +469,13 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
         <ChartCard
           title={tr('insights.insights.missed_clock_outs_by_month', 'Missed clock-outs by month')}
           value={String(now?.missedClockOuts ?? 0)}
+          action={
+            <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+              <a href="/time-off/attendance/exceptions">
+                {tr('insights.insights.exceptions', 'Exceptions')}
+              </a>
+            </Button>
+          }
           description={tr('insights.insights.this_month_so_far', 'This month so far')}
         >
           <BarChart
@@ -476,6 +491,13 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
         <ChartCard
           title={tr('insights.insights.overtime_by_month', 'Overtime by month')}
           value={hoursOf(now?.overtimeMinutes ?? 0)}
+          action={
+            <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+              <a href="/time-off/attendance/timesheet">
+                {tr('insights.insights.timesheets', 'Timesheets')}
+              </a>
+            </Button>
+          }
           description={tr('insights.insights.this_month_so_far', 'This month so far')}
         >
           <BarChart
@@ -546,6 +568,7 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
         <div className="grid grid-cols-2 gap-3">
           <Stat
             label={tr('insights.insights.unbooked_days', 'Unbooked days')}
+            href="/time-off/calendar/year"
             value={amount(unbooked.toFixed(3))}
           />
           <Stat

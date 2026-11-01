@@ -1,4 +1,14 @@
-import { List, ListItem, PageHeader, PageSection, Progress, Skeleton, Stat } from '@reach/ui';
+import {
+  Button,
+  List,
+  ListItem,
+  PageHeader,
+  PageSection,
+  Progress,
+  Skeleton,
+  Stat,
+  icons,
+} from '@reach/ui';
 import type { JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
@@ -83,6 +93,13 @@ function Ready({ data }: { readonly data: BalanceData }): JSX.Element {
           icon={leaveIcon(balance.icon)}
           value={hours ? `${amount(balance.left)}h` : amount(balance.left)}
           unit={hours ? 'banked' : t('balance.balance.days_left', 'days left')}
+          action={
+            <Button asChild size="sm" variant="secondary" startIcon={<icons.add aria-hidden />}>
+              <a href={`/time-off/request?type=${balance.leaveTypeKey}`}>
+                {t('balance.balance.request', 'Request')}
+              </a>
+            </Button>
+          }
         >
           {balance.yearly === null ? null : (
             <Progress

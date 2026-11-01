@@ -51,6 +51,10 @@
     "text": "A plan starts when a hire arrives from Recruiting, People or another system.",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the description of <EmptyState>."
   },
+  "home.all_tasks": {
+    "text": "All tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the action of <a>."
+  },
   "home.arriving": {
     "text": "Arriving",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the title of <Widget>."
@@ -578,6 +582,10 @@
   "templates.only_for_departments": {
     "text": "Only for departments",
     "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <FieldLabel>."
+  },
+  "templates.open_tasks": {
+    "text": "Open tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the action of <a>."
   },
   "templates.owner": {
     "text": "Owner",

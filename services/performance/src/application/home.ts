@@ -72,7 +72,13 @@ export async function homeScreen(ctx: Ctx): Promise<Result<unknown>> {
       version: c.version,
     });
   }
-  let stats: { label: string; value: string; detail: string; warning?: boolean }[] = [];
+  let stats: {
+    label: string;
+    value: string;
+    detail: string;
+    warning?: boolean;
+    href: string;
+  }[] = [];
   if (ctx.viewer.hr) {
     const live = cycles.filter((c) => c.state === 'in_progress');
     const all = (await Promise.all(live.map((c) => ctx.tx.reviews.find({ cycleId: c.id }))))
@@ -89,19 +95,27 @@ export async function homeScreen(ctx: Ctx): Promise<Result<unknown>> {
         label: 'Self reviews submitted',
         value: String(kind('self').filter(isSubmitted).length),
         detail: `of ${String(kind('self').length)}`,
+        href: '/performance/cycles',
       },
       {
         label: 'Manager reviews',
         value: String(kind('manager').filter(isSubmitted).length),
         detail: `of ${String(kind('manager').length)}`,
+        href: '/performance/cycles',
       },
       {
         label: 'Overdue',
         value: String(counts.overdue),
         detail: 'Across running cycles',
         warning: counts.overdue > 0,
+        href: '/performance/cycles',
       },
-      { label: 'Feedback this month', value: String(feedback), detail: 'Given at the company' },
+      {
+        label: 'Feedback this month',
+        value: String(feedback),
+        detail: 'Given at the company',
+        href: '/performance/feedback',
+      },
     ];
   }
   const goals =

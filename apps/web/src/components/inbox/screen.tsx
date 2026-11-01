@@ -70,6 +70,7 @@ import {
   type View,
 } from '../../lib/inbox/model';
 import type { InboxRead } from '../../lib/inbox/sources';
+import type { TaskScreen } from '../../lib/inbox/task-screen';
 import {
   decideTimeOffMany,
   delegation,
@@ -110,6 +111,8 @@ export interface InboxScreenProps {
   readonly outcome: string | null;
   /** Whether they approve time off: Hand over is offered (G4). */
   readonly approves: boolean;
+  /** The open item's module screen, read with the page, when the pane draws one. */
+  readonly screen?: TaskScreen | null;
 }
 
 /** The feed's filters, and the lane each keeps. */
@@ -152,7 +155,16 @@ export function InboxScreen(props: InboxScreenProps): JSX.Element {
   );
 }
 
-function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenProps): JSX.Element {
+function Screen({
+  read,
+  view,
+  item,
+  source,
+  q,
+  outcome,
+  approves,
+  screen,
+}: InboxScreenProps): JSX.Element {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(item);
   const [search, setSearch] = useState(q ?? '');
@@ -834,6 +846,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
                   now={now}
                   zone={zone}
                   onNext={next}
+                  {...(selected.id === item && screen !== undefined ? { screen } : {})}
                 />
               </div>
             )

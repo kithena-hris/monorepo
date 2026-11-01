@@ -1,5 +1,6 @@
 import {
   Badge,
+  Button,
   Card,
   CardContent,
   EmptyState,
@@ -43,6 +44,7 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
           <WidgetGrid size="sm">
             <Stat
               label={t('home.plans_in_flight', 'Plans in flight')}
+              href="/onboarding/analytics"
               icon={<icons.hire aria-hidden />}
               value={String(data.rows.length)}
             />
@@ -52,10 +54,12 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
             />
             <Stat
               label={t('home.tasks_late', 'Tasks late')}
+              href="/onboarding/tasks"
               value={String(data.rows.reduce((n, r) => n + r.late, 0))}
             />
             <Stat
               label={t('home.on_track', 'On track')}
+              href="/onboarding/analytics"
               value={String(data.rows.filter((r) => r.late === 0).length)}
             />
           </WidgetGrid>
@@ -65,6 +69,11 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
               icon={<icons.calendar aria-hidden />}
               tone="chart-1"
               {...(data.rows.length === 0 ? {} : { meta: data.rows.length })}
+              action={
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href="/onboarding/tasks">{t('home.all_tasks', 'All tasks')}</a>
+                </Button>
+              }
               span={4}
               flush={data.rows.length > 0}
             >

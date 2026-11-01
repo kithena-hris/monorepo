@@ -24,7 +24,8 @@ import { InboxEvent } from '@kithena/contracts';
 import * as z from 'zod';
 import { Suspense, lazy, useState, useTransition, type JSX, type ReactNode } from 'react';
 
-import { moduleName, type Shown } from '../../lib/inbox/model';
+import { moduleName, opensScreen, type Shown } from '../../lib/inbox/model';
+import type { TaskScreen } from '../../lib/inbox/task-screen';
 import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
 import type { Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
@@ -35,6 +36,7 @@ import { PeopleBody } from './detail-people';
 import { PerformanceBody } from './detail-performance';
 import { RecruitingBody } from './detail-recruiting';
 import { TimeOffBody } from './detail-timeoff';
+import { TaskScreenPane } from './task-screen';
 import { t } from '../../lib/t';
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
@@ -203,12 +205,15 @@ export function InboxDetail({
   now,
   zone,
   onNext,
+  screen,
 }: {
   readonly item: Shown;
   readonly now: string;
   readonly zone: string;
   /** After a task is finished: the next one (C5). */
   readonly onNext: () => void;
+  /** Its module's screen, read with the page, for a task the pane draws one for. */
+  readonly screen?: TaskScreen | null;
 }): JSX.Element {
   const { toast } = useToast();
   const [pending, start] = useTransition();
@@ -381,78 +386,89 @@ export function InboxDetail({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-  const body: ReactNode =
-    item.detail === null ? (
-      <GenericBody item={item} />
-    ) : item.module === 'people' ? (
-      <PeopleBody
-        item={item}
-        now={now}
-        zone={zone}
-        act={act}
-        asking={asking}
-        setAsking={setAsking}
-        sendingBack={sendingBack}
-        setSendingBack={setSendingBack}
-      />
-    ) : item.module === 'recruiting' ? (
-      <RecruitingBody
-        item={item}
-        now={now}
-        zone={zone}
-        act={act}
-        asking={asking}
-        setAsking={setAsking}
-        sendingBack={sendingBack}
-        setSendingBack={setSendingBack}
-      />
-    ) : item.module === 'documents' ? (
-      <DocumentsBody
-        item={item}
-        now={now}
-        zone={zone}
-        act={act}
-        asking={asking}
-        setAsking={setAsking}
-        sendingBack={sendingBack}
-        setSendingBack={setSendingBack}
-      />
-    ) : item.module === 'onboarding' ? (
-      <OnboardingBody
-        item={item}
-        now={now}
-        zone={zone}
-        act={act}
-        asking={asking}
-        setAsking={setAsking}
-        sendingBack={sendingBack}
-        setSendingBack={setSendingBack}
-      />
-    ) : item.module === 'performance' ? (
-      <PerformanceBody
-        item={item}
-        now={now}
-        zone={zone}
-        act={act}
-        asking={asking}
-        setAsking={setAsking}
-        sendingBack={sendingBack}
-        setSendingBack={setSendingBack}
-      />
-    ) : item.module === 'timeoff' ? (
-      <TimeOffBody
-        item={item}
-        now={now}
-        zone={zone}
-        act={act}
-        asking={asking}
-        setAsking={setAsking}
-        sendingBack={sendingBack}
-        setSendingBack={setSendingBack}
-      />
-    ) : (
-      <GenericBody item={item} />
-    );
+  const body: ReactNode = opensScreen(item) ? (
+    <TaskScreenPane
+      item={item}
+      {...(screen === undefined ? {} : { initial: screen })}
+      onDone={() => {
+        toast({
+          title: t('components.inbox.detail.done_title', 'Done: {{title}}', { title: item.title }),
+          tone: 'success',
+        });
+        onNext();
+      }}
+    />
+  ) : item.detail === null ? (
+    <GenericBody item={item} />
+  ) : item.module === 'people' ? (
+    <PeopleBody
+      item={item}
+      now={now}
+      zone={zone}
+      act={act}
+      asking={asking}
+      setAsking={setAsking}
+      sendingBack={sendingBack}
+      setSendingBack={setSendingBack}
+    />
+  ) : item.module === 'recruiting' ? (
+    <RecruitingBody
+      item={item}
+      now={now}
+      zone={zone}
+      act={act}
+      asking={asking}
+      setAsking={setAsking}
+      sendingBack={sendingBack}
+      setSendingBack={setSendingBack}
+    />
+  ) : item.module === 'documents' ? (
+    <DocumentsBody
+      item={item}
+      now={now}
+      zone={zone}
+      act={act}
+      asking={asking}
+      setAsking={setAsking}
+      sendingBack={sendingBack}
+      setSendingBack={setSendingBack}
+    />
+  ) : item.module === 'onboarding' ? (
+    <OnboardingBody
+      item={item}
+      now={now}
+      zone={zone}
+      act={act}
+      asking={asking}
+      setAsking={setAsking}
+      sendingBack={sendingBack}
+      setSendingBack={setSendingBack}
+    />
+  ) : item.module === 'performance' ? (
+    <PerformanceBody
+      item={item}
+      now={now}
+      zone={zone}
+      act={act}
+      asking={asking}
+      setAsking={setAsking}
+      sendingBack={sendingBack}
+      setSendingBack={setSendingBack}
+    />
+  ) : item.module === 'timeoff' ? (
+    <TimeOffBody
+      item={item}
+      now={now}
+      zone={zone}
+      act={act}
+      asking={asking}
+      setAsking={setAsking}
+      sendingBack={sendingBack}
+      setSendingBack={setSendingBack}
+    />
+  ) : (
+    <GenericBody item={item} />
+  );
   return (
     <article className="flex flex-col gap-5 p-5 touch:p-4" aria-labelledby="inbox-detail-title">
       <Head item={item} menu={menu} />

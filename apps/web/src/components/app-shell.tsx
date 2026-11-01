@@ -370,29 +370,8 @@ function shellAreas({
           ],
         };
       }
-      if (a.href === '/inbox') {
-        const views: [string, string, keyof typeof icons][] = [
-          ['/inbox', tr('components.app-shell.inbox_all', 'Everything'), 'inbox'],
-          ['/inbox/todo', tr('components.app-shell.inbox_needs_you', 'Needs you'), 'flagged'],
-          [
-            '/inbox/requests',
-            tr('components.app-shell.inbox_waiting', 'Waiting on others'),
-            'pending',
-          ],
-          ['/inbox/updates', tr('components.app-shell.inbox_updates', 'Updates'), 'notifications'],
-          ['/inbox/snoozed', tr('components.app-shell.inbox_snoozed', 'Snoozed'), 'scheduled'],
-          ['/inbox/done', tr('components.app-shell.inbox_done', 'Done'), 'success'],
-        ];
-        return {
-          ...base,
-          href: '/inbox',
-          badge: inbox,
-          sections: views.map(([path, label, icon]) => {
-            const Icon = icons[icon];
-            return { path, label, icon: <Icon aria-hidden />, current: exact(path) };
-          }),
-        };
-      }
+      // One place: what it shows (needs you, waiting, done) is chosen on the page itself.
+      if (a.href === '/inbox') return { ...base, href: '/inbox', badge: inbox, sections: [] };
       const isPeople = a.href === '/people';
       const remote = remoteFor(a.href);
       const places = isPeople ? shell.sections : (remote?.nav?.sections ?? []);

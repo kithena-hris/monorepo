@@ -22,7 +22,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
-import { AHEAD_PX, drawAhead } from '../../lib/draw-ahead';
+import { AHEAD_PX, drawAhead, useCatchUp } from '../../lib/draw-ahead';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
 import { ScrollPositionRail } from '../scroll-position/scroll-position-rail';
@@ -338,10 +338,13 @@ export function VirtualList<T>({
       ),
     [estimateItemHeight, gap],
   );
+  // A jump past the rows drawn is drawn in the scroll event (`useCatchUp`).
+  const catchUp = useCatchUp();
   const options = {
     estimateSize,
     overscan: Math.ceil(overscan / lanes),
     rangeExtractor,
+    onChange: catchUp.onChange,
     initialRect,
     gap,
     useFlushSync: false,
@@ -360,6 +363,9 @@ export function VirtualList<T>({
   }, [virtualizer]);
 
   const virtualRows = virtualizer.getVirtualItems();
+  useLayoutEffect(() => {
+    catchUp.drawn.current = [virtualRows[0]?.index ?? 0, virtualRows.at(-1)?.index ?? -1];
+  });
   const offset = page ? margin : 0;
 
   useImperativeHandle(

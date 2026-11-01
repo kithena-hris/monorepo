@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, ChevronRight } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
@@ -53,6 +53,14 @@ export interface StatProps extends ComponentPropsWithoutRef<'div'> {
    */
   inset?: boolean;
   /**
+   * Where the number comes from: the list it counts, filtered to it. The
+   * tile opens it, its label the link's name, and shows that it does with a
+   * chevron. A figure is a question someone will ask next about.
+   */
+  href?: string;
+  /** A control at the tile's top end, above the link: a menu, a button. */
+  action?: ReactNode;
+  /**
    * Full width under the value, before the delta and the description: a
    * meter of what the number is out of, where a sparkline beside it (`chart`)
    * would be the wrong shape.
@@ -87,16 +95,45 @@ export function Stat({
   icon,
   iconPosition = 'end',
   inset = false,
+  href,
+  action,
   children,
   ...props
 }: StatProps): JSX.Element {
   const DirectionIcon = directionIcon[direction];
+  // The label is the link, stretched over the tile: one name for it, and the
+  // action above it still its own control.
+  const name =
+    href === undefined ? (
+      label
+    ) : (
+      <a
+        href={href}
+        className="outline-none before:absolute before:inset-0 before:rounded-lg before:content-[''] focus-visible:before:outline-2 focus-visible:before:outline-offset-2 focus-visible:before:outline-border-focus"
+      >
+        {label}
+      </a>
+    );
+  const end =
+    action === undefined && href === undefined ? null : (
+      <span className="relative z-10 -my-1 -me-1 flex shrink-0 items-center gap-1">
+        {action}
+        {href === undefined ? null : (
+          <ChevronRight
+            aria-hidden
+            className="pointer-events-none size-4 text-fg-subtle transition-transform duration-150 group-hover/stat:translate-x-0.5 group-hover/stat:text-fg-muted"
+          />
+        )}
+      </span>
+    );
 
   return (
     <div
       className={cn(
         'flex min-w-0 flex-col gap-1.5 rounded-lg',
         inset ? 'bg-surface-sunken p-3.5' : 'bg-surface p-5 shadow-sm touch:p-4',
+        href !== undefined &&
+          'group/stat relative transition-shadow duration-150 hover:shadow-md active:shadow-sm',
         // Container query, not a breakpoint: this tile is dropped into a
         // 4-across grid, a 2-across tablet grid and a 320px sidebar, and only
         // the tile knows which one it landed in.
@@ -108,12 +145,18 @@ export function Stat({
       {icon && iconPosition === 'start' ? (
         <div className="flex items-center gap-2">
           <span className="shrink-0 text-fg-subtle [&_svg]:size-4">{icon}</span>
-          <p className="text-sm font-medium text-fg-muted">{label}</p>
+          <p className="min-w-0 flex-1 text-sm font-medium text-fg-muted">{name}</p>
+          {end}
         </div>
       ) : (
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium text-fg-muted">{label}</p>
-          {icon ? <span className="shrink-0 text-fg-subtle [&_svg]:size-4">{icon}</span> : null}
+          <p className="min-w-0 text-sm font-medium text-fg-muted">{name}</p>
+          {icon || end ? (
+            <span className="flex shrink-0 items-center gap-2">
+              {icon ? <span className="text-fg-subtle [&_svg]:size-4">{icon}</span> : null}
+              {end}
+            </span>
+          ) : null}
         </div>
       )}
 

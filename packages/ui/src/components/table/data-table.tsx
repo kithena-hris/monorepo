@@ -65,7 +65,7 @@ import {
 import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { AHEAD_PX, drawAhead } from '../../lib/draw-ahead';
+import { AHEAD_PX, drawAhead, useCatchUp } from '../../lib/draw-ahead';
 import {
   actionPressed,
   pressed,
@@ -951,12 +951,15 @@ export function DataTable<T extends TableRow>({
       ),
     [estimateRowHeight],
   );
+  // A jump past the rows drawn is drawn in the scroll event (`useCatchUp`).
+  const catchUp = useCatchUp();
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inPage = useWindowVirtualizer({
     count: virtualized && page ? items.length : 0,
     estimateSize,
     overscan: 20,
     rangeExtractor,
+    onChange: catchUp.onChange,
     scrollMargin: margin,
     // Rendered with the frame, not inside each scroll event (`virtual-list.tsx`).
     useFlushSync: false,
@@ -973,6 +976,7 @@ export function DataTable<T extends TableRow>({
     // them is drawn as if it were still coming.
     overscan: 20,
     rangeExtractor,
+    onChange: catchUp.onChange,
     // Before its box has a size of its own (on the server, while hydrating,
     // in a box not laid out yet) the table draws the rows a window would
     // show, not a skeleton: the first HTML carries the first rows, and the
@@ -995,6 +999,9 @@ export function DataTable<T extends TableRow>({
   }, [virtualized, fitKey, dense]);
 
   const virtualRows = virtualized ? virtualizer.getVirtualItems() : [];
+  useLayoutEffect(() => {
+    catchUp.drawn.current = [virtualRows[0]?.index ?? 0, virtualRows.at(-1)?.index ?? -1];
+  });
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? offset) - offset : 0;
   // Until the virtualizer has measured its box it names no rows at all: the
   // body is then one spacer as tall as every row, not an empty table, which

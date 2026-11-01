@@ -72,9 +72,9 @@ describe('Analytics', () => {
     const { rerender } = render(
       <Analytics load={{ status: 'ready', data: { ...workforce, startingSoon: 4 } }} />,
     );
-    expect(screen.getByText('Starting soon').parentElement?.parentElement).toHaveTextContent(
-      'Starting soon4',
-    );
+    expect(
+      screen.getByText('Starting soon').parentElement?.parentElement?.parentElement,
+    ).toHaveTextContent('Starting soon4');
     expect(screen.getByText('Hired, not started yet')).toBeInTheDocument();
     // Never "Open roles": People does not count them, recruiting would.
     expect(screen.queryByText('Open roles')).toBeNull();
@@ -297,9 +297,9 @@ describe('Analytics', () => {
     rerender(<Analytics load={{ status: 'ready', data: remaining }} />);
     for (const title of ['What we are made of', 'When people join']) await open(title);
     // Joined in 12 months: the joiners' heatmap, summed.
-    expect(screen.getByText('Joined, 12M').parentElement?.parentElement).toHaveTextContent(
-      'Joined, 12M6',
-    );
+    expect(
+      screen.getByText('Joined, 12M').parentElement?.parentElement?.parentElement,
+    ).toHaveTextContent('Joined, 12M6');
   });
 
   it('shows a withheld self-ID question as insufficient data, with no number to read (PEO-070)', async () => {

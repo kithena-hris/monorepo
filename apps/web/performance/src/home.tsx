@@ -42,6 +42,8 @@ export interface HomeData {
     readonly value: string;
     readonly detail: string;
     readonly warning?: boolean;
+    /** Where the figure is worked on. */
+    readonly href?: string;
   }[];
   readonly tasks: readonly {
     readonly id: string;
@@ -155,6 +157,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                   label={s.label}
                   value={s.value}
                   description={s.detail}
+                  {...(s.href === undefined ? {} : { href: s.href })}
                   {...(s.warning === true ? { sentiment: 'negative' as const } : {})}
                 />
               ))}
@@ -166,6 +169,11 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
               icon={<icons.review aria-hidden />}
               tone="accent"
               {...(data.tasks.length === 0 ? {} : { meta: data.tasks.length })}
+              action={
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href="/inbox?source=performance">{tr('home.open_inbox', 'Open Inbox')}</a>
+                </Button>
+              }
               span={2}
               flush={data.tasks.length > 0}
             >
@@ -303,6 +311,11 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                 icon={<icons.calendar aria-hidden />}
                 tone="chart-1"
                 meta={<Live />}
+                action={
+                  <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                    <a href="/performance/cycles">{tr('home.all_cycles', 'All cycles')}</a>
+                  </Button>
+                }
                 span={3}
                 flush={data.running.length > 0}
               >

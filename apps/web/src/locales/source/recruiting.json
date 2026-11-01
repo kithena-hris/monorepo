@@ -1423,6 +1423,10 @@
     "text": "All",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"all\" value."
   },
+  "home.all_jobs": {
+    "text": "All jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the action of <a>."
+  },
   "home.approvals_scorecards_and_todays_interviews_land": {
     "text": "Approvals, scorecards and today’s interviews land here.",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the description of <EmptyState>."
@@ -1558,6 +1562,10 @@
   "home.open_a_job_to_start_hiring": {
     "text": "Open a job to start hiring.",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the description of <EmptyState>."
+  },
+  "home.open_inbox": {
+    "text": "Open Inbox",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the action of <a>."
   },
   "home.open_jobs": {
     "text": "Open jobs",

@@ -479,6 +479,10 @@
     "text": "Detailed",
     "context": "People: employee records, org chart, HR settings. analytics/what-changed.tsx, ExportDialog: text inside <SegmentedControlItem>."
   },
+  "analytics.what-changed.directory": {
+    "text": "Directory",
+    "context": "People: employee records, org chart, HR settings. analytics/what-changed.tsx, Summary: the action of <a>."
+  },
   "analytics.what-changed.download": {
     "text": "Download",
     "context": "People: employee records, org chart, HR settings. analytics/what-changed.tsx, ExportDialog: text inside <Button>."
@@ -3411,6 +3415,10 @@
     "text": "{{toLocaleString}} incomplete",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Figure>. Filled in: {{toLocaleString}}."
   },
+  "home.people-home.insights": {
+    "text": "Insights",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the action of <SeeAll>."
+  },
   "home.people-home.joined": {
     "text": "Joined",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Identity: the items of <KeyValues>."
@@ -3449,7 +3457,7 @@
   },
   "home.people-home.my_profile": {
     "text": "My profile",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the action of <SeeAll>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Identity: the action of <SeeAll>."
   },
   "home.people-home.needs_hr": {
     "text": "Needs HR",
@@ -3558,6 +3566,10 @@
   "home.people-home.same_work_email_or_name_and": {
     "text": "Same work email, or name and birth date",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>."
+  },
+  "home.people-home.see_all": {
+    "text": "See all",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HostList: the action of <SeeAll>."
   },
   "home.people-home.sent_nothing_changes_until_hr_approves": {
     "text": "Sent {{waited}} · nothing changes until HR approves",

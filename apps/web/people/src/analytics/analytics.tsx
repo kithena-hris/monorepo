@@ -412,6 +412,7 @@ function Workforce({
         <Stat
           key="headcount"
           label={t('analytics.analytics.headcount', 'Headcount')}
+          href="/people/directory/list"
           value={headcount.value.toLocaleString()}
           {...(headcount.change === null
             ? {}
@@ -440,6 +441,7 @@ function Workforce({
           <Stat
             key="joined"
             label={t('analytics.analytics.joined_12m', 'Joined, 12M')}
+            href="/people/insights/what-changed"
             value={joined}
           />,
         );
@@ -448,6 +450,7 @@ function Workforce({
           <Stat
             key="left"
             label={t('analytics.analytics.leavers_12_months', 'Leavers, 12 months')}
+            href="/people/insights/what-changed"
             value={attrition.leavers}
             description={t('analytics.analytics.attrition', '{{percent}} attrition', {
               percent: percent(attrition.percent),
@@ -462,6 +465,7 @@ function Workforce({
           <Stat
             key="starting"
             label={t('analytics.analytics.starting_soon', 'Starting soon')}
+            href="/people/directory/list"
             value={state.startingSoon}
             description={t('analytics.analytics.hired_not_started_yet', 'Hired, not started yet')}
           />,
@@ -715,6 +719,7 @@ function Workforce({
           <Stat
             key="complete"
             label={t('analytics.analytics.records_complete', 'Records complete')}
+            href="/people/review/waiting?kind=missing"
             value={percent(complete.percent)}
             description={t(
               'analytics.analytics.records_are_incomplete',
