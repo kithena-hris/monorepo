@@ -4,17 +4,17 @@ import {
   SegmentedControlItem,
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   EmptyState,
   PageHeader,
   Stat,
   DataTable,
   type DataColumn,
   icons,
+  Card,
+  List,
+  ListItem,
+  Widget,
+  WidgetGrid,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
 
@@ -76,27 +76,32 @@ function Tasks({
         ? `/recruiting/offers/${t.id}/approve`
         : `/recruiting/interviews/${t.id}`;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle level={2}>{tr('home.my_tasks', 'My tasks')}</CardTitle>
-        <CardDescription>
-          {tr('home.from_the_inbox_for_recruiting', 'From the Inbox, for Recruiting')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.tasks.length === 0 ? (
-          <EmptyState
-            icon={<icons.success aria-hidden />}
-            title={tr('home.nothing_waiting_for_you', 'Nothing waiting for you')}
-            description={tr(
-              'home.approvals_scorecards_and_todays_interviews_land',
-              'Approvals, scorecards and today’s interviews land here.',
-            )}
-          />
-        ) : (
-          <ul className="flex flex-col divide-y divide-[var(--reach-line)]">
-            {data.tasks.map((t) => (
-              <li key={`${t.kind}:${t.id}`} className="flex items-center gap-3 py-3">
+    <Widget
+      title={tr('home.tasks', 'Tasks')}
+      description={tr('home.from_the_inbox_for_recruiting', 'From the Inbox, for Recruiting')}
+      icon={<icons.inbox aria-hidden />}
+      tone="accent"
+      {...(data.tasks.length === 0 ? {} : { meta: data.tasks.length })}
+      span={2}
+      flush={data.tasks.length > 0}
+    >
+      {data.tasks.length === 0 ? (
+        <EmptyState
+          icon={<icons.success aria-hidden />}
+          title={tr('home.nothing_waiting_for_you', 'Nothing waiting for you')}
+          description={tr(
+            'home.approvals_scorecards_and_todays_interviews_land',
+            'Approvals, scorecards and today’s interviews land here.',
+          )}
+        />
+      ) : (
+        <List aria-label={tr('home.tasks', 'Tasks')}>
+          {data.tasks.map((t) => (
+            <ListItem
+              key={`${t.kind}:${t.id}`}
+              asChild
+              chevron
+              leading={
                 <Avatar
                   shape="rounded"
                   size="md"
@@ -110,22 +115,23 @@ function Tasks({
                   name={t.title}
                   fallback={TASK_ICON[t.kind] ?? <icons.pending aria-hidden />}
                 />
-                <span className="min-w-0 flex-1">
-                  <To href={link(t)} onNavigate={props.onNavigate}>
-                    {t.title}
-                  </To>
-                </span>
-                {t.due === null ? null : (
+              }
+              trailing={
+                t.due === null ? undefined : (
                   <Badge size="sm" tone="warning">
                     {day(t.due)}
                   </Badge>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+                )
+              }
+            >
+              <To href={link(t)} onNavigate={props.onNavigate}>
+                {t.title}
+              </To>
+            </ListItem>
+          ))}
+        </List>
+      )}
+    </Widget>
   );
 }
 
@@ -166,7 +172,7 @@ function JobsTable({
   }
   return (
     <DataTable<JobRow>
-      label={tr('home.my_jobs', 'My jobs')}
+      label={tr('home.your_jobs', 'Your jobs')}
       rows={data.jobs}
       rowId={idOf}
       describeRow={titleOf}
@@ -273,52 +279,48 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                 </>
               }
             />
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Card padded>
-                <Stat
-                  label={tr('home.open_jobs', 'Open jobs')}
-                  value={String(open.length)}
-                  description={tr('home.in_all', '{{length}} in all', {
-                    length: String(data.jobs.length),
-                  })}
-                />
-              </Card>
-              <Card padded>
-                <Stat
-                  label={tr('home.active_candidates', 'Active candidates')}
-                  value={String(candidates)}
-                  description={tr('home.new_this_week', '{{fresh}} new this week', {
-                    fresh: String(fresh),
-                  })}
-                />
-              </Card>
-              <Card padded>
-                <Stat
-                  label={tr('home.interviews_today', 'Interviews today')}
-                  value={String(interviews)}
-                />
-              </Card>
-              <Card padded>
-                <Stat
-                  label={tr('home.scorecards_owed', 'Scorecards owed')}
-                  value={String(scorecards)}
-                />
-              </Card>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+            {/* The figures: tiles of one size, never stretched to the row. */}
+            <WidgetGrid size="sm">
+              <Stat
+                label={tr('home.open_jobs', 'Open jobs')}
+                icon={<icons.work aria-hidden />}
+                value={String(open.length)}
+                description={tr('home.in_all', '{{length}} in all', {
+                  length: String(data.jobs.length),
+                })}
+              />
+              <Stat
+                label={tr('home.active_candidates', 'Active candidates')}
+                icon={<icons.people aria-hidden />}
+                value={String(candidates)}
+                description={tr('home.new_this_week', '{{fresh}} new this week', {
+                  fresh: String(fresh),
+                })}
+              />
+              <Stat
+                label={tr('home.interviews_today', 'Interviews today')}
+                icon={<icons.meeting aria-hidden />}
+                value={String(interviews)}
+              />
+              <Stat
+                label={tr('home.scorecards_owed', 'Scorecards owed')}
+                icon={<icons.assessment aria-hidden />}
+                value={String(scorecards)}
+              />
+            </WidgetGrid>
+            <WidgetGrid>
               <Tasks data={data} props={props} />
-              <Card>
-                <CardHeader>
-                  <CardTitle level={2}>{tr('home.my_jobs', 'My jobs')}</CardTitle>
-                  <CardDescription>
-                    {tr('home.open', '{{length}} open', { length: String(open.length) })}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <JobsTable data={data} props={props} />
-                </CardContent>
-              </Card>
-            </div>
+              <Widget
+                title={tr('home.your_jobs', 'Your jobs')}
+                description={tr('home.open', '{{length}} open', { length: String(open.length) })}
+                icon={<icons.work aria-hidden />}
+                tone="chart-2"
+                span={4}
+                flush={data.jobs.length > 0}
+              >
+                <JobsTable data={data} props={props} />
+              </Widget>
+            </WidgetGrid>
           </div>
         );
       }}

@@ -105,6 +105,8 @@ export function Table({
         // A raised surface, not a ruled box: the rows are separated by hairlines
         // and the table itself by its shadow, the same as every other card.
         !bare && 'rounded-lg bg-surface shadow-sm',
+        // Inside a card (a `Widget`, a `Card`) the table is its body, not a card in it.
+        '[[data-surface]_&]:rounded-none [[data-surface]_&]:shadow-none',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
         contentHeight !== undefined && !holds && 'relative',
         containerClassName,
