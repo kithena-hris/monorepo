@@ -62,7 +62,6 @@ import {
 import {
   feedOf,
   filtered,
-  opensScreen,
   groupsOf,
   moduleName,
   snoozedOf,
@@ -85,6 +84,7 @@ import { Waking } from '../waking';
 import { InboxDetail } from './detail';
 import { forgetGaps, prefetchGaps } from './detail-people';
 import { forgetTaskScreens, prefetchTaskScreen } from './task-screen';
+import { opensScreen } from '../../lib/inbox/opens-screen';
 import { BulkDecideDialog, type Candidate } from './dialogs';
 import { InboxRow } from './rows';
 import { StackRow } from './stack';

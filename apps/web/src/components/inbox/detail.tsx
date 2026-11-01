@@ -33,7 +33,8 @@ import {
   type ReactNode,
 } from 'react';
 
-import { moduleName, opensScreen, type Shown } from '../../lib/inbox/model';
+import { moduleName, type Shown } from '../../lib/inbox/model';
+import { opensScreen } from '../../lib/inbox/opens-screen';
 import type { TaskScreen } from '../../lib/inbox/task-screen';
 import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
 import { Inline, InlineContext, OpenHereContext, type Act } from './pane';

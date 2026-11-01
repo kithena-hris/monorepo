@@ -2,7 +2,8 @@ import 'server-only';
 import type { JSX } from 'react';
 
 import { InboxScreen } from './screen';
-import { opensScreen, type View } from '../../lib/inbox/model';
+import type { View } from '../../lib/inbox/model';
+import { opensScreen } from '../../lib/inbox/opens-screen';
 import { inboxNow } from '../../lib/inbox/server';
 import { taskScreen } from '../../lib/inbox/task-screen';
 import { timeOff } from '../../lib/people';
