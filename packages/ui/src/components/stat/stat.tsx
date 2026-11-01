@@ -109,7 +109,7 @@ export function Stat({
     ) : (
       <a
         href={href}
-        className="outline-none after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-border-focus"
+        className="outline-none before:absolute before:inset-0 before:rounded-lg before:content-[''] focus-visible:before:outline-2 focus-visible:before:outline-offset-2 focus-visible:before:outline-border-focus"
       >
         {label}
       </a>
