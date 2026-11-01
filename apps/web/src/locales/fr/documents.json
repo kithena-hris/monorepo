@@ -309,6 +309,7 @@
   "envelopes.sign-view.your_signature_is_in_your_copy": "Votre signature est enregistrée. Votre copie arrive dans votre boîte e-mail.",
   "frame.back": "Retour",
   "frame.in": "Dans {{section}}",
+  "frame.more": "Plus",
   "frame.page_tabs": "Onglets de la page",
   "frame.showing_the_page_without_it": "La page s’affiche sans cet élément.",
   "frame.switch": "{{siblingsLabel}}, changer",

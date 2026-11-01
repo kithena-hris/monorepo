@@ -2776,11 +2776,11 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/approvals/adjustments): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/coming-up.label": {
-    "text": "Coming up",
+    "text": "Upcoming",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Approvals (/time-off/approvals/coming-up): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/decided.label": {
-    "text": "Decided",
+    "text": "History",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Approvals (/time-off/approvals/decided): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/approvals/delegation.label": {
@@ -2804,7 +2804,7 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): a short line under its name on a phone’s row."
   },
   "nav./time-off/approvals/waiting.tab_label": {
-    "text": "Waiting",
+    "text": "Pending",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Approvals (/time-off/approvals/waiting): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/exceptions.label": {
@@ -2832,7 +2832,7 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): a short line under its name on a phone’s row."
   },
   "nav./time-off/attendance/now.tab_label": {
-    "text": "Today",
+    "text": "Live",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/now): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/pay-period.label": {
@@ -2844,7 +2844,7 @@
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/attendance/requests): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/attendance/timesheet.label": {
-    "text": "My week",
+    "text": "Timesheet",
     "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/timesheet): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./time-off/calendar/month.description": {
@@ -2925,7 +2925,7 @@
   },
   "overview.overview.all_holidays": {
     "text": "All holidays",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: the actions of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: the action of <a>."
   },
   "overview.overview.at_a_client": {
     "text": "At a client",
@@ -2949,7 +2949,7 @@
   },
   "overview.overview.calendar": {
     "text": "Calendar",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, TeamToday: the actions of <a>."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, TeamToday: the action of <a>."
   },
   "overview.overview.clock_in": {
     "text": "Clock in",
@@ -2965,7 +2965,7 @@
   },
   "overview.overview.coming_up": {
     "text": "Coming up",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: the title of <PageSection>."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: the title of <Widget>."
   },
   "overview.overview.count_days_one": {
     "text": "{{count}} day",
@@ -3091,6 +3091,10 @@
     "text": "Take {{bridgeDays}}",
     "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: text inside <ListItem>. Filled in: {{bridgeDays}}."
   },
+  "overview.overview.team_today": {
+    "text": "Team today",
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, TeamToday: the title of <Widget>."
+  },
   "overview.overview.text_2": {
     "text": "{{leaveTypeName}} · {{spanLabel}}",
     "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: text inside <a>. Filled in: {{leaveTypeName}}, {{spanLabel}}."
@@ -3161,11 +3165,7 @@
   },
   "overview.overview.your_requests": {
     "text": "Your requests",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: the actions of <a>."
-  },
-  "overview.overview.your_team_today": {
-    "text": "Your team today",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, TeamToday: the title of <PageSection>."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ComingUp: the action of <a>."
   },
   "overview.overview.your_time_off": {
     "text": "your time off",

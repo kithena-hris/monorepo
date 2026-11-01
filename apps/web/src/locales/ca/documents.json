@@ -317,6 +317,7 @@
   "envelopes.sign-view.your_signature_is_in_your_copy": "La teva signatura ja hi és. La teva còpia és de camí al teu correu.",
   "frame.back": "Enrere",
   "frame.in": "A {{section}}",
+  "frame.more": "Més",
   "frame.page_tabs": "Pestanyes de la pàgina",
   "frame.sections": "Seccions",
   "frame.showing_the_page_without_it": "Es mostra la pàgina sense això.",

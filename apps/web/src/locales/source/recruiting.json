@@ -1,7 +1,7 @@
 {
-  "analytics.85th_percentile": {
-    "text": "85th percentile",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the label of <Stat>."
+  "analytics.85th_percentile_value": {
+    "text": "85th percentile {{value}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the description of <Stat>. Filled in: {{value}}."
   },
   "analytics.a_model_picks_the_chart_below": {
     "text": "A model picks the chart below by name; Kithena checks the plan and computes every number. Change any chip.",
@@ -11,9 +11,9 @@
     "text": "Acceptance rate",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the label of <Stat>."
   },
-  "analytics.accepted": {
-    "text": "Accepted",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the label of <Stat>."
+  "analytics.accepted_of_sent": {
+    "text": "{{accepted}} of {{sent}} sent",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the description of <Stat>. Filled in: {{accepted}}, {{sent}}."
   },
   "analytics.all_jobs": {
     "text": "All jobs",
@@ -43,13 +43,13 @@
     "text": "Ask for a chart",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Ask: the aria-label of <Input>."
   },
-  "analytics.back_to": {
-    "text": "Back to {{dashboard}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, AnalyticsTile: the actions of <To>. Filled in: {{dashboard}}."
+  "analytics.back_to_analytics": {
+    "text": "Back to Analytics",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, AnalyticsTile: the actions of <To>."
   },
   "analytics.build_a_chart": {
     "text": "Build a chart",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: text inside <h2>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the title of <PageSection>."
   },
   "analytics.by": {
     "text": "By",
@@ -62,6 +62,10 @@
   "analytics.chart_and_data": {
     "text": "Chart and data",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, AnalyticsTile: text inside <h2>."
+  },
+  "analytics.charts": {
+    "text": "Charts",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: text inside <h2>."
   },
   "analytics.conversion_by_stage": {
     "text": "Conversion by stage",
@@ -78,10 +82,6 @@
   "analytics.days": {
     "text": "Days",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
-  },
-  "analytics.declined": {
-    "text": "Declined",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the label of <Stat>."
   },
   "analytics.details": {
     "text": "Details",
@@ -102,6 +102,14 @@
   "analytics.every_number_is_computed_from_the": {
     "text": "Every number is computed from the stage history. Groups under five people are hidden.",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the description of <PageHeader>."
+  },
+  "analytics.fairness": {
+    "text": "Fairness",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the title of <PageSection>."
+  },
+  "analytics.figures": {
+    "text": "Figures",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: text inside <h2>."
   },
   "analytics.filtered_to_the_job_you_came": {
     "text": "Filtered to the job you came from.",
@@ -222,10 +230,6 @@
   "analytics.rejection_reasons": {
     "text": "Rejection reasons",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: text built in code."
-  },
-  "analytics.sent": {
-    "text": "Sent",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the label of <Stat>."
   },
   "analytics.share_of_each_group_that_reached": {
     "text": "Share of each group that reached the stage, against the highest",
@@ -1367,6 +1371,10 @@
     "text": "In {{section}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. frame.tsx, ScreenFrame: the groups of <BreadcrumbMenu>. Filled in: {{section}}."
   },
+  "frame.more": {
+    "text": "More",
+    "context": "Recruiting: jobs, candidates, interviews, offers. frame.tsx, ScreenFrame: the aria-label of <Button>."
+  },
   "frame.page_tabs": {
     "text": "Page tabs",
     "context": "Recruiting: jobs, candidates, interviews, offers. frame.tsx, ScreenFrame: the label of <TertiaryNav>."
@@ -1445,7 +1453,7 @@
   },
   "home.from_the_inbox_for_recruiting": {
     "text": "From the Inbox, for Recruiting",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: text inside <CardDescription>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the description of <Widget>."
   },
   "home.hello": {
     "text": "Hello, {{value}}",
@@ -1490,14 +1498,6 @@
   "home.more": {
     "text": "More",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <MoreMenu>."
-  },
-  "home.my_jobs": {
-    "text": "My jobs",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the label of <DataTable>."
-  },
-  "home.my_tasks": {
-    "text": "My tasks",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: text inside <CardTitle>."
   },
   "home.new": {
     "text": "{{newThisWeek}} new",
@@ -1553,7 +1553,7 @@
   },
   "home.open": {
     "text": "{{length}} open",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: text inside <CardDescription>. Filled in: {{length}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Widget>. Filled in: {{length}}."
   },
   "home.open_a_job_to_start_hiring": {
     "text": "Open a job to start hiring.",
@@ -1599,6 +1599,10 @@
     "text": "State",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
   },
+  "home.tasks": {
+    "text": "Tasks",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the title of <Widget>."
+  },
   "home.text": {
     "text": "{{name}} {{count}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, MiniPipeline: the aria-label of <span>. Filled in: {{name}}, {{count}}."
@@ -1610,6 +1614,10 @@
   "home.title_team_place_or_manager": {
     "text": "Title, team, place or manager",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the placeholder of <Search>."
+  },
+  "home.your_jobs": {
+    "text": "Your jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the label of <DataTable>."
   },
   "interviews.a_google_meet_link": {
     "text": "a Google Meet link",
@@ -4537,18 +4545,30 @@
   },
   "nav./recruiting/agencies.label": {
     "text": "Agencies",
-    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/agencies): its name in the sidebar, the breadcrumb and the menus."
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, an action the area offers (/recruiting/agencies): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/analytics.description": {
+    "text": "How hiring performs: time to hire, sources and the funnel",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/analytics): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/analytics.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/analytics): the heading of the group it is listed under."
   },
   "nav./recruiting/analytics.label": {
     "text": "Analytics",
-    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/analytics): its name in the sidebar, the breadcrumb and the menus."
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/analytics): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/analytics.summary": {
+    "text": "Hiring analytics",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/analytics): a short line under its name on a phone’s row."
   },
   "nav./recruiting/board.label": {
-    "text": "Internal board",
-    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/board): its name in the sidebar, the breadcrumb and the menus."
+    "text": "Internal job board",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, an action the area offers (/recruiting/board): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./recruiting/candidates.description": {
-    "text": "Everyone who applied or was sourced, the pools they are kept in, the agencies who send them",
+    "text": "Everyone who applied or was sourced, and the pools they are kept in",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): one sentence under its name in a menu or on a card."
   },
   "nav./recruiting/candidates.group": {
@@ -4560,11 +4580,11 @@
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./recruiting/candidates.summary": {
-    "text": "Candidates, pools, agencies",
+    "text": "Candidates and pools",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): a short line under its name on a phone’s row."
   },
   "nav./recruiting/candidates.tab_label": {
-    "text": "Candidates",
+    "text": "All candidates",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/candidates): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./recruiting/home.description": {
@@ -4576,7 +4596,7 @@
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): the heading of the group it is listed under."
   },
   "nav./recruiting/home.label": {
-    "text": "Home",
+    "text": "Overview",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./recruiting/home.summary": {
@@ -4600,7 +4620,7 @@
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): a short line under its name on a phone’s row."
   },
   "nav./recruiting/jobs.description": {
-    "text": "Every job: its pipeline and setup, the headcount behind it, how it performs",
+    "text": "Every job, its pipeline and setup, and the headcount behind it",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): one sentence under its name in a menu or on a card."
   },
   "nav./recruiting/jobs.group": {
@@ -4612,11 +4632,11 @@
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./recruiting/jobs.summary": {
-    "text": "Jobs, requisitions, analytics",
+    "text": "Jobs and requisitions",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): a short line under its name on a phone’s row."
   },
   "nav./recruiting/jobs.tab_label": {
-    "text": "Jobs",
+    "text": "All jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/jobs): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./recruiting/offers.description": {
