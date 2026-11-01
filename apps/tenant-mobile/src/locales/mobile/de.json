@@ -1627,6 +1627,7 @@
   "people.settings.field-editor.how_integrations_and_imports_name_it": "So nennen Integrationen und Importe es. Nach dem Speichern fest.",
   "people.settings.field-editor.how_it_looks_on_a_form": "So sieht es in einem Formular aus",
   "people.settings.field-editor.i_confirm_this_is_special_category": "Ich bestätige, dass dies besondere Kategorien personenbezogener Daten sind",
+  "people.settings.field-editor.is_empty": "ist leer",
   "people.settings.field-editor.is_filled_in": "ist ausgefüllt",
   "people.settings.field-editor.is_it_required": "Ist es erforderlich?",
   "people.settings.field-editor.is_one_of": "{{n}}: ist eines von",

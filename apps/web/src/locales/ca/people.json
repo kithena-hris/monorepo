@@ -2943,6 +2943,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "Cada condició necessita almenys un valor.",
   "settings.predicate-editor.how_it_is_compared": "{{n}}: com es compara",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}}: com es combinen les condicions",
+  "settings.predicate-editor.is_empty": "és buit",
   "settings.predicate-editor.is_filled_in": "està emplenat",
   "settings.predicate-editor.is_one_of": "{{n}}: és un de",
   "settings.predicate-editor.remove": "Treure {{n}}",

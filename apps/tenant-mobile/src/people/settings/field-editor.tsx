@@ -101,12 +101,15 @@ function PredicateEditor({
   onChange,
   registry,
   fields,
+  emptyAllowed = false,
 }: {
   legend: string;
   value: Predicate;
   onChange: (next: Predicate) => void;
   registry: Registry;
   fields: readonly RegistryField[];
+  /** "Is empty", for requiredness only: a visibility rule cannot tell a blank field from a removed one. */
+  emptyAllowed?: boolean;
 }): React.JSX.Element {
   const listed = (operand: ListOperand) =>
     ({
@@ -214,7 +217,7 @@ function PredicateEditor({
                     (is) => {
                       set(index, {
                         ...clause,
-                        is: is === 'equals' ? 'equals' : 'set',
+                        is: is === 'equals' || is === 'empty' ? is : 'set',
                         equals: is === 'equals' ? '' : null,
                       });
                     },
@@ -223,6 +226,14 @@ function PredicateEditor({
                         value: 'set',
                         label: tr('people.settings.field-editor.is_filled_in', 'is filled in'),
                       },
+                      ...(emptyAllowed
+                        ? [
+                            {
+                              value: 'empty',
+                              label: tr('people.settings.field-editor.is_empty', 'is empty'),
+                            },
+                          ]
+                        : []),
                       {
                         value: 'equals',
                         label: tr('people.settings.field-editor.equals', 'equals'),
@@ -993,6 +1004,7 @@ export function FieldEditor({
                 {draft.requiredness === 'conditional' ? (
                   <PredicateEditor
                     legend={tr('people.settings.field-editor.required_when', 'Required when')}
+                    emptyAllowed
                     value={draft.requiredWhen}
                     registry={registry}
                     fields={others}

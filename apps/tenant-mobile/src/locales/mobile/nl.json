@@ -1629,6 +1629,7 @@
   "people.settings.field-editor.how_integrations_and_imports_name_it": "Hoe integraties en imports het noemen. Vast na opslaan.",
   "people.settings.field-editor.how_it_looks_on_a_form": "Hoe het eruitziet in een formulier",
   "people.settings.field-editor.i_confirm_this_is_special_category": "Ik bevestig dat dit bijzondere persoonsgegevens zijn",
+  "people.settings.field-editor.is_empty": "is leeg",
   "people.settings.field-editor.is_filled_in": "is ingevuld",
   "people.settings.field-editor.is_it_required": "Is het verplicht?",
   "people.settings.field-editor.is_one_of": "{{n}}: is een van",

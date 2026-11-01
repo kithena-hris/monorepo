@@ -18,6 +18,6 @@ export default async function InboxLane({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<JSX.Element> {
   const view = viewOf((await params).lane);
-  if (view === null || view === 'all') notFound();
+  if (view === null) notFound();
   return <InboxView view={view} searchParams={await searchParams} />;
 }

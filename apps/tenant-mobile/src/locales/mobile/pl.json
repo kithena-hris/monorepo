@@ -1684,6 +1684,7 @@
   "people.settings.field-editor.how_integrations_and_imports_name_it": "Jak nazywają je integracje i importy. Stałe po zapisaniu.",
   "people.settings.field-editor.how_it_looks_on_a_form": "Jak wygląda w formularzu",
   "people.settings.field-editor.i_confirm_this_is_special_category": "Potwierdzam, że to dane szczególnej kategorii",
+  "people.settings.field-editor.is_empty": "jest puste",
   "people.settings.field-editor.is_filled_in": "jest wypełnione",
   "people.settings.field-editor.is_it_required": "Czy jest wymagane?",
   "people.settings.field-editor.is_one_of": "{{n}}: jest jednym z",

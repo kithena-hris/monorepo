@@ -3074,6 +3074,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "Каждому условию нужно хотя бы одно значение.",
   "settings.predicate-editor.how_it_is_compared": "{{n}}: способ сравнения",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}}: как сочетаются условия",
+  "settings.predicate-editor.is_empty": "пусто",
   "settings.predicate-editor.is_filled_in": "заполнено",
   "settings.predicate-editor.is_one_of": "{{n}}: одно из",
   "settings.predicate-editor.remove": "Удалить: {{n}}",

@@ -2907,6 +2907,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "Chaque condition a besoin d’au moins une valeur.",
   "settings.predicate-editor.how_it_is_compared": "{{n}} : mode de comparaison",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}} : comment les conditions se combinent",
+  "settings.predicate-editor.is_empty": "est vide",
   "settings.predicate-editor.is_filled_in": "est rempli",
   "settings.predicate-editor.is_one_of": "{{n}} : est l’un de",
   "settings.predicate-editor.remove": "Retirer {{n}}",

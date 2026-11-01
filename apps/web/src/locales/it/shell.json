@@ -772,6 +772,7 @@
   "components.inbox.screen.up_to_of_people_in_would": "Fino a {{out}} persone su {{of}} in {{team}} sarebbero assenti contemporaneamente.",
   "components.inbox.screen.updates_or_time_off_together": "Gli aggiornamenti si leggono o si archiviano insieme, e le approvazioni delle assenze si decidono insieme",
   "components.inbox.screen.view_action_required": "Azione richiesta",
+  "components.inbox.screen.view_all": "Tutti",
   "components.inbox.screen.view_completed": "Completati",
   "components.inbox.screen.view_notifications": "Notifiche",
   "components.inbox.screen.view_snoozed": "Rimandato",

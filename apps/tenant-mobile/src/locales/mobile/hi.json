@@ -1649,6 +1649,7 @@
   "people.settings.field-editor.how_integrations_and_imports_name_it": "इंटीग्रेशन और आयात इसे कैसे नाम देते हैं। सहेजने के बाद तय।",
   "people.settings.field-editor.how_it_looks_on_a_form": "फ़ॉर्म पर यह कैसा दिखता है",
   "people.settings.field-editor.i_confirm_this_is_special_category": "मैं पुष्टि करता/करती हूँ कि यह विशेष श्रेणी का डेटा है",
+  "people.settings.field-editor.is_empty": "खाली है",
   "people.settings.field-editor.is_filled_in": "भरा हुआ है",
   "people.settings.field-editor.is_it_required": "क्या यह ज़रूरी है?",
   "people.settings.field-editor.is_one_of": "{{n}}: इनमें से एक है",

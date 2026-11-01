@@ -3053,6 +3053,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "Każdy warunek wymaga co najmniej jednej wartości.",
   "settings.predicate-editor.how_it_is_compared": "{{n}}: sposób porównania",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}}: jak łączą się warunki",
+  "settings.predicate-editor.is_empty": "jest puste",
   "settings.predicate-editor.is_filled_in": "jest wypełnione",
   "settings.predicate-editor.is_one_of": "{{n}}: jest jednym z",
   "settings.predicate-editor.remove": "Usuń: {{n}}",

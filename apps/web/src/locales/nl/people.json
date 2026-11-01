@@ -2814,6 +2814,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "Elke voorwaarde heeft minstens één waarde nodig.",
   "settings.predicate-editor.how_it_is_compared": "{{n}}: hoe het wordt vergeleken",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}}: hoe de voorwaarden samengaan",
+  "settings.predicate-editor.is_empty": "is leeg",
   "settings.predicate-editor.is_filled_in": "is ingevuld",
   "settings.predicate-editor.is_one_of": "{{n}}: is een van",
   "settings.predicate-editor.remove": "{{n}} verwijderen",

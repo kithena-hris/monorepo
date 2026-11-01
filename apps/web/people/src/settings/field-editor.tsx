@@ -1312,6 +1312,7 @@ export function FieldEditor({
                     <Stack gap={2}>
                       <PredicateEditor
                         legend={t('settings.field-editor.required_when_2', 'Required when')}
+                        emptyAllowed
                         value={draft.requiredWhen}
                         onChange={(requiredWhen) => {
                           set({ requiredWhen });

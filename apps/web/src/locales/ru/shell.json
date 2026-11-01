@@ -812,6 +812,7 @@
   "components.inbox.screen.up_to_of_people_in_would": "До {{out}} из {{of}} человек в «{{team}}» отсутствовали бы одновременно.",
   "components.inbox.screen.updates_or_time_off_together": "Обновления читаются или архивируются вместе, а заявки на отпуск решаются вместе",
   "components.inbox.screen.view_action_required": "Требуется действие",
+  "components.inbox.screen.view_all": "Все",
   "components.inbox.screen.view_completed": "Завершено",
   "components.inbox.screen.view_notifications": "Уведомления",
   "components.inbox.screen.view_snoozed": "Отложено",

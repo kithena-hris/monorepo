@@ -2807,6 +2807,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "Jede Bedingung braucht mindestens einen Wert.",
   "settings.predicate-editor.how_it_is_compared": "{{n}}: wie verglichen wird",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}}: wie die Bedingungen verknüpft werden",
+  "settings.predicate-editor.is_empty": "ist leer",
   "settings.predicate-editor.is_filled_in": "ist ausgefüllt",
   "settings.predicate-editor.is_one_of": "{{n}}: ist eines von",
   "settings.predicate-editor.remove": "{{n}} entfernen",

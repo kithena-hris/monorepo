@@ -61,6 +61,7 @@ import {
 } from 'react';
 
 import {
+  byMonth,
   feedOf,
   filtered,
   groupsOf,
@@ -121,15 +122,16 @@ export interface InboxScreenProps {
 }
 
 /**
- * Three views: what needs you (your tasks, then what you asked of others,
- * until it is answered), Notifications (what is only for you to know), and
- * Completed (everything done, decided or read away). Snoozed tasks are in the
- * filter menu, beside the module.
+ * Four views: All (the other three together, newest first), what needs you
+ * (your tasks, then what you asked of others, until it is answered),
+ * Notifications (what is only for you to know), and Completed (everything
+ * done, decided or read away). Snoozed tasks are in the filter menu, beside
+ * the module.
  */
-const CHIPS = ['todo', 'updates', 'done'] as const;
+const CHIPS = ['all', 'todo', 'updates', 'done'] as const;
 
 const VIEW_LABEL: Readonly<Record<View, () => string>> = {
-  all: () => t('components.inbox.screen.view_action_required', 'Action required'),
+  all: () => t('components.inbox.screen.view_all', 'All'),
   todo: () => t('components.inbox.screen.view_action_required', 'Action required'),
   requests: () => t('components.inbox.screen.view_action_required', 'Action required'),
   updates: () => t('components.inbox.screen.view_notifications', 'Notifications'),
@@ -146,7 +148,7 @@ const SECTION_LABEL: Readonly<Record<SectionKey, () => string>> = {
 
 /** Action required is the Inbox itself; each other view its own address. */
 const path = (view: View): string =>
-  view === 'todo' || view === 'all' || view === 'requests' ? '/inbox' : `/inbox/${view}`;
+  view === 'todo' || view === 'requests' ? '/inbox' : `/inbox/${view}`;
 
 const query = (params: Record<string, string | null>): string => {
   const search = new URLSearchParams(
@@ -202,33 +204,41 @@ function Screen({
   const fresh = items.filter((i) => i.unread);
   const snoozedCount = snoozedOf(items).length;
   // Action required is the tasks that need you, as the sidebar counts them;
-  // Notifications, those not read yet.
+  // Notifications, those not read yet. All and Completed carry no number.
   const counts: Readonly<Record<View, number>> = {
-    all: read.counts.todo,
+    all: 0,
     todo: read.counts.todo,
     requests: read.counts.todo,
     updates: items.filter((i) => i.lane === 'update' && i.unread).length,
     snoozed: snoozedCount,
     done: 0,
   };
-  const feed = view !== 'snoozed' && view !== 'done';
+  const feed = view !== 'snoozed' && view !== 'done' && view !== 'all';
   // Where each sits is as it was when the page came: opening one here does not move it.
   // Mark all seen sorts them again, as asked.
   const shown = filtered(
     (sorted ? items : read.items).filter((i) =>
-      view === 'done'
-        ? i.lane === 'done'
-        : view === 'snoozed'
-          ? i.lane === 'task' && i.snoozedUntil !== null
-          : view === 'updates'
-            ? i.lane === 'update'
-            : (i.lane === 'task' && i.snoozedUntil === null) || i.lane === 'request',
+      view === 'all'
+        ? i.lane !== 'task' || i.snoozedUntil === null
+        : view === 'done'
+          ? i.lane === 'done'
+          : view === 'snoozed'
+            ? i.lane === 'task' && i.snoozedUntil !== null
+            : view === 'updates'
+              ? i.lane === 'update'
+              : (i.lane === 'task' && i.snoozedUntil === null) || i.lane === 'request',
     ),
     { source, q: search, outcome },
   );
   const sections = feed ? feedOf(shown) : [];
   const listBox = useRef<HTMLDivElement | null>(null);
-  const doneGroups = view === 'done' ? groupsOf(shown, 'done', now, zone) : [];
+  // Completed, and All, by month, newest first.
+  const dated =
+    view === 'done'
+      ? groupsOf(shown, 'done', now, zone)
+      : view === 'all'
+        ? byMonth(shown, now, zone)
+        : [];
   const snoozed = view === 'snoozed' ? shown : [];
   const ordered = feed
     ? sections.flatMap((s) =>
@@ -236,8 +246,8 @@ function Screen({
           e.kind === 'item' ? [e.item] : open.has(e.key) ? e.items : [e.items[0] as Shown],
         ),
       )
-    : view === 'done'
-      ? doneGroups.flatMap((g) => g.items)
+    : view === 'done' || view === 'all'
+      ? dated.flatMap((g) => g.items)
       : snoozed;
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
@@ -423,7 +433,7 @@ function Screen({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-        {view === 'done' || view === 'snoozed' ? null : (
+        {view === 'done' || view === 'snoozed' || view === 'all' ? null : (
           <Button
             variant="ghost"
             // Under a finger a row is swiped, not ticked.
@@ -735,11 +745,11 @@ function Screen({
         </section>
       ))
     )
-  ) : view === 'done' ? (
-    doneGroups.length === 0 ? (
+  ) : view === 'done' || view === 'all' ? (
+    dated.length === 0 ? (
       <div className="p-6">{empty}</div>
     ) : (
-      doneGroups.map((g) => (
+      dated.map((g) => (
         <section key={g.label ?? 'all'} aria-label={g.label ?? viewLabel}>
           {g.label === null ? null : (
             <h2 className="px-4.5 pt-4 pb-1.5 text-sm font-semibold text-fg">{g.label}</h2>

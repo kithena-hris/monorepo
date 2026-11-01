@@ -2847,6 +2847,7 @@
   "settings.predicate-editor.every_condition_needs_at_least_one": "हर शर्त को कम से कम एक मान चाहिए।",
   "settings.predicate-editor.how_it_is_compared": "{{n}}: तुलना कैसे होती है",
   "settings.predicate-editor.how_the_conditions_combine": "{{legend}}: शर्तें कैसे जुड़ती हैं",
+  "settings.predicate-editor.is_empty": "खाली है",
   "settings.predicate-editor.is_filled_in": "भरा हुआ है",
   "settings.predicate-editor.is_one_of": "{{n}}: इनमें से एक है",
   "settings.predicate-editor.remove": "{{n}} हटाएँ",

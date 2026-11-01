@@ -776,6 +776,7 @@
   "components.inbox.screen.up_to_of_people_in_would": "Fins a {{out}} de {{of}} persones de {{team}} serien fora alhora.",
   "components.inbox.screen.updates_or_time_off_together": "Les novetats es llegeixen o s’arxiven juntes, i les aprovacions d’absències es decideixen juntes",
   "components.inbox.screen.view_action_required": "Acció necessària",
+  "components.inbox.screen.view_all": "Tot",
   "components.inbox.screen.view_completed": "Completats",
   "components.inbox.screen.view_notifications": "Notificacions",
   "components.inbox.screen.view_snoozed": "Ajornat",
