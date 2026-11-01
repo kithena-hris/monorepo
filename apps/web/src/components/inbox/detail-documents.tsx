@@ -11,7 +11,7 @@ import {
   uploadDocument,
 } from '../../app/(app)/documents/actions';
 import type { Outcome } from '../../app/(app)/inbox/actions';
-import { Actions, type BodyProps, OpenHere } from './pane';
+import { Actions, type BodyProps, OpenHere, Inline } from './pane';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -212,11 +212,7 @@ export function DocumentsBody(props: BodyProps): JSX.Element {
       {props.item.summary === null ? null : (
         <p className="text-base text-fg-muted">{props.item.summary}</p>
       )}
-      <Actions>
-        <OpenHere href={props.item.link}>
-          {tr('components.inbox.detail-documents.open_in_documents', 'Open in Documents')}
-        </OpenHere>
-      </Actions>
+      <Inline href={props.item.link} />
     </div>
   );
 }

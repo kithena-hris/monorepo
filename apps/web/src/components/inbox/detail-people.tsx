@@ -11,6 +11,8 @@ import {
   ChatLog,
   ChatMessage,
   Checkbox,
+  Combobox,
+  CurrencyField,
   Field,
   FieldControl,
   FieldDescription,
@@ -29,6 +31,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Spinner,
   Stepper,
   Switch,
   Textarea,
@@ -54,14 +57,20 @@ import {
   documentFile,
   moveToDone,
   nudgeChange,
+  recordGaps,
   replyToAsk,
   takeTask,
   tick,
   undoAsk,
   withdrawChange,
 } from '../../app/(app)/inbox/actions';
-import { checkIdentifiers, saveOwnSection } from '../../app/(app)/people/actions';
-import { Actions, type BodyProps, OpenHere, useOpenHereClick } from './pane';
+import {
+  checkIdentifiers,
+  invitePerson,
+  saveOwnSection,
+  savePersonSection,
+} from '../../app/(app)/people/actions';
+import { Actions, type BodyProps, Inline, OpenHere, useOpenHereClick } from './pane';
 import { ConfirmDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';
 import { t } from '../../lib/t';
@@ -79,6 +88,8 @@ type Values = Record<string, unknown>;
 
 /** Text a field can be filled in with here; anything richer opens the profile. */
 const INLINE = new Set([
+  'money',
+  'currency',
   'text',
   'long_text',
   'email',
@@ -122,7 +133,21 @@ function objectShown(o: Record<string, unknown>): string {
   return JSON.stringify(o);
 }
 
-/** One field as a control, the way People draws it, or a way to its profile. */
+/** A list this long is searched, not scrolled, as People's own form does. */
+const SEARCHED_FROM = 12;
+
+/** The Reach date picker, in a chunk of its own: fetched when a date is asked for. */
+const DatePicker = lazy(() => import('@reach/ui').then((m) => ({ default: m.DatePicker })));
+
+const isMoney = (v: unknown): v is { amountMinor: string; currency: string } =>
+  typeof v === 'object' && v !== null && 'amountMinor' in v && 'currency' in v;
+
+/**
+ * One field as a control, the way People draws it: a choice from its list
+ * (searched when long), a date from the picker, an amount in its currency, a
+ * line. A type with no control here (a file, an address) opens the profile in
+ * the pane, at that field.
+ */
 function FieldInput({
   field,
   value,
@@ -137,11 +162,12 @@ function FieldInput({
   const here = useOpenHereClick();
   const text = typeof value === 'string' ? value : '';
   if (!INLINE.has(field.dataType)) {
+    const at = `/people/me?field=${encodeURIComponent(field.key)}`;
     return (
       <Field>
         <FieldLabel>{field.label}</FieldLabel>
         <FieldDescription>
-          <a href="/people/me" onClick={here('/people/me')}>
+          <a href={at} onClick={here(at)}>
             {t(
               'components.inbox.detail-people.fill_this_in_on_your_profile',
               'Fill this in on your profile',
@@ -161,10 +187,56 @@ function FieldInput({
       </Field>
     );
   }
-  return (
-    <Field required={field.required} disabled={disabled}>
-      <FieldLabel>{field.label}</FieldLabel>
-      {field.options.length > 0 ? (
+  const control = ((): JSX.Element => {
+    if (field.dataType === 'money') {
+      const currency = isMoney(value) ? value.currency : (field.currency ?? 'EUR');
+      return (
+        <FieldControl>
+          <CurrencyField
+            currency={currency}
+            value={isMoney(value) ? value.amountMinor : ''}
+            disabled={disabled}
+            onValueChange={(amountMinor) => {
+              onChange(amountMinor === '' ? '' : { amountMinor, currency });
+            }}
+          />
+        </FieldControl>
+      );
+    }
+    if (field.dataType === 'date') {
+      return (
+        <FieldControl>
+          <Suspense fallback={<Input disabled value={text} readOnly />}>
+            <DatePicker
+              label={field.label}
+              value={text === '' ? null : text}
+              disabled={disabled}
+              onChange={(d) => {
+                onChange(d ?? '');
+              }}
+            />
+          </Suspense>
+        </FieldControl>
+      );
+    }
+    if (field.options.length > SEARCHED_FROM) {
+      return (
+        <FieldControl>
+          <Combobox
+            label={field.label}
+            options={field.options}
+            value={text === '' ? null : text}
+            disabled={disabled}
+            placeholder={t('components.inbox.detail-people.choose', 'Choose')}
+            onChange={(v) => {
+              onChange(typeof v === 'string' ? v : '');
+            }}
+          />
+        </FieldControl>
+      );
+    }
+    if (field.options.length > 0) {
+      return (
         <Select value={text} onValueChange={onChange} disabled={disabled}>
           <FieldControl>
             <SelectTrigger>
@@ -179,39 +251,40 @@ function FieldInput({
             ))}
           </SelectContent>
         </Select>
-      ) : (
-        <FieldControl>
-          {field.dataType === 'long_text' ? (
-            <Textarea
-              value={text}
-              disabled={disabled}
-              onChange={(e) => {
-                onChange(e.target.value);
-              }}
-            />
-          ) : (
-            <Input
-              value={text}
-              disabled={disabled}
-              type={
-                field.dataType === 'date'
-                  ? 'date'
-                  : field.dataType === 'email'
-                    ? 'email'
-                    : field.dataType === 'phone'
-                      ? 'tel'
-                      : 'text'
-              }
-              inputMode={
-                ['number', 'decimal', 'percentage'].includes(field.dataType) ? 'decimal' : undefined
-              }
-              onChange={(e) => {
-                onChange(e.target.value);
-              }}
-            />
-          )}
-        </FieldControl>
-      )}
+      );
+    }
+    return (
+      <FieldControl>
+        {field.dataType === 'long_text' ? (
+          <Textarea
+            value={text}
+            disabled={disabled}
+            onChange={(e) => {
+              onChange(e.target.value);
+            }}
+          />
+        ) : (
+          <Input
+            value={text}
+            disabled={disabled}
+            type={
+              field.dataType === 'email' ? 'email' : field.dataType === 'phone' ? 'tel' : 'text'
+            }
+            inputMode={
+              ['number', 'decimal', 'percentage'].includes(field.dataType) ? 'decimal' : undefined
+            }
+            onChange={(e) => {
+              onChange(e.target.value);
+            }}
+          />
+        )}
+      </FieldControl>
+    );
+  })();
+  return (
+    <Field required={field.required} disabled={disabled}>
+      <FieldLabel>{field.label}</FieldLabel>
+      {control}
       {field.description === null ? null : <FieldDescription>{field.description}</FieldDescription>}
       {field.sensitive ? (
         <FieldDescription>
@@ -1452,7 +1525,7 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
           </Button>
         )}
         <OpenHere href={item.link}>
-          {t('components.inbox.detail-people.open_in_integrations', 'Open in Integrations')}
+          {t('components.inbox.detail-people.show_the_endpoint', 'Show the endpoint')}
         </OpenHere>
         {taken && !team.mine ? (
           <Button
@@ -1502,35 +1575,145 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
  * fills in their manager, department and the rest, and sends the invitation
  * now or on a day. The task goes once it is sent or scheduled.
  */
-function SetUp({ item }: BodyProps): JSX.Element {
+type Gaps = Awaited<ReturnType<typeof recordGaps>>;
+
+/** A hire's record gaps, asked for once per hire and kept for the visit: opened again, at once. */
+const gapsAsked = new Map<string, Promise<Gaps>>();
+/** The Inbox was read again (a write): every kept record may have changed. */
+export function forgetGaps(): void {
+  gapsAsked.clear();
+}
+
+export function prefetchGaps(personId: string): Promise<Gaps> {
+  let asked = gapsAsked.get(personId);
+  if (asked === undefined) {
+    asked = recordGaps(personId);
+    gapsAsked.set(personId, asked);
+  }
+  return asked;
+}
+
+/**
+ * A hire to set up (the record filled in from their contract): what it still
+ * needs, its required fields left empty, asked for here and saved to their
+ * record; then their invitation to sign up, sent from here too.
+ */
+function SetUp({ item, act }: BodyProps): JSX.Element {
   const personId = item.id.replace(/^people:setup:/u, '');
+  const [gaps, setGaps] = useState<Gaps | undefined>(undefined);
+  const [values, setValues] = useState<Values>({});
+  useEffect(() => {
+    let live = true;
+    void prefetchGaps(personId).then((g) => {
+      if (live) setGaps(g);
+    });
+    return () => {
+      live = false;
+    };
+  }, [personId]);
+  const sections = gaps?.ok === true ? gaps.sections : [];
+  const filled = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
+  const changed = Object.fromEntries(Object.entries(values).filter(([, v]) => filled(v)));
+  const invite = (): void => {
+    act.run(
+      async () => {
+        const sent = await invitePerson(personId, null);
+        return sent.ok ? { ok: true } : sent;
+      },
+      {
+        title: t('components.inbox.detail-people.invitation_sent', 'Invitation sent'),
+        next: true,
+      },
+    );
+  };
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5">
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
-      <Actions>
-        <OpenHere
-          href={`/people/${personId}?invite=1`}
-          variant="primary"
-          startIcon={<icons.email aria-hidden />}
+      {gaps === undefined ? (
+        <div className="grid min-h-24 place-items-center">
+          <Spinner
+            label={t('components.inbox.detail-people.reading_the_record', 'Reading the record')}
+          />
+        </div>
+      ) : !gaps.ok ? (
+        <Alert
+          tone="danger"
+          title={t('components.inbox.detail.that_did_not_work', 'That did not work')}
         >
-          {t('components.inbox.detail-people.set_up_and_invite', 'Set up and invite')}
-        </OpenHere>
+          {gaps.message}
+        </Alert>
+      ) : sections.length === 0 ? (
+        <Alert
+          tone="success"
+          title={t('components.inbox.detail-people.nothing_missing', 'Nothing missing')}
+        >
+          {t(
+            'components.inbox.detail-people.the_record_has_everything_required',
+            'The record has everything required. Send the invitation when you are ready.',
+          )}
+        </Alert>
+      ) : (
+        <form
+          id={`setup-${personId}`}
+          className="flex flex-col gap-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (Object.keys(changed).length === 0) return;
+            act.run(() => savePersonSection(personId, '', changed), {
+              title: t('components.inbox.detail-people.saved_to_the_record', 'Saved to the record'),
+            });
+            gapsAsked.delete(personId);
+          }}
+        >
+          {sections.map((s) => (
+            <section key={s.key} aria-label={s.label} className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-fg">{s.label}</h3>
+              {s.fields.map((f) => (
+                <FieldInput
+                  key={f.key}
+                  field={f}
+                  value={values[f.key]}
+                  disabled={act.pending}
+                  onChange={(v) => {
+                    setValues((was) => ({ ...was, [f.key]: v }));
+                  }}
+                />
+              ))}
+            </section>
+          ))}
+        </form>
+      )}
+      <Actions>
+        {sections.length === 0 ? null : (
+          <Button
+            type="submit"
+            form={`setup-${personId}`}
+            variant="primary"
+            loading={act.pending}
+            disabled={Object.keys(changed).length === 0}
+          >
+            {t('components.inbox.detail-people.save', 'Save')}
+          </Button>
+        )}
+        <Button
+          variant={sections.length === 0 ? 'primary' : 'secondary'}
+          startIcon={<icons.email aria-hidden />}
+          disabled={act.pending || gaps === undefined}
+          onClick={invite}
+        >
+          {t('components.inbox.detail-people.send_invitation', 'Send invitation')}
+        </Button>
       </Actions>
     </div>
   );
 }
 
+/** Anything else People asks: what it says, and its page in place beneath, never a link away. */
 function Plain({ item }: BodyProps): JSX.Element {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
-      <Actions>
-        <OpenHere href={item.link}>
-          {t('components.inbox.detail-people.open_in', 'Open in {{openIn}}', {
-            openIn: item.openIn,
-          })}
-        </OpenHere>
-      </Actions>
+      <Inline href={item.link} />
     </div>
   );
 }

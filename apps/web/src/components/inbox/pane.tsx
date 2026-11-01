@@ -97,3 +97,14 @@ export function useOpenHereClick(): (href: string) => (event: MouseEvent) => voi
     open(href);
   };
 }
+
+/**
+ * Draws an address's page in place, beneath what the body says (`InboxDetail`
+ * provides it): for an item with no form of its own, whose page is the form.
+ */
+export const InlineContext = createContext<((href: string) => ReactNode) | null>(null);
+
+export function Inline({ href }: { readonly href: string }): ReactNode {
+  const draw = use(InlineContext);
+  return draw === null ? null : draw(href);
+}

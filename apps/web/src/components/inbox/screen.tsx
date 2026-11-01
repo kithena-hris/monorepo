@@ -8,10 +8,10 @@
  * new, the chosen filter and the primary action. Rows are Reach list items,
  * sections are lean headings with their count, three of a kind stack.
  * STORY: open it, see what arrived since last time, act in the pane, then work
- * down Needs you; Waiting on others and For your information are a glance.
- * FIRST VIEWPORT: the header with what is new and what needs you; a search, the
- * view menu (Inbox, Snoozed, Done) and filter chips (All, Needs you, Waiting,
- * For your information) over a 28rem list; the open item beside it.
+ * down Action required; Awaiting response and For information are a glance.
+ * FIRST VIEWPORT: the header with what is new and what needs you; a search, a
+ * filter menu (every view, with its count, and the module) and three chips
+ * (All, Action required, Completed) over a 30rem list; the open item beside it.
  * FORM: one feed, newest first, then grouped (the brief's, over the roll's
  * board; seed 8c567a2a).
  * FINISH: unreviewed and undocumented is unfinished; this build ends with the
@@ -38,9 +38,10 @@ import {
   ChipGroupItem,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   ToastProvider,
 } from '@reach/ui';
@@ -61,6 +62,7 @@ import {
 import {
   feedOf,
   filtered,
+  opensScreen,
   groupsOf,
   moduleName,
   snoozedOf,
@@ -81,6 +83,8 @@ import {
 } from '../../app/(app)/inbox/actions';
 import { Waking } from '../waking';
 import { InboxDetail } from './detail';
+import { forgetGaps, prefetchGaps } from './detail-people';
+import { forgetTaskScreens, prefetchTaskScreen } from './task-screen';
 import { BulkDecideDialog, type Candidate } from './dialogs';
 import { InboxRow } from './rows';
 import { StackRow } from './stack';
@@ -115,27 +119,28 @@ export interface InboxScreenProps {
   readonly screen?: TaskScreen | null;
 }
 
-/** The feed's filters, and the lane each keeps. */
-const FILTERS = ['all', 'todo', 'requests', 'updates'] as const;
-type Filter = (typeof FILTERS)[number];
-const LANE: Readonly<Record<Exclude<Filter, 'all'>, Shown['lane']>> = {
+/** The views a chip shows; the rest are in the filter menu, beside the module. */
+const CHIPS = ['all', 'todo', 'done'] as const;
+const LANE: Readonly<Record<'todo' | 'requests' | 'updates', Shown['lane']>> = {
   todo: 'task',
   requests: 'request',
   updates: 'update',
 };
 
-const FILTER_LABEL: Readonly<Record<Filter, () => string>> = {
-  all: () => t('components.inbox.screen.filter_all', 'All'),
-  todo: () => t('components.inbox.screen.filter_needs_you', 'Needs you'),
-  requests: () => t('components.inbox.screen.filter_waiting_short', 'Waiting'),
-  updates: () => t('components.inbox.screen.filter_updates', 'Updates'),
+const VIEW_LABEL: Readonly<Record<View, () => string>> = {
+  all: () => t('components.inbox.screen.view_all', 'All'),
+  todo: () => t('components.inbox.screen.view_action_required', 'Action required'),
+  requests: () => t('components.inbox.screen.view_awaiting_response', 'Awaiting response'),
+  updates: () => t('components.inbox.screen.view_for_information', 'For information'),
+  snoozed: () => t('components.inbox.screen.view_snoozed', 'Snoozed'),
+  done: () => t('components.inbox.screen.view_completed', 'Completed'),
 };
 
 const SECTION_LABEL: Readonly<Record<SectionKey, () => string>> = {
   new: () => t('components.inbox.screen.section_new', 'New'),
-  needs: () => t('components.inbox.screen.section_needs', 'Needs you'),
-  waiting: () => t('components.inbox.screen.section_waiting', 'Waiting on others'),
-  fyi: () => t('components.inbox.screen.section_fyi', 'For your information'),
+  needs: () => t('components.inbox.screen.section_action_required', 'Action required'),
+  waiting: () => t('components.inbox.screen.section_awaiting_response', 'Awaiting response'),
+  fyi: () => t('components.inbox.screen.section_for_information', 'For information'),
 };
 
 const path = (view: View): string => (view === 'all' ? '/inbox' : `/inbox/${view}`);
@@ -192,11 +197,16 @@ function Screen({
     [read.items, readHere],
   );
   const fresh = items.filter((i) => i.unread);
-  const counts = {
-    fresh: fresh.length,
+  const snoozedCount = snoozedOf(items).length;
+  // All is everything open: every other count is a part of it.
+  const counts: Readonly<Record<View, number>> = {
+    all: items.filter((i) => i.lane !== 'done' && !(i.lane === 'task' && i.snoozedUntil !== null))
+      .length,
     todo: read.counts.todo,
     requests: read.counts.requests,
-    updates: items.filter((i) => i.unread && i.lane === 'update').length,
+    updates: items.filter((i) => i.lane === 'update').length,
+    snoozed: snoozedCount,
+    done: items.filter((i) => i.lane === 'done').length,
   };
   const feed = view !== 'snoozed' && view !== 'done';
   // Where each sits is as it was when the page came: opening one here does not move it.
@@ -217,7 +227,6 @@ function Screen({
   const listBox = useRef<HTMLDivElement | null>(null);
   const doneGroups = view === 'done' ? groupsOf(shown, 'done', now, zone) : [];
   const snoozed = view === 'snoozed' ? shown : [];
-  const snoozedCount = snoozedOf(items).length;
   const ordered = feed
     ? sections.flatMap((s) =>
         s.entries.flatMap((e) =>
@@ -228,6 +237,49 @@ function Screen({
       ? doneGroups.flatMap((g) => g.items)
       : snoozed;
   const selected = items.find((i) => i.id === selectedId) ?? null;
+
+  /*
+   * What an item opens to is fetched before it is opened: as a pointer rests
+   * on its row, and the first few that need you while the browser is idle.
+   * A write reads the Inbox again, and with it every kept screen.
+   */
+  const ahead = useMemo(() => {
+    const byId = new Map(read.items.map((i) => [i.id, i]));
+    return (id: string): void => {
+      const i = byId.get(id);
+      if (i === undefined) return;
+      if (opensScreen(i)) void prefetchTaskScreen(i.link);
+      else if (i.kind === 'people.setup') void prefetchGaps(i.id.replace(/^people:setup:/u, ''));
+    };
+  }, [read.items]);
+  // Before the pane reads again (its effects run before this list's): a read
+  // that is new forgets what was kept from the last.
+  const keptFor = useRef(read);
+  if (keptFor.current !== read) {
+    keptFor.current = read;
+    forgetTaskScreens();
+    forgetGaps();
+  }
+  useEffect(() => {
+    const first = ordered
+      .filter((i) => i.lane === 'task')
+      .slice(0, 3)
+      .map((i) => i.id);
+    const run = (): void => {
+      for (const id of first) ahead(id);
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const handle = window.requestIdleCallback(run, { timeout: 2000 });
+      return () => {
+        window.cancelIdleCallback(handle);
+      };
+    }
+    const timer = setTimeout(run, 500);
+    return () => {
+      clearTimeout(timer);
+    };
+    // The first rows of this read; not again as the selection moves.
+  }, [ahead]);
 
   // The address follows what is open and what the list shows, without a fetch.
   useEffect(() => {
@@ -297,12 +349,7 @@ function Screen({
         );
   };
 
-  const viewLabel =
-    view === 'done'
-      ? t('components.inbox.screen.view_done', 'Done')
-      : view === 'snoozed'
-        ? t('components.inbox.screen.view_snoozed', 'Snoozed')
-        : t('components.inbox.screen.view_inbox', 'Inbox');
+  const viewLabel = VIEW_LABEL[view]();
 
   const toolbar = (
     <div className="flex flex-col gap-2.5 border-b border-border p-3">
@@ -319,76 +366,60 @@ function Screen({
           variant="field"
           placeholder={t('components.inbox.screen.search_your_inbox', 'Search your Inbox')}
         />
-        {feed && read.modules.length > 1 ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              {source === null ? (
-                <Button
-                  variant="secondary"
-                  startIcon={<icons.filter aria-hidden />}
-                  aria-label={t('components.inbox.screen.filter_by_module', 'Filter by module')}
-                />
-              ) : (
-                <Button variant="secondary" startIcon={<icons.filter aria-hidden />}>
-                  {moduleName(source)}
-                </Button>
-              )}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup
-                value={source ?? 'all'}
-                onValueChange={(v) => {
-                  go(view, { source: v === 'all' ? null : v });
-                }}
-              >
-                <DropdownMenuRadioItem value="all">
-                  {t('components.inbox.screen.every_module', 'Every module')}
-                </DropdownMenuRadioItem>
-                {read.modules.map((m) => (
-                  <DropdownMenuRadioItem key={m} value={m}>
-                    {moduleName(m)}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="secondary"
-              endIcon={<icons.expand aria-hidden />}
-              aria-label={t('components.inbox.screen.view', 'View: {{view}}', { view: viewLabel })}
+              variant={
+                source === null && CHIPS.includes(view as (typeof CHIPS)[number])
+                  ? 'secondary'
+                  : 'primary'
+              }
+              startIcon={<icons.filter aria-hidden />}
+              aria-label={t('components.inbox.screen.filter', 'Filter')}
             >
-              {viewLabel}
+              {source === null ? undefined : moduleName(source)}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onSelect={() => {
-                go('all', { outcome: null });
+            <DropdownMenuLabel>{t('components.inbox.screen.show', 'Show')}</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={view}
+              onValueChange={(v) => {
+                go(v as View);
               }}
             >
-              {t('components.inbox.screen.view_inbox', 'Inbox')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                go('snoozed', { outcome: null });
-              }}
-            >
-              {snoozedCount === 0
-                ? t('components.inbox.screen.view_snoozed', 'Snoozed')
-                : t('components.inbox.screen.view_snoozed_count', 'Snoozed ({{count}})', {
-                    count: String(snoozedCount),
-                  })}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                go('done');
-              }}
-            >
-              {t('components.inbox.screen.view_done', 'Done')}
-            </DropdownMenuItem>
+              {(['all', 'todo', 'requests', 'updates', 'snoozed', 'done'] as const).map((v) => (
+                <DropdownMenuRadioItem key={v} value={v}>
+                  <span className="me-auto">{VIEW_LABEL[v]()}</span>
+                  {counts[v] > 0 ? (
+                    <span className="ms-4 text-fg-muted tabular-nums">{String(counts[v])}</span>
+                  ) : null}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+            {read.modules.length > 1 ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>
+                  {t('components.inbox.screen.module', 'Module')}
+                </DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={source ?? 'all'}
+                  onValueChange={(v) => {
+                    go(view, { source: v === 'all' ? null : v });
+                  }}
+                >
+                  <DropdownMenuRadioItem value="all">
+                    {t('components.inbox.screen.every_module', 'Every module')}
+                  </DropdownMenuRadioItem>
+                  {read.modules.map((m) => (
+                    <DropdownMenuRadioItem key={m} value={m}>
+                      {moduleName(m)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
         {view === 'done' || view === 'snoozed' ? null : (
@@ -407,29 +438,25 @@ function Screen({
           </Button>
         )}
       </div>
-      {feed ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <ChipGroup
-            type="single"
-            scroll
-            aria-label={t('components.inbox.screen.show', 'Show')}
-            value={view}
-            onValueChange={(v) => {
-              if (v !== '') go(v as View);
-            }}
-            className="min-w-0"
-          >
-            {FILTERS.map((f) => {
-              const n = f === 'all' ? counts.fresh : counts[f];
-              return (
-                <ChipGroupItem key={f} value={f}>
-                  {n > 0 ? `${FILTER_LABEL[f]()} · ${String(n)}` : FILTER_LABEL[f]()}
-                </ChipGroupItem>
-              );
-            })}
-          </ChipGroup>
-        </div>
-      ) : view === 'done' ? (
+      <ChipGroup
+        type="single"
+        scroll
+        aria-label={t('components.inbox.screen.show', 'Show')}
+        value={view}
+        onValueChange={(v) => {
+          if (v !== '') go(v as View);
+        }}
+        className="min-w-0"
+      >
+        {[...CHIPS, ...(CHIPS.includes(view as (typeof CHIPS)[number]) ? [] : [view])].map((v) => (
+          <ChipGroupItem key={v} value={v}>
+            {v !== 'done' && counts[v] > 0
+              ? `${VIEW_LABEL[v]()} · ${String(counts[v])}`
+              : VIEW_LABEL[v]()}
+          </ChipGroupItem>
+        ))}
+      </ChipGroup>
+      {view === 'done' ? (
         <Select
           value={outcome ?? 'all'}
           onValueChange={(v) => {
@@ -740,6 +767,11 @@ function Screen({
       )}
       <div
         className="pb-2"
+        onPointerOver={(event) => {
+          const href = (event.target as HTMLElement).closest('a')?.getAttribute('href');
+          const id = href == null ? null : new URL(href, 'http://inbox').searchParams.get('item');
+          if (id !== null) ahead(id);
+        }}
         onKeyDown={(event) => {
           // D5: X selects the row in focus, as in Review.
           if (event.key !== 'x' || event.metaKey || event.ctrlKey || event.altKey || !feed) return;
@@ -769,15 +801,15 @@ function Screen({
   );
 
   const summary =
-    counts.fresh === 0 && counts.todo === 0
+    fresh.length === 0 && counts.todo === 0
       ? t('components.inbox.screen.nothing_new', 'Nothing new, nothing waiting on you')
       : [
-          counts.fresh === 0
+          fresh.length === 0
             ? null
             : t(
                 'components.inbox.screen.count_new',
                 { one: '{{count}} new', other: '{{count}} new' },
-                { count: counts.fresh },
+                { count: fresh.length },
               ),
           counts.todo === 0
             ? null
@@ -856,7 +888,7 @@ function Screen({
               <EmptyState
                 icon={<icons.inbox />}
                 title={
-                  counts.fresh > 0
+                  fresh.length > 0
                     ? t('components.inbox.screen.start_with_whats_new', 'Start with what is new')
                     : t(
                         'components.inbox.screen.choose_something_from_the_list',

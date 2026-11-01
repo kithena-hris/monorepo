@@ -53,7 +53,11 @@ const isTaskArea = (name: string): name is TaskScreenArea => name in LOADS;
  * Its header keeps only the screen's own title: the trail, the sections and
  * the area's actions belong to a page, and the pane is not one.
  */
-export async function taskScreen(link: string): Promise<TaskScreen | null> {
+export async function taskScreen(
+  link: string,
+  /** With the page: its server build too, so its first HTML has the screen. A pane drawn later needs none. */
+  { withServerBuild = false }: { readonly withServerBuild?: boolean } = {},
+): Promise<TaskScreen | null> {
   const url = new URL(link, 'http://inbox');
   const path = url.pathname;
   const area = areaOf(path);
@@ -64,7 +68,7 @@ export async function taskScreen(link: string): Promise<TaskScreen | null> {
   const search = Object.fromEntries(url.searchParams);
   const [load, ssr, places] = await Promise.all([
     LOADS[area.name](route.component, { params: route.params, search }, route.path),
-    prepareRemoteSsr(route.base, route.area),
+    withServerBuild ? prepareRemoteSsr(route.base, route.area) : Promise.resolve(undefined),
     remotePlaces(person.entitlements),
   ]);
   const frame = areaFrame(area, route.path, places[area.name]);

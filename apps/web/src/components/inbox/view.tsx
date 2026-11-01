@@ -29,7 +29,10 @@ export async function InboxView({
   ]);
   // The open item's own screen, when the pane draws one: read now, not after the page arrives.
   const open = read.items.find((i) => i.id === one('item'));
-  const screen = open !== undefined && opensScreen(open) ? await taskScreen(open.link) : undefined;
+  const screen =
+    open !== undefined && opensScreen(open)
+      ? await taskScreen(open.link, { withServerBuild: true })
+      : undefined;
   return (
     <InboxScreen
       read={read}

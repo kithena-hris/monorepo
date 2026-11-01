@@ -28,7 +28,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { decideTimeOff, nudgeTimeOff, withdrawTimeOff } from '../../app/(app)/inbox/actions';
-import { Actions, type BodyProps, OpenHere, useOpenHereClick } from './pane';
+import { Actions, type BodyProps, OpenHere, useOpenHereClick, Inline } from './pane';
 import { ConfirmDialog } from './dialogs';
 import { days, firstName, shortDay, spanLong, weekdays, when } from './format';
 import { t } from '../../lib/t';
@@ -230,7 +230,7 @@ function Approval({ item, act }: BodyProps): JSX.Element {
               {t('components.inbox.detail-timeoff.decline', 'Decline')}
             </Button>
             <OpenHere href={item.link} variant="ghost" size="sm">
-              {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+              {t('components.inbox.detail-timeoff.show_the_request', 'Show the request')}
             </OpenHere>
           </Actions>
         </>
@@ -449,7 +449,7 @@ function Decided({ item }: BodyProps): JSX.Element {
       <Actions>
         {d.approved || d.followUp !== null ? (
           <OpenHere href={item.link}>
-            {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+            {t('components.inbox.detail-timeoff.show_the_request', 'Show the request')}
           </OpenHere>
         ) : (
           <OpenHere
@@ -520,11 +520,7 @@ function Holidays({ item }: BodyProps): JSX.Element {
               ]),
         ]}
       />
-      <Actions>
-        <OpenHere href={item.link}>
-          {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
-        </OpenHere>
-      </Actions>
+      <Inline href={item.link} />
     </div>
   );
 }
@@ -559,12 +555,6 @@ export function TimeOffBody(props: BodyProps): JSX.Element {
     case 'timeoff.holidays':
       return <Holidays {...props} />;
     default:
-      return (
-        <Actions>
-          <OpenHere href={props.item.link}>
-            {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
-          </OpenHere>
-        </Actions>
-      );
+      return <Inline href={props.item.link} />;
   }
 }
