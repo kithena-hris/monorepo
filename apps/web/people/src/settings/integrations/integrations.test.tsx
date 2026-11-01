@@ -10,7 +10,7 @@ import { Integrations, type IntegrationsProps, type IntegrationsState } from './
 /** The shell wraps every screen in a TooltipProvider; `CopyField` needs one. */
 const render = (ui: ReactElement) => mount(ui, { wrapper: TooltipProvider });
 /** The endpoints are on their own tab. */
-const openWebhooks = () => fast().click(screen.getByRole('tab', { name: 'Webhooks' }));
+const openWebhooks = () => fast().click(screen.getByRole('button', { name: /: Webhooks$/ }));
 
 const state: IntegrationsState = {
   schemaVersion: 4,

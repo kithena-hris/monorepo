@@ -64,6 +64,10 @@ const state = (over: Partial<OrganisationState> = {}): OrganisationState => ({
   ...over,
 });
 
+/** One part of the page, by its heading. */
+const part = (name: string) =>
+  within(screen.getByRole('heading', { level: 2, name }).closest('section') as HTMLElement);
+
 const done = () => Promise.resolve({ ok: true as const });
 
 function props(over: Partial<OrganisationProps> = {}): OrganisationProps {
@@ -93,7 +97,9 @@ describe('the organisation settings (PEO-119)', () => {
   it('lists the entities, and adds one with a country and a zone', async () => {
     const p = props();
     const { container } = render(<Organisation {...p} />);
-    expect(screen.getByRole('cell', { name: /Acme Iberia SL/ })).toBeInTheDocument();
+    expect(
+      part('Legal entities').getByRole('cell', { name: /Acme Iberia SL/ }),
+    ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Add legal entity' }));
@@ -115,7 +121,6 @@ describe('the organisation settings (PEO-119)', () => {
     const p = props();
     render(<Organisation {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('tab', { name: 'Locations' }));
     await user.click(screen.getByRole('button', { name: 'Actions for Madrid office' }));
     await user.click(screen.getByRole('menuitem', { name: 'Change time zone' }));
     const dialog = screen.getByRole('dialog');
@@ -221,7 +226,6 @@ describe('the organisation settings (PEO-119)', () => {
     });
     render(<Organisation {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('tab', { name: 'Employee numbering' }));
     expect(screen.getByRole('cell', { name: 'ES-00042' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Set the numbering of Acme Iberia SL' }));
     const dialog = screen.getByRole('dialog');
@@ -234,7 +238,6 @@ describe('the organisation settings (PEO-119)', () => {
     const p = props();
     render(<Organisation {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
     const form = screen.getByRole('form', { name: 'Reminders and privacy' });
     const save = within(form).getByRole('button', { name: 'Save' });
     const minimum = within(form).getByRole('spinbutton', { name: /Smallest group/ });
@@ -285,7 +288,7 @@ describe('the organisation settings (PEO-119)', () => {
 
   it('lists the country packs to whom People sent them, with no guessed check', async () => {
     const { unmount } = render(<Organisation {...props()} />);
-    expect(screen.queryByRole('tab', { name: 'Country packs' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Country packs' })).toBeNull();
     unmount();
     const withPacks = state({
       packs: [
@@ -296,7 +299,6 @@ describe('the organisation settings (PEO-119)', () => {
     const { container } = render(
       <Organisation {...props({ load: { status: 'ready', data: withPacks } })} />,
     );
-    await fast().click(screen.getByRole('tab', { name: 'Country packs' }));
     const table = screen.getByRole('table', { name: 'Country packs' });
     expect(within(table).getByText('Acme Iberia SL')).toBeInTheDocument();
     expect(within(table).getByText('No entity yet')).toBeInTheDocument();
@@ -304,15 +306,19 @@ describe('the organisation settings (PEO-119)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('opens the tab its address names, and hands a chosen tab to the host', async () => {
-    const onTabChange = vi.fn();
-    render(<Organisation {...props()} tab="numbering" onTabChange={onTabChange} />);
-    expect(screen.getByRole('tab', { name: 'Employee numbering' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    await fast().click(screen.getByRole('tab', { name: 'Locations' }));
-    expect(onTabChange).toHaveBeenCalledWith('locations');
+  it('draws every part on one page, and scrolls to the one its address names', () => {
+    const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+    render(<Organisation {...props()} tab="numbering" />);
+    for (const name of [
+      'Legal entities',
+      'Locations',
+      'Org units',
+      'Employee numbering',
+      'Reminders and privacy',
+    ])
+      expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument();
+    expect(scrolled.mock.contexts).toEqual([document.getElementById('organisation-numbering')]);
+    scrolled.mockRestore();
   });
 
   it('marks every unreviewed retention floor pending legal review (PEO-126)', async () => {
@@ -337,7 +343,6 @@ describe('the organisation settings (PEO-119)', () => {
     const { container } = render(
       <Organisation {...props({ load: { status: 'ready', data: reviewed } })} />,
     );
-    await fast().click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
     const table = screen.getByRole('table', { name: 'Statutory retention floors' });
     const spain = within(table).getByRole('row', { name: /Spain, labour records/ });
     expect(within(spain).getByText('48 months')).toBeInTheDocument();
@@ -364,7 +369,6 @@ describe('the organisation settings (PEO-119)', () => {
     const { container } = render(
       <Organisation {...props({ load: { status: 'ready', data: hr } })} />,
     );
-    await fast().click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
     const table = screen.getByRole('table', { name: 'Upcoming automated erasures' });
     const ada = within(table).getByRole('row', { name: /Ada Lovelace/ });
     expect(within(ada).getByText('Spain, labour records')).toBeInTheDocument();
@@ -377,7 +381,6 @@ describe('the organisation settings (PEO-119)', () => {
 
   it('lists no automated erasures to anybody People sent none', async () => {
     render(<Organisation {...props()} />);
-    await fast().click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
     expect(screen.queryByRole('table', { name: 'Upcoming automated erasures' })).toBeNull();
     expect(screen.queryByText('Automated erasure')).toBeNull();
   });
@@ -413,7 +416,7 @@ describe('People home (PEO-119)', () => {
 
   it('shows pay bands only to whom People sent them, and corrects one in minor units (PEO-078)', async () => {
     const { unmount } = render(<Organisation {...props()} />);
-    expect(screen.queryByRole('tab', { name: 'Pay bands' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Pay bands' })).toBeNull();
     unmount();
 
     const band = {
@@ -433,7 +436,6 @@ describe('People home (PEO-119)', () => {
     });
     const { container } = render(<Organisation {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('tab', { name: 'Pay bands' }));
     expect(screen.getByRole('cell', { name: '50,000.00 EUR' })).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
     await user.click(screen.getByRole('button', { name: 'Correct l3 EUR from 2026-01-01' }));
