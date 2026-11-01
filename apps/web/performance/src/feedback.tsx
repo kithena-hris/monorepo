@@ -24,6 +24,8 @@ import {
   SegmentedControlItem,
   Textarea,
   icons,
+  WidgetGrid,
+  widgetSpan,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -269,8 +271,8 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
             </Card>
           ) : null}
           {data.tab === 'requests' ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
+            <WidgetGrid>
+              <Card className={widgetSpan(2)}>
                 <CardHeader>
                   <CardTitle level={2}>{tr('feedback.asked_of_you', 'Asked of you')}</CardTitle>
                 </CardHeader>
@@ -323,7 +325,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                   )}
                 </CardContent>
               </Card>
-              <Card>
+              <Card className={widgetSpan(2)}>
                 <CardHeader>
                   <CardTitle level={2}>{tr('feedback.you_asked', 'You asked')}</CardTitle>
                 </CardHeader>
@@ -357,7 +359,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                   )}
                 </CardContent>
               </Card>
-            </div>
+            </WidgetGrid>
           ) : null}
           {data.tab === 'praise' ? (
             <Posts

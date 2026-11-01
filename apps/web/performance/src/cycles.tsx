@@ -72,6 +72,7 @@ import {
   type FilterField,
   type FilterGroup,
   WidgetGrid,
+  widgetSpan,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
@@ -2929,8 +2930,8 @@ function CycleSettings({
           )}
         </CardContent>
       </Card>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+      <WidgetGrid>
+        <Card className={widgetSpan(2)}>
           <CardHeader>
             <CardTitle level={2}>{tr('cycles.reminders', 'Reminders')}</CardTitle>
           </CardHeader>
@@ -2991,7 +2992,7 @@ function CycleSettings({
             </IconList>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={widgetSpan(2)}>
           <CardHeader>
             <CardTitle level={2}>
               {tr('cycles.what_the_subject_sees', 'What the subject sees')}
@@ -3051,7 +3052,7 @@ function CycleSettings({
             </IconList>
           </CardContent>
         </Card>
-      </div>
+      </WidgetGrid>
     </div>
   );
 }
@@ -3197,8 +3198,9 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
     .toSorted((a, b) => (a.due ?? '').localeCompare(b.due ?? ''))[0];
   const left = next?.due == null ? null : daysBetween(data.today, next.due);
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <WidgetGrid>
       <ChartCard
+        className={widgetSpan(2)}
         title={tr('cycles.where_every_review_stands', 'Where every review stands')}
         description={[
           tr('cycles.of_in', '{{submitted}} of {{total}} in', {
@@ -3261,6 +3263,7 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
         />
       </ChartCard>
       <ChartCard
+        className={widgetSpan(2)}
         title={tr('cycles.who_is_behind', 'Who is behind')}
         description={tr(
           'cycles.each_departments_reviews_by_where_they',
@@ -3288,7 +3291,7 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
           }
         />
       </ChartCard>
-    </div>
+    </WidgetGrid>
   );
 }
 
