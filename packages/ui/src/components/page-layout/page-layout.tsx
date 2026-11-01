@@ -1448,6 +1448,7 @@ export function PageSection({
         surface && 'rounded-lg bg-surface p-5 shadow-sm touch:p-4',
         className,
       )}
+      {...(surface ? { 'data-surface': '' } : {})}
       {...props}
     >
       {title || actions ? (
@@ -1515,7 +1516,10 @@ export function Toolbar({
     >
       {selection}
       <div className="flex flex-wrap items-center gap-2">
-        {search ? <div className="min-w-48 flex-1 max-sm:w-full">{search}</div> : null}
+        {/* Room for a query, not the whole row: a field as wide as the page is not easier to type in. */}
+        {search ? (
+          <div className="max-w-md min-w-48 flex-1 max-sm:w-full max-sm:max-w-none">{search}</div>
+        ) : null}
         {filters ? <div className="flex flex-wrap items-center gap-2">{filters}</div> : null}
         {actions ? <div className="ms-auto flex items-center gap-2">{actions}</div> : null}
         {children}

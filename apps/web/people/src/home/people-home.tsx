@@ -20,11 +20,12 @@ import {
   ListItem,
   locale,
   PageHeader,
-  PersonCard,
   Sparkline,
   Stack,
   Stat,
   type UploadedImage,
+  Widget,
+  WidgetGrid,
 } from '@reach/ui';
 import { useState, type ComponentType, type JSX, type ReactNode } from 'react';
 
@@ -329,28 +330,53 @@ const review = (kind: string, item?: string): string =>
   `/people/review/waiting?kind=${kind}${item === undefined ? '' : `&item=${encodeURIComponent(item)}`}`;
 /* -------------------------------------------------------------- parts -- */
 
-/** A titled card, with a link or a figure beside its title: Home's section. */
+/**
+ * One of Home's widgets: a titled card as wide as what it holds (`span`
+ * columns of the dashboard), with its glyph, a count, and one way on.
+ */
 function Section({
   title,
   action,
+  icon,
+  tone,
+  meta,
+  span = 1,
+  flush = false,
   children,
   className,
 }: {
   readonly title: ReactNode;
   readonly action?: ReactNode;
+  readonly icon?: ReactNode;
+  readonly tone?:
+    | 'chart-1'
+    | 'chart-2'
+    | 'chart-3'
+    | 'chart-4'
+    | 'chart-5'
+    | 'chart-6'
+    | 'accent'
+    | 'warning'
+    | 'success';
+  readonly meta?: ReactNode;
+  readonly span?: 1 | 2 | 3;
+  readonly flush?: boolean;
   readonly children: ReactNode;
   readonly className?: string;
 }): JSX.Element {
   return (
-    <section className={className}>
-      <Card className="h-full">
-        <CardHeader className="pb-2">
-          <CardTitle level={2}>{title}</CardTitle>
-          {action}
-        </CardHeader>
-        <CardContent>{children}</CardContent>
-      </Card>
-    </section>
+    <Widget
+      title={title}
+      span={span}
+      flush={flush}
+      {...(action === undefined ? {} : { action })}
+      {...(icon === undefined ? {} : { icon })}
+      {...(tone === undefined ? {} : { tone })}
+      {...(meta === undefined ? {} : { meta })}
+      {...(className === undefined ? {} : { className })}
+    >
+      {children}
+    </Widget>
   );
 }
 
@@ -479,7 +505,7 @@ const iconOf = (name: string): ComponentType<{ 'aria-hidden'?: boolean }> =>
 /** The host's To do and what waits on others, in People's own rows. */
 function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
   const rows = (tasks: readonly HostTask[], label: string) => (
-    <List aria-label={label} className="-mx-2 bg-transparent shadow-none">
+    <List aria-label={label}>
       {tasks.map((t) => {
         const Icon = iconOf(t.icon);
         return (
@@ -500,6 +526,11 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
     <>
       <Section
         title={tr('home.people-home.to_do', 'To do')}
+        icon={<icons.inbox aria-hidden />}
+        tone="accent"
+        {...(toDo.tasks.length === 0 ? {} : { meta: toDo.tasks.length })}
+        span={2}
+        flush={toDo.tasks.length > 0}
         action={<SeeAll href={toDo.href}>{tr('home.people-home.open_inbox', 'Open Inbox')}</SeeAll>}
       >
         {toDo.tasks.length === 0 ? (
@@ -515,7 +546,13 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
         )}
       </Section>
       {toDo.waiting.length === 0 ? null : (
-        <Section title={tr('home.people-home.waiting_on_others', 'Waiting on others')}>
+        <Section
+          title={tr('home.people-home.waiting_on_others', 'Waiting on others')}
+          icon={<icons.pending aria-hidden />}
+          meta={toDo.waiting.length}
+          span={2}
+          flush
+        >
           {rows(toDo.waiting, tr('home.people-home.waiting_on_others', 'Waiting on others'))}
         </Section>
       )}
@@ -564,6 +601,9 @@ function ToDo({
   return (
     <Section
       title={tr('home.people-home.to_do', 'To do')}
+      icon={<icons.inbox aria-hidden />}
+      tone="accent"
+      span={2}
       action={
         <div className="flex items-center gap-2">
           <CircularProgress
@@ -607,10 +647,7 @@ function ToDo({
           }
         />
       ) : (
-        <List
-          aria-label={tr('home.people-home.to_do', 'To do')}
-          className="-mx-2 bg-transparent shadow-none"
-        >
+        <List aria-label={tr('home.people-home.to_do', 'To do')} className="-mx-5 touch:-mx-4">
           {corrections.map((c) => (
             <Todo
               key={`correct-${c.key}`}
@@ -697,16 +734,20 @@ function Identity({
   const time = localTime(now, me.timeZone);
   const since = me.startedOn === null ? null : tenure(me.startedOn, me.today);
   return (
-    <Card padded className="flex flex-col gap-3.5">
+    <Widget
+      title={tr('home.people-home.your_profile', 'Your profile')}
+      icon={<icons.person aria-hidden />}
+      tone="chart-2"
+    >
       <div className="flex items-center gap-3.5">
         <Avatar
-          size="2xl"
+          size="xl"
           name={me.name}
           src={me.avatarUrl ?? undefined}
           {...(status === undefined ? {} : { status: status.tone })}
         />
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-xl font-bold tracking-tight text-fg">{me.name}</h2>
+          <p className="font-display text-lg font-bold tracking-tight text-fg">{me.name}</p>
           {role === '' ? null : <p className="text-sm text-fg-muted">{role}</p>}
         </div>
       </div>
@@ -753,7 +794,7 @@ function Identity({
       <Button asChild fullWidth size="sm">
         <a href="/people/me">{tr('home.people-home.view_your_profile', 'View your profile')}</a>
       </Button>
-    </Card>
+    </Widget>
   );
 }
 
@@ -771,73 +812,53 @@ function ReportingLine({
 }): JSX.Element {
   // Top of the chart first, as an org chart reads.
   const above = line.managers.toReversed();
-  const top = above[0];
   const manager = line.managers[0];
-  const joint = <span aria-hidden className="ms-6 h-3 w-0.5 bg-border-strong" />;
   return (
     <Section
       title={tr('home.people-home.your_reporting_line', 'Your reporting line')}
+      icon={<icons.hierarchy aria-hidden />}
+      tone="chart-3"
+      flush
       action={
         <SeeAll href="/people/directory/org-chart">
           {tr('home.people-home.org_chart', 'Org chart')}
         </SeeAll>
       }
     >
-      <Stack gap={3}>
-        <ol
-          aria-label={tr(
-            'home.people-home.your_managers_from_the_top',
-            'Your managers, from the top',
-          )}
-          className="flex flex-col"
-        >
-          {line.moreAbove && top !== undefined ? (
-            <li className="pb-2 text-xs text-fg-muted">
-              <a className="underline underline-offset-4" href={`/people/${top.id}`}>
-                {tr('home.people-home.the_line_goes_on_above', 'The line goes on above')} {top.name}
-              </a>
-            </li>
-          ) : null}
-          {above.map((m, i) => (
-            <li
-              key={m.id}
-              // Under a finger, only the manager: the one row a phone keeps.
-              className={i === above.length - 1 ? 'flex flex-col' : 'flex flex-col touch:hidden'}
-            >
-              <PersonCard
-                layout="row"
-                name={m.name}
-                description={
-                  m.id === manager?.id
-                    ? m.title == null || m.title === ''
-                      ? tr('home.people-home.your_manager', 'Your manager')
-                      : tr('home.people-home.your_manager_title', 'Your manager · {{title}}', {
-                          title: m.title,
-                        })
-                    : m.title
-                }
-                href={`/people/${m.id}`}
-                {...(m.avatarUrl === null ? {} : { avatarSrc: m.avatarUrl })}
-              />
-              <span className="contents touch:hidden">{joint}</span>
-            </li>
-          ))}
-          <li className="touch:hidden">
-            <PersonCard
-              layout="row"
-              selected
-              name="You"
-              description={me.title}
-              {...(me.avatarUrl === null ? {} : { avatarSrc: me.avatarUrl })}
-            />
-          </li>
-        </ol>
-        {line.peers === null || manager === undefined ? null : (
-          <p className="text-sm text-fg-muted">
-            {line.peers === 0
-              ? tr('home.people-home.nobody_else_reports_to', 'Nobody else reports to {{name}}.', {
-                  name: manager.name,
-                })
+      <List
+        aria-label={tr(
+          'home.people-home.your_managers_from_the_top',
+          'Your managers, from the top',
+        )}
+      >
+        {above.map((m, i) => (
+          <ListItem
+            key={m.id}
+            asChild
+            // Under a finger, only the manager: the one row a phone keeps.
+            className={i === above.length - 1 ? undefined : 'touch:hidden'}
+            leading={<Avatar size="md" name={m.name} src={m.avatarUrl ?? undefined} />}
+            description={
+              m.id === manager?.id
+                ? m.title == null || m.title === ''
+                  ? tr('home.people-home.your_manager', 'Your manager')
+                  : tr('home.people-home.your_manager_title', 'Your manager · {{title}}', {
+                      title: m.title,
+                    })
+                : (m.title ?? undefined)
+            }
+            chevron
+          >
+            <a href={`/people/${m.id}`}>{m.name}</a>
+          </ListItem>
+        ))}
+        <ListItem
+          selected
+          className="touch:hidden"
+          leading={<Avatar size="md" name={me.name} src={me.avatarUrl ?? undefined} />}
+          description={
+            line.peers === null || manager === undefined || line.peers === 0
+              ? (me.title ?? undefined)
               : tr(
                   'home.people-home.to',
                   {
@@ -845,10 +866,12 @@ function ReportingLine({
                     other: '{{count}} others report to {{first}}.',
                   },
                   { count: line.peers, first: first(manager.name) },
-                )}
-          </p>
-        )}
-      </Stack>
+                )
+          }
+        >
+          {tr('home.people-home.you', 'You')}
+        </ListItem>
+      </List>
     </Section>
   );
 }
@@ -861,12 +884,11 @@ function Team({
 }): JSX.Element {
   return (
     <Section
-      title={
-        <>
-          {tr('home.people-home.your_direct_reports', 'Your direct reports')}{' '}
-          <span className="font-normal text-fg-muted tabular-nums">{line.reportsTotal}</span>
-        </>
-      }
+      title={tr('home.people-home.direct_reports', 'Direct reports')}
+      icon={<icons.team aria-hidden />}
+      tone="chart-4"
+      meta={line.reportsTotal}
+      flush
       action={
         line.reportsFilter === null ? undefined : (
           <SeeAll href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}>
@@ -879,10 +901,7 @@ function Team({
         )
       }
     >
-      <List
-        aria-label={tr('home.people-home.your_direct_reports', 'Your direct reports')}
-        className="-mx-2 bg-transparent shadow-none"
-      >
+      <List aria-label={tr('home.people-home.your_direct_reports', 'Your direct reports')}>
         {line.reports.map((r) => (
           <ListItem
             key={r.id}
@@ -965,9 +984,12 @@ export function unusual(approvals: PeopleHomeState['approvals']): string | null 
 function HrHome({
   hr,
   state,
+  toDo,
 }: {
   readonly hr: NonNullable<PeopleHomeState['hr']>;
   readonly state: PeopleHomeState;
+  /** The host's To do, first in the grid beside what needs HR. */
+  readonly toDo?: ReactNode;
 }): JSX.Element {
   const approvals = state.approvals;
   const team = state.team;
@@ -1145,7 +1167,8 @@ function HrHome({
   const me = state.me;
   return (
     <Stack gap={4}>
-      <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4">
+      {/* The records' figures: tiles of one size, never stretched to the row. */}
+      <WidgetGrid size="sm">
         {headcount === null ? null : (
           <Figure
             href="/people/insights/headcount"
@@ -1209,10 +1232,16 @@ function HrHome({
             className="touch:hidden"
           />
         )}
-      </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+      </WidgetGrid>
+      <WidgetGrid>
+        {toDo}
         <Section
           title={tr('home.people-home.needs_hr', 'Needs HR')}
+          icon={<icons.review aria-hidden />}
+          tone="warning"
+          {...(needs.length === 0 ? {} : { meta: needs.length })}
+          span={2}
+          flush={needs.length > 0}
           action={
             <SeeAll href="/people/review/waiting">
               {tr('home.people-home.open_review', 'Open Review')}
@@ -1228,69 +1257,75 @@ function HrHome({
               )}
             />
           ) : (
-            <List
-              aria-label={tr('home.people-home.needs_hr', 'Needs HR')}
-              className="-mx-2 bg-transparent shadow-none"
-            >
-              {needs}
-            </List>
+            <List aria-label={tr('home.people-home.needs_hr', 'Needs HR')}>{needs}</List>
           )}
         </Section>
-        <Stack gap={4}>
-          {hr.starting.length === 0 ? null : (
-            <Section
-              title={tr('home.people-home.starting_soon', 'Starting soon')}
-              action={
-                <SeeAll href="/people/directory/list">
-                  {tr('home.people-home.directory', 'Directory')}
-                </SeeAll>
-              }
-            >
-              <List
-                aria-label={tr('home.people-home.starting_soon', 'Starting soon')}
-                className="-mx-2 bg-transparent shadow-none"
-              >
-                {hr.starting.map((p) => (
-                  <ListItem
-                    key={p.id}
-                    asChild
-                    leading={<Avatar size="lg" name={p.name} src={p.avatarUrl ?? undefined} />}
-                    description={p.detail}
-                    trailing={
-                      p.missing === null || p.missing === 0 ? (
-                        <Badge size="sm" tone="success">
-                          {tr('home.people-home.ready', 'Ready')}
-                        </Badge>
-                      ) : (
-                        <MissingMark count={p.missing} />
-                      )
-                    }
-                  >
-                    <a href={`/people/${p.id}`}>{p.name}</a>
-                  </ListItem>
-                ))}
-              </List>
-            </Section>
-          )}
-          {hr.joiners.length === 0 ? null : (
-            <Section
-              title={tr('home.people-home.joiners_by_month', 'Joiners by month')}
-              className="touch:hidden"
-            >
-              <BarChart
-                data={hr.joiners}
-                label={tr(
-                  'home.people-home.people_who_joined_by_month',
-                  'People who joined, by month',
-                )}
-                height={120}
-                showValues
-              />
-            </Section>
-          )}
-          {me === null ? null : (
-            // HR's own record, which the old overview left out.
-            <Card variant="outlined" padded className="flex items-center gap-2.5 touch:hidden">
+        {hr.starting.length === 0 ? null : (
+          <Section
+            title={tr('home.people-home.starting_soon', 'Starting soon')}
+            icon={<icons.hire aria-hidden />}
+            tone="success"
+            meta={hr.starting.length}
+            flush
+            action={
+              <SeeAll href="/people/directory/list">
+                {tr('home.people-home.directory', 'Directory')}
+              </SeeAll>
+            }
+          >
+            <List aria-label={tr('home.people-home.starting_soon', 'Starting soon')}>
+              {hr.starting.map((p) => (
+                <ListItem
+                  key={p.id}
+                  asChild
+                  leading={<Avatar size="lg" name={p.name} src={p.avatarUrl ?? undefined} />}
+                  description={p.detail}
+                  trailing={
+                    p.missing === null || p.missing === 0 ? (
+                      <Badge size="sm" tone="success">
+                        {tr('home.people-home.ready', 'Ready')}
+                      </Badge>
+                    ) : (
+                      <MissingMark count={p.missing} />
+                    )
+                  }
+                >
+                  <a href={`/people/${p.id}`}>{p.name}</a>
+                </ListItem>
+              ))}
+            </List>
+          </Section>
+        )}
+        {hr.joiners.length === 0 ? null : (
+          <Section
+            title={tr('home.people-home.joiners_by_month', 'Joiners by month')}
+            icon={<icons.analytics aria-hidden />}
+            tone="chart-1"
+            className="touch:hidden"
+          >
+            <BarChart
+              data={hr.joiners}
+              label={tr(
+                'home.people-home.people_who_joined_by_month',
+                'People who joined, by month',
+              )}
+              height={120}
+              showValues
+            />
+          </Section>
+        )}
+        {me === null ? null : (
+          // HR's own record, which the old overview left out.
+          <Section
+            title={tr('home.people-home.your_profile', 'Your profile')}
+            icon={<icons.person aria-hidden />}
+            tone="chart-2"
+            className="touch:hidden"
+            action={
+              <SeeAll href="/people/me">{tr('home.people-home.my_profile', 'My profile')}</SeeAll>
+            }
+          >
+            <div className="flex items-center gap-2.5">
               <Avatar size="sm" name={me.name} src={me.avatarUrl ?? undefined} />
               <p className="min-w-0 flex-1 text-sm text-fg-muted">
                 {tr('home.people-home.your_own_record_is', 'Your own record is')}{' '}
@@ -1306,11 +1341,10 @@ function HrHome({
                       })}
                 </b>
               </p>
-              <SeeAll href="/people/me">{tr('home.people-home.my_profile', 'My profile')}</SeeAll>
-            </Card>
-          )}
-        </Stack>
-      </div>
+            </div>
+          </Section>
+        )}
+      </WidgetGrid>
     </Stack>
   );
 }
@@ -1540,41 +1574,43 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
             )}
             {hrFigures !== null ? (
               <>
-                {toDo === undefined || toDo.tasks.length === 0 ? null : (
-                  <HostList toDo={{ ...toDo, waiting: [] }} />
-                )}
-                <HrHome hr={hrFigures} state={state} />
+                <HrHome
+                  hr={hrFigures}
+                  state={state}
+                  toDo={
+                    toDo === undefined || toDo.tasks.length === 0 ? undefined : (
+                      <HostList toDo={{ ...toDo, waiting: [] }} />
+                    )
+                  }
+                />
               </>
             ) : me === null ? null : (
-              <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-                <Stack gap={4}>
-                  {/* Under a finger, who they are is one row above the list (MA B1). */}
-                  <a
-                    href="/people/me"
-                    className="hidden items-center gap-3.5 rounded-lg touch:flex focus-visible:outline-2 focus-visible:outline-border-focus"
-                  >
-                    <Avatar size="2xl" name={me.name} src={me.avatarUrl ?? undefined} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-display text-xl font-bold">{me.name}</span>
-                      <span className="block text-sm text-fg-muted">
-                        {[me.title, me.location, time]
-                          .filter((x) => x !== null && x !== '')
-                          .join(' · ')}
-                      </span>
+              // A dashboard of widgets, each as wide as what it holds.
+              <WidgetGrid>
+                {/* Under a finger, who they are is one row above the list (MA B1). */}
+                <a
+                  href="/people/me"
+                  className="hidden items-center gap-3.5 rounded-lg touch:flex focus-visible:outline-2 focus-visible:outline-border-focus"
+                >
+                  <Avatar size="2xl" name={me.name} src={me.avatarUrl ?? undefined} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-xl font-bold">{me.name}</span>
+                    <span className="block text-sm text-fg-muted">
+                      {[me.title, me.location, time]
+                        .filter((x) => x !== null && x !== '')
+                        .join(' · ')}
                     </span>
-                  </a>
-                  {toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />}
-                </Stack>
-                <Stack gap={4}>
-                  <div className="touch:hidden">
-                    <Identity me={me} now={state.now} />
-                  </div>
-                  {reportingLine === null ? null : <ReportingLine line={reportingLine} me={me} />}
-                  {reportingLine === null || reportingLine.reportsTotal === 0 ? null : (
-                    <Team line={reportingLine} />
-                  )}
-                </Stack>
-              </div>
+                  </span>
+                </a>
+                {toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />}
+                <div className="touch:hidden">
+                  <Identity me={me} now={state.now} />
+                </div>
+                {reportingLine === null ? null : <ReportingLine line={reportingLine} me={me} />}
+                {reportingLine === null || reportingLine.reportsTotal === 0 ? null : (
+                  <Team line={reportingLine} />
+                )}
+              </WidgetGrid>
             )}
           </Stack>
         );

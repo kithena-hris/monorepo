@@ -52,7 +52,8 @@ describe('Home, as an employee (B1)', () => {
     const { container } = render(<PeopleHome load={ready(employee())} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Hi Ada' })).toBeInTheDocument();
     expect(screen.getByText(/^Sunday 27 September · 11:30 in Madrid office$/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Ada Lovelace' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
+    expect(within(part('Your profile')).getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Engineer · Research · Madrid office')).toBeInTheDocument();
     expect(screen.getByText(/4 Mar 2024 · 2 years, 6 months/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View your profile' })).toHaveAttribute(
@@ -156,7 +157,8 @@ describe('Home, as an employee (B1)', () => {
       '/people/directory/org-chart',
     );
     expect(within(line).getByText(/3 others report to Alan/)).toBeInTheDocument();
-    const team = part('Your direct reports 8');
+    const team = part('Direct reports');
+    expect(within(team).getByText('8')).toBeInTheDocument();
     expect(within(team).getByRole('link', { name: 'Show all 8' })).toHaveAttribute(
       'href',
       `/people/directory/list?filter=${encodeURIComponent(`manager_id:${ADA}`)}`,

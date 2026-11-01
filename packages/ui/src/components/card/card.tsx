@@ -101,7 +101,15 @@ export function Card({
   tone,
   ...props
 }: CardProps): JSX.Element {
-  return <div className={cn(card({ variant, padded, interactive, tone }), className)} {...props} />;
+  // A white card is a surface: a `List` inside it is its body, not a card of its own.
+  const surface = variant !== 'fill' && variant !== 'sunken' && variant !== 'bare';
+  return (
+    <div
+      className={cn(card({ variant, padded, interactive, tone }), className)}
+      {...(surface ? { 'data-surface': '' } : {})}
+      {...props}
+    />
+  );
 }
 
 export function CardHeader({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
