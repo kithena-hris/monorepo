@@ -2858,7 +2858,6 @@
   "settings.organisation.scheduled": "Pianificato",
   "settings.organisation.search_org_units": "Cerca unità organizzative",
   "settings.organisation.search_time_zones": "Cerca fusi orari",
-  "settings.organisation.set_the_numbering_of": "Imposta la numerazione di {{name}}",
   "settings.organisation.signs_in_at_named_by_the": "Accesso su {{slug}}. Denominata dal back office e modificata lì.",
   "settings.organisation.smallest_group_shown_in_reports": "Gruppo più piccolo mostrato nei report",
   "settings.organisation.spain_labour_records": "Spagna, registri del lavoro",

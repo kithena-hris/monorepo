@@ -2769,7 +2769,6 @@
   "settings.organisation.scheduled": "அட்டவணையிடப்பட்டது",
   "settings.organisation.search_org_units": "நிறுவன அலகுகளைத் தேடவும்",
   "settings.organisation.search_time_zones": "நேர மண்டலங்களைத் தேடவும்",
-  "settings.organisation.set_the_numbering_of": "{{name}} இன் எண்ணிடலை அமைக்கவும்",
   "settings.organisation.signs_in_at_named_by_the": "{{slug}} இல் உள்நுழைகிறது. பின்னலுவலகம் பெயரிட்டது, அங்கேயே மாற்றப்படும்.",
   "settings.organisation.smallest_group_shown_in_reports": "அறிக்கைகளில் காட்டப்படும் சிறிய குழு",
   "settings.organisation.spain_labour_records": "ஸ்பெயின், தொழிலாளர் பதிவுகள்",

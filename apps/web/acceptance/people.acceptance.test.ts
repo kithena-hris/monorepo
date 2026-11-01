@@ -635,7 +635,6 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     await page.waitForURL(/\/settings\/people\/organisation$/);
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('tab', { name: 'Locations' }).click();
     await page.getByRole('button', { name: 'Add location' }).click();
     const dialog = page.getByRole('dialog', { name: 'Add a location' });
     await dialog.getByRole('textbox', { name: /Name/ }).fill('Pago Pago office');
@@ -1205,7 +1204,7 @@ describe('PEO-122: what is about to expire, to whom', () => {
     const numbers = async (session: string): Promise<string> => {
       const context = await signedIn(session);
       const page = await context.newPage();
-      await page.goto(`${stack.shell}/people/insights/data-quality`);
+      await page.goto(`${stack.shell}/people/insights/workforce`);
       // The innermost section holding the heading: ancestors come first.
       const section = page
         .locator('section', { has: page.getByRole('heading', { name: 'What expires next' }) })

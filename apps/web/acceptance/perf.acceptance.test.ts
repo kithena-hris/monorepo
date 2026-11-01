@@ -625,11 +625,9 @@ describe(`Every page at ${String(N)} people`, () => {
       '/people/insights/what-changed',
       page.locator('[data-remote="people"] h1'),
     );
-    for (const tab of ['headcount', 'turnover', 'data-quality', 'pay']) {
-      await clickToPaint(page, `insights → ${tab}`, link(page, `/people/insights/${tab}`), {
-        path: new RegExp(`/people/insights/${tab}`),
-      });
-    }
+    await clickToPaint(page, 'insights → workforce', link(page, '/people/insights/workforce'), {
+      path: /\/people\/insights\/workforce/,
+    });
     await clickToPaint(page, 'insights → import & export', link(page, '/people/import-export'), {
       path: /\/people\/import-export/,
     });

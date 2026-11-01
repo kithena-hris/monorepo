@@ -11171,6 +11171,10 @@
     "text": "Not saved",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, OrgUnitDialog: the title of <Alert>."
   },
+  "settings.organisation.numbering_action_of": {
+    "text": "{{action}}: {{name}}",
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: the aria-label of <Button>. Filled in: {{action}}, {{name}}."
+  },
   "settings.organisation.numbers_are_zero_padded_to_this": {
     "text": "Numbers are zero-padded to this width, and grow past it rather than wrap.",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, EditDialog: the hint of <NumberField>."
@@ -11271,10 +11275,6 @@
     "text": "Search time zones",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, ZonePicker: the searchPlaceholder of <Combobox>."
   },
-  "settings.organisation.set_the_numbering_of": {
-    "text": "Set the numbering of {{name}}",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: the aria-label of <Button>. Filled in: {{name}}."
-  },
   "settings.organisation.signs_in_at_named_by_the": {
     "text": "Signs in at {{slug}}. Named by the back office, and changed there.",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Company: text inside <FieldDescription>. Filled in: {{slug}}."
@@ -11289,7 +11289,7 @@
   },
   "settings.organisation.start_numbering": {
     "text": "Start numbering",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: text inside <Button>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: the aria-label of <Button>."
   },
   "settings.organisation.status": {
     "text": "Status",

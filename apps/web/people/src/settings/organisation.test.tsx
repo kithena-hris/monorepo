@@ -227,7 +227,7 @@ describe('the organisation settings (PEO-119)', () => {
     render(<Organisation {...p} />);
     const user = fast();
     expect(screen.getByRole('cell', { name: 'ES-00042' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Set the numbering of Acme Iberia SL' }));
+    await user.click(screen.getByRole('button', { name: 'Change: Acme Iberia SL' }));
     const dialog = screen.getByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(p.onSetNumbering).toHaveBeenCalledWith(ACME, { prefix: 'ES-', digits: 5, start: 42 });
@@ -379,7 +379,7 @@ describe('the organisation settings (PEO-119)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('lists no automated erasures to anybody People sent none', async () => {
+  it('lists no automated erasures to anybody People sent none', () => {
     render(<Organisation {...props()} />);
     expect(screen.queryByRole('table', { name: 'Upcoming automated erasures' })).toBeNull();
     expect(screen.queryByText('Automated erasure')).toBeNull();

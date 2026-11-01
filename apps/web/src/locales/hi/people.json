@@ -2769,7 +2769,6 @@
   "settings.organisation.scheduled": "शेड्यूल किया गया",
   "settings.organisation.search_org_units": "संगठन इकाइयाँ खोजें",
   "settings.organisation.search_time_zones": "टाइम ज़ोन खोजें",
-  "settings.organisation.set_the_numbering_of": "{{name}} की नंबरिंग सेट करें",
   "settings.organisation.signs_in_at_named_by_the": "{{slug}} पर साइन इन करता है। बैक ऑफ़िस द्वारा नामित, और वहीं बदला जाता है।",
   "settings.organisation.smallest_group_shown_in_reports": "रिपोर्ट में दिखाया जाने वाला सबसे छोटा समूह",
   "settings.organisation.spain_labour_records": "स्पेन, श्रम रिकॉर्ड",

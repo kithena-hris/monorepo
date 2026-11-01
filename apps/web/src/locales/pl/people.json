@@ -2972,7 +2972,6 @@
   "settings.organisation.scheduled": "Zaplanowano",
   "settings.organisation.search_org_units": "Szukaj jednostek",
   "settings.organisation.search_time_zones": "Szukaj stref czasowych",
-  "settings.organisation.set_the_numbering_of": "Ustaw numerację: {{name}}",
   "settings.organisation.signs_in_at_named_by_the": "Logowanie pod adresem {{slug}}. Nazwę nadaje i zmienia zaplecze administracyjne.",
   "settings.organisation.smallest_group_shown_in_reports": "Najmniejsza grupa w raportach",
   "settings.organisation.spain_labour_records": "Hiszpania, dokumentacja pracownicza",

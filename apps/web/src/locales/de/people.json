@@ -2733,7 +2733,6 @@
   "settings.organisation.scheduled": "Geplant",
   "settings.organisation.search_org_units": "Organisationseinheiten suchen",
   "settings.organisation.search_time_zones": "Zeitzonen suchen",
-  "settings.organisation.set_the_numbering_of": "Nummerierung von {{name}} festlegen",
   "settings.organisation.signs_in_at_named_by_the": "Anmeldung unter {{slug}}. Vom Backoffice benannt und dort geändert.",
   "settings.organisation.smallest_group_shown_in_reports": "Kleinste in Berichten angezeigte Gruppe",
   "settings.organisation.spain_labour_records": "Spanien, Personalunterlagen",

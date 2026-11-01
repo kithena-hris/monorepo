@@ -2876,7 +2876,6 @@
   "settings.organisation.scheduled": "Programado",
   "settings.organisation.search_org_units": "Buscar unidades organizativas",
   "settings.organisation.search_time_zones": "Buscar zonas horarias",
-  "settings.organisation.set_the_numbering_of": "Configurar la numeración de {{name}}",
   "settings.organisation.signs_in_at_named_by_the": "Inicia sesión en {{slug}}. La nombra el back office y se cambia allí.",
   "settings.organisation.smallest_group_shown_in_reports": "Grupo más pequeño mostrado en los informes",
   "settings.organisation.spain_labour_records": "España, registros laborales",

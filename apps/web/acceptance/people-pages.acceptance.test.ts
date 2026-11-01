@@ -174,8 +174,8 @@ describe('People overview: who you are here, what needs you, what is missing', (
     const page = await context.newPage();
     await page.goto(`${stack.shell}/`);
     await page.getByRole('heading', { level: 1, name: /^Hi / }).waitFor({ timeout: 30_000 });
-    // Who he is here, in the card beside his To do list.
-    await page.getByRole('heading', { level: 2, name: adamName }).waitFor();
+    // Who he is here, in the widget beside his To do list.
+    await titled(page, 'Your profile').getByText(adamName, { exact: true }).waitFor();
     await page.waitForLoadState('networkidle');
     await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
     // His To do is the Inbox's first rows: what his record still needs is one
@@ -575,7 +575,7 @@ describe('Moving between People’s sections, tabs and views', () => {
     if (out !== undefined) {
       for (const [to, ms] of moves) appendFileSync(out, `${to} ${String(ms)}\n`);
     }
-    expect(moves).toHaveLength(10);
+    expect(moves).toHaveLength(9);
     expect(
       await page.evaluate(() => (window as unknown as { skeletons: string[] }).skeletons),
     ).toEqual([]);

@@ -1142,10 +1142,17 @@ function Numberings({
                 <TableCell>
                   <Button
                     size="sm"
+                    // The visible word first, so the name said is the name seen.
                     aria-label={tr(
-                      'settings.organisation.set_the_numbering_of',
-                      'Set the numbering of {{name}}',
-                      { name: entity.name },
+                      'settings.organisation.numbering_action_of',
+                      '{{action}}: {{name}}',
+                      {
+                        action:
+                          scheme === undefined
+                            ? tr('settings.organisation.start_numbering', 'Start numbering')
+                            : tr('settings.organisation.change', 'Change'),
+                        name: entity.name,
+                      },
                     )}
                     onClick={() => {
                       onEdit({ kind: 'numbering', entity });

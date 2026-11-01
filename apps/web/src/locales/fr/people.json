@@ -2832,7 +2832,6 @@
   "settings.organisation.scheduled": "Planifié",
   "settings.organisation.search_org_units": "Rechercher une unité",
   "settings.organisation.search_time_zones": "Rechercher un fuseau horaire",
-  "settings.organisation.set_the_numbering_of": "Définir la numérotation de {{name}}",
   "settings.organisation.signs_in_at_named_by_the": "Connexion sur {{slug}}. Nommée par le back-office, et modifiée là-bas.",
   "settings.organisation.smallest_group_shown_in_reports": "Plus petit groupe affiché dans les rapports",
   "settings.organisation.spain_labour_records": "Espagne, dossiers du personnel",

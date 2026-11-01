@@ -91,6 +91,9 @@ import {
   ToggleGroup,
   ToggleGroupItem,
   VirtualList,
+  Widget,
+  WidgetGrid,
+  icons,
   type ColumnChooserValue,
   type ComboboxOption,
   type FilterGroup,
@@ -665,6 +668,58 @@ const stat: DocPage = {
   ],
 };
 
+const widget: DocPage = {
+  slug: 'widget',
+  title: 'Widget',
+  description: 'A titled card on a dashboard, as wide as what it holds.',
+  when: 'A dashboard is a `WidgetGrid`: columns of one fixed width, as many as the page holds, and the rest of the row left empty. Nothing stretches because the window is wide. A widget spans one to four columns; a list or a table inside it is its body, flush to its edges.',
+  importLine: "import { Widget, WidgetGrid, widgetSpan } from '@reach/ui';",
+  sections: [
+    {
+      id: 'dashboard',
+      title: 'A dashboard',
+      render: () => (
+        <WidgetGrid className="w-full">
+          <Widget
+            title="Requests"
+            icon={<icons.inbox aria-hidden />}
+            tone="accent"
+            meta="3"
+            span={2}
+          >
+            <p className="text-sm text-fg-muted">Three requests are waiting for a decision.</p>
+          </Widget>
+          <Widget title="Away today" icon={<icons.vacation aria-hidden />} tone="success" meta="2">
+            <p className="text-sm text-fg-muted">Two people are on leave.</p>
+          </Widget>
+        </WidgetGrid>
+      ),
+      code: `<WidgetGrid>
+  <Widget title="Requests" icon={<icons.inbox aria-hidden />} meta="3" span={2} flush>
+    <List>…</List>
+  </Widget>
+  <Widget title="Away today" icon={<icons.vacation aria-hidden />} meta="2">…</Widget>
+</WidgetGrid>`,
+    },
+    {
+      id: 'tiles',
+      title: 'Tiles of one size',
+      render: () => (
+        <WidgetGrid size="sm" className="w-full">
+          <Stat label="Headcount" value="1,284" />
+          <Stat label="Open requests" value="37" />
+          <Stat label="Average tenure" value="3.4 yrs" />
+        </WidgetGrid>
+      ),
+      code: `{/* One figure each: the narrow column, every tile the same width. */}
+<WidgetGrid size="sm">
+  <Stat label="Headcount" value="1,284" />
+  <Stat label="Open requests" value="37" />
+</WidgetGrid>`,
+    },
+  ],
+};
+
 const money: DocPage = {
   slug: 'money',
   title: 'Money',
@@ -823,12 +878,27 @@ const chatPage: DocPage = {
             <ChatMessage from="self" author="You">
               Who is on the design team?
             </ChatMessage>
-            <ChatMessage from="other" author="Assistant" avatar={<Avatar size="sm" name="Assistant" />}>
-              {'Sure! Three people are on the design team:\n• Ada Lovelace\n• Grace Hopper\n• Alan Kay'}
+            <ChatMessage
+              from="other"
+              author="Assistant"
+              avatar={<Avatar size="sm" name="Assistant" />}
+            >
+              {
+                'Sure! Three people are on the design team:\n• Ada Lovelace\n• Grace Hopper\n• Alan Kay'
+              }
             </ChatMessage>
-            <ChatMessage from="other" author="Assistant" avatar={<Avatar size="sm" name="Assistant" />} pending />
+            <ChatMessage
+              from="other"
+              author="Assistant"
+              avatar={<Avatar size="sm" name="Assistant" />}
+              pending
+            />
           </ChatLog>
-          <ChatComposer label="Ask a question" placeholder="Ask anything…" onSend={() => undefined} />
+          <ChatComposer
+            label="Ask a question"
+            placeholder="Ask anything…"
+            onSend={() => undefined}
+          />
         </div>
       ),
       code: `<ChatLog label="Conversation with the assistant">
@@ -1447,4 +1517,5 @@ export const MORE_PAGES: readonly DocPage[] = [
   toggle,
   typedFields,
   virtualList,
+  widget,
 ];
