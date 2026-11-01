@@ -20,6 +20,19 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 - **Sticky bars are solid.** A page's header and toolbar hide what scrolls under them rather than blurring it; glass is for what floats over the page (the phone's tab bar), not for bars the page passes beneath.
 - **The directory's quick look opens on a click**, never by itself: until then the table has the page's width.
 
+## Widgets and cards
+
+- **A dashboard is a `WidgetGrid`**: columns of one fixed width (19rem, or 13rem for one-figure tiles with `size="sm"`), as many as the page holds, and the rest of the row left empty. Nothing grows because the window is wide. A `Widget` spans one to four columns by what it holds (`span`), falling back to fewer where the container is narrower; anything else laid out beside widgets (a `ChartCard`, an assistant card) takes `widgetSpan(n)`.
+- **A figure is a `Stat` tile on `WidgetGrid size="sm"`**, all tiles one size, with an icon. A trend is a chart, never a sentence.
+- **A widget is a card with a header**: an icon in a tinted tile, the title (wrapped, never cut), a count or state as `meta`, and one way on. A list or a table inside it is its body, flush to its edges (`flush`); a card never holds a second card. `Card`, a surfaced `PageSection` and `Widget` mark themselves `data-surface`, and `List` and `Table` drop their own card inside one.
+- **A table's card is as wide as its columns**, not as wide as the page.
+- **Every titled group on a page is a card.** One column only where several would not read better; a profile's sections sit two to a row on a wide page.
+
+## Navigation
+
+- **Few places, few tabs, formal names.** At most three tabs a section, named as nouns with no first person (Pending, Upcoming, History; Assigned, Received, Completed), and a section with one view draws no tab row. Anything that is not one of a section's views is a page of its own in the header's More menu (manifest actions with `menu: true`). The places of every module are listed in `docs/redesign-2026-11.md`.
+- **A page is one page, not a set of tabs.** Insights, Recruiting's Analytics and People's Organisation settings draw every part on one page; an address that names a part scrolls to it. Integrations is a directory whose cards open each integration as a page of its own, with one way back.
+
 ## Headers stay lean
 
 - A page header holds a title, its status as `meta`, at most one primary action (`variant="primary"`), at most one secondary decision, and a `MoreMenu` (`apps/web/recruiting/src/shared.tsx`) for everything else.
@@ -71,13 +84,13 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 ## Time Off
 
 - **Five places, by who uses them.** Overview (everyone), Approvals (managers and HR), Calendar (everyone), Attendance (everyone), Insights (managers and HR). An employee sees three.
-- **At most three tabs, in fixed places.** Approvals: Waiting, Coming up, Decided. Calendar: Month, Timeline, Year. Attendance: Today (managers, HR), My week, Exceptions (HR). A section with one tab draws no tab row. `routes.test.tsx` holds the limit.
+- **At most three tabs, in fixed places.** Approvals: Pending, Upcoming, History. Calendar: Month, Timeline, Year. Attendance: Live (managers, HR), Timesheet, Exceptions (HR). A section with one tab draws no tab row. `routes.test.tsx` holds the limit.
 - **One header per section.** Every tab of a section shows the section's title and its one line from `routes.json` (`Header` in `frame.tsx`), so switching tabs never moves the tabs. What a view adds ("Week of 28 Sept · 40h scheduled", an export) sits in a row under the tabs, never in the header.
 - **What is not the page's one thing goes under More.** Delegate approvals, Adjust a balance, Parental leave cases; Overtime and corrections, Kiosk code, Close the pay period: manifest actions with `menu: true`, drawn as the header's More menu. Each opens a page of its own, which carries its own title.
 - **Your requests is one list**, `/time-off/requests`, with Upcoming, Past and Cancelled as a switch over it (`?show=`), reached from Overview's Coming up.
-- **Overview leads with the balances**, the page's width. Under them: Coming up and the team on the left; the clock and the days worth taking on the right.
+- **Overview leads with the balances**, tiles of one size in a row that scrolls rather than stretches. Under them, a widget grid: the clock, the days worth taking, Coming up and Team today.
 - **Insights is one page**, read top to bottom: what changed, then time off, attendance and balances, each section named for what it measures.
-- **One way through time** (`PeriodNav` in `period.tsx`): "Today ‹ › October 2026" at the start of the page's one toolbar row, on the calendar, My week, Exceptions and Pay period alike. What filters the view (whose time off, which holidays, week or month) and what leaves it (a feed, an export) share that row, at its end.
+- **One way through time** (`PeriodNav` in `period.tsx`): "Today ‹ › October 2026" at the start of the page's one toolbar row, on the calendar, Timesheet, Exceptions and Pay period alike. What filters the view (whose time off, which holidays, week or month) and what leaves it (a feed, an export) share that row, at its end.
 - **A count is a filter.** Today's In, On a break, Not in yet and Away are one switch with their counts that narrows the list (`?show=`), not four tiles beside it.
 - **The decision where the eye lands.** On a request waiting for you, Approve, Suggest other dates and Decline sit under the person at a desk and at the foot of a phone, and What to know comes before the team it summarises.
 - **The request panel** puts the types beside the dates at a desk; under a finger it is a step at a time.

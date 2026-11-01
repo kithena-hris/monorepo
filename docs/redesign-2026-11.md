@@ -42,25 +42,34 @@ are open to it.
 ## Navigation, by module
 
 **People**: Directory · Review (Pending · Flagged · Submitted · History) ·
-Import and export · Insights (one page, no tabs).
+Import and export · Insights (Summary · Workforce, each one page).
 
 **Time Off**: Overview · Approvals (Pending · Upcoming · History) ·
 Calendar (Month · Timeline · Year) · Attendance (Live · Timesheet ·
 Exceptions) · Insights.
 
 **Performance**: Overview · Reviews (Assigned · Received · Completed) ·
-Cycles (calibration, form templates, automations and unlock requests in its
-More menu) · Feedback (Received · Given · Requests; recognition and private
-notes in its More menu) · Goals (Personal · Team · Company) · Learning
-(Enrolled · Catalogue · Sessions).
+Feedback (Received · Given · Requests) · Goals (Personal · Team · Company) ·
+Learning (Enrolled · Catalogue · Sessions) · Cycles · Calibration. Recognition,
+private notes, unlock requests, form templates and automations are in the
+header's More menu.
 
-**Recruiting**: Overview · Jobs (Open roles · Requisitions) · Candidates
-(Candidates · Talent pools) · Interviews · Offers · Analytics. The internal
+**Recruiting**: Overview · Jobs (All jobs · Requisitions) · Candidates
+(All candidates · Talent pools) · Interviews · Offers · Analytics (one
+dashboard: figures, six charts, Build a chart and Fairness on one page, where
+it had seven tabs). The internal
 job board and agencies are in the More menu.
 
 **Onboarding**: Overview · Tasks · Templates · Analytics.
 
 **Documents**: Documents.
+
+## Settings
+
+People's Organisation settings had eight tabs; they are one page, every part a
+card, and an address naming a part scrolls to it. Integrations dropped its tab
+row: the directory of integrations is the page, and each card opens that
+integration as a page of its own with a way back.
 
 ## Pages
 
