@@ -2,9 +2,7 @@
 
 import { Spinner } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
-import { preloadModule } from 'react-dom';
 
-import { openTaskScreen } from '../../app/(app)/inbox/actions';
 import type { TaskScreen } from '../../lib/inbox/task-screen';
 import { t } from '../../lib/t';
 import {
@@ -16,6 +14,7 @@ import {
 } from '../act-screen';
 import { DocumentsScreen } from '../documents-screen';
 import { FramePane } from './frame-pane';
+import { addressOf, prefetchTaskScreen } from './task-screen-cache';
 
 const ACT_SCREENS: Readonly<
   Record<Exclude<TaskScreen['area'], 'documents'>, (props: ActScreenProps) => JSX.Element>
@@ -24,39 +23,6 @@ const ACT_SCREENS: Readonly<
   performance: PerformanceScreen,
   recruiting: RecruitingScreen,
 };
-
-/** A link as the screen's read keeps it: path and query. */
-const addressOf = (link: string): string => {
-  const url = new URL(link, 'http://inbox');
-  return `${url.pathname}${url.search}`;
-};
-
-/**
- * Each task's screen, asked for once and kept until the Inbox is read again
- * (a write): opened, it draws from what is here. Asked for ahead, as a pointer
- * rests on a row or while the browser is idle, with the screen's code.
- */
-const asked = new Map<string, Promise<TaskScreen | null>>();
-
-export function prefetchTaskScreen(link: string): Promise<TaskScreen | null> {
-  const address = addressOf(link);
-  let screen = asked.get(address);
-  if (screen === undefined) {
-    screen = openTaskScreen(address).then((s) => {
-      if (s !== null) preloadModule(s.route.entry);
-      return s;
-    });
-    asked.set(address, screen);
-    // A failure is asked again next time.
-    screen.catch(() => asked.delete(address));
-  }
-  return screen;
-}
-
-/** The Inbox was read again: every kept screen may be out of date. */
-export function forgetTaskScreens(): void {
-  asked.clear();
-}
 
 /**
  * A task done in the pane: the page its link (or a link in its body) names,

@@ -7,6 +7,7 @@ import {
   Button,
   ChatLog,
   ChatMessage,
+  Spinner,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -29,6 +30,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type ComponentProps,
   type JSX,
   type ReactNode,
 } from 'react';
@@ -46,8 +48,30 @@ import { PeopleBody } from './detail-people';
 import { PerformanceBody } from './detail-performance';
 import { RecruitingBody } from './detail-recruiting';
 import { TimeOffBody } from './detail-timeoff';
-import { TaskScreenPane } from './task-screen';
 import { t } from '../../lib/t';
+
+// A task's own page in the pane, with every module's screen wrapper: fetched when one opens.
+const LazyTaskScreenPane = lazy(() =>
+  import('./task-screen').then((m) => ({ default: m.TaskScreenPane })),
+);
+
+function TaskScreenPane(props: ComponentProps<typeof LazyTaskScreenPane>): JSX.Element {
+  return (
+    <Suspense
+      fallback={
+        <div className="grid min-h-48 place-items-center">
+          <Spinner
+            label={t('components.inbox.task-screen.opening', 'Opening {{openIn}}', {
+              openIn: props.label,
+            })}
+          />
+        </div>
+      }
+    >
+      <LazyTaskScreenPane {...props} />
+    </Suspense>
+  );
+}
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const SnoozeDialog = lazy(() =>

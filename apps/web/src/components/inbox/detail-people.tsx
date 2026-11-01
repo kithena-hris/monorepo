@@ -57,7 +57,6 @@ import {
   documentFile,
   moveToDone,
   nudgeChange,
-  recordGaps,
   replyToAsk,
   takeTask,
   tick,
@@ -70,6 +69,7 @@ import {
   saveOwnSection,
   savePersonSection,
 } from '../../app/(app)/people/actions';
+import { recordGaps } from '../../app/(app)/inbox/pane-actions';
 import { Actions, type BodyProps, Inline, OpenHere, useOpenHereClick } from './pane';
 import { ConfirmDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';

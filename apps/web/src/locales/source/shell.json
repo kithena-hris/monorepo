@@ -3133,7 +3133,7 @@
   },
   "components.inbox.task-screen.opening": {
     "text": "Opening {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/task-screen.tsx, Wait: the label of <Spinner>. Filled in: {{openIn}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, TaskScreenPane: the label of <Spinner>. Filled in: {{openIn}}."
   },
   "components.kiosk-shell.hr_may_have_revoked_it_register": {
     "text": "HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations, and paste the new token here.",

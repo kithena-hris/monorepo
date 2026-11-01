@@ -84,7 +84,7 @@ import {
 import { Waking } from '../waking';
 import { InboxDetail } from './detail';
 import { forgetGaps, prefetchGaps } from './detail-people';
-import { forgetTaskScreens, prefetchTaskScreen } from './task-screen';
+import { forgetTaskScreens, prefetchTaskScreen } from './task-screen-cache';
 import { opensScreen } from '../../lib/inbox/opens-screen';
 import { BulkDecideDialog, type Candidate } from './dialogs';
 import { InboxRow } from './rows';
@@ -251,8 +251,11 @@ function Screen({
     return (id: string): void => {
       const i = byId.get(id);
       if (i === undefined) return;
-      if (opensScreen(i)) void prefetchTaskScreen(i.link);
-      else if (i.kind === 'people.setup') void prefetchGaps(i.id.replace(/^people:setup:/u, ''));
+      if (opensScreen(i)) {
+        void prefetchTaskScreen(i.link);
+        // And the pane's own code, fetched now rather than on the press.
+        void import('./task-screen');
+      } else if (i.kind === 'people.setup') void prefetchGaps(i.id.replace(/^people:setup:/u, ''));
     };
   }, [read.items]);
   // Before the pane reads again (its effects run before this list's): a read
