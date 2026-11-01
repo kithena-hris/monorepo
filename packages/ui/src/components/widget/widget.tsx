@@ -62,6 +62,15 @@ const SPAN = {
   },
 } as const;
 
+/**
+ * The classes that make anything in a `WidgetGrid` span `span` columns where
+ * the grid has them: for a card that is not a `Widget` (an assistant's card,
+ * a chart card) laid out beside widgets.
+ */
+export function widgetSpan(span: 1 | 2 | 3 | 4, size: 'sm' | 'md' = 'md'): string {
+  return SPAN[size][span];
+}
+
 export interface WidgetProps extends Omit<ComponentPropsWithoutRef<'section'>, 'title'> {
   readonly title: ReactNode;
   /** A glyph in a tinted tile before the title: what the widget is about at a glance. */
@@ -134,8 +143,9 @@ export function Widget({
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex min-h-8 items-center gap-2">
-            <Heading className="truncate text-md leading-tight font-semibold tracking-tight">
+          <div className="flex min-h-8 flex-wrap items-center gap-x-2">
+            {/* Wrapped, never cut: a title is the one word a widget must say whole. */}
+            <Heading className="text-md leading-tight font-semibold tracking-tight text-pretty">
               {title}
             </Heading>
             {meta === undefined ? null : (

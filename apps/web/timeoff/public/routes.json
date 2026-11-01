@@ -150,8 +150,12 @@
       "path": "/time-off/request",
       "label": "Request time off",
       "icon": "add",
-      "for": ["member"],
-      "owns": ["/time-off/request/describe"],
+      "for": [
+        "member"
+      ],
+      "owns": [
+        "/time-off/request/describe"
+      ],
       "on": [
         "/time-off/overview",
         "/time-off/requests",
@@ -165,7 +169,10 @@
       "label": "Delegate approvals",
       "icon": "transfer",
       "menu": true,
-      "for": ["manager", "hr"],
+      "for": [
+        "manager",
+        "hr"
+      ],
       "on": [
         "/time-off/approvals/waiting",
         "/time-off/approvals/coming-up",
@@ -177,7 +184,10 @@
       "label": "Adjust a balance",
       "icon": "adjust",
       "menu": true,
-      "for": ["manager", "hr"],
+      "for": [
+        "manager",
+        "hr"
+      ],
       "on": [
         "/time-off/approvals/waiting",
         "/time-off/approvals/coming-up",
@@ -189,8 +199,12 @@
       "label": "Parental leave cases",
       "icon": "parental",
       "menu": true,
-      "for": ["hr"],
-      "owns": ["/time-off/parental/cases/:id"],
+      "for": [
+        "hr"
+      ],
+      "owns": [
+        "/time-off/parental/cases/:id"
+      ],
       "on": [
         "/time-off/approvals/waiting",
         "/time-off/approvals/coming-up",
@@ -213,7 +227,9 @@
       "label": "Kiosk code",
       "icon": "scanCode",
       "menu": true,
-      "for": ["member"],
+      "for": [
+        "member"
+      ],
       "on": [
         "/time-off/attendance/now",
         "/time-off/attendance/timesheet",
@@ -225,7 +241,9 @@
       "label": "Close the pay period",
       "icon": "locked",
       "menu": true,
-      "for": ["hr"],
+      "for": [
+        "hr"
+      ],
       "on": [
         "/time-off/attendance/now",
         "/time-off/attendance/timesheet",
@@ -254,22 +272,28 @@
       "label": "Approvals",
       "group": "Time off",
       "icon": "approve",
-      "for": ["manager", "hr"],
+      "for": [
+        "manager",
+        "hr"
+      ],
       "description": "Time off waiting for your decision, coming up and decided",
       "summary": "Decisions on other people's time off",
       "tabs": [
         {
           "path": "/time-off/approvals/waiting",
-          "label": "Waiting",
-          "owns": ["/time-off/approvals/waiting/:id", "/time-off/approvals/waiting/:id/suggest"]
+          "label": "Pending",
+          "owns": [
+            "/time-off/approvals/waiting/:id",
+            "/time-off/approvals/waiting/:id/suggest"
+          ]
         },
         {
           "path": "/time-off/approvals/coming-up",
-          "label": "Coming up"
+          "label": "Upcoming"
         },
         {
           "path": "/time-off/approvals/decided",
-          "label": "Decided"
+          "label": "History"
         }
       ]
     },
@@ -305,17 +329,22 @@
       "tabs": [
         {
           "path": "/time-off/attendance/now",
-          "label": "Today",
-          "for": ["manager", "hr"]
+          "label": "Live",
+          "for": [
+            "manager",
+            "hr"
+          ]
         },
         {
           "path": "/time-off/attendance/timesheet",
-          "label": "My week"
+          "label": "Timesheet"
         },
         {
           "path": "/time-off/attendance/exceptions",
           "label": "Exceptions",
-          "for": ["hr"]
+          "for": [
+            "hr"
+          ]
         }
       ]
     },
@@ -324,7 +353,10 @@
       "label": "Insights",
       "group": "Time off",
       "icon": "analytics",
-      "for": ["manager", "hr"],
+      "for": [
+        "manager",
+        "hr"
+      ],
       "description": "What changed, time taken, attendance and balances across your people",
       "summary": "Trends across the company"
     }
@@ -336,44 +368,66 @@
     {
       "path": "/settings/time-off/leave-types",
       "label": "Leave types",
-      "for": ["hr", "admin"],
-      "owns": ["/settings/time-off/leave-types/:id", "/settings/time-off/leave-types/new/describe"],
+      "for": [
+        "hr",
+        "admin"
+      ],
+      "owns": [
+        "/settings/time-off/leave-types/:id",
+        "/settings/time-off/leave-types/new/describe"
+      ],
       "description": "The kinds of time off people can request, and how each one is paid and approved.",
       "icon": "leave"
     },
     {
       "path": "/settings/time-off/holidays",
       "label": "Holidays",
-      "for": ["hr", "admin"],
-      "owns": ["/settings/time-off/holidays/:year"],
+      "for": [
+        "hr",
+        "admin"
+      ],
+      "owns": [
+        "/settings/time-off/holidays/:year"
+      ],
       "description": "The public holidays each location keeps, year by year.",
       "icon": "calendar"
     },
     {
       "path": "/settings/time-off/negative-balance",
       "label": "Negative balance",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "What happens when someone books more than they have earned.",
       "icon": "adjust"
     },
     {
       "path": "/settings/time-off/attendance",
       "label": "Attendance",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Schedules, breaks, overtime and how clocking in works.",
       "icon": "scheduled"
     },
     {
       "path": "/settings/time-off/approvals",
       "label": "Approvals",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Who approves what, cover minimums and when a request escalates.",
       "icon": "approve"
     },
     {
       "path": "/settings/time-off/integrations",
       "label": "Integrations",
-      "for": ["admin"],
+      "for": [
+        "admin"
+      ],
       "description": "Calendars, chat apps and badge readers.",
       "icon": "link"
     }

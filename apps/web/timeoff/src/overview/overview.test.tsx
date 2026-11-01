@@ -76,7 +76,7 @@ describe('the overview', () => {
     expect(within(card).getByRole('link', { name: 'Request Mon 7 Dec' }).getAttribute('href')).toBe(
       '/time-off/request?type=vacation&from=2026-12-07&to=2026-12-07',
     );
-    const team = within(section('Your team today'));
+    const team = within(section('Team today'));
     expect(team.getByText('Hana Kim')).toBeTruthy();
     expect(team.getByText('Back Mon 5 Oct')).toBeTruthy();
     expect(team.getByText('Away')).toBeTruthy();
