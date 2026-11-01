@@ -1,7 +1,7 @@
 'use client';
 
 import { DocumentsInboxDetail } from '@kithena/contracts';
-import { Button, Dropzone, icons } from '@reach/ui';
+import { Button, Dropzone } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
 import {
@@ -11,7 +11,7 @@ import {
   uploadDocument,
 } from '../../app/(app)/documents/actions';
 import type { Outcome } from '../../app/(app)/inbox/actions';
-import { Actions, type BodyProps } from './pane';
+import { Actions, type BodyProps, OpenHere } from './pane';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -140,11 +140,9 @@ function Acknowledge({
             'I have read and understood it',
           )}
         </Button>
-        <Button asChild variant="secondary" startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link} target="_blank" rel="noreferrer">
-            {tr('components.inbox.detail-documents.read_it', 'Read it')}
-          </a>
-        </Button>
+        <OpenHere href={item.link} variant="secondary">
+          {tr('components.inbox.detail-documents.read_it', 'Read it')}
+        </OpenHere>
       </Actions>
     </div>
   );
@@ -193,11 +191,9 @@ function Access({
         >
           {tr('components.inbox.detail-documents.refuse', 'Refuse')}
         </Button>
-        <Button asChild variant="ghost" startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>
-            {tr('components.inbox.detail-documents.see_the_document', 'See the document')}
-          </a>
-        </Button>
+        <OpenHere href={item.link} variant="ghost">
+          {tr('components.inbox.detail-documents.see_the_document', 'See the document')}
+        </OpenHere>
       </Actions>
     </div>
   );
@@ -217,11 +213,9 @@ export function DocumentsBody(props: BodyProps): JSX.Element {
         <p className="text-base text-fg-muted">{props.item.summary}</p>
       )}
       <Actions>
-        <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-          <a href={props.item.link}>
-            {tr('components.inbox.detail-documents.open_in_documents', 'Open in Documents')}
-          </a>
-        </Button>
+        <OpenHere href={props.item.link}>
+          {tr('components.inbox.detail-documents.open_in_documents', 'Open in Documents')}
+        </OpenHere>
       </Actions>
     </div>
   );

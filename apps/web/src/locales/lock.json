@@ -17560,7 +17560,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34746,7 +34748,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -51932,7 +51936,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -69118,7 +69124,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -86681,7 +86689,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -104244,7 +104254,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -121430,7 +121442,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -138993,7 +139007,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -156179,7 +156195,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -174119,7 +174137,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -191682,7 +191702,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -209622,7 +209644,9 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -226808,6 +226832,8 @@
     "timeoff:balance.balance.request": "59f03d642b41",
     "timeoff:insights.insights.exceptions": "a0c002f91bf9",
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
-    "timeoff:insights.insights.timesheets": "cc16b2df05b1"
+    "timeoff:insights.insights.timesheets": "cc16b2df05b1",
+    "shell:components.inbox.detail.close": "7d9eb7acb13e",
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
   }
 }

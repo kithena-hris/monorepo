@@ -1,11 +1,9 @@
 'use client';
 
-import { Button, Spinner, icons } from '@reach/ui';
-import { useRouter } from 'next/navigation';
+import { Spinner } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
 import { openTaskScreen } from '../../app/(app)/inbox/actions';
-import type { Shown } from '../../lib/inbox/model';
 import type { TaskScreen } from '../../lib/inbox/task-screen';
 import { t } from '../../lib/t';
 import {
@@ -16,7 +14,7 @@ import {
   type Embedded,
 } from '../act-screen';
 import { DocumentsScreen } from '../documents-screen';
-import { Actions } from './pane';
+import { FramePane } from './frame-pane';
 
 const ACT_SCREENS: Readonly<
   Record<Exclude<TaskScreen['area'], 'documents'>, (props: ActScreenProps) => JSX.Element>
@@ -26,7 +24,6 @@ const ACT_SCREENS: Readonly<
   recruiting: RecruitingScreen,
 };
 
-const pathOf = (link: string): string => new URL(link, 'http://inbox').pathname;
 /** A link as the screen's read keeps it: path and query. */
 const addressOf = (link: string): string => {
   const url = new URL(link, 'http://inbox');
@@ -34,26 +31,31 @@ const addressOf = (link: string): string => {
 };
 
 /**
- * A task the Inbox has no form of its own for, done in the pane all the same:
- * its module's own screen (the review to write, the peers to pick, the
- * envelope to sign) drawn here rather than a link away. The screen is read
- * again whenever the Inbox is (a write redraws both), and a link it follows
- * within the same screen, a filter or a step, stays in the pane. Straight
- * after a write the task is done, so the Inbox moves on to the next; any
- * other link is a deliberate way out, and is followed.
+ * A task done in the pane: the page its link (or a link in its body) names,
+ * drawn here rather than a link away. A module whose screen the shell can
+ * hand its data (Performance, Recruiting, Onboarding, Documents) is drawn
+ * directly, read again whenever the Inbox is (a write redraws both); any
+ * other page (People's Review, a person, Time Off) is the page itself in a
+ * frame (`frame-pane.tsx`). A link the screen follows stays in the pane;
+ * straight after a write the task is done, and the Inbox moves on.
  */
 export function TaskScreenPane({
-  item,
+  link: start,
+  label,
+  version,
   initial,
   onDone,
 }: {
-  readonly item: Shown;
+  readonly link: string;
+  /** What it opens, for the wait and a screen reader: "Performance". */
+  readonly label: string;
+  /** Changes when the Inbox is read again: the screen is read again with it. */
+  readonly version: unknown;
   /** Read with the page, for the item the address opened: no wait for its first draw. */
   readonly initial?: TaskScreen | null;
   readonly onDone: () => void;
 }): JSX.Element {
-  const router = useRouter();
-  const [link, setLink] = useState(() => addressOf(item.link));
+  const [link, setLink] = useState(() => addressOf(start));
   const [asked, setAsked] = useState<TaskScreen | null | undefined>(undefined);
   // The page's own read, while it is of this address: drawn again with the
   // Inbox after every write, so nothing more is asked for.
@@ -69,45 +71,23 @@ export function TaskScreenPane({
     return () => {
       live = false;
     };
-    // `item`, not its link: a new object is the Inbox read again after a write.
-  }, [waiting, item, link]);
+  }, [waiting, version, link]);
   const screen = fromPage ?? asked;
 
-  if (screen === undefined)
-    return (
-      <div className="grid min-h-48 place-items-center">
-        <Spinner
-          label={t('components.inbox.task-screen.opening', 'Opening {{openIn}}', {
-            openIn: item.openIn,
-          })}
-        />
-      </div>
-    );
-  if (screen === null)
-    return (
-      <div className="flex flex-col gap-3">
-        {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
-        <Actions>
-          <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-            <a href={item.link}>
-              {t('components.inbox.detail.open_in', 'Open in {{openIn}}', {
-                openIn: item.openIn,
-              })}
-            </a>
-          </Button>
-        </Actions>
-      </div>
-    );
+  if (screen === undefined) return <Wait label={label} />;
+  // Not one the shell can draw: the page itself, in a frame.
+  if (screen === null) return <FramePane key={link} link={link} label={label} />;
+  // Another address asked for, still on its way.
+  if (screen.link !== link) return <Wait label={label} />;
   const embedded: Embedded = {
     navigate: (to, afterWrite) => {
       if (afterWrite) onDone();
-      else if (pathOf(to) === screen.path) setLink(addressOf(to));
-      else router.push(to, { scroll: false });
+      else setLink(addressOf(to));
     },
   };
   const Screen = screen.area === 'documents' ? null : ACT_SCREENS[screen.area];
   return (
-    <div className="flex flex-col gap-4 border-t border-border pt-4" data-task-screen="">
+    <div className="flex flex-col gap-4" data-task-screen="">
       {Screen === null ? (
         <DocumentsScreen
           route={screen.route}
@@ -127,6 +107,16 @@ export function TaskScreenPane({
           embedded={embedded}
         />
       )}
+    </div>
+  );
+}
+
+function Wait({ label }: { readonly label: string }): JSX.Element {
+  return (
+    <div className="grid min-h-48 place-items-center">
+      <Spinner
+        label={t('components.inbox.task-screen.opening', 'Opening {{openIn}}', { openIn: label })}
+      />
     </div>
   );
 }

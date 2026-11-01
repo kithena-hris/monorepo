@@ -33,9 +33,10 @@ export default async function SignedInLayout({
   const inbox = inboxPeek().catch(() => EMPTY_PEEK);
   // What the company's remotes draw in the chrome: Time Off's clock (TOF-059).
   const slots = await slotsOf(shell);
+  const drawn = Date.now();
   return (
     // When this was drawn: a new value after a write drops the browser's kept reads.
-    <QueryProvider drawn={Date.now()}>
+    <QueryProvider drawn={drawn}>
       <AppShell
         person={person}
         companyName={company}
@@ -45,6 +46,7 @@ export default async function SignedInLayout({
         shortcuts={shortcuts}
         slots={slots}
         inbox={inbox}
+        drawn={drawn}
       >
         {children}
       </AppShell>
