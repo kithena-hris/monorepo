@@ -610,11 +610,13 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
             <Stat
               icon={<icons.pending aria-hidden />}
               label={tr('templates.plans_in_flight', 'Plans in flight')}
+              href="/onboarding/home"
               value={String(data.inFlight)}
             />
             <Stat
               icon={<icons.goal aria-hidden />}
               label={tr('templates.on_track', 'On track')}
+              href="/onboarding/home"
               value={String(data.onTrack)}
             />
             <Stat
@@ -627,6 +629,11 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
             <ChartCard
               className={widgetSpan(2)}
               title={tr('templates.late_tasks_by_owner', 'Late tasks by owner')}
+              action={
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href="/onboarding/tasks">{tr('templates.open_tasks', 'Open tasks')}</a>
+                </Button>
+              }
             >
               {data.lateByRole.length === 0 ? (
                 <Alert tone="success" title={tr('templates.nothing_late', 'Nothing late')} />

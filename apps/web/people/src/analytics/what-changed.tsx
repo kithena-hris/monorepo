@@ -461,6 +461,13 @@ function Summary({
           {state.headcount === null ? null : (
             <ChartCard
               title={t('analytics.what-changed.headcount', 'Headcount')}
+              action={
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href="/people/directory/list">
+                    {t('analytics.what-changed.directory', 'Directory')}
+                  </a>
+                </Button>
+              }
               value={state.headcount.value.toLocaleString()}
               description={
                 state.headcount.change === 0
@@ -495,6 +502,13 @@ function Summary({
                 'analytics.what-changed.leavers_by_team_3_months',
                 'Leavers by team, 3 months',
               )}
+              action={
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href="/people/directory/list">
+                    {t('analytics.what-changed.directory', 'Directory')}
+                  </a>
+                </Button>
+              }
             >
               <StackedBarChart
                 label={t(

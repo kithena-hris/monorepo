@@ -372,3 +372,28 @@ export const IconBesideTheLabel: Story = {
     </div>
   ),
 };
+
+export const OpensWhatItCounts: Story = {
+  name: 'Opens what it counts',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A figure is the first question, never the last. `href` makes the tile open the list it counts, already filtered, and its label names the link; `action` puts a control at its top end, above that link.',
+      },
+    },
+  },
+  render: () => (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),13rem))] gap-4">
+      <Stat label="Open jobs" value="12" icon={<Users />} href="#open-jobs" />
+      <Stat
+        label="Offers out"
+        value="4"
+        description="2 waiting over a week"
+        href="#offers"
+        icon={<Wallet />}
+      />
+      <Stat label="Time to hire" value="38" unit="days" href="#time-to-hire" />
+    </div>
+  ),
+};

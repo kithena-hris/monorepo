@@ -3188,9 +3188,35 @@ const STANCES = [
  * with the next deadline. Right: who is behind, each department's share of
  * its reviews by the same four states, the least done first.
  */
-function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null {
+function Insights({
+  data,
+  onRemind,
+}: {
+  readonly data: OverviewData;
+  /** Reminds everyone who has not submitted: the charts' one action while the cycle runs. */
+  readonly onRemind?: () => void;
+}): JSX.Element | null {
   const got = data.insights;
   if (got === undefined) return null;
+  const remind =
+    onRemind === undefined ||
+    got.status.submitted === STANCES.reduce((n, x) => n + got.status[x.key], 0) ? undefined : (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" startIcon={<icons.notifications aria-hidden />}>
+            {tr('cycles.remind', 'Remind')}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={onRemind}>
+            {tr(
+              'cycles.remind_everyone_who_has_not_submitted',
+              'Remind everyone who has not submitted…',
+            )}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   const total = STANCES.reduce((n, x) => n + got.status[x.key], 0);
   const done = total === 0 ? 0 : Math.round((got.status.submitted / total) * 100);
   const next = data.tiles
@@ -3202,6 +3228,7 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
       <ChartCard
         className={widgetSpan(2)}
         title={tr('cycles.where_every_review_stands', 'Where every review stands')}
+        action={remind}
         description={[
           tr('cycles.of_in', '{{submitted}} of {{total}} in', {
             submitted: String(got.status.submitted),
@@ -3265,6 +3292,7 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
       <ChartCard
         className={widgetSpan(2)}
         title={tr('cycles.who_is_behind', 'Who is behind')}
+        action={remind}
         description={tr(
           'cycles.each_departments_reviews_by_where_they',
           'Each department’s reviews by where they stand, the least done first.',
@@ -4042,7 +4070,18 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
             ) : null}
             {tab === 'overview' ? (
               <>
-                {data.insights === undefined ? null : <Insights data={data} />}
+                {data.insights === undefined ? null : (
+                  <Insights
+                    data={data}
+                    {...(data.hr && c.state === 'in_progress'
+                      ? {
+                          onRemind: () => {
+                            run('RemindPerformanceCycle', { personIds: [] });
+                          },
+                        }
+                      : {})}
+                  />
+                )}
                 <CyclePlan
                   c={data.plan}
                   today={data.today}

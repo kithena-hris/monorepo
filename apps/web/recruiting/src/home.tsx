@@ -82,6 +82,11 @@ function Tasks({
       icon={<icons.inbox aria-hidden />}
       tone="accent"
       {...(data.tasks.length === 0 ? {} : { meta: data.tasks.length })}
+      action={
+        <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+          <a href="/inbox?source=recruiting">{tr('home.open_inbox', 'Open Inbox')}</a>
+        </Button>
+      }
       span={2}
       flush={data.tasks.length > 0}
     >
@@ -283,6 +288,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
             <WidgetGrid size="sm">
               <Stat
                 label={tr('home.open_jobs', 'Open jobs')}
+                href="/recruiting/jobs"
                 icon={<icons.work aria-hidden />}
                 value={String(open.length)}
                 description={tr('home.in_all', '{{length}} in all', {
@@ -291,6 +297,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
               />
               <Stat
                 label={tr('home.active_candidates', 'Active candidates')}
+                href="/recruiting/candidates"
                 icon={<icons.people aria-hidden />}
                 value={String(candidates)}
                 description={tr('home.new_this_week', '{{fresh}} new this week', {
@@ -299,11 +306,13 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
               />
               <Stat
                 label={tr('home.interviews_today', 'Interviews today')}
+                href="/recruiting/interviews"
                 icon={<icons.meeting aria-hidden />}
                 value={String(interviews)}
               />
               <Stat
                 label={tr('home.scorecards_owed', 'Scorecards owed')}
+                href="/recruiting/interviews"
                 icon={<icons.assessment aria-hidden />}
                 value={String(scorecards)}
               />
@@ -315,6 +324,11 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                 description={tr('home.open', '{{length}} open', { length: String(open.length) })}
                 icon={<icons.work aria-hidden />}
                 tone="chart-2"
+                action={
+                  <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                    <a href="/recruiting/jobs">{tr('home.all_jobs', 'All jobs')}</a>
+                  </Button>
+                }
                 span={4}
                 flush={data.jobs.length > 0}
               >

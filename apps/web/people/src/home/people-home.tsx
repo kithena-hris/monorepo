@@ -552,6 +552,9 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
           meta={toDo.waiting.length}
           span={2}
           flush
+          action={
+            <SeeAll href="/inbox/requests">{tr('home.people-home.see_all', 'See all')}</SeeAll>
+          }
         >
           {rows(toDo.waiting, tr('home.people-home.waiting_on_others', 'Waiting on others'))}
         </Section>
@@ -738,6 +741,7 @@ function Identity({
       title={tr('home.people-home.your_profile', 'Your profile')}
       icon={<icons.person aria-hidden />}
       tone="chart-2"
+      action={<SeeAll href="/people/me">{tr('home.people-home.my_profile', 'My profile')}</SeeAll>}
     >
       <div className="flex items-center gap-3.5">
         <Avatar
@@ -938,19 +942,15 @@ function Figure({
   readonly className?: string;
 }): JSX.Element {
   return (
-    <a
+    <Stat
       href={href}
-      className={`rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus ${className ?? ''}`}
-    >
-      <Stat
-        label={label}
-        value={value}
-        {...(unit === undefined ? {} : { unit })}
-        description={description}
-        {...(chart === undefined ? {} : { chart })}
-        className="h-full transition-shadow hover:shadow-md"
-      />
-    </a>
+      label={label}
+      value={value}
+      {...(unit === undefined ? {} : { unit })}
+      description={description}
+      {...(chart === undefined ? {} : { chart })}
+      className={`h-full ${className ?? ''}`}
+    />
   );
 }
 
@@ -1302,6 +1302,11 @@ function HrHome({
             icon={<icons.analytics aria-hidden />}
             tone="chart-1"
             className="touch:hidden"
+            action={
+              <SeeAll href="/people/insights/workforce">
+                {tr('home.people-home.insights', 'Insights')}
+              </SeeAll>
+            }
           >
             <BarChart
               data={hr.joiners}

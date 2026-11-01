@@ -6,6 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  ChartCard,
   EmptyState,
   HorizontalBarChart,
   Stat,
@@ -19,6 +20,7 @@ import {
   TrendChart,
   icons,
   WidgetGrid,
+  widgetSpan,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -31,6 +33,15 @@ import { t as tr } from './i18n';
  * raters compare, the trend across cycles, fairness, and a chart asked for in
  * words. No group smaller than five is shown: its value reads "—".
  */
+
+/** A widget's way on: where its figure is worked on. */
+function Go({ href, children }: { readonly href: string; readonly children: string }): JSX.Element {
+  return (
+    <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+      <a href={href}>{children}</a>
+    </Button>
+  );
+}
 
 interface Metric {
   readonly label: string;
@@ -170,12 +181,15 @@ function Body({
     data: readonly Metric[];
     insights: readonly string[];
   } | null>(null);
-  if (data.tab === 'cycle' && data.tiles !== undefined)
+  if (data.tab === 'cycle' && data.tiles !== undefined) {
+    const cycle = `/performance/cycles/${data.cycleId ?? ''}`;
     return (
       <div className="flex flex-col gap-4">
         <WidgetGrid size="sm">
           <Stat
             label={tr('analytics.submitted', 'Submitted')}
+            href={cycle}
+            icon={<icons.success aria-hidden />}
             value={pct(data.tiles.completion)}
             description={tr(
               'analytics.of_every_review_in_the_cycle',
@@ -184,107 +198,106 @@ function Body({
           />
           <Stat
             label={tr('analytics.on_time', 'On time')}
+            href={cycle}
+            icon={<icons.scheduled aria-hidden />}
             value={pct(data.tiles.onTime)}
             description={tr('analytics.of_those_submitted', 'Of those submitted')}
           />
           <Stat
             label={tr('analytics.average_score', 'Average score')}
+            href="/performance/calibration"
+            icon={<icons.analytics aria-hidden />}
             value={data.tiles.average === null ? '—' : data.tiles.average.toFixed(2)}
             description={tr('analytics.manager_reviews', 'Manager reviews')}
           />
           <Stat
             label={tr('analytics.released', 'Released')}
+            href={cycle}
+            icon={<icons.document aria-hidden />}
             value={String(data.tiles.released)}
             description={tr('analytics.acknowledged', '{{acknowledged}} acknowledged', {
               acknowledged: String(data.tiles.acknowledged),
             })}
           />
         </WidgetGrid>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>
-                {tr('analytics.submitted_by_kind', 'Submitted, by kind')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <HorizontalBarChart
-                label={tr('analytics.submitted_by_kind_2', 'Submitted by kind')}
-                showValues
-                format={(v) => `${String(v)}%`}
-                data={Object.entries(data.tiles.byKind).map(([k, v]) => ({
-                  label: k.charAt(0).toUpperCase() + k.slice(1),
-                  value: v,
-                }))}
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>{tr('analytics.scores', 'Scores')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BarChart
-                label={tr('analytics.people_by_score', 'People by score')}
-                showValues
-                data={(data.distribution ?? []).map((d) => ({ label: d.label, value: d.count }))}
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>
+        <WidgetGrid>
+          <ChartCard
+            className={widgetSpan(2)}
+            title={tr('analytics.submitted_by_kind', 'Submitted, by kind')}
+            action={<Go href={cycle}>{tr('analytics.chase', 'Chase')}</Go>}
+          >
+            <HorizontalBarChart
+              label={tr('analytics.submitted_by_kind_2', 'Submitted by kind')}
+              showValues
+              format={(v) => `${String(v)}%`}
+              data={Object.entries(data.tiles.byKind).map(([k, v]) => ({
+                label: k.charAt(0).toUpperCase() + k.slice(1),
+                value: v,
+              }))}
+            />
+          </ChartCard>
+          <ChartCard
+            className={widgetSpan(2)}
+            title={tr('analytics.scores', 'Scores')}
+            action={
+              <Go href="/performance/calibration">{tr('analytics.calibrate', 'Calibrate')}</Go>
+            }
+          >
+            <BarChart
+              label={tr('analytics.people_by_score', 'People by score')}
+              showValues
+              data={(data.distribution ?? []).map((d) => ({ label: d.label, value: d.count }))}
+            />
+          </ChartCard>
+          <ChartCard
+            className={widgetSpan(2)}
+            title={tr(
+              'analytics.self_reviews_submitted_by_department',
+              'Self reviews submitted, by department',
+            )}
+            action={<Go href={cycle}>{tr('analytics.chase', 'Chase')}</Go>}
+          >
+            {shown(data.byDepartment ?? []).length === 0 ? (
+              <p className="text-sm text-fg-muted">
                 {tr(
-                  'analytics.self_reviews_submitted_by_department',
-                  'Self reviews submitted, by department',
+                  'analytics.no_department_is_large_enough_to',
+                  'No department is large enough to show.',
                 )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {shown(data.byDepartment ?? []).length === 0 ? (
-                <p className="text-sm text-fg-muted">
-                  {tr(
-                    'analytics.no_department_is_large_enough_to',
-                    'No department is large enough to show.',
-                  )}
-                </p>
-              ) : (
-                <HorizontalBarChart
-                  label={tr('analytics.completion_by_department', 'Completion by department')}
-                  showValues
-                  format={(v) => `${String(Math.round(v))}%`}
-                  data={shown(data.byDepartment ?? [])}
-                />
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>
-                {tr('analytics.submitted_each_day', 'Submitted each day')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(data.perDay ?? []).length < 2 ? (
-                <p className="text-sm text-fg-muted">
-                  {tr('analytics.not_enough_days_yet', 'Not enough days yet.')}
-                </p>
-              ) : (
-                <TrendChart
-                  label={tr('analytics.reviews_submitted_per_day', 'Reviews submitted per day')}
-                  series={[
-                    {
-                      label: tr('analytics.submitted', 'Submitted'),
-                      data: (data.perDay ?? []).map((d) => ({ label: day(d.day), value: d.count })),
-                    },
-                  ]}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </p>
+            ) : (
+              <HorizontalBarChart
+                label={tr('analytics.completion_by_department', 'Completion by department')}
+                showValues
+                format={(v) => `${String(Math.round(v))}%`}
+                data={shown(data.byDepartment ?? [])}
+              />
+            )}
+          </ChartCard>
+          <ChartCard
+            className={widgetSpan(2)}
+            title={tr('analytics.submitted_each_day', 'Submitted each day')}
+            action={<Go href={cycle}>{tr('analytics.open_the_cycle', 'Open the cycle')}</Go>}
+          >
+            {(data.perDay ?? []).length < 2 ? (
+              <p className="text-sm text-fg-muted">
+                {tr('analytics.not_enough_days_yet', 'Not enough days yet.')}
+              </p>
+            ) : (
+              <TrendChart
+                label={tr('analytics.reviews_submitted_per_day', 'Reviews submitted per day')}
+                series={[
+                  {
+                    label: tr('analytics.submitted', 'Submitted'),
+                    data: (data.perDay ?? []).map((d) => ({ label: day(d.day), value: d.count })),
+                  },
+                ]}
+              />
+            )}
+          </ChartCard>
+        </WidgetGrid>
       </div>
     );
+  }
   if (data.tab === 'raters')
     return (
       <div className="flex flex-col gap-4">
@@ -336,11 +349,12 @@ function Body({
     );
   if (data.tab === 'trends')
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle level={2}>{tr('analytics.across_cycles', 'Across cycles')}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <WidgetGrid>
+        <ChartCard
+          className={widgetSpan(3)}
+          title={tr('analytics.across_cycles', 'Across cycles')}
+          action={<Go href="/performance/cycles">{tr('analytics.all_cycles', 'All cycles')}</Go>}
+        >
           {(data.trend ?? []).length < 2 ? (
             <p className="text-sm text-fg-muted">
               {tr('analytics.a_trend_needs_two_cycles', 'A trend needs two cycles.')}
@@ -359,8 +373,8 @@ function Body({
               ]}
             />
           )}
-        </CardContent>
-      </Card>
+        </ChartCard>
+      </WidgetGrid>
     );
   if (data.tab === 'fairness')
     return (
@@ -377,13 +391,14 @@ function Body({
             />
           ))}
         </WidgetGrid>
-        <Card>
-          <CardHeader>
-            <CardTitle level={2}>
-              {tr('analytics.average_score_by_department', 'Average score, by department')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <WidgetGrid>
+          <ChartCard
+            className={widgetSpan(2)}
+            title={tr('analytics.average_score_by_department', 'Average score, by department')}
+            action={
+              <Go href="/performance/calibration">{tr('analytics.calibrate', 'Calibrate')}</Go>
+            }
+          >
             {shown(data.byDepartment ?? []).length === 0 ? (
               <p className="text-sm text-fg-muted">
                 {tr(
@@ -399,8 +414,8 @@ function Body({
                 data={shown(data.byDepartment ?? [])}
               />
             )}
-          </CardContent>
-        </Card>
+          </ChartCard>
+        </WidgetGrid>
         {(data.hidden ?? []).map((h) => (
           <Alert key={h.title} tone="info" title={h.title}>
             {h.detail}
