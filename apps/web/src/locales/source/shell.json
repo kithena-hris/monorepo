@@ -2401,7 +2401,7 @@
   },
   "components.inbox.detail.open_in": {
     "text": "Open in {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/task-screen.tsx, TaskScreenPane: text inside <a>. Filled in: {{openIn}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Head: text inside <a>. Filled in: {{openIn}}."
   },
   "components.inbox.detail.persons_message": {
     "text": "{{name}}’s message",
