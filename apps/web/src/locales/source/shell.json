@@ -1421,7 +1421,7 @@
   },
   "components.inbox.detail-people.hr_and_your_manager_can_see": {
     "text": "HR and your manager can see how far you are",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the hint of <Actions>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <p>."
   },
   "components.inbox.detail-people.hr_stops_seeing_it_and_the": {
     "text": "HR stops seeing it and the record keeps {{shown}}. You can ask again any time.",
@@ -1583,10 +1583,6 @@
     "text": "Open it where it lives instead.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Missing: text inside <Alert>."
   },
-  "components.inbox.detail-people.open_onboarding": {
-    "text": "Open onboarding",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <OpenHere>."
-  },
   "components.inbox.detail-people.open_review": {
     "text": "Open Review",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <OpenHere>."
@@ -1650,6 +1646,14 @@
   "components.inbox.detail-people.review_items_keep_their_own_tools": {
     "text": "Review items keep their own tools: compare, the reasons for a flag, history. They aren’t copied here, so the two can’t disagree.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <p>."
+  },
+  "components.inbox.detail-people.save": {
+    "text": "Save",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <Button>."
+  },
+  "components.inbox.detail-people.saved_to_your_profile": {
+    "text": "Saved to your profile",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: a \"title\" value."
   },
   "components.inbox.detail-people.sees_that_you_have_it_now": {
     "text": "{{value}} sees that you have it now.",
@@ -2405,7 +2409,7 @@
   },
   "components.inbox.detail.open_in": {
     "text": "Open in {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Head: text inside <a>. Filled in: {{openIn}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <a>. Filled in: {{openIn}}."
   },
   "components.inbox.detail.persons_message": {
     "text": "{{name}}’s message",

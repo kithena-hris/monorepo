@@ -990,6 +990,9 @@ export async function peopleInbox(
             done,
             section: s.key,
             link: null,
+            fields: s.fields
+              .filter((f) => !f.readOnly && f.required && values[f.key] == null)
+              .map((f) => field(f, null)),
           };
         });
       if (steps.some((s) => !s.done)) {

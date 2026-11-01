@@ -40,6 +40,20 @@ const config = {
     '/documents/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
     '/settings/documents/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
   },
+  // Framed by its own pages only: the Inbox opens a task's page in a frame of
+  // the same app (`components/inbox/frame-pane.tsx`), and no other site may,
+  // so a page can never be laid under another site's clicks.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        ],
+      },
+    ];
+  },
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],
     // A page visited in the last thirty seconds is shown from the browser's

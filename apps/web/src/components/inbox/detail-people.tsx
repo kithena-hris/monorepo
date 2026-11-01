@@ -134,13 +134,14 @@ function FieldInput({
   readonly onChange: (v: unknown) => void;
   readonly disabled: boolean;
 }): JSX.Element {
+  const here = useOpenHereClick();
   const text = typeof value === 'string' ? value : '';
   if (!INLINE.has(field.dataType)) {
     return (
       <Field>
         <FieldLabel>{field.label}</FieldLabel>
         <FieldDescription>
-          <a href="/people/me">
+          <a href="/people/me" onClick={here('/people/me')}>
             {t(
               'components.inbox.detail-people.fill_this_in_on_your_profile',
               'Fill this in on your profile',
@@ -959,16 +960,33 @@ function Review({ item }: BodyProps): JSX.Element {
   );
 }
 
-/** S1, G5, M:S1: a checklist, each step done in place or where it lives. */
+/**
+ * S1, G5, M:S1: a checklist, each step done in place. A section's step asks
+ * here for what it still needs, its required fields left empty, and nothing
+ * else: not the whole profile, not the fields already filled.
+ */
 function Checklist({ item, act }: BodyProps): JSX.Element {
   const parsed = PeopleChecklistDetail.safeParse(item.detail);
+  const [values, setValues] = useState<Values>({});
   if (!parsed.success) return <Missing />;
   const d = parsed.data;
   const done = (s: (typeof d.steps)[number]) => s.done || item.ticks.includes(s.key);
   const count = d.steps.filter(done).length;
   const own = d.steps.every((s) => s.section === null && s.link === null);
+  const asking = d.steps.filter((s) => !done(s) && (s.fields?.length ?? 0) > 0);
+  const rest = d.steps.filter((s) => !asking.includes(s));
+  const filled = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
+  const changed = Object.fromEntries(Object.entries(values).filter(([, v]) => filled(v)));
+  const complete =
+    asking.every((s) => (s.fields ?? []).every((f) => filled(values[f.key]))) && rest.every(done);
+  const save = (): void => {
+    act.run(() => saveOwnSection('', changed), {
+      title: t('components.inbox.detail-people.saved_to_your_profile', 'Saved to your profile'),
+      next: complete,
+    });
+  };
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <Progress
         label={
           own
@@ -982,37 +1000,84 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
           length: String(d.steps.length),
         })}
       />
-      <List aria-label={t('components.inbox.detail-people.steps', 'Steps')}>
-        {d.steps.map((s) => (
-          <ListItem
-            key={s.key}
-            leading={
-              <Checkbox
-                aria-label={s.label}
-                checked={done(s)}
-                disabled={s.section !== null || s.link !== null || act.pending}
-                onCheckedChange={(on) => {
-                  act.run(() => tick(item.id, s.key, on === true));
-                }}
-              />
-            }
-            description={s.note ?? undefined}
-            trailing={
-              s.section !== null && !done(s) ? (
-                <OpenHere href={`/people/onboarding#${s.section}`} size="sm">
-                  {t('components.inbox.detail-people.fill_in', 'Fill in')}
-                </OpenHere>
-              ) : s.link !== null && !done(s) ? (
-                <OpenHere href={s.link} size="sm">
-                  {t('components.inbox.detail-people.open', 'Open')}
-                </OpenHere>
-              ) : undefined
+      {asking.length === 0 ? null : (
+        <form
+          className="flex flex-col gap-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (Object.keys(changed).length > 0) save();
+          }}
+        >
+          {asking.map((s) => (
+            <section key={s.key} aria-label={s.label} className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-fg">{s.label}</h3>
+              {(s.fields ?? []).map((f) => (
+                <FieldInput
+                  key={f.key}
+                  field={f}
+                  value={values[f.key]}
+                  disabled={act.pending}
+                  onChange={(v) => {
+                    setValues((was) => ({ ...was, [f.key]: v }));
+                  }}
+                />
+              ))}
+            </section>
+          ))}
+          <Actions
+            hint={
+              asking.some((s) => (s.fields ?? []).some((f) => f.sensitive))
+                ? t(
+                    'components.inbox.detail-people.some_of_this_goes_to_hr',
+                    'Some of this goes to HR first.',
+                  )
+                : undefined
             }
           >
-            {s.label}
-          </ListItem>
-        ))}
-      </List>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={act.pending}
+              disabled={Object.keys(changed).length === 0}
+            >
+              {t('components.inbox.detail-people.save', 'Save')}
+            </Button>
+          </Actions>
+        </form>
+      )}
+      {rest.length === 0 ? null : (
+        <List aria-label={t('components.inbox.detail-people.steps', 'Steps')}>
+          {rest.map((s) => (
+            <ListItem
+              key={s.key}
+              leading={
+                <Checkbox
+                  aria-label={s.label}
+                  checked={done(s)}
+                  disabled={s.section !== null || s.link !== null || act.pending}
+                  onCheckedChange={(on) => {
+                    act.run(() => tick(item.id, s.key, on === true));
+                  }}
+                />
+              }
+              description={s.note ?? undefined}
+              trailing={
+                s.section !== null && !done(s) ? (
+                  <OpenHere href={`/people/onboarding#${s.section}`} size="sm">
+                    {t('components.inbox.detail-people.fill_in', 'Fill in')}
+                  </OpenHere>
+                ) : s.link !== null && !done(s) ? (
+                  <OpenHere href={s.link} size="sm">
+                    {t('components.inbox.detail-people.open', 'Open')}
+                  </OpenHere>
+                ) : undefined
+              }
+            >
+              {s.label}
+            </ListItem>
+          ))}
+        </List>
+      )}
       {d.others.length === 0 ? null : (
         <KeyValues items={d.others.map((o) => ({ label: o.name, value: o.note }))} />
       )}
@@ -1042,16 +1107,12 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
           </Button>
         </Actions>
       ) : (
-        <Actions
-          hint={t(
+        <p className="text-sm text-fg-subtle">
+          {t(
             'components.inbox.detail-people.hr_and_your_manager_can_see',
             'HR and your manager can see how far you are',
           )}
-        >
-          <OpenHere href={item.link} variant="ghost" size="sm">
-            {t('components.inbox.detail-people.open_onboarding', 'Open onboarding')}
-          </OpenHere>
-        </Actions>
+        </p>
       )}
     </div>
   );
