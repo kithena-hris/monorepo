@@ -1,15 +1,9 @@
 import { defaultRangeExtractor, type Range } from '@tanstack/react-virtual';
+import { useCallback, useReducer, useRef } from 'react';
+import { flushSync } from 'react-dom';
 
 /** How far past the screen, in px, a list being scrolled draws in the direction it is going. */
 export const AHEAD_PX = 3200;
-
-/**
- * Up to this many rows a list draws every row it has loaded, scrolled or not.
- * A row already loaded must never be shown empty: a fling, a drag of the
- * scrollbar or Back to top outran any lead, and the reader saw blank rows
- * fill in a frame later. Past it, the lead below takes over.
- */
-export const DRAW_ALL = 1000;
 
 /**
  * A virtualizer's `rangeExtractor` that draws further ahead while the list
@@ -26,10 +20,8 @@ export const DRAW_ALL = 1000;
 export function drawAhead(
   direction: () => 'forward' | 'backward' | null,
   ahead: number,
-  all = DRAW_ALL,
 ): (range: Range) => number[] {
   return (range) => {
-    if (range.count <= all) return Array.from({ length: range.count }, (_, i) => i);
     const going = direction();
     return defaultRangeExtractor({
       ...range,
@@ -38,4 +30,43 @@ export function drawAhead(
         going === 'forward' ? Math.min(range.count - 1, range.endIndex + ahead) : range.endIndex,
     });
   };
+}
+
+/**
+ * The rows a scroll lands on, drawn in the scroll event itself when they are
+ * not among the rows already drawn.
+ *
+ * The virtualizer renders with the frame, not inside each scroll event, and
+ * the lead above covers an ordinary scroll. A jump does not: a fling past the
+ * lead, a drag of the scrollbar, Back to top. Those painted the rows' spacer
+ * for a frame and filled in after, which a reader sees as loaded rows going
+ * blank. Here a jump renders at once, so the frame it paints has the rows;
+ * every scroll inside what is drawn stays with the frame, as before.
+ *
+ * `onChange` is the virtualizer's option; `drawn` is set, after each commit,
+ * to the first and last row index on the page.
+ */
+export function useCatchUp(): {
+  readonly onChange: (
+    instance: { readonly range: { startIndex: number; endIndex: number } | null },
+    sync: boolean,
+  ) => void;
+  readonly drawn: { current: readonly [number, number] };
+} {
+  const [, redraw] = useReducer((n: number) => n + 1, 0);
+  const drawn = useRef<readonly [number, number]>([0, -1]);
+  const onChange = useCallback(
+    (
+      instance: { readonly range: { startIndex: number; endIndex: number } | null },
+      sync: boolean,
+    ): void => {
+      const range = instance.range;
+      // Only from a scroll event: a measure or a resize may arrive mid-render.
+      if (!sync || range === null) return;
+      const [first, last] = drawn.current;
+      if (range.startIndex < first || range.endIndex > last) flushSync(redraw);
+    },
+    [],
+  );
+  return { onChange, drawn };
 }
