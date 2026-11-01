@@ -66,6 +66,7 @@ import {
 } from '../lib/shortcuts';
 import { paintThemeColor, themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
+import { Framed, useFramed } from './framed';
 import { InboxCount, InboxToasts, useInboxTodo } from './inbox/bell';
 import type { InboxPeek } from '../lib/inbox/peek';
 import { countOf, iconOf } from './people-nav';
@@ -149,6 +150,8 @@ export interface AppShellProps {
    */
   readonly inbox?: Promise<InboxPeek>;
   readonly children: ReactNode;
+  /** When the server drew the layout: told to the page holding this one, when it is framed. */
+  readonly drawn?: number;
 }
 
 /**
@@ -689,9 +692,12 @@ export function AppShell({
   shortcuts = DEFAULT_PREFS,
   slots = [],
   inbox,
+  drawn = 0,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
+  // Inside another page (the Inbox's pane): the screen alone, no chrome.
+  const framed = useFramed();
   const shellView = useMemo(
     () => ({ shell, person, company: companyName }),
     [shell, person, companyName],
@@ -813,6 +819,16 @@ export function AppShell({
    * destination keeps its name when the label is gone — and Radix throws
    * without a provider above it.
    */
+  if (framed)
+    return (
+      <ShellContext value={shellView}>
+        <Shortcuts value={keys}>
+          <TooltipProvider>
+            <Framed drawn={drawn}>{children}</Framed>
+          </TooltipProvider>
+        </Shortcuts>
+      </ShellContext>
+    );
   return (
     <ShellContext value={shellView}>
       <Shortcuts value={keys}>

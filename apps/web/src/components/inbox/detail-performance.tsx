@@ -1,12 +1,12 @@
 'use client';
 
 import { PerformanceInboxDetail } from '@kithena/contracts';
-import { Avatar, Button, icons } from '@reach/ui';
+import { Avatar, Button } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
 import { performanceAct } from '../../app/(app)/performance/actions';
 import { NoteDialog } from './dialogs';
-import { Actions, type BodyProps } from './pane';
+import { Actions, type BodyProps, OpenHere } from './pane';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -144,11 +144,9 @@ function Nominations({
         >
           {tr('components.inbox.detail-performance.approve_all', 'Approve all')}
         </Button>
-        <Button asChild variant="secondary" startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>
-            {tr('components.inbox.detail-performance.change_someone', 'Change someone')}
-          </a>
-        </Button>
+        <OpenHere href={item.link} variant="secondary">
+          {tr('components.inbox.detail-performance.change_someone', 'Change someone')}
+        </OpenHere>
       </Actions>
     </div>
   );
@@ -166,11 +164,9 @@ export function PerformanceBody(props: BodyProps): JSX.Element {
         <p className="text-base text-fg-muted">{props.item.summary}</p>
       )}
       <Actions>
-        <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-          <a href={props.item.link}>
-            {tr('components.inbox.detail-performance.open_in_performance', 'Open in Performance')}
-          </a>
-        </Button>
+        <OpenHere href={props.item.link}>
+          {tr('components.inbox.detail-performance.open_in_performance', 'Open in Performance')}
+        </OpenHere>
       </Actions>
     </div>
   );

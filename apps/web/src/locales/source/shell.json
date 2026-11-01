@@ -1225,7 +1225,7 @@
   },
   "components.inbox.detail-documents.open_in_documents": {
     "text": "Open in Documents",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, DocumentsBody: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, DocumentsBody: text inside <OpenHere>."
   },
   "components.inbox.detail-documents.pdfs_images_office_files": {
     "text": "PDFs, images, Office files and CSV, up to 100 MB",
@@ -1233,7 +1233,7 @@
   },
   "components.inbox.detail-documents.read_it": {
     "text": "Read it",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Acknowledge: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Acknowledge: text inside <OpenHere>."
   },
   "components.inbox.detail-documents.read_it_then_say_so": {
     "text": "Read it, then say so here. Your acknowledgement is recorded with the date.",
@@ -1249,7 +1249,7 @@
   },
   "components.inbox.detail-documents.see_the_document": {
     "text": "See the document",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: text inside <OpenHere>."
   },
   "components.inbox.detail-documents.sent_your": {
     "text": "Sent your {{name}}",
@@ -1277,7 +1277,7 @@
   },
   "components.inbox.detail-onboarding.do_it": {
     "text": "Do it",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: text inside <OpenHere>."
   },
   "components.inbox.detail-onboarding.done": {
     "text": "Done: {{title}}",
@@ -1289,7 +1289,7 @@
   },
   "components.inbox.detail-onboarding.see_the_plan": {
     "text": "See the plan",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: text inside <OpenHere>."
   },
   "components.inbox.detail-people.a_change_to_this_goes_to": {
     "text": "A change to this goes to HR before it is on your record.",
@@ -1397,7 +1397,7 @@
   },
   "components.inbox.detail-people.fill_in": {
     "text": "Fill in",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <OpenHere>."
   },
   "components.inbox.detail-people.fill_this_in_on_your_profile": {
     "text": "Fill this in on your profile",
@@ -1565,15 +1565,15 @@
   },
   "components.inbox.detail-people.open": {
     "text": "Open",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <OpenHere>."
   },
   "components.inbox.detail-people.open_in": {
     "text": "Open in {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Plain: text inside <a>. Filled in: {{openIn}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Plain: text inside <OpenHere>. Filled in: {{openIn}}."
   },
   "components.inbox.detail-people.open_in_integrations": {
     "text": "Open in Integrations",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <OpenHere>."
   },
   "components.inbox.detail-people.open_it_first": {
     "text": "Open it first",
@@ -1585,11 +1585,11 @@
   },
   "components.inbox.detail-people.open_onboarding": {
     "text": "Open onboarding",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <OpenHere>."
   },
   "components.inbox.detail-people.open_review": {
     "text": "Open Review",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <OpenHere>."
   },
   "components.inbox.detail-people.pdf": {
     "text": "PDF",
@@ -1693,7 +1693,7 @@
   },
   "components.inbox.detail-people.set_up_and_invite": {
     "text": "Set up and invite",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <OpenHere>."
   },
   "components.inbox.detail-people.sign": {
     "text": "Sign",
@@ -1857,7 +1857,7 @@
   },
   "components.inbox.detail-performance.change_someone": {
     "text": "Change someone",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Nominations: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Nominations: text inside <OpenHere>."
   },
   "components.inbox.detail-performance.decline": {
     "text": "Decline",
@@ -1873,7 +1873,7 @@
   },
   "components.inbox.detail-performance.open_in_performance": {
     "text": "Open in Performance",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, PerformanceBody: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, PerformanceBody: text inside <OpenHere>."
   },
   "components.inbox.detail-performance.reason": {
     "text": "Reason",
@@ -1989,7 +1989,7 @@
   },
   "components.inbox.detail-recruiting.open_in_recruiting": {
     "text": "Open in Recruiting",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text inside <OpenHere>."
   },
   "components.inbox.detail-recruiting.open_it_in_recruiting_instead": {
     "text": "Open it in Recruiting instead.",
@@ -1997,7 +1997,7 @@
   },
   "components.inbox.detail-recruiting.open_the_contract_page": {
     "text": "Open the contract page",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, CreateContract: text inside <OpenHere>."
   },
   "components.inbox.detail-recruiting.openings": {
     "text": "Openings",
@@ -2213,7 +2213,7 @@
   },
   "components.inbox.detail-timeoff.open_in_time_off": {
     "text": "Open in Time off",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <OpenHere>."
   },
   "components.inbox.detail-timeoff.open_it_in_time_off_instead": {
     "text": "Open it in Time off instead.",
@@ -2225,7 +2225,7 @@
   },
   "components.inbox.detail-timeoff.plan_time_off": {
     "text": "Plan time off",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Expiring: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Expiring: text inside <OpenHere>."
   },
   "components.inbox.detail-timeoff.public_holidays": {
     "text": "Public holidays",
@@ -2233,7 +2233,7 @@
   },
   "components.inbox.detail-timeoff.request_other_dates": {
     "text": "Request other dates",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text inside <a>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text inside <OpenHere>."
   },
   "components.inbox.detail-timeoff.s_note": {
     "text": "{{who}}’s note",
@@ -2331,13 +2331,17 @@
     "text": "Back in To do",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the onSelect of <DropdownMenuItem>."
   },
+  "components.inbox.detail.close": {
+    "text": "Close",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <Button>."
+  },
   "components.inbox.detail.copy_link": {
     "text": "Copy link",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
   },
   "components.inbox.detail.done_title": {
     "text": "Done: {{title}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the onDone of <TaskScreenPane>. Filled in: {{title}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: a \"title\" value. Filled in: {{title}}."
   },
   "components.inbox.detail.i_cant_do_this": {
     "text": "I can’t do this",
@@ -2694,6 +2698,10 @@
   "components.inbox.format.weekday_to_weekday": {
     "text": "{{from}} to {{to}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{from}}, {{to}}."
+  },
+  "components.inbox.frame-pane.opening": {
+    "text": "Opening {{label}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/frame-pane.tsx, FramePane: the label of <Spinner>. Filled in: {{label}}."
   },
   "components.inbox.home-card.my_requests": {
     "text": "My requests",
@@ -3125,7 +3133,7 @@
   },
   "components.inbox.task-screen.opening": {
     "text": "Opening {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/task-screen.tsx, TaskScreenPane: the label of <Spinner>. Filled in: {{openIn}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/task-screen.tsx, Wait: the label of <Spinner>. Filled in: {{openIn}}."
   },
   "components.kiosk-shell.hr_may_have_revoked_it_register": {
     "text": "HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations, and paste the new token here.",

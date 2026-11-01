@@ -1,4 +1,5 @@
-import type { JSX, ReactNode } from 'react';
+import { Button, type ButtonProps } from '@reach/ui';
+import { createContext, use, type JSX, type MouseEvent, type ReactNode } from 'react';
 
 import type { Shown } from '../../lib/inbox/model';
 import type { Outcome } from '../../app/(app)/inbox/actions';
@@ -54,4 +55,45 @@ export function Actions({
       {hint === undefined ? null : <span className="ms-auto text-sm text-fg-subtle">{hint}</span>}
     </div>
   );
+}
+
+/**
+ * Opens an address inside the detail pane rather than leaving the Inbox
+ * (`InboxDetail` provides it): what a task links to is done where the task
+ * sits. Outside the pane, a link as before.
+ */
+export const OpenHereContext = createContext<((href: string) => void) | null>(null);
+
+export function OpenHere({
+  href,
+  children,
+  ...button
+}: Omit<ButtonProps, 'asChild' | 'onClick'> & { readonly href: string }): JSX.Element {
+  const open = use(OpenHereContext);
+  if (open === null)
+    return (
+      <Button asChild {...button}>
+        <a href={href}>{children}</a>
+      </Button>
+    );
+  return (
+    <Button
+      {...button}
+      onClick={() => {
+        open(href);
+      }}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/** For a plain link in a body (a row of a list): its press opens the address in the pane. */
+export function useOpenHereClick(): (href: string) => (event: MouseEvent) => void {
+  const open = use(OpenHereContext);
+  return (href) => (event) => {
+    if (open === null || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    event.preventDefault();
+    open(href);
+  };
 }

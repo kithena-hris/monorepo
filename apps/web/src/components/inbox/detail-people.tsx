@@ -61,7 +61,7 @@ import {
   withdrawChange,
 } from '../../app/(app)/inbox/actions';
 import { checkIdentifiers, saveOwnSection } from '../../app/(app)/people/actions';
-import { Actions, type BodyProps } from './pane';
+import { Actions, type BodyProps, OpenHere, useOpenHereClick } from './pane';
 import { ConfirmDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';
 import { t } from '../../lib/t';
@@ -910,6 +910,7 @@ function Asked({ item, act }: BodyProps): JSX.Element {
 
 /** G2, M:G1: Review's queues, counted once. */
 function Review({ item }: BodyProps): JSX.Element {
+  const here = useOpenHereClick();
   const parsed = PeopleReviewDetail.safeParse(item.detail);
   if (!parsed.success) return <Missing />;
   return (
@@ -930,7 +931,9 @@ function Review({ item }: BodyProps): JSX.Element {
             trailing={<Badge tone="warning">{q.count}</Badge>}
             chevron
           >
-            <a href={q.link}>{q.label}</a>
+            <a href={q.link} onClick={here(q.link)}>
+              {q.label}
+            </a>
           </ListItem>
         ))}
       </List>
@@ -948,9 +951,9 @@ function Review({ item }: BodyProps): JSX.Element {
           </span>
         }
       >
-        <Button asChild variant="primary" startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>{t('components.inbox.detail-people.open_review', 'Open Review')}</a>
-        </Button>
+        <OpenHere href={item.link} variant="primary">
+          {t('components.inbox.detail-people.open_review', 'Open Review')}
+        </OpenHere>
       </Actions>
     </div>
   );
@@ -996,15 +999,13 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
             description={s.note ?? undefined}
             trailing={
               s.section !== null && !done(s) ? (
-                <Button asChild size="sm">
-                  <a href={`/people/onboarding#${s.section}`}>
-                    {t('components.inbox.detail-people.fill_in', 'Fill in')}
-                  </a>
-                </Button>
+                <OpenHere href={`/people/onboarding#${s.section}`} size="sm">
+                  {t('components.inbox.detail-people.fill_in', 'Fill in')}
+                </OpenHere>
               ) : s.link !== null && !done(s) ? (
-                <Button asChild size="sm">
-                  <a href={s.link}>{t('components.inbox.detail-people.open', 'Open')}</a>
-                </Button>
+                <OpenHere href={s.link} size="sm">
+                  {t('components.inbox.detail-people.open', 'Open')}
+                </OpenHere>
               ) : undefined
             }
           >
@@ -1047,11 +1048,9 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
             'HR and your manager can see how far you are',
           )}
         >
-          <Button asChild variant="ghost" size="sm" startIcon={<icons.externalLink aria-hidden />}>
-            <a href={item.link}>
-              {t('components.inbox.detail-people.open_onboarding', 'Open onboarding')}
-            </a>
-          </Button>
+          <OpenHere href={item.link} variant="ghost" size="sm">
+            {t('components.inbox.detail-people.open_onboarding', 'Open onboarding')}
+          </OpenHere>
         </Actions>
       )}
     </div>
@@ -1391,11 +1390,9 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
             {t('components.inbox.detail-people.take_it', 'Take it')}
           </Button>
         )}
-        <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>
-            {t('components.inbox.detail-people.open_in_integrations', 'Open in Integrations')}
-          </a>
-        </Button>
+        <OpenHere href={item.link}>
+          {t('components.inbox.detail-people.open_in_integrations', 'Open in Integrations')}
+        </OpenHere>
         {taken && !team.mine ? (
           <Button
             variant="ghost"
@@ -1450,11 +1447,13 @@ function SetUp({ item }: BodyProps): JSX.Element {
     <div className="flex flex-col gap-3">
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
       <Actions>
-        <Button asChild variant="primary" startIcon={<icons.email aria-hidden />}>
-          <a href={`/people/${personId}?invite=1`}>
-            {t('components.inbox.detail-people.set_up_and_invite', 'Set up and invite')}
-          </a>
-        </Button>
+        <OpenHere
+          href={`/people/${personId}?invite=1`}
+          variant="primary"
+          startIcon={<icons.email aria-hidden />}
+        >
+          {t('components.inbox.detail-people.set_up_and_invite', 'Set up and invite')}
+        </OpenHere>
       </Actions>
     </div>
   );
@@ -1465,13 +1464,11 @@ function Plain({ item }: BodyProps): JSX.Element {
     <div className="flex flex-col gap-3">
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
       <Actions>
-        <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>
-            {t('components.inbox.detail-people.open_in', 'Open in {{openIn}}', {
-              openIn: item.openIn,
-            })}
-          </a>
-        </Button>
+        <OpenHere href={item.link}>
+          {t('components.inbox.detail-people.open_in', 'Open in {{openIn}}', {
+            openIn: item.openIn,
+          })}
+        </OpenHere>
       </Actions>
     </div>
   );

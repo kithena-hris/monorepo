@@ -22,12 +22,21 @@ import {
 } from '@reach/ui';
 import { InboxEvent } from '@kithena/contracts';
 import * as z from 'zod';
-import { Suspense, lazy, useState, useTransition, type JSX, type ReactNode } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { moduleName, opensScreen, type Shown } from '../../lib/inbox/model';
 import type { TaskScreen } from '../../lib/inbox/task-screen';
 import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
-import type { Act } from './pane';
+import { OpenHere, OpenHereContext, type Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
 import { MuteDialog } from './dialogs';
 import { DocumentsBody } from './detail-documents';
@@ -221,6 +230,19 @@ export function InboxDetail({
   const [asking, setAsking] = useState(false);
   const [sendingBack, setSendingBack] = useState(false);
   const [dialog, setDialog] = useState<'snooze' | 'mute' | null>(null);
+  // What a link in the body opened here, in the pane, beneath the body.
+  const [opened, setOpened] = useState<string | null>(null);
+  const openedBox = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (opened !== null) openedBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [opened]);
+  const done = (): void => {
+    toast({
+      title: t('components.inbox.detail.done_title', 'Done: {{title}}', { title: item.title }),
+      tone: 'success',
+    });
+    onNext();
+  };
   const act: Act = {
     pending,
     error,
@@ -388,15 +410,11 @@ export function InboxDetail({
   );
   const body: ReactNode = opensScreen(item) ? (
     <TaskScreenPane
-      item={item}
+      link={item.link}
+      label={item.openIn}
+      version={item}
       {...(screen === undefined ? {} : { initial: screen })}
-      onDone={() => {
-        toast({
-          title: t('components.inbox.detail.done_title', 'Done: {{title}}', { title: item.title }),
-          tone: 'success',
-        });
-        onNext();
-      }}
+      onDone={done}
     />
   ) : item.detail === null ? (
     <GenericBody item={item} />
@@ -497,7 +515,35 @@ export function InboxDetail({
           </ChatMessage>
         </ChatLog>
       )}
-      {body}
+      <OpenHereContext value={setOpened}>{body}</OpenHereContext>
+      {opened === null ? null : (
+        <section
+          ref={openedBox}
+          aria-label={item.openIn}
+          className="flex scroll-mt-4 flex-col gap-3 border-t border-border pt-4"
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="me-auto text-sm font-semibold text-fg-muted">{item.openIn}</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              startIcon={<icons.close aria-hidden />}
+              onClick={() => {
+                setOpened(null);
+              }}
+            >
+              {t('components.inbox.detail.close', 'Close')}
+            </Button>
+          </div>
+          <TaskScreenPane
+            key={opened}
+            link={opened}
+            label={item.openIn}
+            version={item}
+            onDone={done}
+          />
+        </section>
+      )}
       <Activity item={item} zone={zone} />
       {error === null ? null : (
         <Alert
@@ -549,11 +595,9 @@ function GenericBody({ item }: { readonly item: Shown }): JSX.Element {
     <div className="flex flex-col gap-3">
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
       <div>
-        <Button asChild variant="primary" startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>
-            {t('components.inbox.detail.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
-          </a>
-        </Button>
+        <OpenHere href={item.link} variant="primary">
+          {t('components.inbox.detail.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
+        </OpenHere>
       </div>
     </div>
   );

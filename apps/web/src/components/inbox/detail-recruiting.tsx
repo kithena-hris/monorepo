@@ -32,7 +32,7 @@ import {
   submitScorecard,
 } from '../../app/(app)/inbox/actions';
 import { NoteDialog } from './dialogs';
-import { Actions, type BodyProps } from './pane';
+import { Actions, type BodyProps, OpenHere } from './pane';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -210,11 +210,9 @@ function Approval({ item, act }: BodyProps): JSX.Element {
   if (!parsed.success)
     return (
       <Actions>
-        <Button asChild>
-          <a href={item.link}>
-            {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
-          </a>
-        </Button>
+        <OpenHere href={item.link}>
+          {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
+        </OpenHere>
       </Actions>
     );
   const d = parsed.data;
@@ -409,11 +407,9 @@ function CreateContract({ item, act }: BodyProps): JSX.Element {
     };
   }, [offerId]);
   const open = (
-    <Button asChild variant="secondary">
-      <a href={item.link}>
-        {tr('components.inbox.detail-recruiting.open_the_contract_page', 'Open the contract page')}
-      </a>
-    </Button>
+    <OpenHere href={item.link} variant="secondary">
+      {tr('components.inbox.detail-recruiting.open_the_contract_page', 'Open the contract page')}
+    </OpenHere>
   );
   if (draft === null)
     return (
@@ -540,11 +536,9 @@ function Scorecard({ item, act, now }: BodyProps): JSX.Element {
   if (!parsed.success)
     return (
       <Actions>
-        <Button asChild>
-          <a href={item.link}>
-            {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
-          </a>
-        </Button>
+        <OpenHere href={item.link}>
+          {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
+        </OpenHere>
       </Actions>
     );
   const d = parsed.data;
@@ -659,11 +653,9 @@ export function RecruitingBody(props: BodyProps): JSX.Element {
   if (props.item.kind === 'recruiting.create-contract') return <CreateContract {...props} />;
   return (
     <Actions>
-      <Button asChild>
-        <a href={props.item.link}>
-          {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
-        </a>
-      </Button>
+      <OpenHere href={props.item.link}>
+        {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
+      </OpenHere>
     </Actions>
   );
 }

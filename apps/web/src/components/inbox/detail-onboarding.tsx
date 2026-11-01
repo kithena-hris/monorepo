@@ -1,11 +1,11 @@
 'use client';
 
 import { OnboardingTaskDetail } from '@kithena/contracts';
-import { Button, icons } from '@reach/ui';
+import { Button } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { onboardingAct } from '../../app/(app)/onboarding/actions';
-import { Actions, type BodyProps } from './pane';
+import { Actions, type BodyProps, OpenHere } from './pane';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -42,15 +42,13 @@ export function OnboardingBody({ item, act }: BodyProps): JSX.Element {
           </Button>
         )}
         {d?.link == null ? null : (
-          <Button asChild variant="secondary" startIcon={<icons.externalLink aria-hidden />}>
-            <a href={d.link}>{tr('components.inbox.detail-onboarding.do_it', 'Do it')}</a>
-          </Button>
+          <OpenHere href={d.link} variant="secondary">
+            {tr('components.inbox.detail-onboarding.do_it', 'Do it')}
+          </OpenHere>
         )}
-        <Button asChild variant="ghost">
-          <a href={item.link}>
-            {tr('components.inbox.detail-onboarding.see_the_plan', 'See the plan')}
-          </a>
-        </Button>
+        <OpenHere href={item.link} variant="ghost">
+          {tr('components.inbox.detail-onboarding.see_the_plan', 'See the plan')}
+        </OpenHere>
       </Actions>
     </div>
   );

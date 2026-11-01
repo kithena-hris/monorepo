@@ -28,7 +28,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { decideTimeOff, nudgeTimeOff, withdrawTimeOff } from '../../app/(app)/inbox/actions';
-import { Actions, type BodyProps } from './pane';
+import { Actions, type BodyProps, OpenHere, useOpenHereClick } from './pane';
 import { ConfirmDialog } from './dialogs';
 import { days, firstName, shortDay, spanLong, weekdays, when } from './format';
 import { t } from '../../lib/t';
@@ -229,11 +229,9 @@ function Approval({ item, act }: BodyProps): JSX.Element {
             >
               {t('components.inbox.detail-timeoff.decline', 'Decline')}
             </Button>
-            <Button asChild variant="ghost" size="sm">
-              <a href={item.link}>
-                {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
-              </a>
-            </Button>
+            <OpenHere href={item.link} variant="ghost" size="sm">
+              {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+            </OpenHere>
           </Actions>
         </>
       ) : null}
@@ -377,6 +375,7 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
 
 /** D1, D4, M:C2, M:C4: what was decided, and a way on from a decline. */
 function Decided({ item }: BodyProps): JSX.Element {
+  const here = useOpenHereClick();
   const parsed = TimeOffDecidedDetail.safeParse(item.detail);
   if (!parsed.success) return <Missing />;
   const d = parsed.data;
@@ -434,7 +433,10 @@ function Decided({ item }: BodyProps): JSX.Element {
             }
             chevron
           >
-            <a href={`/time-off/requests/${d.followUp.requestId}`}>
+            <a
+              href={`/time-off/requests/${d.followUp.requestId}`}
+              onClick={here(`/time-off/requests/${d.followUp.requestId}`)}
+            >
               {t(
                 'components.inbox.detail-timeoff.you_asked_for_instead',
                 'You asked for {{label}} instead',
@@ -446,17 +448,16 @@ function Decided({ item }: BodyProps): JSX.Element {
       )}
       <Actions>
         {d.approved || d.followUp !== null ? (
-          <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-            <a href={item.link}>
-              {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
-            </a>
-          </Button>
+          <OpenHere href={item.link}>
+            {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+          </OpenHere>
         ) : (
-          <Button asChild startIcon={<icons.add aria-hidden />}>
-            <a href={`/time-off/request?from=${d.from}&to=${d.to}`}>
-              {t('components.inbox.detail-timeoff.request_other_dates', 'Request other dates')}
-            </a>
-          </Button>
+          <OpenHere
+            href={`/time-off/request?from=${d.from}&to=${d.to}`}
+            startIcon={<icons.add aria-hidden />}
+          >
+            {t('components.inbox.detail-timeoff.request_other_dates', 'Request other dates')}
+          </OpenHere>
         )}
       </Actions>
     </div>
@@ -480,11 +481,13 @@ function Expiring({ item }: BodyProps): JSX.Element {
         ]}
       />
       <Actions>
-        <Button asChild variant="primary" startIcon={<icons.add aria-hidden />}>
-          <a href={`/time-off/request?type=${d.leaveTypeKey}`}>
-            {t('components.inbox.detail-timeoff.plan_time_off', 'Plan time off')}
-          </a>
-        </Button>
+        <OpenHere
+          href={`/time-off/request?type=${d.leaveTypeKey}`}
+          variant="primary"
+          startIcon={<icons.add aria-hidden />}
+        >
+          {t('components.inbox.detail-timeoff.plan_time_off', 'Plan time off')}
+        </OpenHere>
       </Actions>
     </div>
   );
@@ -518,11 +521,9 @@ function Holidays({ item }: BodyProps): JSX.Element {
         ]}
       />
       <Actions>
-        <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>
-            {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
-          </a>
-        </Button>
+        <OpenHere href={item.link}>
+          {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+        </OpenHere>
       </Actions>
     </div>
   );
@@ -560,11 +561,9 @@ export function TimeOffBody(props: BodyProps): JSX.Element {
     default:
       return (
         <Actions>
-          <Button asChild>
-            <a href={props.item.link}>
-              {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
-            </a>
-          </Button>
+          <OpenHere href={props.item.link}>
+            {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+          </OpenHere>
         </Actions>
       );
   }
