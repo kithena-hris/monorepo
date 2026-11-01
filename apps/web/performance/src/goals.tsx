@@ -28,6 +28,7 @@ import {
   type TreeViewNode,
   TrendChart,
   icons,
+  WidgetGrid,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -257,7 +258,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
               </Alert>
             )}
             {data.scope === 'mine' && data.weighted ? (
-              <div className="grid gap-3 sm:grid-cols-3">
+              <WidgetGrid size="sm">
                 <Stat
                   label={t('goals.goal_score', 'Goal score')}
                   value={data.score === null ? '—' : `${String(data.score)}%`}
@@ -278,7 +279,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
                   value={String(data.rows.length)}
                   description={t('goals.this_period', 'This period')}
                 />
-              </div>
+              </WidgetGrid>
             ) : null}
             {data.tab === 'alignment' ? (
               <Tree rows={data.tree} onNavigate={props.onNavigate} />

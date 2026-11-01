@@ -18,6 +18,7 @@ import {
   Textarea,
   TrendChart,
   icons,
+  WidgetGrid,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -172,7 +173,7 @@ function Body({
   if (data.tab === 'cycle' && data.tiles !== undefined)
     return (
       <div className="flex flex-col gap-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <WidgetGrid size="sm">
           <Stat
             label={tr('analytics.submitted', 'Submitted')}
             value={pct(data.tiles.completion)}
@@ -198,7 +199,7 @@ function Body({
               acknowledged: String(data.tiles.acknowledged),
             })}
           />
-        </div>
+        </WidgetGrid>
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -364,7 +365,7 @@ function Body({
   if (data.tab === 'fairness')
     return (
       <div className="flex flex-col gap-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <WidgetGrid size="sm">
           {(data.prefill ?? []).map((p) => (
             <Stat
               key={p.label}
@@ -375,7 +376,7 @@ function Body({
               })}
             />
           ))}
-        </div>
+        </WidgetGrid>
         <Card>
           <CardHeader>
             <CardTitle level={2}>

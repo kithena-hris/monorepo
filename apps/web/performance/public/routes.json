@@ -193,19 +193,86 @@
       "component": "Webhooks"
     }
   ],
-  "actions": [],
+  "actions": [
+    {
+      "path": "/performance/feedback/praise",
+      "label": "Recognition",
+      "icon": "starred",
+      "menu": true,
+      "on": [
+        "/performance/feedback",
+        "/performance/feedback/sent",
+        "/performance/feedback/requests"
+      ]
+    },
+    {
+      "path": "/performance/notes",
+      "label": "Private notes",
+      "icon": "edit",
+      "menu": true,
+      "on": [
+        "/performance/feedback",
+        "/performance/feedback/sent",
+        "/performance/feedback/requests"
+      ]
+    },
+    {
+      "path": "/performance/unlocks",
+      "label": "Unlock requests",
+      "icon": "unlocked",
+      "menu": true,
+      "for": [
+        "hr"
+      ],
+      "on": [
+        "/performance/cycles"
+      ]
+    },
+    {
+      "path": "/performance/templates",
+      "label": "Form templates",
+      "icon": "table",
+      "menu": true,
+      "for": [
+        "hr"
+      ],
+      "owns": [
+        "/performance/templates/:id",
+        "/performance/templates/:id/preview",
+        "/performance/templates/:id/history"
+      ],
+      "on": [
+        "/performance/cycles"
+      ]
+    },
+    {
+      "path": "/performance/automations",
+      "label": "Automations",
+      "icon": "system",
+      "menu": true,
+      "for": [
+        "hr"
+      ],
+      "owns": [
+        "/performance/automations/:id"
+      ],
+      "on": [
+        "/performance/cycles"
+      ]
+    }
+  ],
   "sections": [
     {
       "path": "/performance/home",
-      "label": "Home",
+      "label": "Overview",
       "group": "Performance",
-      "icon": "home",
+      "icon": "overview",
       "description": "What you owe, what is owed to you, and your goals",
       "summary": "What needs you"
     },
     {
       "path": "/performance/reviews",
-      "label": "My reviews",
+      "label": "Reviews",
       "group": "Performance",
       "icon": "review",
       "description": "Reviews you write, and the ones written about you",
@@ -218,40 +285,15 @@
       "tabs": [
         {
           "path": "/performance/reviews",
-          "label": "I owe"
+          "label": "Assigned"
         },
         {
           "path": "/performance/reviews/owed",
-          "label": "Owed to me"
+          "label": "Received"
         },
         {
           "path": "/performance/reviews/done",
-          "label": "Done"
-        }
-      ]
-    },
-    {
-      "path": "/performance/cycles",
-      "label": "Cycles",
-      "group": "Performance",
-      "icon": "calendar",
-      "for": ["hr", "manager", "calibrator"],
-      "description": "Review cycles: set up, live, closed",
-      "summary": "Cycles",
-      "owns": [
-        "/performance/cycles/:id",
-        "/performance/cycles/:id/setup",
-        "/performance/cycles/:cycleId/about/:subjectId"
-      ],
-      "tabs": [
-        {
-          "path": "/performance/cycles",
-          "label": "Cycles"
-        },
-        {
-          "path": "/performance/unlocks",
-          "label": "Unlocks",
-          "for": ["hr"]
+          "label": "Completed"
         }
       ]
     },
@@ -260,7 +302,7 @@
       "label": "Feedback",
       "group": "Performance",
       "icon": "message",
-      "description": "Feedback and praise, given whenever it is useful",
+      "description": "Feedback given and received, and requests for it",
       "summary": "Feedback",
       "tabs": [
         {
@@ -269,19 +311,11 @@
         },
         {
           "path": "/performance/feedback/sent",
-          "label": "Sent"
+          "label": "Given"
         },
         {
           "path": "/performance/feedback/requests",
           "label": "Requests"
-        },
-        {
-          "path": "/performance/feedback/praise",
-          "label": "Praise"
-        },
-        {
-          "path": "/performance/notes",
-          "label": "Notes"
         }
       ]
     },
@@ -290,18 +324,23 @@
       "label": "Goals",
       "group": "Performance",
       "icon": "goal",
-      "description": "Goals and key results, mine, my team's and the company's",
+      "description": "Goals and key results: personal, team and company",
       "summary": "Goals",
-      "owns": ["/performance/goals/:id"],
+      "owns": [
+        "/performance/goals/:id"
+      ],
       "tabs": [
         {
           "path": "/performance/goals",
-          "label": "Mine"
+          "label": "Personal"
         },
         {
           "path": "/performance/goals/team",
-          "label": "My team",
-          "for": ["hr", "manager"]
+          "label": "Team",
+          "for": [
+            "hr",
+            "manager"
+          ]
         },
         {
           "path": "/performance/goals/company",
@@ -323,7 +362,7 @@
       "tabs": [
         {
           "path": "/performance/learning",
-          "label": "My learning"
+          "label": "Enrolled"
         },
         {
           "path": "/performance/learning/catalogue",
@@ -336,38 +375,38 @@
       ]
     },
     {
+      "path": "/performance/cycles",
+      "label": "Cycles",
+      "group": "Performance",
+      "icon": "calendar",
+      "for": [
+        "hr",
+        "manager",
+        "calibrator"
+      ],
+      "description": "Review cycles: set up, live, closed",
+      "summary": "Cycles",
+      "owns": [
+        "/performance/cycles/:id",
+        "/performance/cycles/:id/setup",
+        "/performance/cycles/:cycleId/about/:subjectId"
+      ]
+    },
+    {
       "path": "/performance/calibration",
       "label": "Calibration",
       "group": "Performance",
       "icon": "people",
-      "for": ["hr", "calibrator", "manager"],
+      "for": [
+        "hr",
+        "calibrator",
+        "manager"
+      ],
       "description": "Scores compared across teams before release",
       "summary": "Calibration",
-      "owns": ["/performance/calibration/:id"]
-    },
-    {
-      "path": "/performance/templates",
-      "label": "Form templates",
-      "group": "Performance",
-      "icon": "table",
-      "for": ["hr"],
-      "description": "The forms reviews and feedback are written on",
-      "summary": "Templates",
       "owns": [
-        "/performance/templates/:id",
-        "/performance/templates/:id/preview",
-        "/performance/templates/:id/history"
+        "/performance/calibration/:id"
       ]
-    },
-    {
-      "path": "/performance/automations",
-      "label": "Automations",
-      "group": "Performance",
-      "icon": "system",
-      "for": ["hr"],
-      "description": "Cycles that make themselves, on a calendar or after an event",
-      "summary": "Automations",
-      "owns": ["/performance/automations/:id"]
     }
   ],
   "slots": {},
@@ -375,91 +414,129 @@
     {
       "path": "/settings/performance/general",
       "label": "General",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "The rating scale and the parts of Performance the company uses.",
       "icon": "settings"
     },
     {
       "path": "/settings/performance/release",
       "label": "Release",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "The defaults a cycle starts from: who releases, the response minimum, acknowledgement.",
       "icon": "review"
     },
     {
       "path": "/settings/performance/feedback",
       "label": "Feedback",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Who gives feedback, whether names are shown, praise and company values.",
       "icon": "message"
     },
     {
       "path": "/settings/performance/goals",
       "label": "Goals",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Goal periods, check-in cadence and weighting.",
       "icon": "goal"
     },
     {
       "path": "/settings/performance/learning",
       "label": "Learning",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Learning platforms and session attendance.",
       "icon": "document"
     },
     {
       "path": "/settings/performance/calibration",
       "label": "Calibration",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "The nine-box guide and who sees what in a session.",
       "icon": "people"
     },
     {
       "path": "/settings/performance/ai",
       "label": "AI",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Each AI feature, on or off; every output is logged.",
       "icon": "assistant"
     },
     {
       "path": "/settings/performance/connections",
       "label": "Connections",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Calendars, chat and the tools people may let Kithena read.",
       "icon": "link"
     },
     {
       "path": "/settings/performance/webhooks",
       "label": "Webhooks",
-      "for": ["admin"],
+      "for": [
+        "admin"
+      ],
       "description": "Performance’s events sent to your own systems, signed.",
       "icon": "link"
     },
     {
       "path": "/settings/performance/retention",
       "label": "Retention",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "How long records are kept, and legal holds.",
       "icon": "archive"
     },
     {
       "path": "/settings/performance/works-councils",
       "label": "Works councils",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Where a works council has agreed, and to what.",
       "icon": "agreement"
     },
     {
       "path": "/settings/performance/access",
       "label": "Access",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Who is HR to Performance.",
       "icon": "permission"
     },
     {
       "path": "/settings/performance/ai-log",
       "label": "AI log",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Every AI output, for whom and on what.",
       "icon": "assistant"
     },

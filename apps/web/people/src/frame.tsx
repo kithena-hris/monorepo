@@ -10,6 +10,10 @@ import {
   BreadcrumbSeparator,
   Badge,
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   PageHeaderFrame,
   Stack,
   TertiaryNav,
@@ -80,6 +84,8 @@ export interface Frame {
     readonly label: string;
     /** A Reach icon name, drawn before the label. */
     readonly icon?: string;
+    /** Not the page's one thing: in the header's More menu rather than a button. */
+    readonly menu?: boolean;
   }[];
 }
 
@@ -143,6 +149,10 @@ export function ScreenFrame({
     pending = false,
   } = frame;
   const tab = tabs.find((t) => t.current);
+  // One tab is the page itself: no row for it.
+  const shownTabs = tabs.length > 1 ? tabs : [];
+  const buttons = actions.filter((a) => a.menu !== true);
+  const menu = actions.filter((a) => a.menu === true);
   const withIcons = siblings.map((group) => ({
     ...group,
     items: group.items.map((item) => ({ ...item, icon: iconOf(item.icon) })),
@@ -153,7 +163,7 @@ export function ScreenFrame({
       quietTitleOnTouch={section !== null && siblings.length > 0}
       pending={pending}
       tabs={
-        tabs.length === 0 ? undefined : (
+        shownTabs.length === 0 ? undefined : (
           <TertiaryNav
             label={
               section === null
@@ -165,7 +175,7 @@ export function ScreenFrame({
             current="page"
             touchLayout="pills"
             {...(tab === undefined ? {} : { activeId: tab.href })}
-            items={tabs.map((t) => ({
+            items={shownTabs.map((t) => ({
               id: t.href,
               href: t.href,
               label: t.label,
@@ -284,9 +294,9 @@ export function ScreenFrame({
       // Under a finger the actions are the phone bar's, top right, as icons.
       touchBarActions
       actions={
-        actions.length === 0
-          ? undefined
-          : actions.map((a) => (
+        actions.length === 0 ? undefined : (
+          <>
+            {buttons.map((a) => (
               <Fragment key={a.href}>
                 <Button
                   variant="primary"
@@ -311,7 +321,31 @@ export function ScreenFrame({
                   )}
                 </Button>
               </Fragment>
-            ))
+            ))}
+            {menu.length === 0 ? null : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    aria-label={tr('frame.more', 'More')}
+                    startIcon={<icons.more aria-hidden />}
+                    className="flex-none! touch:size-11"
+                  />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-56">
+                  {menu.map((a) => (
+                    <DropdownMenuItem key={a.href} asChild>
+                      <a href={a.href}>
+                        {iconOf(a.icon)}
+                        {a.label}
+                      </a>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </>
+        )
       }
     >
       {notice === undefined ? (

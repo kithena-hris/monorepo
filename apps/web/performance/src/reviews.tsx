@@ -197,7 +197,7 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={t('reviews.my_reviews', 'My reviews')}
+            title={t('reviews.reviews', 'Reviews')}
             description={t(
               'reviews.every_review_you_write_across_cycles',
               'Every review you write, across cycles, and what is written about you.',

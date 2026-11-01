@@ -1,10 +1,6 @@
 import {
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   EmptyState,
   List,
   ListItem,
@@ -12,6 +8,8 @@ import {
   Progress,
   Stat,
   icons,
+  Widget,
+  WidgetGrid,
 } from '@reach/ui';
 import type { JSX } from 'react';
 
@@ -114,6 +112,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                 </Button>
                 {data.hr ? (
                   <Button
+                    variant="primary"
                     loading={act.pending}
                     onClick={() => {
                       // Straight into setup: its Basics step names the cycle and sets its start.
@@ -137,7 +136,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                     {tr('home.new_cycle', 'New cycle')}
                   </Button>
                 ) : (
-                  <Button asChild>
+                  <Button asChild variant="primary">
                     <a href="/performance/feedback/requests?ask=1">
                       {tr('home.request_feedback', 'Request feedback')}
                     </a>
@@ -147,8 +146,9 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
             }
           />
           <Refusal error={act.error} />
+          {/* The figures: tiles of one size, never stretched to the row. */}
           {data.stats.length === 0 ? null : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <WidgetGrid size="sm">
               {data.stats.map((s) => (
                 <Stat
                   key={s.label}
@@ -158,153 +158,154 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                   {...(s.warning === true ? { sentiment: 'negative' as const } : {})}
                 />
               ))}
-            </div>
+            </WidgetGrid>
           )}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle level={2}>{tr('home.you_owe', 'You owe')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {data.tasks.length === 0 ? (
-                  <EmptyState
-                    icon={<icons.success aria-hidden />}
-                    title={tr('home.nothing_needs_you', 'Nothing needs you')}
-                    description={tr(
-                      'home.reviews_to_write_nominations_and_learning',
-                      'Reviews to write, nominations and learning due land here and in your Inbox.',
-                    )}
-                  />
-                ) : (
-                  <List>
-                    {data.tasks.map((t) => (
-                      <ListItem
-                        key={t.id}
-                        asChild
-                        chevron
-                        description={[
-                          t.summary,
-                          t.due === null
-                            ? null
-                            : tr('home.due', 'due {{due}}', { due: day(t.due) }),
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                        trailing={
-                          t.tone === 'danger' ? (
-                            <Badge size="sm" tone="danger">
-                              {tr('home.overdue', 'Overdue')}
-                            </Badge>
-                          ) : null
-                        }
-                      >
-                        <To href={t.link} onNavigate={props.onNavigate}>
-                          {t.title}
-                        </To>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-            </Card>
-            <div className="flex flex-col gap-4">
-              <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                  <CardTitle level={2}>{tr('home.owed_to_you', 'Owed to you')}</CardTitle>
-                  <To href="/performance/reviews/owed" onNavigate={props.onNavigate}>
-                    {tr('home.all', 'All')}
-                  </To>
-                </CardHeader>
-                <CardContent>
-                  {data.owed.length === 0 ? (
-                    <p className="text-sm text-fg-muted">
-                      {tr(
-                        'home.nobody_is_writing_about_you_in',
-                        'Nobody is writing about you in a running cycle.',
-                      )}
-                    </p>
-                  ) : (
-                    <List>
-                      {data.owed.map((o) => (
-                        <ListItem
-                          key={o.id}
-                          description={
-                            o.released === null
-                              ? tr(
-                                  'home.cycle_seen_when_released',
-                                  '{{cycle}} · You see it when it is released',
-                                  {
-                                    cycle: o.cycle,
-                                  },
-                                )
-                              : tr('home.cycle_released', '{{cycle}} · Released {{day}}', {
-                                  cycle: o.cycle,
-                                  day: day(o.released),
-                                })
-                          }
-                          trailing={<ReviewBadge state={o.state} />}
+          <WidgetGrid>
+            <Widget
+              title={tr('home.assigned_to_you', 'Assigned to you')}
+              icon={<icons.review aria-hidden />}
+              tone="accent"
+              {...(data.tasks.length === 0 ? {} : { meta: data.tasks.length })}
+              span={2}
+              flush={data.tasks.length > 0}
+            >
+              {data.tasks.length === 0 ? (
+                <EmptyState
+                  icon={<icons.success aria-hidden />}
+                  title={tr('home.nothing_needs_you', 'Nothing needs you')}
+                  description={tr(
+                    'home.reviews_to_write_nominations_and_learning',
+                    'Reviews to write, nominations and learning due land here and in your Inbox.',
+                  )}
+                />
+              ) : (
+                <List>
+                  {data.tasks.map((t) => (
+                    <ListItem
+                      key={t.id}
+                      asChild
+                      chevron
+                      description={[
+                        t.summary,
+                        t.due === null ? null : tr('home.due', 'due {{due}}', { due: day(t.due) }),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                      trailing={
+                        t.tone === 'danger' ? (
+                          <Badge size="sm" tone="danger">
+                            {tr('home.overdue', 'Overdue')}
+                          </Badge>
+                        ) : null
+                      }
+                    >
+                      <To href={t.link} onNavigate={props.onNavigate}>
+                        {t.title}
+                      </To>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Widget>
+            <Widget
+              title={tr('home.reviews_about_you', 'Reviews about you')}
+              icon={<icons.person aria-hidden />}
+              tone="chart-2"
+              flush={data.owed.length > 0}
+              action={
+                <To href="/performance/reviews/owed" onNavigate={props.onNavigate}>
+                  {tr('home.all', 'All')}
+                </To>
+              }
+            >
+              {data.owed.length === 0 ? (
+                <p className="text-sm text-fg-muted">
+                  {tr(
+                    'home.nobody_is_writing_about_you_in',
+                    'Nobody is writing about you in a running cycle.',
+                  )}
+                </p>
+              ) : (
+                <List>
+                  {data.owed.map((o) => (
+                    <ListItem
+                      key={o.id}
+                      description={
+                        o.released === null
+                          ? tr(
+                              'home.cycle_seen_when_released',
+                              '{{cycle}} · You see it when it is released',
+                              { cycle: o.cycle },
+                            )
+                          : tr('home.cycle_released', '{{cycle}} · Released {{day}}', {
+                              cycle: o.cycle,
+                              day: day(o.released),
+                            })
+                      }
+                      trailing={<ReviewBadge state={o.state} />}
+                    >
+                      {`${kindLabel(o.kind)}${o.from === null ? '' : ` · ${o.from}`}`}
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Widget>
+            <Widget
+              title={tr('home.your_goals', 'Your goals')}
+              icon={<icons.goal aria-hidden />}
+              tone="chart-4"
+              {...(data.goals.length === 0 ? {} : { meta: data.goals.length })}
+              action={
+                <To href="/performance/goals" onNavigate={props.onNavigate}>
+                  {tr('home.all_goals', 'All goals')}
+                </To>
+              }
+            >
+              {data.goals.length === 0 ? (
+                <p className="text-sm text-fg-muted">
+                  {tr('home.no_goals_for_this_period_yet', 'No goals for this period yet.')}
+                </p>
+              ) : (
+                data.goals.map((g) => {
+                  const [label, tone] = CONFIDENCE()[g.confidence] ?? [
+                    tr('home.on_track', 'On track'),
+                    'success',
+                  ];
+                  return (
+                    <div key={g.id} className="flex flex-col gap-1.5">
+                      <span className="flex items-center gap-2">
+                        <To
+                          href={`/performance/goals/${g.id}`}
+                          onNavigate={props.onNavigate}
+                          className="min-w-0 flex-1 truncate font-medium hover:underline"
                         >
-                          {`${kindLabel(o.kind)}${o.from === null ? '' : ` · ${o.from}`}`}
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                  <CardTitle level={2}>{tr('home.my_goals', 'My goals')}</CardTitle>
-                  <To href="/performance/goals" onNavigate={props.onNavigate}>
-                    {tr('home.all_goals', 'All goals')}
-                  </To>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  {data.goals.length === 0 ? (
-                    <p className="text-sm text-fg-muted">
-                      {tr('home.no_goals_for_this_period_yet', 'No goals for this period yet.')}
-                    </p>
-                  ) : (
-                    data.goals.map((g) => {
-                      const [label, tone] = CONFIDENCE()[g.confidence] ?? [
-                        tr('home.on_track', 'On track'),
-                        'success',
-                      ];
-                      return (
-                        <div key={g.id} className="flex flex-col gap-1.5">
-                          <span className="flex items-center gap-2">
-                            <To
-                              href={`/performance/goals/${g.id}`}
-                              onNavigate={props.onNavigate}
-                              className="min-w-0 flex-1 truncate font-medium hover:underline"
-                            >
-                              {g.title}
-                            </To>
-                            <Badge size="sm" tone={tone}>
-                              {label}
-                            </Badge>
-                          </span>
-                          <Progress
-                            value={g.progress}
-                            label={tr('home.text_2', '{{title}}: {{progress}}%', {
-                              title: g.title,
-                              progress: String(g.progress),
-                            })}
-                          />
-                        </div>
-                      );
-                    })
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          {data.hr ? (
-            <Card>
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle level={2}>{tr('home.cycles_you_own', 'Cycles you own')}</CardTitle>
-                <Live />
-              </CardHeader>
-              <CardContent>
+                          {g.title}
+                        </To>
+                        <Badge size="sm" tone={tone}>
+                          {label}
+                        </Badge>
+                      </span>
+                      <Progress
+                        value={g.progress}
+                        label={tr('home.text_2', '{{title}}: {{progress}}%', {
+                          title: g.title,
+                          progress: String(g.progress),
+                        })}
+                      />
+                    </div>
+                  );
+                })
+              )}
+            </Widget>
+            {data.hr ? (
+              <Widget
+                title={tr('home.cycles_you_own', 'Cycles you own')}
+                icon={<icons.calendar aria-hidden />}
+                tone="chart-1"
+                meta={<Live />}
+                span={3}
+                flush={data.running.length > 0}
+              >
                 {data.running.length === 0 ? (
                   <EmptyState
                     icon={<icons.review aria-hidden />}
@@ -353,9 +354,9 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                     ))}
                   </List>
                 )}
-              </CardContent>
-            </Card>
-          ) : null}
+              </Widget>
+            ) : null}
+          </WidgetGrid>
         </div>
       )}
     </Loaded>
