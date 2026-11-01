@@ -4508,7 +4508,7 @@
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
   },
   "lib.shortcuts.import_export": {
-    "text": "Import & export",
+    "text": "Import and export",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
   },
   "lib.shortcuts.inbox": {

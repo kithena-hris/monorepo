@@ -193,19 +193,72 @@
       "component": "Webhooks"
     }
   ],
-  "actions": [],
+  "actions": [
+    {
+      "path": "/performance/feedback/praise",
+      "label": "Recognition",
+      "icon": "starred",
+      "menu": true,
+      "on": [
+        "/performance/feedback",
+        "/performance/feedback/sent",
+        "/performance/feedback/requests"
+      ]
+    },
+    {
+      "path": "/performance/notes",
+      "label": "Private notes",
+      "icon": "edit",
+      "menu": true,
+      "on": [
+        "/performance/feedback",
+        "/performance/feedback/sent",
+        "/performance/feedback/requests"
+      ]
+    },
+    {
+      "path": "/performance/unlocks",
+      "label": "Unlock requests",
+      "icon": "unlocked",
+      "menu": true,
+      "for": ["hr"],
+      "on": ["/performance/cycles"]
+    },
+    {
+      "path": "/performance/templates",
+      "label": "Form templates",
+      "icon": "table",
+      "menu": true,
+      "for": ["hr"],
+      "owns": [
+        "/performance/templates/:id",
+        "/performance/templates/:id/preview",
+        "/performance/templates/:id/history"
+      ],
+      "on": ["/performance/cycles"]
+    },
+    {
+      "path": "/performance/automations",
+      "label": "Automations",
+      "icon": "system",
+      "menu": true,
+      "for": ["hr"],
+      "owns": ["/performance/automations/:id"],
+      "on": ["/performance/cycles"]
+    }
+  ],
   "sections": [
     {
       "path": "/performance/home",
-      "label": "Home",
+      "label": "Overview",
       "group": "Performance",
-      "icon": "home",
+      "icon": "overview",
       "description": "What you owe, what is owed to you, and your goals",
       "summary": "What needs you"
     },
     {
       "path": "/performance/reviews",
-      "label": "My reviews",
+      "label": "Reviews",
       "group": "Performance",
       "icon": "review",
       "description": "Reviews you write, and the ones written about you",
@@ -218,40 +271,15 @@
       "tabs": [
         {
           "path": "/performance/reviews",
-          "label": "I owe"
+          "label": "Assigned"
         },
         {
           "path": "/performance/reviews/owed",
-          "label": "Owed to me"
+          "label": "Received"
         },
         {
           "path": "/performance/reviews/done",
-          "label": "Done"
-        }
-      ]
-    },
-    {
-      "path": "/performance/cycles",
-      "label": "Cycles",
-      "group": "Performance",
-      "icon": "calendar",
-      "for": ["hr", "manager", "calibrator"],
-      "description": "Review cycles: set up, live, closed",
-      "summary": "Cycles",
-      "owns": [
-        "/performance/cycles/:id",
-        "/performance/cycles/:id/setup",
-        "/performance/cycles/:cycleId/about/:subjectId"
-      ],
-      "tabs": [
-        {
-          "path": "/performance/cycles",
-          "label": "Cycles"
-        },
-        {
-          "path": "/performance/unlocks",
-          "label": "Unlocks",
-          "for": ["hr"]
+          "label": "Completed"
         }
       ]
     },
@@ -260,7 +288,7 @@
       "label": "Feedback",
       "group": "Performance",
       "icon": "message",
-      "description": "Feedback and praise, given whenever it is useful",
+      "description": "Feedback given and received, and requests for it",
       "summary": "Feedback",
       "tabs": [
         {
@@ -269,19 +297,11 @@
         },
         {
           "path": "/performance/feedback/sent",
-          "label": "Sent"
+          "label": "Given"
         },
         {
           "path": "/performance/feedback/requests",
           "label": "Requests"
-        },
-        {
-          "path": "/performance/feedback/praise",
-          "label": "Praise"
-        },
-        {
-          "path": "/performance/notes",
-          "label": "Notes"
         }
       ]
     },
@@ -290,17 +310,17 @@
       "label": "Goals",
       "group": "Performance",
       "icon": "goal",
-      "description": "Goals and key results, mine, my team's and the company's",
+      "description": "Goals and key results: personal, team and company",
       "summary": "Goals",
       "owns": ["/performance/goals/:id"],
       "tabs": [
         {
           "path": "/performance/goals",
-          "label": "Mine"
+          "label": "Personal"
         },
         {
           "path": "/performance/goals/team",
-          "label": "My team",
+          "label": "Team",
           "for": ["hr", "manager"]
         },
         {
@@ -323,7 +343,7 @@
       "tabs": [
         {
           "path": "/performance/learning",
-          "label": "My learning"
+          "label": "Enrolled"
         },
         {
           "path": "/performance/learning/catalogue",
@@ -336,6 +356,20 @@
       ]
     },
     {
+      "path": "/performance/cycles",
+      "label": "Cycles",
+      "group": "Performance",
+      "icon": "calendar",
+      "for": ["hr", "manager", "calibrator"],
+      "description": "Review cycles: set up, live, closed",
+      "summary": "Cycles",
+      "owns": [
+        "/performance/cycles/:id",
+        "/performance/cycles/:id/setup",
+        "/performance/cycles/:cycleId/about/:subjectId"
+      ]
+    },
+    {
       "path": "/performance/calibration",
       "label": "Calibration",
       "group": "Performance",
@@ -344,30 +378,6 @@
       "description": "Scores compared across teams before release",
       "summary": "Calibration",
       "owns": ["/performance/calibration/:id"]
-    },
-    {
-      "path": "/performance/templates",
-      "label": "Form templates",
-      "group": "Performance",
-      "icon": "table",
-      "for": ["hr"],
-      "description": "The forms reviews and feedback are written on",
-      "summary": "Templates",
-      "owns": [
-        "/performance/templates/:id",
-        "/performance/templates/:id/preview",
-        "/performance/templates/:id/history"
-      ]
-    },
-    {
-      "path": "/performance/automations",
-      "label": "Automations",
-      "group": "Performance",
-      "icon": "system",
-      "for": ["hr"],
-      "description": "Cycles that make themselves, on a calendar or after an event",
-      "summary": "Automations",
-      "owns": ["/performance/automations/:id"]
     }
   ],
   "slots": {},

@@ -147,6 +147,9 @@ export function List({
       }}
       className={cn(
         'overflow-hidden rounded-[1.125rem] bg-surface shadow-sm touch:rounded-[1.375rem]',
+        // Inside a card (a `Widget`, a `Card`, a surfaced `PageSection`) the
+        // list is the card's body, not a second card in it.
+        '[[data-surface]_&]:rounded-none [[data-surface]_&]:bg-transparent [[data-surface]_&]:shadow-none',
         // A hairline between rows, drawn as an inset shadow so it takes no
         // height and a selected row's fill reaches the edge.
         '[&>li:not(:last-child)]:shadow-[inset_0_-1px_0_var(--color-border)]',

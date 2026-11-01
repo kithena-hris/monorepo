@@ -1395,10 +1395,9 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
-  it('insights, a tab with every chart’s numbers one tap away', async () => {
+  it('insights, one page with every chart’s numbers one tap away', async () => {
     await checked(
       <Analytics
-        tab="data-quality"
         load={{
           status: 'ready',
           data: {

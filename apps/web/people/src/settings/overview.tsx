@@ -10,6 +10,7 @@ import {
   PageHeader,
   Stack,
   icons,
+  WidgetGrid,
 } from '@reach/ui';
 import type { JSX, ReactNode } from 'react';
 
@@ -268,7 +269,7 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
       />
     );
   }
-  return <div className="grid gap-4 md:grid-cols-2">{cards}</div>;
+  return <WidgetGrid>{cards}</WidgetGrid>;
 }
 
 function SettingCard({

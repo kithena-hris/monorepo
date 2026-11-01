@@ -191,12 +191,12 @@ describe('currentPlace', () => {
 
   it('is the section of a tab, of what a section owns, and of a directory view', () => {
     expect(at('/people/review/decided')).toBe('Review');
-    expect(at('/people/insights/pay')).toBe('Insights');
+    expect(at('/people/insights/workforce')).toBe('Insights');
     expect(at('/people/reports/:id')).toBe('Insights');
     expect(at('/people/directory/list')).toBe('Directory');
     expect(at('/people/directory/org-chart')).toBe('Directory');
     expect(at('/people/:id/history')).toBe('Directory');
-    expect(at('/people/import')).toBe('Import & export');
+    expect(at('/people/import')).toBe('Import and export');
   });
 
   it('is nothing for a route no place claims', () => {
@@ -239,7 +239,7 @@ describe('headerFrame', () => {
     expect(items.map((i) => i.label)).toEqual([
       'Directory',
       'Review',
-      'Import & export',
+      'Import and export',
       'Insights',
     ]);
     expect(items.find((i) => i.current)?.label).toBe('Review');
@@ -417,8 +417,8 @@ describe('the Time Off manifest', () => {
       description: 'Time off waiting for your decision, coming up and decided',
       siblingsLabel: 'Time off sections',
     });
-    expect(frame.tabs?.map((t) => t.label)).toEqual(['Waiting', 'Coming up', 'Decided']);
-    expect(frame.tabs?.find((t) => t.current)?.label).toBe('Decided');
+    expect(frame.tabs?.map((t) => t.label)).toEqual(['Pending', 'Upcoming', 'History']);
+    expect(frame.tabs?.find((t) => t.current)?.label).toBe('History');
     // Delegation and adjustments are the page's More menu, not buttons beside its one action.
     expect(frame.actions.filter((a) => a.menu === true).map((a) => a.label)).toEqual([
       'Delegate approvals',

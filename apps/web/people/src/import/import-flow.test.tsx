@@ -506,7 +506,7 @@ describe('ImportFlow', () => {
       'href',
       '/people/import',
     );
-    expect(screen.getByRole('link', { name: 'Import & export' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Import and export' })).toHaveAttribute(
       'href',
       '/people/import-export',
     );

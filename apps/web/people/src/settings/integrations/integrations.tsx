@@ -1,7 +1,6 @@
 import {
   Alert,
   AppMark,
-  AutoGrid,
   Badge,
   Button,
   Card,
@@ -32,10 +31,7 @@ import {
   PageSection,
   Stack,
   Switch,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
+  WidgetGrid,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -232,6 +228,13 @@ function PickMany({
   );
 }
 
+const TITLE: Readonly<Record<string, () => string>> = {
+  overview: () => t('settings.integrations.integrations.integrations', 'Integrations'),
+  slack: () => t('settings.integrations.integrations.slack', 'Slack'),
+  webhooks: () => t('settings.integrations.integrations.webhooks', 'Webhooks'),
+  provisioning: () => t('settings.integrations.integrations.provisioning', 'Provisioning'),
+};
+
 function Endpoints({
   state,
   onCreate,
@@ -272,152 +275,152 @@ function Endpoints({
 
   return (
     <Stack gap={6}>
+      {/* The overview is the directory; each integration is a page of its own, one way back. */}
       <PageHeader
-        title={t('settings.integrations.integrations.integrations', 'Integrations')}
-        description={t(
-          'settings.integrations.integrations.connect_people_to_the_tools_your',
-          'Connect People to the tools your company already uses.',
-        )}
-      />
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList aria-label={t('settings.integrations.integrations.integrations', 'Integrations')}>
-          <TabsTrigger value="overview">
-            {t('settings.integrations.integrations.overview', 'Overview')}
-          </TabsTrigger>
-          {chat === undefined || state.chat === undefined ? null : (
-            <TabsTrigger value="slack">
-              {t('settings.integrations.integrations.slack', 'Slack')}
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="webhooks">
-            {t('settings.integrations.integrations.webhooks', 'Webhooks')}
-          </TabsTrigger>
-          {state.scim === undefined || scim === undefined ? null : (
-            <TabsTrigger value="provisioning">
-              {t('settings.integrations.integrations.provisioning', 'Provisioning')}
-            </TabsTrigger>
-          )}
-        </TabsList>
-        <TabsContent value="overview" className="pt-6">
-          <Stack gap={6}>
-            <Directory
-              state={state}
-              chatShown={chat !== undefined}
-              scimShown={scim !== undefined}
-              onOpen={setTab}
-              {...(tabsAt === undefined ? {} : { tabsAt })}
-            />
-            <Outgoing state={state} />
-          </Stack>
-        </TabsContent>
-        {chat === undefined || state.chat === undefined ? null : (
-          <TabsContent value="slack" className="pt-6">
-            <ChatApps {...chat} state={state.chat} />
-          </TabsContent>
-        )}
-        <TabsContent value="webhooks" className="pt-6">
-          <PageSection
-            title={t('settings.integrations.integrations.webhooks', 'Webhooks')}
-            description={t(
-              'settings.integrations.integrations.send_people_events_to_other_tools',
-              {
-                one: 'Send People events to other tools, with only the fields you allow. {{count}} endpoint · {{toLocaleString}} deliveries in the last 24 hours.',
-                other:
-                  'Send People events to other tools, with only the fields you allow. {{count}} endpoints · {{toLocaleString}} deliveries in the last 24 hours.',
-              },
-              {
-                count: state.endpoints.length,
-                toLocaleString: state.deliveries24h.toLocaleString(),
-              },
-            )}
-            actions={
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setOpen('endpoint');
-                }}
-              >
-                {t('settings.integrations.integrations.add_endpoint', 'Add endpoint')}
-              </Button>
+        title={(TITLE[tab] ?? TITLE['overview'])?.()}
+        {...(tab === 'overview'
+          ? {
+              description: t(
+                'settings.integrations.integrations.connect_people_to_the_tools_your',
+                'Connect People to the tools your company already uses.',
+              ),
             }
-          >
-            <Stack gap={4}>
-              {secret === null ? null : (
-                <Alert
-                  tone="warning"
-                  title={t(
-                    'settings.integrations.integrations.copy_the_signing_secret_now',
-                    'Copy the signing secret now',
-                  )}
-                >
-                  <Stack gap={2}>
-                    <p>
-                      {t(
-                        'settings.integrations.integrations.this_is_the_only_time_it',
-                        'This is the only time it is shown for {{url}}. It cannot be retrieved later; if it is lost, rotate it.',
-                        { url: secret.url },
-                      )}
-                    </p>
-                    <CopyField
-                      value={secret.value}
-                      label={t(
-                        'settings.integrations.integrations.copy_the_signing_secret',
-                        'Copy the signing secret',
-                      )}
-                    />
-                  </Stack>
-                </Alert>
-              )}
-              {state.endpoints.length === 0 ? (
-                <EmptyState
-                  title={t(
-                    'settings.integrations.integrations.no_third_party_tools_connected',
-                    'No third-party tools connected',
-                  )}
-                  description={t(
-                    'settings.integrations.integrations.add_a_webhook_address_from_another',
-                    'Add a webhook address from another tool, such as your payroll provider.',
-                  )}
-                />
-              ) : (
-                state.endpoints.map((endpoint) => (
-                  <EndpointCard
-                    key={endpoint.id}
-                    endpoint={endpoint}
-                    state={state}
-                    refusedKeys={refusedLabels}
-                    onUpdate={onUpdate}
-                    {...(onOpenLog === undefined
-                      ? {}
-                      : {
-                          onOpenLog: () => {
-                            onOpenLog(endpoint.id);
-                          },
-                        })}
-                    onRotate={async () => {
-                      const rotated = await onRotate(endpoint.id);
-                      if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
-                      return rotated.ok ? { ok: true } : rotated;
-                    }}
-                  />
-                ))
-              )}
-            </Stack>
-          </PageSection>
-        </TabsContent>
-        {state.scim === undefined || scim === undefined ? null : (
-          <TabsContent value="provisioning" className="pt-6">
-            <Provisioning
-              scim={state.scim}
-              {...scim}
-              connecting={open === 'connect'}
-              onConnectingChange={(next) => {
-                setOpen(next ? 'connect' : null);
+          : {})}
+        actions={
+          tab === 'overview' ? null : tabsAt === undefined ? (
+            <Button
+              variant="ghost"
+              startIcon={<icons.back aria-hidden />}
+              onClick={() => {
+                setTab('overview');
               }}
-            />
-          </TabsContent>
-        )}
-      </Tabs>
+            >
+              {t('settings.integrations.integrations.all_integrations', 'All integrations')}
+            </Button>
+          ) : (
+            <Button variant="ghost" startIcon={<icons.back aria-hidden />} asChild>
+              <a href={tabsAt}>
+                {t('settings.integrations.integrations.all_integrations', 'All integrations')}
+              </a>
+            </Button>
+          )
+        }
+      />
+      {tab === 'overview' ? (
+        <Stack gap={6}>
+          <Directory
+            state={state}
+            chatShown={chat !== undefined}
+            scimShown={scim !== undefined}
+            onOpen={setTab}
+            {...(tabsAt === undefined ? {} : { tabsAt })}
+          />
+          <Outgoing state={state} />
+        </Stack>
+      ) : null}
+      {tab !== 'slack' || chat === undefined || state.chat === undefined ? null : (
+        <ChatApps {...chat} state={state.chat} />
+      )}
+      {tab !== 'webhooks' ? null : (
+        <PageSection
+          title={t('settings.integrations.integrations.endpoints', 'Endpoints')}
+          description={t(
+            'settings.integrations.integrations.send_people_events_to_other_tools',
+            {
+              one: 'Send People events to other tools, with only the fields you allow. {{count}} endpoint · {{toLocaleString}} deliveries in the last 24 hours.',
+              other:
+                'Send People events to other tools, with only the fields you allow. {{count}} endpoints · {{toLocaleString}} deliveries in the last 24 hours.',
+            },
+            {
+              count: state.endpoints.length,
+              toLocaleString: state.deliveries24h.toLocaleString(),
+            },
+          )}
+          actions={
+            <Button
+              variant="primary"
+              onClick={() => {
+                setOpen('endpoint');
+              }}
+            >
+              {t('settings.integrations.integrations.add_endpoint', 'Add endpoint')}
+            </Button>
+          }
+        >
+          <Stack gap={4}>
+            {secret === null ? null : (
+              <Alert
+                tone="warning"
+                title={t(
+                  'settings.integrations.integrations.copy_the_signing_secret_now',
+                  'Copy the signing secret now',
+                )}
+              >
+                <Stack gap={2}>
+                  <p>
+                    {t(
+                      'settings.integrations.integrations.this_is_the_only_time_it',
+                      'This is the only time it is shown for {{url}}. It cannot be retrieved later; if it is lost, rotate it.',
+                      { url: secret.url },
+                    )}
+                  </p>
+                  <CopyField
+                    value={secret.value}
+                    label={t(
+                      'settings.integrations.integrations.copy_the_signing_secret',
+                      'Copy the signing secret',
+                    )}
+                  />
+                </Stack>
+              </Alert>
+            )}
+            {state.endpoints.length === 0 ? (
+              <EmptyState
+                title={t(
+                  'settings.integrations.integrations.no_third_party_tools_connected',
+                  'No third-party tools connected',
+                )}
+                description={t(
+                  'settings.integrations.integrations.add_a_webhook_address_from_another',
+                  'Add a webhook address from another tool, such as your payroll provider.',
+                )}
+              />
+            ) : (
+              state.endpoints.map((endpoint) => (
+                <EndpointCard
+                  key={endpoint.id}
+                  endpoint={endpoint}
+                  state={state}
+                  refusedKeys={refusedLabels}
+                  onUpdate={onUpdate}
+                  {...(onOpenLog === undefined
+                    ? {}
+                    : {
+                        onOpenLog: () => {
+                          onOpenLog(endpoint.id);
+                        },
+                      })}
+                  onRotate={async () => {
+                    const rotated = await onRotate(endpoint.id);
+                    if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
+                    return rotated.ok ? { ok: true } : rotated;
+                  }}
+                />
+              ))
+            )}
+          </Stack>
+        </PageSection>
+      )}
+      {tab !== 'provisioning' || state.scim === undefined || scim === undefined ? null : (
+        <Provisioning
+          scim={state.scim}
+          {...scim}
+          connecting={open === 'connect'}
+          onConnectingChange={(next) => {
+            setOpen(next ? 'connect' : null);
+          }}
+        />
+      )}
       <AddEndpoint
         {...dialog('endpoint')}
         state={state}
@@ -559,7 +562,7 @@ function Directory({
       <h2 id="all-integrations" className="sr-only">
         {t('settings.integrations.integrations.all_integrations', 'All integrations')}
       </h2>
-      <AutoGrid minItemWidth="15rem" gap={4}>
+      <WidgetGrid>
         {cards.map((c) => (
           <Card key={c.id} className="flex flex-col">
             <CardHeader className="flex-row items-center gap-3">
@@ -604,7 +607,7 @@ function Directory({
             </CardFooter>
           </Card>
         ))}
-      </AutoGrid>
+      </WidgetGrid>
     </section>
   );
 }

@@ -199,11 +199,11 @@ describe('the shortcuts, in the shell', () => {
     expect(push).toHaveBeenLastCalledWith('/people/directory/list?q=ada');
     unmount();
 
-    pathname = '/people/insights/turnover';
+    pathname = '/people/insights/what-changed';
     window.history.replaceState(null, '', pathname);
     renderShell();
     press(']');
-    expect(push).toHaveBeenLastCalledWith('/people/insights/data-quality');
+    expect(push).toHaveBeenLastCalledWith('/people/insights/workforce');
   });
 
   it('/ focuses the page’s search, and types nothing into it', () => {
@@ -281,7 +281,7 @@ describe('C, ⌘Enter and the palette’s actions', () => {
       useScreenCommand({ id: 'create', label: 'New schedule', run: newSchedule });
       return null;
     }
-    pathname = '/people/insights/headcount';
+    pathname = '/people/insights/workforce';
     const { unmount } = renderShell(<Insights />);
     press('c');
     expect(newSchedule).toHaveBeenCalledTimes(1);

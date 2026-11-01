@@ -2,8 +2,6 @@ import {
   Badge,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   EmptyState,
   PageHeader,
   Progress,
@@ -11,6 +9,8 @@ import {
   DataTable,
   type DataColumn,
   icons,
+  Widget,
+  WidgetGrid,
 } from '@reach/ui';
 import type { JSX } from 'react';
 
@@ -39,9 +39,11 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
               'From a signed contract to the end of probation. Hires arrive from Recruiting, People, or another system.',
             )}
           />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* The figures: tiles of one size, never stretched to the row. */}
+          <WidgetGrid size="sm">
             <Stat
               label={t('home.plans_in_flight', 'Plans in flight')}
+              icon={<icons.hire aria-hidden />}
               value={String(data.rows.length)}
             />
             <Stat
@@ -56,12 +58,16 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
               label={t('home.on_track', 'On track')}
               value={String(data.rows.filter((r) => r.late === 0).length)}
             />
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>{t('home.arriving', 'Arriving')}</CardTitle>
-            </CardHeader>
-            <CardContent>
+          </WidgetGrid>
+          <WidgetGrid>
+            <Widget
+              title={t('home.arriving', 'Arriving')}
+              icon={<icons.calendar aria-hidden />}
+              tone="chart-1"
+              {...(data.rows.length === 0 ? {} : { meta: data.rows.length })}
+              span={4}
+              flush={data.rows.length > 0}
+            >
               {data.rows.length === 0 ? (
                 <EmptyState
                   icon={<icons.hire aria-hidden />}
@@ -81,8 +87,8 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
                   columns={planColumns(props.onNavigate)}
                 />
               )}
-            </CardContent>
-          </Card>
+            </Widget>
+          </WidgetGrid>
         </div>
       )}
     </Loaded>
@@ -223,7 +229,7 @@ export function Tasks(props: ScreenProps<TasksData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={t('home.my_onboarding_tasks', 'My onboarding tasks')}
+            title={t('home.onboarding_tasks', 'Onboarding tasks')}
             description={t(
               'home.as_a_manager_a_buddy_it',
               'As a manager, a buddy, IT or HR. They are in your Inbox too.',
@@ -238,7 +244,7 @@ export function Tasks(props: ScreenProps<TasksData>): JSX.Element {
                 />
               ) : (
                 <DataTable<TaskRow>
-                  label={t('home.my_onboarding_tasks', 'My onboarding tasks')}
+                  label={t('home.onboarding_tasks', 'Onboarding tasks')}
                   rows={data.rows}
                   rowId={taskId}
                   describeRow={taskTitle}

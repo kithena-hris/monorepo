@@ -32,6 +32,8 @@ import {
   Textarea,
   icons,
   regionName,
+  WidgetGrid,
+  widgetSpan,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -604,16 +606,28 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader title={tr('templates.onboarding_analytics_2', 'Onboarding analytics')} />
           <h2 className="sr-only">{tr('templates.figures', 'Figures')}</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <WidgetGrid size="sm">
             <Stat
+              icon={<icons.pending aria-hidden />}
               label={tr('templates.plans_in_flight', 'Plans in flight')}
               value={String(data.inFlight)}
             />
-            <Stat label={tr('templates.on_track', 'On track')} value={String(data.onTrack)} />
-            <Stat label={tr('templates.completed', 'Completed')} value={String(data.completed)} />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title={tr('templates.late_tasks_by_owner', 'Late tasks by owner')}>
+            <Stat
+              icon={<icons.goal aria-hidden />}
+              label={tr('templates.on_track', 'On track')}
+              value={String(data.onTrack)}
+            />
+            <Stat
+              icon={<icons.success aria-hidden />}
+              label={tr('templates.completed', 'Completed')}
+              value={String(data.completed)}
+            />
+          </WidgetGrid>
+          <WidgetGrid>
+            <ChartCard
+              className={widgetSpan(2)}
+              title={tr('templates.late_tasks_by_owner', 'Late tasks by owner')}
+            >
               {data.lateByRole.length === 0 ? (
                 <Alert tone="success" title={tr('templates.nothing_late', 'Nothing late')} />
               ) : (
@@ -625,14 +639,17 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                 />
               )}
             </ChartCard>
-            <ChartCard title={tr('templates.probation_outcomes', 'Probation outcomes')}>
+            <ChartCard
+              className={widgetSpan(2)}
+              title={tr('templates.probation_outcomes', 'Probation outcomes')}
+            >
               <HorizontalBarChart
                 label={tr('templates.probation_outcomes', 'Probation outcomes')}
                 data={data.probation.map((r) => ({ label: words(r.outcome), value: r.count }))}
                 showValues
               />
             </ChartCard>
-          </div>
+          </WidgetGrid>
         </div>
       )}
     </Loaded>

@@ -483,6 +483,8 @@ export type {
 } from './components/app-bar/app-bar';
 
 export { AutoGrid, Container, Inline, Split, Stack } from './components/layout/layout';
+export { Widget, WidgetGrid, widgetSpan } from './components/widget/widget';
+export type { WidgetGridProps, WidgetProps } from './components/widget/widget';
 export type {
   AutoGridProps,
   ContainerProps,

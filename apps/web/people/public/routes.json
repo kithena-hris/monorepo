@@ -37,19 +37,7 @@
       "component": "WhatChanged"
     },
     {
-      "path": "/people/insights/headcount",
-      "component": "Analytics"
-    },
-    {
-      "path": "/people/insights/turnover",
-      "component": "Analytics"
-    },
-    {
-      "path": "/people/insights/data-quality",
-      "component": "Analytics"
-    },
-    {
-      "path": "/people/insights/pay",
+      "path": "/people/insights/workforce",
       "component": "Analytics"
     },
     {
@@ -200,10 +188,9 @@
       "tabs": [
         {
           "path": "/people/review/waiting",
-          "label": "Waiting",
+          "label": "Pending",
           "labelFor": {
-            "hr": "Waiting for me",
-            "finance": "Your requests"
+            "finance": "Requests"
           }
         },
         {
@@ -213,18 +200,18 @@
         },
         {
           "path": "/people/review/asked",
-          "label": "I asked",
+          "label": "Submitted",
           "for": ["hr"]
         },
         {
           "path": "/people/review/decided",
-          "label": "Decided"
+          "label": "History"
         }
       ]
     },
     {
       "path": "/people/import-export",
-      "label": "Import & export",
+      "label": "Import and export",
       "group": "People",
       "icon": "transfer",
       "description": "Bring people in, take data out",
@@ -243,25 +230,11 @@
       "tabs": [
         {
           "path": "/people/insights/what-changed",
-          "label": "What changed"
+          "label": "Summary"
         },
         {
-          "path": "/people/insights/headcount",
-          "label": "Headcount"
-        },
-        {
-          "path": "/people/insights/turnover",
-          "label": "Turnover"
-        },
-        {
-          "path": "/people/insights/data-quality",
-          "label": "Data quality",
-          "short": "Quality"
-        },
-        {
-          "path": "/people/insights/pay",
-          "label": "Pay & diversity",
-          "short": "Pay"
+          "path": "/people/insights/workforce",
+          "label": "Workforce"
         }
       ]
     }

@@ -72,7 +72,7 @@ it('draws the overview as MT1: the clock, balances to swipe, one suggestion, wha
   expect(visible(/^Good afternoon, Adam$/)).toBe(true);
   expect(visible('Coming up')).toBe(true);
   // The desk's: the team and the parental plan.
-  expect(visible('Your team today')).toBe(false);
+  expect(visible('Team today')).toBe(false);
   const balances = document.querySelector('[aria-label="Your balances"] [aria-live]');
   expect(balances !== null && balances.scrollWidth > balances.clientWidth).toBe(true);
   const result = await axe.run(document.body, { rules: { region: { enabled: false } } });

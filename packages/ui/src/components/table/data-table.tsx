@@ -1284,7 +1284,9 @@ export function DataTable<T extends TableRow>({
     const el = scrollRef.current;
     const table = el?.querySelector('table');
     if (!fixed || !hasRows || fit.key === fitKey || el == null || table == null) return;
-    const spare = el.clientWidth - table.offsetWidth;
+    // The room the page gives the table, not its own box: the box is only as
+    // wide as its columns (`w-fit`), so it has no spare of its own.
+    const spare = (el.parentElement ?? el).clientWidth - table.offsetWidth;
     const done = (extra: Readonly<Record<string, number>>): void => {
       setFit({ key: fitKey, extra });
     };
@@ -1350,6 +1352,9 @@ export function DataTable<T extends TableRow>({
       // of what has loaded: WebKit handed it to the page, which slid away
       // under the reader until the next page arrived.
       containerClassName={cn(
+        // As wide as its columns, never a card with a void after the last
+        // one; a table that fills its box (`fill`) or overflows still spans it.
+        fixed && !fillsWidth && 'w-fit max-w-full touch:w-full',
         onEndReached !== undefined && !page && 'overscroll-y-none',
         // Not a scroll container at all: the header pins to the window, which
         // a box that scrolls, even one that never needs to, would stop.
@@ -2235,7 +2240,9 @@ function ResizeHandle({
           'my-2 w-0.5 rounded-full transition-[background-color,width] duration-(--animate-duration-fast)',
           resizing
             ? 'w-[3px] bg-accent'
-            : 'bg-border-strong group-hover/resize:bg-accent group-focus-visible/resize:bg-accent',
+            : // Drawn when the header is pointed at: a rule between every
+              // column at rest is noise the reader has to look through.
+              'bg-transparent [thead:hover_&]:bg-border-strong group-hover/resize:bg-accent group-focus-visible/resize:bg-accent',
         )}
       />
     </span>

@@ -38,6 +38,7 @@ import {
   SelectValue,
   Skeleton,
   Spinner,
+  WidgetGrid,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
 
@@ -616,11 +617,8 @@ function Tiles({
   readonly onFilter: LibraryProps['onFilter'];
 }): JSX.Element {
   return (
-    <div
-      className="grid grid-cols-2 gap-3 md:grid-cols-4"
-      role="list"
-      aria-label={tr('library.library.queues', 'Queues')}
-    >
+    // Tiles of one size, never stretched to the row.
+    <WidgetGrid size="sm" role="list" aria-label={tr('library.library.queues', 'Queues')}>
       {data.tiles.map((t) => {
         const on = data.queue === t.key;
         return (
@@ -649,7 +647,7 @@ function Tiles({
           </div>
         );
       })}
-    </div>
+    </WidgetGrid>
   );
 }
 

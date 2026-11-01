@@ -10,7 +10,9 @@ import {
   icons,
   List,
   ListItem,
-  PageSection,
+  Widget,
+  WidgetGrid,
+  widgetSpan,
   Progress,
   RangeBar,
   type RangeBarSegment,
@@ -240,20 +242,17 @@ function Ready({
         </Alert>
       ) : null}
       <Balances balances={data.balances} />
-      <div className={body}>
-        <div className={column}>
-          <ComingUp data={data} today={today} />
-          <TeamToday data={data} today={today} />
-        </div>
-        <div className={column}>
-          {data.clock === null ? null : (
-            <ClockCard clock={data.clock} now={data.now} zone={zone} onPunch={onPunch} />
-          )}
-          {data.bridges.length === 0 || tracked === undefined ? null : (
-            <Bridges bridges={data.bridges} left={amount(tracked.left)} type={tracked} />
-          )}
-        </div>
-      </div>
+      {/* Widgets as wide as what they hold: the clock and what is coming up two columns, the rest one. */}
+      <WidgetGrid>
+        {data.clock === null ? null : (
+          <ClockCard clock={data.clock} now={data.now} zone={zone} onPunch={onPunch} />
+        )}
+        {data.bridges.length === 0 || tracked === undefined ? null : (
+          <Bridges bridges={data.bridges} left={amount(tracked.left)} type={tracked} />
+        )}
+        <ComingUp data={data} today={today} />
+        <TeamToday data={data} today={today} />
+      </WidgetGrid>
     </>
   );
 }
@@ -417,7 +416,7 @@ function ClockCard({
               })
             : t('overview.overview.not_a_working_day', 'Not a working day');
   return (
-    <Card padded className={`flex flex-col gap-4 @max-[40rem]/overview:order-1`}>
+    <Card padded className={`flex flex-col gap-4 ${widgetSpan(2)}`}>
       <div className="flex items-center gap-3">
         <Badge tone={STATE[state].tone} pulse={state !== 'out'} dot={state === 'out'}>
           {STATE[state].label}
@@ -555,7 +554,8 @@ function Balances({
     <Carousel
       label={t('overview.overview.your_balances', 'Your balances')}
       controls="none"
-      itemClassName="w-56 @min-[40rem]/overview:w-auto @min-[40rem]/overview:min-w-0 @min-[40rem]/overview:flex-1 @min-[40rem]/overview:shrink"
+      // Tiles of one size: a balance is a figure, not a band across the page.
+      itemClassName="w-60 shrink-0"
     >
       {balances.map((b) => {
         const hours = b.unit === 'hour';
@@ -637,10 +637,13 @@ function ComingUp({
     .slice(0, 4);
   const year = today.slice(0, 4);
   return (
-    <PageSection
+    <Widget
       title={t('overview.overview.coming_up', 'Coming up')}
-      className={'@max-[40rem]/overview:order-4'}
-      actions={
+      icon={<icons.calendar aria-hidden />}
+      tone="chart-1"
+      span={2}
+      flush={rows.length > 0}
+      action={
         <>
           <Button variant="ghost" size="sm" asChild>
             <a href={`/time-off/holidays/${year}`}>
@@ -723,7 +726,7 @@ function ComingUp({
           })}
         </List>
       )}
-    </PageSection>
+    </Widget>
   );
 }
 
@@ -740,12 +743,13 @@ function Bridges({
 }): JSX.Element {
   return (
     <AssistantCard
+      level={2}
+      className={widgetSpan(2)}
       title={t(
         'overview.overview.make_the_most_of_your_days',
         'Make the most of your {{left}} days',
         { left },
       )}
-      className={'@max-[40rem]/overview:order-3'}
       action={
         bridges.some((b) => b.text.ai) ? (
           <Badge tone="assistant" size="sm">
@@ -804,10 +808,14 @@ function TeamToday({
   readonly today: string;
 }): JSX.Element {
   return (
-    <PageSection
-      title={t('overview.overview.your_team_today', 'Your team today')}
+    <Widget
+      title={t('overview.overview.team_today', 'Team today')}
+      icon={<icons.team aria-hidden />}
+      tone="chart-3"
+      {...(data.teamToday.length === 0 ? {} : { meta: data.teamToday.length })}
+      flush={data.teamToday.length > 0}
       className={'@max-[40rem]/overview:hidden'}
-      actions={
+      action={
         <Button variant="ghost" size="sm" asChild endIcon={<icons.forward aria-hidden />}>
           <a href="/time-off/calendar/month">{t('overview.overview.calendar', 'Calendar')}</a>
         </Button>
@@ -838,7 +846,7 @@ function TeamToday({
           })}
         </List>
       )}
-    </PageSection>
+    </Widget>
   );
 }
 

@@ -1,26 +1,44 @@
 {
   "routes": [
-    { "path": "/onboarding/home", "component": "Home" },
-    { "path": "/onboarding/tasks", "component": "Tasks" },
-    { "path": "/onboarding/plans/:id", "component": "Plan" },
-    { "path": "/onboarding/templates", "component": "Templates" },
-    { "path": "/onboarding/analytics", "component": "Analytics" },
-    { "path": "/settings/onboarding/general", "component": "Settings" }
+    {
+      "path": "/onboarding/home",
+      "component": "Home"
+    },
+    {
+      "path": "/onboarding/tasks",
+      "component": "Tasks"
+    },
+    {
+      "path": "/onboarding/plans/:id",
+      "component": "Plan"
+    },
+    {
+      "path": "/onboarding/templates",
+      "component": "Templates"
+    },
+    {
+      "path": "/onboarding/analytics",
+      "component": "Analytics"
+    },
+    {
+      "path": "/settings/onboarding/general",
+      "component": "Settings"
+    }
   ],
   "actions": [],
   "sections": [
     {
       "path": "/onboarding/home",
-      "label": "Home",
+      "label": "Overview",
       "group": "Onboarding",
-      "icon": "home",
+      "icon": "overview",
       "description": "Who is arriving, and how far along each plan is",
       "summary": "Plans in flight",
       "owns": ["/onboarding/plans/:id"]
     },
     {
       "path": "/onboarding/tasks",
-      "label": "My tasks",
+      "label": "Tasks",
       "group": "Onboarding",
       "icon": "list",
       "description": "Your onboarding tasks as a manager, a buddy, IT or HR",

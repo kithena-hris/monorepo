@@ -10,6 +10,11 @@ import {
   BreadcrumbSeparator,
   Badge,
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  PageHeader,
   PageHeaderFrame,
   Stack,
   TertiaryNav,
@@ -17,7 +22,15 @@ import {
   icons,
   type IconName,
 } from '@reach/ui';
-import { Fragment, createElement, type ComponentType, type JSX, type ReactNode } from 'react';
+import {
+  Fragment,
+  createContext,
+  createElement,
+  useContext,
+  type ComponentType,
+  type JSX,
+  type ReactNode,
+} from 'react';
 import { t as tr } from './i18n';
 
 /**
@@ -32,6 +45,11 @@ import { t as tr } from './i18n';
 export interface Frame {
   /** The screen's section, for a trail of Documents › section. */
   readonly section?: string | null;
+  /**
+   * The section's one line, the same on each of its tabs: every screen's
+   * header shows it (`Header`), so switching tabs never moves them.
+   */
+  readonly description?: string;
   /**
    * The links before the section, root first. Absent, it is Documents alone; a
    * settings screen is Settings › Documents › section.
@@ -80,7 +98,49 @@ export interface Frame {
     readonly label: string;
     /** A Reach icon name, drawn before the label. */
     readonly icon?: string;
+    /** Not the page's one thing: in the header's More menu rather than a button. */
+    readonly menu?: boolean;
   }[];
+}
+
+/** The section and its line, for every screen's `Header`. */
+const SectionContext = createContext<{
+  readonly section: string | null;
+  readonly description: string | null;
+}>({ section: null, description: null });
+
+/**
+ * A Documents screen's header. A section's screens share one title and one
+ * line, its own, so the header is the same height on every tab and the tabs
+ * never move; what a view adds ("6 people report to you") goes in its body.
+ * A page of its own under a section (a request, a balance, delegation)
+ * passes its own `title` and `description`.
+ */
+export function Header({
+  title,
+  description,
+  fallback,
+  meta,
+  actions,
+}: {
+  /** A page of its own: its own title, over the section's. */
+  readonly title?: ReactNode;
+  readonly description?: ReactNode;
+  /** The section's title and line where no host frames the screen (a test, a standalone run). */
+  readonly fallback?: { readonly title: string; readonly description?: string };
+  readonly meta?: ReactNode;
+  readonly actions?: ReactNode;
+}): JSX.Element {
+  const here = useContext(SectionContext);
+  return (
+    <PageHeader
+      title={title ?? here.section ?? fallback?.title ?? ''}
+      // Always a line, so a page never grows one when its data lands.
+      description={description ?? here.description ?? fallback?.description ?? '\u00a0'}
+      {...(meta === undefined ? {} : { meta })}
+      {...(actions === undefined ? {} : { actions })}
+    />
+  );
 }
 
 /** Where a phone's back link goes: the last link of the trail, Documents itself by default. */
@@ -129,6 +189,7 @@ export function ScreenFrame({
 }): JSX.Element {
   const {
     section = null,
+    description,
     actions = [],
     trail = [{ href: '/documents', label: tr('frame.documents', 'Documents') }],
     siblings = [],
@@ -138,6 +199,10 @@ export function ScreenFrame({
     pending = false,
   } = frame;
   const tab = tabs.find((t) => t.current);
+  // One tab is the page itself: no row for it.
+  const shownTabs = tabs.length > 1 ? tabs : [];
+  const buttons = actions.filter((a) => a.menu !== true);
+  const menu = actions.filter((a) => a.menu === true);
   const withIcons = siblings.map((group) => ({
     ...group,
     items: group.items.map((item) => ({ ...item, icon: iconOf(item.icon) })),
@@ -148,7 +213,7 @@ export function ScreenFrame({
       quietTitleOnTouch={section !== null && siblings.length > 0}
       pending={pending}
       tabs={
-        tabs.length === 0 ? undefined : (
+        shownTabs.length === 0 ? undefined : (
           <TertiaryNav
             label={
               section === null
@@ -160,7 +225,7 @@ export function ScreenFrame({
             current="page"
             touchLayout="pills"
             {...(tab === undefined ? {} : { activeId: tab.href })}
-            items={tabs.map((t) => ({
+            items={shownTabs.map((t) => ({
               id: t.href,
               href: t.href,
               label: t.label,
@@ -277,9 +342,9 @@ export function ScreenFrame({
       // Under a finger the actions are the phone bar's, top right, as icons.
       touchBarActions
       actions={
-        actions.length === 0
-          ? undefined
-          : actions.map((a) => (
+        actions.length === 0 ? undefined : (
+          <>
+            {buttons.map((a) => (
               <Fragment key={a.href}>
                 <Button
                   variant="primary"
@@ -304,20 +369,46 @@ export function ScreenFrame({
                   )}
                 </Button>
               </Fragment>
-            ))
+            ))}
+            {menu.length === 0 ? null : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    aria-label={tr('frame.more', 'More')}
+                    startIcon={<icons.more aria-hidden />}
+                    className="flex-none! touch:size-11"
+                  />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-56">
+                  {menu.map((a) => (
+                    <DropdownMenuItem key={a.href} asChild>
+                      <a href={a.href}>
+                        {iconOf(a.icon)}
+                        {a.label}
+                      </a>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </>
+        )
       }
     >
-      {notice === undefined ? (
-        children
-      ) : (
-        // Said, not swallowed: the link asked for something it cannot have.
-        <Stack gap={4}>
-          <Alert tone="warning" title={notice}>
-            {tr('frame.showing_the_page_without_it', 'Showing the page without it.')}
-          </Alert>
-          {children}
-        </Stack>
-      )}
+      <SectionContext value={{ section, description: description ?? null }}>
+        {notice === undefined ? (
+          children
+        ) : (
+          // Said, not swallowed: the link asked for something it cannot have.
+          <Stack gap={4}>
+            <Alert tone="warning" title={notice}>
+              {tr('frame.showing_the_page_without_it', 'Showing the page without it.')}
+            </Alert>
+            {children}
+          </Stack>
+        )}
+      </SectionContext>
     </PageHeaderFrame>
   );
 }

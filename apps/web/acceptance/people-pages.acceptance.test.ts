@@ -9,7 +9,7 @@ import { browser, eventually, person, sections, signedIn, stack, useStack } from
 
 /**
  * People's pages as Acme's HR and staff use them: the overview, Insights'
- * tabs, Import & export as the server sends it, a page while the VM sleeps,
+ * tabs, Import and export as the server sends it, a page while the VM sleeps,
  * and moving between sections. Split from people.acceptance.test.ts so it
  * runs on a runner of its own. Acme starts as the setup wizard leaves it, its
  * legal entity confirmed and version 1 published; each test makes the rest
@@ -174,8 +174,8 @@ describe('People overview: who you are here, what needs you, what is missing', (
     const page = await context.newPage();
     await page.goto(`${stack.shell}/`);
     await page.getByRole('heading', { level: 1, name: /^Hi / }).waitFor({ timeout: 30_000 });
-    // Who he is here, in the card beside his To do list.
-    await page.getByRole('heading', { level: 2, name: adamName }).waitFor();
+    // Who he is here, in the widget beside his To do list.
+    await titled(page, 'Your profile').getByText(adamName, { exact: true }).waitFor();
     await page.waitForLoadState('networkidle');
     await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
     // His To do is the Inbox's first rows: what his record still needs is one
@@ -294,54 +294,37 @@ describe('A tab changes the page under the header, not the page', () => {
       .getByRole('navigation', { name: 'Insights tabs' })
       .getByRole('link', { name, exact: true });
 
-  it('keeps the header the same element, and shows a page seen before at once after the stale time', async () => {
+  it('moves between its two tabs with no skeleton, and shows a page seen before at once after the stale time', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/insights/headcount`);
+    await page.goto(`${stack.shell}/people/insights/workforce`);
     await page.getByRole('heading', { level: 1, name: 'Insights' }).waitFor({ timeout: 30_000 });
     // Presses count once the remote has hydrated.
     await page.waitForLoadState('networkidle');
-
-    // Another tab of the same screen: the header is the element it was, and
-    // nothing in the page is a skeleton at any moment.
-    await page.evaluate(() => {
-      const h1 = document.querySelector<HTMLElement>('[data-remote] h1');
-      if (h1 !== null) Object.assign(h1, { kept: true });
-    });
     await watchSkeletons(page);
-    await tab(page, 'Turnover').click();
-    await page.waitForURL(/\/people\/insights\/turnover$/);
-    await expect.poll(() => tab(page, 'Turnover').getAttribute('aria-current')).toBe('page');
-    await page.waitForLoadState('networkidle');
-    expect(
-      await page.evaluate(
-        () => (document.querySelector('[data-remote] h1') as { kept?: true } | null)?.kept,
-      ),
-    ).toBe(true);
-    expect(await skeletons(page)).toEqual([]);
-
     // A screen of its own behind a tab, seen once, then left for longer than
     // the browser keeps a page (`staleTimes.dynamic`, 30 s): shown as it was,
     // with no skeleton, while it is fetched again.
-    await tab(page, 'What changed').click();
+    await tab(page, 'Summary').click();
     await page.waitForURL(/\/people\/insights\/what-changed$/);
     await page.waitForLoadState('networkidle');
-    await tab(page, 'Headcount').click();
-    await page.waitForURL(/\/people\/insights\/headcount$/);
+    await tab(page, 'Workforce').click();
+    await page.waitForURL(/\/people\/insights\/workforce$/);
+    await expect.poll(() => tab(page, 'Workforce').getAttribute('aria-current')).toBe('page');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(31_000);
     await watchSkeletons(page);
-    await tab(page, 'What changed').click();
+    await tab(page, 'Summary').click();
     await page.waitForURL(/\/people\/insights\/what-changed$/);
     await page.waitForLoadState('networkidle');
     expect(await skeletons(page)).toEqual([]);
-    expect(await tab(page, 'What changed').getAttribute('aria-current')).toBe('page');
+    expect(await tab(page, 'Summary').getAttribute('aria-current')).toBe('page');
     await context.close();
   });
 });
 
 /**
- * Import & export's landing page: what is the same every time is in the
+ * Import and export's landing page: what is the same every time is in the
  * server's HTML and paints at once; only the history may follow it. With
  * `ACCEPTANCE_ROUTER_LATENCY_MS` (and `ACCEPTANCE_SLOW_OPERATION`) and
  * `LANDING_OUT`, a run also writes down how long each part took.
@@ -380,7 +363,7 @@ async function stream(
   return { ttfb, cards, history, total: performance.now() - start };
 }
 
-describe('Import & export, as the server sends it', () => {
+describe('Import and export, as the server sends it', () => {
   it('sends the header, both cards and their buttons in the HTML', async () => {
     // Warm: the first request compiles nothing in a production build, but
     // the renderer and the token are made once.
@@ -475,7 +458,7 @@ describe('Import & export, as the server sends it', () => {
           t0: performance.now(),
         };
       });
-      await (await sections(from)).getByRole('link', { name: 'Import & export' }).click();
+      await (await sections(from)).getByRole('link', { name: 'Import and export' }).click();
       await landed(from);
       moves.push(await timings(from));
       await from.close();
@@ -580,12 +563,11 @@ describe('Moving between People’s sections, tabs and views', () => {
       await page.waitForTimeout(1_000);
     };
     await move(sidebar('Review'), /\/people\/review\/waiting/);
-    await move(tab('Review', 'Decided'), /\/people\/review\/decided/);
+    await move(tab('Review', 'History'), /\/people\/review\/decided/);
     await move(tab('Review', 'Flagged'), /\/people\/review\/flagged/);
     await move(sidebar('Insights'), /\/people\/insights\/what-changed/);
-    await move(tab('Insights', 'Headcount'), /\/people\/insights\/headcount/);
-    await move(tab('Insights', 'Turnover'), /\/people\/insights\/turnover/);
-    await move(sidebar('Import & export'), /\/people\/import-export/);
+    await move(tab('Insights', 'Workforce'), /\/people\/insights\/workforce/);
+    await move(sidebar('Import and export'), /\/people\/import-export/);
     await move(sidebar('Directory'), /\/people\/directory\/list/);
     await move(sidebar('Review'), /\/people\/review\/waiting/);
     await move(sidebar('Directory'), /\/people\/directory\/list/);
@@ -593,7 +575,7 @@ describe('Moving between People’s sections, tabs and views', () => {
     if (out !== undefined) {
       for (const [to, ms] of moves) appendFileSync(out, `${to} ${String(ms)}\n`);
     }
-    expect(moves).toHaveLength(10);
+    expect(moves).toHaveLength(9);
     expect(
       await page.evaluate(() => (window as unknown as { skeletons: string[] }).skeletons),
     ).toEqual([]);

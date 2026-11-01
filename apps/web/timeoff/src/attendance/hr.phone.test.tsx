@@ -4,7 +4,7 @@ import type { JSX } from 'react';
 import { expect, it } from 'vitest';
 
 import { AttendanceRequests, Exceptions, PayPeriod } from '../index';
-import { underFloor } from '../test/floor';
+import { underFloor, pastEdge } from '../test/floor';
 import { adaExceptions, adaSeptember, marcoRequests } from './acme.fixture';
 
 /**
@@ -39,7 +39,9 @@ it('decides overtime in a dialog on a phone, every target reachable', async () =
 for (const [name, draw] of screens) {
   it(`draws ${name} on a phone`, async () => {
     render(draw());
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    expect(document.documentElement.scrollWidth, pastEdge(document.body, 390)).toBeLessThanOrEqual(
+      390,
+    );
     const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
     expect(
       result.violations.map((v) => `${v.id} ${v.nodes.map((n) => n.target.join(' ')).join(',')}`),

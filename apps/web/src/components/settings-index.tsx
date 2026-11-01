@@ -7,6 +7,7 @@ import {
   PageHeader,
   SearchField,
   SettingsCard,
+  WidgetGrid,
   TertiaryNav,
   icons,
   type IconName,
@@ -186,9 +187,10 @@ export function SettingsIndex({
                     )}
                   />
                 ) : (
-                  <ul className="grid gap-3.5 @5xl/page:grid-cols-2">
+                  // Cards of one width, as many to a row as fit, never stretched.
+                  <WidgetGrid role="list">
                     {shown.map((s) => (
-                      <li key={s.path} className="min-w-0">
+                      <div role="listitem" key={s.path} className="min-w-0">
                         <SettingsCard
                           href={s.path}
                           icon={<Icon name={s.icon} />}
@@ -204,9 +206,9 @@ export function SettingsIndex({
                           }
                           className="h-full"
                         />
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </WidgetGrid>
                 )}
               </section>
             </div>

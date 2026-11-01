@@ -29,6 +29,7 @@ import {
   TableRow,
   Textarea,
   icons,
+  WidgetGrid,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -79,7 +80,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
               title={t('board.no_open_jobs_right_now', 'No open jobs right now')}
             />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <WidgetGrid>
               {data.jobs.map((j) => (
                 <Card key={j.id}>
                   <CardHeader>
@@ -112,7 +113,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </WidgetGrid>
           )}
           <Card>
             <CardHeader>

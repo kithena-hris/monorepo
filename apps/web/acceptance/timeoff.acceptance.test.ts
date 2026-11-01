@@ -344,9 +344,9 @@ describe('Moving between Time Off’s sections and tabs', () => {
     await move(sidebar('Calendar'), /\/time-off\/calendar\/month/);
     await move(tab('Calendar', 'Timeline'), /\/time-off\/calendar\/timeline/);
     await move(sidebar('Approvals'), /\/time-off\/approvals\/waiting/);
-    await move(tab('Approvals', 'Decided'), /\/time-off\/approvals\/decided/);
+    await move(tab('Approvals', 'History'), /\/time-off\/approvals\/decided/);
     await move(sidebar('Attendance'), /\/time-off\/attendance\/now/);
-    await move(tab('Attendance', 'My week'), /\/time-off\/attendance\/timesheet/);
+    await move(tab('Attendance', 'Timesheet'), /\/time-off\/attendance\/timesheet/);
     await move(sidebar('Insights'), /\/time-off\/insights/);
     await move(sidebar('Overview'), /\/time-off\/overview/);
 

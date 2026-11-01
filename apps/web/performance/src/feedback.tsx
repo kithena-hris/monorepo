@@ -24,6 +24,8 @@ import {
   SegmentedControlItem,
   Textarea,
   icons,
+  WidgetGrid,
+  widgetSpan,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -150,7 +152,11 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={tr('feedback.feedback', 'Feedback')}
+            title={
+              data.tab === 'praise'
+                ? tr('feedback.recognition', 'Recognition')
+                : tr('feedback.feedback', 'Feedback')
+            }
             description={tr(
               'feedback.given_whenever_it_is_useful_outside',
               'Given whenever it is useful, outside any cycle. Praise can be seen by everyone; the rest only by who the writer chose.',
@@ -265,8 +271,8 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
             </Card>
           ) : null}
           {data.tab === 'requests' ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
+            <WidgetGrid>
+              <Card className={widgetSpan(2)}>
                 <CardHeader>
                   <CardTitle level={2}>{tr('feedback.asked_of_you', 'Asked of you')}</CardTitle>
                 </CardHeader>
@@ -319,7 +325,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                   )}
                 </CardContent>
               </Card>
-              <Card>
+              <Card className={widgetSpan(2)}>
                 <CardHeader>
                   <CardTitle level={2}>{tr('feedback.you_asked', 'You asked')}</CardTitle>
                 </CardHeader>
@@ -353,7 +359,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                   )}
                 </CardContent>
               </Card>
-            </div>
+            </WidgetGrid>
           ) : null}
           {data.tab === 'praise' ? (
             <Posts
@@ -841,7 +847,7 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={tr('feedback.notes', 'Notes')}
+            title={tr('feedback.private_notes', 'Private notes')}
             description={tr(
               'feedback.only_you_see_your_notes_until',
               'Only you see your notes, until you share one. They are evidence when you write a review.',

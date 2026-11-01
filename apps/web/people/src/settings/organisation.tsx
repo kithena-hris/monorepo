@@ -41,14 +41,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   icons,
   type IsoDate,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
@@ -342,15 +338,11 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
   const setEditing = (next: Editing): void => {
     setOpen(keyOf(next));
   };
-  const [chosen, setTab] = useHeld<string>(props.tab, props.onTabChange, 'entities');
-  // Country packs are People administrators'; pay bands HR's and finance's.
-  const tabs = ORGANISATION_TABS.filter(
-    (t) =>
-      (t !== 'country-packs' || state.packs != null) &&
-      (t !== 'inbox-rules' || state.settings.inboxRules != null) &&
-      (t !== 'pay-bands' || state.payBands != null),
-  ) as readonly string[];
-  const tab = tabs.includes(chosen) ? chosen : 'entities';
+  // Every part on one page; an address naming one scrolls to it.
+  useEffect(() => {
+    if (props.tab != null)
+      document.getElementById(`organisation-${props.tab}`)?.scrollIntoView({ block: 'start' });
+  }, [props.tab]);
   const close = (): void => {
     setOpen(null);
   };
@@ -371,88 +363,70 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
           )}
         </Alert>
       )}
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList
-          aria-label={tr('settings.organisation.organisation_settings', 'Organisation settings')}
+      <PageSection
+        id="organisation-entities"
+        surface
+        title={tr('settings.organisation.legal_entities', 'Legal entities')}
+      >
+        <Entities state={state} onEdit={setEditing} onUpdate={props.onUpdateEntity} />
+      </PageSection>
+      <PageSection
+        id="organisation-locations"
+        surface
+        title={tr('settings.organisation.locations', 'Locations')}
+      >
+        <Locations state={state} onEdit={setEditing} onUpdate={props.onUpdateLocation} />
+      </PageSection>
+      <PageSection
+        id="organisation-org-units"
+        surface
+        title={tr('settings.organisation.org_units', 'Org units')}
+      >
+        <OrgUnits state={state} props={props} open={open} onOpenChange={setOpen} />
+      </PageSection>
+      <PageSection
+        id="organisation-numbering"
+        surface
+        title={tr('settings.organisation.employee_numbering', 'Employee numbering')}
+      >
+        <Numberings state={state} onEdit={setEditing} />
+      </PageSection>
+      {state.packs == null ? null : (
+        <div id="organisation-country-packs">
+          <CountryPacks packs={state.packs} entities={state.legalEntities} />
+        </div>
+      )}
+      <Stack id="organisation-reminders" gap={6}>
+        <Company state={state} onSave={props.onUpdateSettings} />
+        <RemindersAndPrivacy state={state} onSave={props.onUpdateSettings} />
+        <RetentionFloors floors={state.retentionFloors} />
+        {state.upcomingErasures == null ? null : (
+          <UpcomingErasures erasures={state.upcomingErasures} />
+        )}
+      </Stack>
+      {state.settings.inboxRules == null ? null : (
+        <div id="organisation-inbox-rules">
+          <InboxRulesTab
+            rules={state.settings.inboxRules}
+            canManage={state.canManage}
+            onSave={props.onUpdateSettings}
+          />
+        </div>
+      )}
+      {state.payBands == null ? null : (
+        <PageSection
+          id="organisation-pay-bands"
+          surface
+          title={tr('settings.organisation.pay_bands', 'Pay bands')}
         >
-          <TabsTrigger value="entities">
-            {tr('settings.organisation.legal_entities', 'Legal entities')}
-          </TabsTrigger>
-          <TabsTrigger value="locations">
-            {tr('settings.organisation.locations', 'Locations')}
-          </TabsTrigger>
-          <TabsTrigger value="org-units">
-            {tr('settings.organisation.org_units', 'Org units')}
-          </TabsTrigger>
-          <TabsTrigger value="numbering">
-            {tr('settings.organisation.employee_numbering', 'Employee numbering')}
-          </TabsTrigger>
-          {state.packs == null ? null : (
-            <TabsTrigger value="country-packs">
-              {tr('settings.organisation.country_packs', 'Country packs')}
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="reminders">
-            {tr('settings.organisation.reminders_and_privacy', 'Reminders and privacy')}
-          </TabsTrigger>
-          {state.settings.inboxRules == null ? null : (
-            <TabsTrigger value="inbox-rules">
-              {tr('settings.organisation.inbox_rules', 'Inbox rules')}
-            </TabsTrigger>
-          )}
-          {state.payBands == null ? null : (
-            <TabsTrigger value="pay-bands">
-              {tr('settings.organisation.pay_bands', 'Pay bands')}
-            </TabsTrigger>
-          )}
-        </TabsList>
-        <TabsContent value="entities">
-          <Entities state={state} onEdit={setEditing} onUpdate={props.onUpdateEntity} />
-        </TabsContent>
-        <TabsContent value="locations">
-          <Locations state={state} onEdit={setEditing} onUpdate={props.onUpdateLocation} />
-        </TabsContent>
-        <TabsContent value="org-units">
-          <OrgUnits state={state} props={props} open={open} onOpenChange={setOpen} />
-        </TabsContent>
-        <TabsContent value="numbering">
-          <Numberings state={state} onEdit={setEditing} />
-        </TabsContent>
-        {state.packs == null ? null : (
-          <TabsContent value="country-packs">
-            <CountryPacks packs={state.packs} entities={state.legalEntities} />
-          </TabsContent>
-        )}
-        <TabsContent value="reminders">
-          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 @4xl/page:grid-cols-2">
-            <Company state={state} onSave={props.onUpdateSettings} />
-            <RemindersAndPrivacy state={state} onSave={props.onUpdateSettings} />
-            <RetentionFloors floors={state.retentionFloors} />
-            {state.upcomingErasures == null ? null : (
-              <UpcomingErasures erasures={state.upcomingErasures} />
-            )}
-          </div>
-        </TabsContent>
-        {state.settings.inboxRules == null ? null : (
-          <TabsContent value="inbox-rules">
-            <InboxRulesTab
-              rules={state.settings.inboxRules}
-              canManage={state.canManage}
-              onSave={props.onUpdateSettings}
-            />
-          </TabsContent>
-        )}
-        {state.payBands == null ? null : (
-          <TabsContent value="pay-bands">
-            <PayBands
-              bands={state.payBands}
-              onSet={props.onSetPayBand}
-              open={open}
-              onOpenChange={setOpen}
-            />
-          </TabsContent>
-        )}
-      </Tabs>
+          <PayBands
+            bands={state.payBands}
+            onSet={props.onSetPayBand}
+            open={open}
+            onOpenChange={setOpen}
+          />
+        </PageSection>
+      )}
       {editing === null ? null : (
         <EditDialog key={open} editing={editing} state={state} props={props} onClose={close} />
       )}
@@ -1168,10 +1142,17 @@ function Numberings({
                 <TableCell>
                   <Button
                     size="sm"
+                    // The visible word first, so the name said is the name seen.
                     aria-label={tr(
-                      'settings.organisation.set_the_numbering_of',
-                      'Set the numbering of {{name}}',
-                      { name: entity.name },
+                      'settings.organisation.numbering_action_of',
+                      '{{action}}: {{name}}',
+                      {
+                        action:
+                          scheme === undefined
+                            ? tr('settings.organisation.start_numbering', 'Start numbering')
+                            : tr('settings.organisation.change', 'Change'),
+                        name: entity.name,
+                      },
                     )}
                     onClick={() => {
                       onEdit({ kind: 'numbering', entity });

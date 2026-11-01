@@ -77,7 +77,7 @@
   },
   "analytics.analytics.export": {
     "text": "Export",
-    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, Workforce: the exportAction of <a>."
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, Workforce: the exportAction of <Button>."
   },
   "analytics.analytics.fewer_than": {
     "text": "Fewer than",
@@ -179,8 +179,8 @@
     "text": "Leavers",
     "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, Workforce: the numbers of <ChartSection>."
   },
-  "analytics.analytics.left_12m": {
-    "text": "Left, 12M",
+  "analytics.analytics.leavers_12_months": {
+    "text": "Leavers, 12 months",
     "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, Workforce: the label of <Stat>."
   },
   "analytics.analytics.left_in_the_last_12_months": {
@@ -223,8 +223,8 @@
     "text": "Nothing expires in the next 90 days.",
     "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, Workforce: the empty of <TimelineChart>."
   },
-  "analytics.analytics.nothing_to_show_on_this_tab": {
-    "text": "Nothing to show on this tab",
+  "analytics.analytics.nothing_to_show_yet": {
+    "text": "Nothing to show yet",
     "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, Workforce: the title of <EmptyState>."
   },
   "analytics.analytics.onboarding_funnel": {
@@ -346,6 +346,22 @@
   "analytics.analytics.today": {
     "text": "{{toLocaleString}} today",
     "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, Workforce: the description of <ChartSection>. Filled in: {{toLocaleString}}."
+  },
+  "analytics.analytics.topic_data_quality": {
+    "text": "Data quality",
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, TOPIC: a \"data-quality\" value."
+  },
+  "analytics.analytics.topic_headcount": {
+    "text": "Headcount",
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, TOPIC: a \"headcount\" value."
+  },
+  "analytics.analytics.topic_pay": {
+    "text": "Pay and diversity",
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, TOPIC: a \"pay\" value."
+  },
+  "analytics.analytics.topic_turnover": {
+    "text": "Turnover",
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, TOPIC: a \"turnover\" value."
   },
   "analytics.analytics.total_rounded_on_its_own": {
     "text": "Total, rounded on its own",
@@ -3151,6 +3167,10 @@
     "text": "In {{section}}",
     "context": "People: employee records, org chart, HR settings. frame.tsx, ScreenFrame: the groups of <BreadcrumbMenu>. Filled in: {{section}}."
   },
+  "frame.more": {
+    "text": "More",
+    "context": "People: employee records, org chart, HR settings. frame.tsx, ScreenFrame: the aria-label of <Button>."
+  },
   "frame.page_tabs": {
     "text": "Page tabs",
     "context": "People: employee records, org chart, HR settings. frame.tsx, ScreenFrame: the label of <TertiaryNav>."
@@ -3311,6 +3331,10 @@
     "text": "{{counted}} details of their own to add",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the title of <Todo>. Filled in: {{counted}}."
   },
+  "home.people-home.direct_reports": {
+    "text": "Direct reports",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Team: the title of <Section>."
+  },
   "home.people-home.directory": {
     "text": "Directory",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the action of <SeeAll>."
@@ -3425,7 +3449,7 @@
   },
   "home.people-home.my_profile": {
     "text": "My profile",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: text inside <SeeAll>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the action of <SeeAll>."
   },
   "home.people-home.needs_hr": {
     "text": "Needs HR",
@@ -3438,10 +3462,6 @@
   "home.people-home.no_such_field": {
     "text": "No such field",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: the value of <FieldFiles.Provider>."
-  },
-  "home.people-home.nobody_else_reports_to": {
-    "text": "Nobody else reports to {{name}}.",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: text inside <p>. Filled in: {{name}}."
   },
   "home.people-home.not_hired_yet": {
     "text": "Not hired yet",
@@ -3567,21 +3587,17 @@
     "text": "That image was not accepted.",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: the onReject of <AvatarUploader>."
   },
-  "home.people-home.the_line_goes_on_above": {
-    "text": "The line goes on above",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: text inside <a>."
-  },
   "home.people-home.to_do": {
     "text": "To do",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HostList: the title of <Section>."
   },
   "home.people-home.to_one": {
     "text": "{{count}} other reports to {{first}}.",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: text inside <p>. Filled in: {{count}}, {{first}}. Plural: the words for a {{count}} of one."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the description of <ListItem>. Filled in: {{count}}, {{first}}. Plural: the words for a {{count}} of one."
   },
   "home.people-home.to_other": {
     "text": "{{count}} others report to {{first}}.",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: text inside <p>. Filled in: {{count}}, {{first}}. Plural: the words for any other {{count}}."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the description of <ListItem>. Filled in: {{count}}, {{first}}. Plural: the words for any other {{count}}."
   },
   "home.people-home.today": {
     "text": "today",
@@ -3647,6 +3663,10 @@
     "text": "yesterday",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code."
   },
+  "home.people-home.you": {
+    "text": "You",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: text inside <ListItem>."
+  },
   "home.people-home.your_account_is_not_linked_to": {
     "text": "Your account is not linked to anybody’s record, so there is no profile to show.",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, PeopleHome: the description of <PageHeader>."
@@ -3665,7 +3685,7 @@
   },
   "home.people-home.your_direct_reports": {
     "text": "Your direct reports",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Team: the title of <Section>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Team: the aria-label of <List>."
   },
   "home.people-home.your_home": {
     "text": "your home",
@@ -3673,15 +3693,15 @@
   },
   "home.people-home.your_manager": {
     "text": "Your manager",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the description of <PersonCard>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the description of <ListItem>."
   },
   "home.people-home.your_manager_title": {
     "text": "Your manager · {{title}}",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the description of <PersonCard>. Filled in: {{title}}."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the description of <ListItem>. Filled in: {{title}}."
   },
   "home.people-home.your_managers_from_the_top": {
     "text": "Your managers, from the top",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the aria-label of <ol>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the aria-label of <List>."
   },
   "home.people-home.your_new_is_with_hr": {
     "text": "Your new {{label}} is with HR",
@@ -3698,6 +3718,10 @@
   "home.people-home.your_photo_required": {
     "text": "Your photo (required)",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: the label of <AvatarUploader>."
+  },
+  "home.people-home.your_profile": {
+    "text": "Your profile",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Identity: the title of <Widget>."
   },
   "home.people-home.your_record_is_complete": {
     "text": "Your record is complete",
@@ -3803,8 +3827,8 @@
     "text": "Import",
     "context": "People: employee records, org chart, HR settings. import/import-export.tsx, ImportExport: the short of <Action>."
   },
-  "import.import-export.import_export": {
-    "text": "Import & export",
+  "import.import-export.import_and_export": {
+    "text": "Import and export",
     "context": "People: employee records, org chart, HR settings. import/import-export.tsx, ImportExport: the title of <PageHeader>."
   },
   "import.import-export.import_failed": {
@@ -4092,7 +4116,7 @@
     "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, Header: the title of <PageHeader>."
   },
   "import.import-flow.import_export": {
-    "text": "Import & export",
+    "text": "Import and export",
     "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, Steps: the action of <a>."
   },
   "import.import-flow.import_failed": {
@@ -4600,7 +4624,7 @@
     "context": "People: employee records, org chart, HR settings. import/import-run.tsx, ImportRunning: text inside <h2>."
   },
   "import.import-run.it_carries_on_if_you_close": {
-    "text": "It carries on if you close this page. Come back here, or to Import & export, to see how it went; you will be told when it is done.",
+    "text": "It carries on if you close this page. Come back here, or to Import and export, to see how it went; you will be told when it is done.",
     "context": "People: employee records, org chart, HR settings. import/import-run.tsx, ImportRunning: text inside <p>."
   },
   "import.import-run.kithena_is_waking_up": {
@@ -5328,36 +5352,12 @@
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/import-export): the heading of the group it is listed under."
   },
   "nav./people/import-export.label": {
-    "text": "Import & export",
+    "text": "Import and export",
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/import-export): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./people/import-export.summary": {
     "text": "Move data in and out",
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/import-export): a short line under its name on a phone’s row."
-  },
-  "nav./people/insights/data-quality.label": {
-    "text": "Data quality",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/data-quality): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./people/insights/data-quality.short": {
-    "text": "Quality",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/data-quality): its short name, on a tab under a finger."
-  },
-  "nav./people/insights/headcount.label": {
-    "text": "Headcount",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/headcount): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./people/insights/pay.label": {
-    "text": "Pay & diversity",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/pay): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./people/insights/pay.short": {
-    "text": "Pay",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/pay): its short name, on a tab under a finger."
-  },
-  "nav./people/insights/turnover.label": {
-    "text": "Turnover",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/turnover): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./people/insights/what-changed.description": {
     "text": "Summary, charts and scheduled reports",
@@ -5376,15 +5376,19 @@
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/insights/what-changed): a short line under its name on a phone’s row."
   },
   "nav./people/insights/what-changed.tab_label": {
-    "text": "What changed",
+    "text": "Summary",
     "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/what-changed): its name in the sidebar, the breadcrumb and the menus."
   },
+  "nav./people/insights/workforce.label": {
+    "text": "Workforce",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/workforce): its name in the sidebar, the breadcrumb and the menus."
+  },
   "nav./people/review/asked.label": {
-    "text": "I asked",
+    "text": "Submitted",
     "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/asked): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./people/review/decided.label": {
-    "text": "Decided",
+    "text": "History",
     "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/decided): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./people/review/flagged.label": {
@@ -5408,16 +5412,12 @@
     "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/review/waiting): a short line under its name on a phone’s row."
   },
   "nav./people/review/waiting.tab_label": {
-    "text": "Waiting",
+    "text": "Pending",
     "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./people/review/waiting.tab_label_for.finance": {
-    "text": "Your requests",
+    "text": "Requests",
     "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is finance."
-  },
-  "nav./people/review/waiting.tab_label_for.hr": {
-    "text": "Waiting for me",
-    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is hr."
   },
   "nav./settings/activity?area=fields,organisation,roles,integrations.description": {
     "text": "Who did what, and when. Never the values themselves.",
@@ -10225,7 +10225,7 @@
   },
   "settings.integrations.integrations.all_integrations": {
     "text": "All integrations",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Directory: text inside <h2>."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: the actions of <Button>."
   },
   "settings.integrations.integrations.an_email_address_to_tell": {
     "text": "An email address to tell.",
@@ -10265,7 +10265,7 @@
   },
   "settings.integrations.integrations.connect_people_to_the_tools_your": {
     "text": "Connect People to the tools your company already uses.",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: the description of <PageHeader>."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: text inside <PageHeader>."
   },
   "settings.integrations.integrations.connected_to": {
     "text": "Connected to {{workspace}}",
@@ -10303,6 +10303,10 @@
     "text": "{{key}} · encrypted, never sent",
     "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx: a \"description\" value. Filled in: {{key}}."
   },
+  "settings.integrations.integrations.endpoints": {
+    "text": "Endpoints",
+    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: the title of <PageSection>."
+  },
   "settings.integrations.integrations.events": {
     "text": "Events",
     "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, EndpointCard: the label of <PickMany>."
@@ -10321,7 +10325,7 @@
   },
   "settings.integrations.integrations.integrations": {
     "text": "Integrations",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: the title of <PageHeader>."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, TITLE: a \"overview\" value."
   },
   "settings.integrations.integrations.it_team_yourcompany_com": {
     "text": "it-team@yourcompany.com",
@@ -10375,17 +10379,13 @@
     "text": "Only these details are sent with each event. Choose the fewest the tool needs.",
     "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, AddEndpoint: the hint of <PickMany>."
   },
-  "settings.integrations.integrations.overview": {
-    "text": "Overview",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: text inside <TabsTrigger>."
-  },
   "settings.integrations.integrations.people_sends_a_signed_message_to": {
     "text": "People sends a signed message to this address for each selected event. The signing secret is shown once.",
     "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, AddEndpoint: text inside <DialogDescription>."
   },
   "settings.integrations.integrations.provisioning": {
     "text": "Provisioning",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, TITLE: a \"provisioning\" value."
   },
   "settings.integrations.integrations.retrying": {
     "text": "{{retrying}} retrying",
@@ -10429,7 +10429,7 @@
   },
   "settings.integrations.integrations.slack": {
     "text": "Slack",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, TITLE: a \"slack\" value."
   },
   "settings.integrations.integrations.special_category_and_encrypted_fields_are": {
     "text": "Special-category and encrypted fields are never sent.",
@@ -10469,7 +10469,7 @@
   },
   "settings.integrations.integrations.webhooks": {
     "text": "Webhooks",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, Endpoints: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/integrations.tsx, TITLE: a \"webhooks\" value."
   },
   "settings.integrations.integrations.webhooks_send_only_the_fields_you": {
     "text": "Webhooks send only the fields you allow. Chat apps show only fields shared with the assistant, to people who can already see them. The AI model never sees values.",
@@ -10931,10 +10931,6 @@
     "text": "Country",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Entities: the columns of <DataTable>."
   },
-  "settings.organisation.country_packs": {
-    "text": "Country packs",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
-  },
   "settings.organisation.currency": {
     "text": "Currency",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, PayBandDialog: text inside <FieldLabel>."
@@ -10977,7 +10973,7 @@
   },
   "settings.organisation.employee_numbering": {
     "text": "Employee numbering",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: the title of <PageSection>."
   },
   "settings.organisation.employee_numbers_are_per_legal_entity": {
     "text": "Employee numbers are per legal entity.",
@@ -11023,10 +11019,6 @@
     "text": "In force from the start of this day in the new zone. The same day again corrects an earlier change.",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, EditDialog: text inside <p>."
   },
-  "settings.organisation.inbox_rules": {
-    "text": "Inbox rules",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
-  },
   "settings.organisation.it_can_be_chosen_again_for": {
     "text": "It can be chosen again for new records.",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, ArchiveConfirm: text inside <AlertDialogDescription>."
@@ -11065,7 +11057,7 @@
   },
   "settings.organisation.legal_entities": {
     "text": "Legal entities",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: the title of <PageSection>."
   },
   "settings.organisation.legal_entities_locations_org_units_numbering": {
     "text": "Legal entities, locations, org units, numbering, country packs, reminders, Inbox rules and pay bands.",
@@ -11085,7 +11077,7 @@
   },
   "settings.organisation.locations": {
     "text": "Locations",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: the title of <PageSection>."
   },
   "settings.organisation.maximum": {
     "text": "Maximum",
@@ -11179,6 +11171,10 @@
     "text": "Not saved",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, OrgUnitDialog: the title of <Alert>."
   },
+  "settings.organisation.numbering_action_of": {
+    "text": "{{action}}: {{name}}",
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: the aria-label of <Button>. Filled in: {{action}}, {{name}}."
+  },
   "settings.organisation.numbers_are_zero_padded_to_this": {
     "text": "Numbers are zero-padded to this width, and grow past it rather than wrap.",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, EditDialog: the hint of <NumberField>."
@@ -11189,15 +11185,11 @@
   },
   "settings.organisation.org_units": {
     "text": "Org units",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: the title of <PageSection>."
   },
   "settings.organisation.organisation": {
     "text": "Organisation",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: the title of <PageHeader>."
-  },
-  "settings.organisation.organisation_settings": {
-    "text": "Organisation settings",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: the aria-label of <TabsList>."
   },
   "settings.organisation.part_of": {
     "text": "Part of",
@@ -11205,7 +11197,7 @@
   },
   "settings.organisation.pay_bands": {
     "text": "Pay bands",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: the title of <PageSection>."
   },
   "settings.organisation.pending_legal_review": {
     "text": "Pending legal review",
@@ -11225,7 +11217,7 @@
   },
   "settings.organisation.reminders_and_privacy": {
     "text": "Reminders and privacy",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Settings: text inside <TabsTrigger>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, RemindersAndPrivacy: the title of <PageSection>."
   },
   "settings.organisation.reminders_to_employees": {
     "text": "Reminders to employees",
@@ -11283,10 +11275,6 @@
     "text": "Search time zones",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, ZonePicker: the searchPlaceholder of <Combobox>."
   },
-  "settings.organisation.set_the_numbering_of": {
-    "text": "Set the numbering of {{name}}",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: the aria-label of <Button>. Filled in: {{name}}."
-  },
   "settings.organisation.signs_in_at_named_by_the": {
     "text": "Signs in at {{slug}}. Named by the back office, and changed there.",
     "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Company: text inside <FieldDescription>. Filled in: {{slug}}."
@@ -11301,7 +11289,7 @@
   },
   "settings.organisation.start_numbering": {
     "text": "Start numbering",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: text inside <Button>."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, Numberings: the aria-label of <Button>."
   },
   "settings.organisation.status": {
     "text": "Status",

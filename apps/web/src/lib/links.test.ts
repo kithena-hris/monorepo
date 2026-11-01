@@ -82,7 +82,7 @@ describe('pagesToWarm', () => {
           { path: '/people/review/decided', label: 'Decided' },
         ],
       },
-      { path: '/people/import-export', label: 'Import & export' },
+      { path: '/people/import-export', label: 'Import and export' },
     ],
     routes: [
       '/people/directory/list',

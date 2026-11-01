@@ -1299,6 +1299,10 @@
     "text": "In {{section}}",
     "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the groups of <BreadcrumbMenu>. Filled in: {{section}}."
   },
+  "frame.more": {
+    "text": "More",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the aria-label of <Button>."
+  },
   "frame.page_tabs": {
     "text": "Page tabs",
     "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the label of <TertiaryNav>."
@@ -1733,7 +1737,7 @@
   },
   "library.library.queues": {
     "text": "Queues",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Tiles: the aria-label of <div>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Tiles: the aria-label of <WidgetGrid>."
   },
   "library.library.read_it": {
     "text": "Read it",

@@ -166,7 +166,7 @@ describe('Time Off for its approvers (TOF-058a)', () => {
   it('shows Marco, who approves with no admin role, the queue tabs and what waits', () => {
     expect(requests(viewer(true))).toEqual({
       section: 'Approvals',
-      tabs: ['Waiting3', 'Coming up', 'Decided'],
+      tabs: ['Pending3', 'Upcoming', 'History'],
     });
   });
 

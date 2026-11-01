@@ -11,6 +11,10 @@
     "text": "In {{section}}",
     "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the groups of <BreadcrumbMenu>. Filled in: {{section}}."
   },
+  "frame.more": {
+    "text": "More",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the aria-label of <Button>."
+  },
   "frame.onboarding": {
     "text": "Onboarding",
     "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx: a \"label\" value."
@@ -49,7 +53,7 @@
   },
   "home.arriving": {
     "text": "Arriving",
-    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: text inside <CardTitle>."
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the title of <Widget>."
   },
   "home.as": {
     "text": "As",
@@ -91,10 +95,6 @@
     "text": "Late · {{dueOn}}",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: text inside <Badge>. Filled in: {{dueOn}}."
   },
-  "home.my_onboarding_tasks": {
-    "text": "My onboarding tasks",
-    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Tasks: the title of <PageHeader>."
-  },
   "home.nobody_is_arriving": {
     "text": "Nobody is arriving",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the title of <EmptyState>."
@@ -114,6 +114,10 @@
   "home.onboarding": {
     "text": "Onboarding",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the title of <PageHeader>."
+  },
+  "home.onboarding_tasks": {
+    "text": "Onboarding tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Tasks: the title of <PageHeader>."
   },
   "home.person": {
     "text": "Person",
@@ -192,7 +196,7 @@
     "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/home): the heading of the group it is listed under."
   },
   "nav./onboarding/home.label": {
-    "text": "Home",
+    "text": "Overview",
     "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/home): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./onboarding/home.summary": {
@@ -208,7 +212,7 @@
     "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/tasks): the heading of the group it is listed under."
   },
   "nav./onboarding/tasks.label": {
-    "text": "My tasks",
+    "text": "Tasks",
     "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/tasks): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./onboarding/tasks.summary": {

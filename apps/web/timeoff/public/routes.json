@@ -260,16 +260,16 @@
       "tabs": [
         {
           "path": "/time-off/approvals/waiting",
-          "label": "Waiting",
+          "label": "Pending",
           "owns": ["/time-off/approvals/waiting/:id", "/time-off/approvals/waiting/:id/suggest"]
         },
         {
           "path": "/time-off/approvals/coming-up",
-          "label": "Coming up"
+          "label": "Upcoming"
         },
         {
           "path": "/time-off/approvals/decided",
-          "label": "Decided"
+          "label": "History"
         }
       ]
     },
@@ -305,12 +305,12 @@
       "tabs": [
         {
           "path": "/time-off/attendance/now",
-          "label": "Today",
+          "label": "Live",
           "for": ["manager", "hr"]
         },
         {
           "path": "/time-off/attendance/timesheet",
-          "label": "My week"
+          "label": "Timesheet"
         },
         {
           "path": "/time-off/attendance/exceptions",

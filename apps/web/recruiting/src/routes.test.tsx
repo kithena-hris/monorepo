@@ -950,9 +950,9 @@ describe('R23, analytics', () => {
     filters: { period: 'last_90_days' },
   };
 
-  it('opens on the overview, and says when a small group is withheld', async () => {
+  it('draws every chart on one page, and says when a small group is withheld', async () => {
     const { container } = render(
-      <screens.Analytics load={ready(analytics)} search={{ dashboard: 'sources' }} />,
+      <screens.Analytics load={ready(analytics)} search={{}} />,
     );
     expect(screen.getByText('1 group under five people withheld.')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
@@ -967,8 +967,8 @@ describe('R23, analytics', () => {
       />,
     );
     expect(screen.getAllByRole('cell', { name: '80' }).length).toBeGreaterThan(0);
-    expect(screen.getByText('Back to sources').getAttribute('href')).toBe(
-      '/recruiting/analytics?period=this_year&dashboard=sources',
+    expect(screen.getByText('Back to Analytics').getAttribute('href')).toBe(
+      '/recruiting/analytics?period=this_year',
     );
     expect(await axeViolations(container)).toEqual([]);
   });

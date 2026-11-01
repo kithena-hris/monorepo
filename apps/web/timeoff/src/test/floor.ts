@@ -30,3 +30,18 @@ export function underFloor(root: Element): string[] {
     ];
   });
 }
+
+/**
+ * What reaches past the screen's edge, innermost last: the message a width
+ * check fails with, so a page too wide on one machine names its culprit.
+ */
+export function pastEdge(root: Element, width: number): string {
+  return [...root.querySelectorAll<HTMLElement>('*')]
+    .filter((el) => el.getBoundingClientRect().right > width + 0.5)
+    .slice(-6)
+    .map(
+      (el) =>
+        `${el.tagName.toLowerCase()}[${String(Math.round(el.getBoundingClientRect().right))}] ${(el.getAttribute('class') ?? '').slice(0, 120)} "${el.textContent.slice(0, 40)}"`,
+    )
+    .join('\n');
+}
