@@ -41,7 +41,7 @@ export function pastEdge(root: Element, width: number): string {
     .slice(-6)
     .map(
       (el) =>
-        `${el.tagName.toLowerCase()}[${String(Math.round(el.getBoundingClientRect().right))}] ${String(el.getAttribute('class') ?? '').slice(0, 120)} "${(el.textContent ?? '').slice(0, 40)}"`,
+        `${el.tagName.toLowerCase()}[${String(Math.round(el.getBoundingClientRect().right))}] ${(el.getAttribute('class') ?? '').slice(0, 120)} "${el.textContent.slice(0, 40)}"`,
     )
     .join('\n');
 }
