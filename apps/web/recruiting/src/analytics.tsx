@@ -9,6 +9,7 @@ import {
   HorizontalBarChart,
   Input,
   PageHeader,
+  PageSection,
   SegmentedControl,
   SegmentedControlItem,
   Select,
@@ -23,12 +24,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   TrendChart,
+  WidgetGrid,
   icons,
+  widgetSpan,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -43,8 +42,6 @@ import { t as tr } from './i18n';
  * five people arrives withheld and is drawn as such.
  */
 
-const DASHBOARDS = ['overview', 'funnel', 'speed', 'sources', 'offers', 'fairness', 'ask'] as const;
-type Dashboard = (typeof DASHBOARDS)[number];
 const PERIODS = ['last_30_days', 'last_90_days', 'this_quarter', 'this_year', 'last_year'] as const;
 
 const METRICS: readonly { key: string; label: string; by: readonly string[] }[] = [
@@ -96,7 +93,6 @@ type Point = { readonly label: string; readonly value: number };
 const TILES: readonly {
   readonly id: string;
   readonly title: string;
-  readonly dashboard: Dashboard;
   readonly unit: string;
   readonly chart: 'trend' | 'funnel' | 'bars';
   readonly rows: (data: AnalyticsData) => readonly Point[];
@@ -107,7 +103,6 @@ const TILES: readonly {
     get title(): string {
       return tr('analytics.hires_by_month', 'Hires by month');
     },
-    dashboard: 'overview',
     get unit(): string {
       return tr('analytics.hires', 'Hires');
     },
@@ -119,7 +114,6 @@ const TILES: readonly {
     get title(): string {
       return tr('analytics.pipeline_by_stage', 'Pipeline by stage');
     },
-    dashboard: 'funnel',
     get unit(): string {
       return tr('analytics.applications', 'Applications');
     },
@@ -131,7 +125,6 @@ const TILES: readonly {
     get title(): string {
       return tr('analytics.time_in_stage', 'Time in stage');
     },
-    dashboard: 'funnel',
     get unit(): string {
       return tr('analytics.median_days', 'Median days');
     },
@@ -146,7 +139,6 @@ const TILES: readonly {
     get title(): string {
       return tr('analytics.rejection_reasons', 'Rejection reasons');
     },
-    dashboard: 'funnel',
     get unit(): string {
       return tr('analytics.applications', 'Applications');
     },
@@ -159,7 +151,6 @@ const TILES: readonly {
     get title(): string {
       return tr('analytics.time_to_fill', 'Time to fill');
     },
-    dashboard: 'speed',
     get unit(): string {
       return tr('analytics.days', 'Days');
     },
@@ -172,7 +163,6 @@ const TILES: readonly {
     get title(): string {
       return tr('analytics.applications_by_source', 'Applications by source');
     },
-    dashboard: 'sources',
     get unit(): string {
       return tr('analytics.applications', 'Applications');
     },
@@ -182,12 +172,10 @@ const TILES: readonly {
   },
 ];
 
-/** The dashboard's filters, carried to a tile and back; the tab only on the way back. */
-const query = (search: ScreenProps<AnalyticsData>['search'], dashboard?: Dashboard) => {
+/** The dashboard's filters, carried to a tile and back. */
+const query = (search: ScreenProps<AnalyticsData>['search']) => {
   const q = new URLSearchParams();
-  for (const [k, v] of Object.entries(search ?? {}))
-    if (k !== 'dashboard' && typeof v === 'string') q.set(k, v);
-  if (dashboard !== undefined && dashboard !== 'overview') q.set('dashboard', dashboard);
+  for (const [k, v] of Object.entries(search ?? {})) if (typeof v === 'string') q.set(k, v);
   const text = q.toString();
   return text === '' ? '' : `?${text}`;
 };
@@ -234,7 +222,7 @@ export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
             />
           );
         const rows = tile.rows(data);
-        const back = `/recruiting/analytics${query(props.search, tile.dashboard)}`;
+        const back = `/recruiting/analytics${query(props.search)}`;
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
@@ -242,9 +230,7 @@ export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
               description={words(data.filters.period)}
               actions={
                 <To href={back} onNavigate={props.onNavigate}>
-                  {tr('analytics.back_to', 'Back to {{dashboard}}', {
-                    dashboard: words(tile.dashboard).toLowerCase(),
-                  })}
+                  {tr('analytics.back_to_analytics', 'Back to Analytics')}
                 </To>
               }
             />
@@ -577,7 +563,6 @@ function Ask({
 }
 
 export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
-  const tab: Dashboard = DASHBOARDS.find((d) => d === props.search?.['dashboard']) ?? 'overview';
   return (
     <Loaded load={props.load} what="analytics">
       {(data) => {
@@ -629,178 +614,155 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                 {tr('analytics.filtered_to_the_job_you_came', 'Filtered to the job you came from.')}
               </Alert>
             )}
-            <h2 className="sr-only">
-              {tab === 'ask' ? tr('analytics.build_a_chart', 'Build a chart') : words(tab)}
-            </h2>
-            <Tabs
-              value={tab}
-              onValueChange={(v) => props.onFilter?.({ dashboard: v === 'overview' ? null : v })}
-            >
-              <TabsList>
-                {DASHBOARDS.map((d) => (
-                  <TabsTrigger key={d} value={d}>
-                    {d === 'ask' ? tr('analytics.build_a_chart', 'Build a chart') : words(d)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              <TabsContent value="overview" className="flex flex-col gap-4">
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <Stat label={tr('analytics.open_jobs', 'Open jobs')} value={String(o.openJobs)} />
-                  <Stat
-                    label={tr('analytics.applications', 'Applications')}
-                    value={String(o.applications)}
+            <h2 className="sr-only">{tr('analytics.figures', 'Figures')}</h2>
+            <WidgetGrid size="sm">
+              <Stat
+                icon={<icons.work aria-hidden />}
+                label={tr('analytics.open_jobs', 'Open jobs')}
+                value={String(o.openJobs)}
+              />
+              <Stat
+                icon={<icons.people aria-hidden />}
+                label={tr('analytics.applications', 'Applications')}
+                value={String(o.applications)}
+              />
+              <Stat
+                icon={<icons.hire aria-hidden />}
+                label={tr('analytics.hires', 'Hires')}
+                value={String(o.hires)}
+              />
+              <Stat
+                icon={<icons.agreement aria-hidden />}
+                label={tr('analytics.offers_out', 'Offers out')}
+                value={String(o.offersOut)}
+              />
+              <Stat
+                icon={<icons.approve aria-hidden />}
+                label={tr('analytics.acceptance_rate', 'Acceptance rate')}
+                value={data.offers.rate === null ? '—' : `${data.offers.rate}%`}
+                description={tr('analytics.accepted_of_sent', '{{accepted}} of {{sent}} sent', {
+                  accepted: String(data.offers.accepted),
+                  sent: String(data.offers.sent),
+                })}
+              />
+              <Stat
+                icon={<icons.pending aria-hidden />}
+                label={tr('analytics.median_time_to_hire', 'Median time to hire')}
+                value={days(o.timeToHire.median)}
+                description={tr('analytics.85th_percentile_value', '85th percentile {{value}}', {
+                  value: days(o.timeToHire.p85),
+                })}
+              />
+            </WidgetGrid>
+            <h2 className="sr-only">{tr('analytics.charts', 'Charts')}</h2>
+            <WidgetGrid>
+              <ChartCard
+                className={widgetSpan(2)}
+                title={tr('analytics.hires_by_month', 'Hires by month')}
+                action={<Detail id="hires-by-month" props={props} />}
+              >
+                {o.hiresByMonth.length === 0 ? (
+                  <EmptyState
+                    icon={<icons.analytics aria-hidden />}
+                    title={tr('analytics.no_hires_in_this_period', 'No hires in this period')}
                   />
-                  <Stat label={tr('analytics.hires', 'Hires')} value={String(o.hires)} />
-                  <Stat
-                    label={tr('analytics.offers_out', 'Offers out')}
-                    value={String(o.offersOut)}
+                ) : (
+                  <TrendChart
+                    label={tr('analytics.hires_by_month', 'Hires by month')}
+                    series={[
+                      {
+                        label: tr('analytics.hires', 'Hires'),
+                        data: o.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
+                      },
+                    ]}
                   />
-                </div>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <ChartCard
-                    title={tr('analytics.hires_by_month', 'Hires by month')}
-                    action={<Detail id="hires-by-month" props={props} />}
-                  >
-                    {o.hiresByMonth.length === 0 ? (
-                      <EmptyState
-                        icon={<icons.analytics aria-hidden />}
-                        title={tr('analytics.no_hires_in_this_period', 'No hires in this period')}
-                      />
-                    ) : (
-                      <TrendChart
-                        label={tr('analytics.hires_by_month', 'Hires by month')}
-                        series={[
-                          {
-                            label: tr('analytics.hires', 'Hires'),
-                            data: o.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
-                          },
-                        ]}
-                      />
-                    )}
-                  </ChartCard>
-                  <ChartCard
-                    title={tr('analytics.pipeline_by_stage', 'Pipeline by stage')}
-                    description={tr(
-                      'analytics.applications_that_ever_reached_each_stage',
-                      'Applications that ever reached each stage',
-                    )}
-                  >
-                    <FunnelChart
-                      label={tr('analytics.pipeline_by_stage', 'Pipeline by stage')}
-                      data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
-                      showConversion
-                    />
-                  </ChartCard>
-                </div>
-              </TabsContent>
-              <TabsContent value="funnel" className="grid gap-4 lg:grid-cols-2">
-                <ChartCard
-                  title={tr('analytics.conversion_per_stage', 'Conversion per stage')}
-                  action={<Detail id="pipeline" props={props} />}
-                >
-                  <FunnelChart
-                    label={tr('analytics.conversion_per_stage', 'Conversion per stage')}
-                    data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
-                    showConversion
-                    highlightBiggestDrop
-                  />
-                </ChartCard>
-                <ChartCard
-                  title={tr('analytics.time_in_stage', 'Time in stage')}
-                  description={tr('analytics.median_days', 'Median days')}
-                  action={<Detail id="time-in-stage" props={props} />}
-                >
-                  <HorizontalBarChart
-                    label={tr('analytics.median_days_in_stage', 'Median days in stage')}
-                    data={data.timeInStage
-                      .filter((t) => t.median !== null)
-                      .map((t) => ({ label: words(t.category), value: Math.round(t.median ?? 0) }))}
-                    showValues
-                  />
-                </ChartCard>
-                <ChartCard
-                  title={tr('analytics.rejection_reasons', 'Rejection reasons')}
-                  className="lg:col-span-2"
-                  action={<Detail id="rejection-reasons" props={props} />}
-                >
-                  <HorizontalBarChart
-                    label={tr('analytics.rejection_reasons', 'Rejection reasons')}
-                    data={points(o.rejectionReasons)}
-                    showValues
-                    sorted
-                  />
-                  <Withheld buckets={o.rejectionReasons} />
-                </ChartCard>
-              </TabsContent>
-              <TabsContent value="speed" className="flex flex-col gap-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Stat
-                    label={tr('analytics.median_time_to_hire', 'Median time to hire')}
-                    value={days(o.timeToHire.median)}
-                  />
-                  <Stat
-                    label={tr('analytics.85th_percentile', '85th percentile')}
-                    value={days(o.timeToHire.p85)}
-                  />
-                </div>
-                <ChartCard
-                  title={tr('analytics.time_to_fill', 'Time to fill')}
-                  action={<Detail id="time-to-fill" props={props} />}
-                  description={tr(
-                    'analytics.job_opened_to_the_last_opening',
-                    'Job opened to the last opening hired, days',
-                  )}
-                >
-                  <HorizontalBarChart
-                    label={tr('analytics.time_to_fill_by_job', 'Time to fill by job')}
-                    data={data.speed
-                      .filter((s) => s.days !== null)
-                      .map((s) => ({ label: s.title, value: s.days ?? 0 }))}
-                    showValues
-                    sorted
-                  />
-                </ChartCard>
-              </TabsContent>
-              <TabsContent value="sources">
-                <ChartCard
-                  title={tr('analytics.applications_by_source', 'Applications by source')}
-                  action={<Detail id="sources" props={props} />}
-                  description={tr(
-                    'analytics.source_is_fixed_at_application_so',
-                    'Source is fixed at application, so attribution can’t drift',
-                  )}
-                >
-                  <HorizontalBarChart
-                    label={tr('analytics.applications_by_source', 'Applications by source')}
-                    data={points(o.sources)}
-                    showValues
-                    sorted
-                  />
-                  <Withheld buckets={o.sources} />
-                </ChartCard>
-              </TabsContent>
-              <TabsContent value="offers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Stat
-                  label={tr('analytics.acceptance_rate', 'Acceptance rate')}
-                  value={data.offers.rate === null ? '—' : `${data.offers.rate}%`}
+                )}
+              </ChartCard>
+              <ChartCard
+                className={widgetSpan(2)}
+                title={tr('analytics.conversion_per_stage', 'Conversion per stage')}
+                description={tr(
+                  'analytics.applications_that_ever_reached_each_stage',
+                  'Applications that ever reached each stage',
+                )}
+                action={<Detail id="pipeline" props={props} />}
+              >
+                <FunnelChart
+                  label={tr('analytics.conversion_per_stage', 'Conversion per stage')}
+                  data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
+                  showConversion
+                  highlightBiggestDrop
                 />
-                <Stat label={tr('analytics.sent', 'Sent')} value={String(data.offers.sent)} />
-                <Stat
-                  label={tr('analytics.accepted', 'Accepted')}
-                  value={String(data.offers.accepted)}
+              </ChartCard>
+              <ChartCard
+                className={widgetSpan(2)}
+                title={tr('analytics.time_in_stage', 'Time in stage')}
+                description={tr('analytics.median_days', 'Median days')}
+                action={<Detail id="time-in-stage" props={props} />}
+              >
+                <HorizontalBarChart
+                  label={tr('analytics.median_days_in_stage', 'Median days in stage')}
+                  data={data.timeInStage
+                    .filter((t) => t.median !== null)
+                    .map((t) => ({ label: words(t.category), value: Math.round(t.median ?? 0) }))}
+                  showValues
                 />
-                <Stat
-                  label={tr('analytics.declined', 'Declined')}
-                  value={String(data.offers.declined)}
+              </ChartCard>
+              <ChartCard
+                className={widgetSpan(2)}
+                title={tr('analytics.time_to_fill', 'Time to fill')}
+                action={<Detail id="time-to-fill" props={props} />}
+                description={tr(
+                  'analytics.job_opened_to_the_last_opening',
+                  'Job opened to the last opening hired, days',
+                )}
+              >
+                <HorizontalBarChart
+                  label={tr('analytics.time_to_fill_by_job', 'Time to fill by job')}
+                  data={data.speed
+                    .filter((s) => s.days !== null)
+                    .map((s) => ({ label: s.title, value: s.days ?? 0 }))}
+                  showValues
+                  sorted
                 />
-              </TabsContent>
-              <TabsContent value="fairness">
-                <Fairness props={props} />
-              </TabsContent>
-              <TabsContent value="ask">
-                <Ask props={props} period={data.filters.period} />
-              </TabsContent>
-            </Tabs>
+              </ChartCard>
+              <ChartCard
+                className={widgetSpan(2)}
+                title={tr('analytics.applications_by_source', 'Applications by source')}
+                action={<Detail id="sources" props={props} />}
+                description={tr(
+                  'analytics.source_is_fixed_at_application_so',
+                  'Source is fixed at application, so attribution can’t drift',
+                )}
+              >
+                <HorizontalBarChart
+                  label={tr('analytics.applications_by_source', 'Applications by source')}
+                  data={points(o.sources)}
+                  showValues
+                  sorted
+                />
+                <Withheld buckets={o.sources} />
+              </ChartCard>
+              <ChartCard
+                className={widgetSpan(2)}
+                title={tr('analytics.rejection_reasons', 'Rejection reasons')}
+                action={<Detail id="rejection-reasons" props={props} />}
+              >
+                <HorizontalBarChart
+                  label={tr('analytics.rejection_reasons', 'Rejection reasons')}
+                  data={points(o.rejectionReasons)}
+                  showValues
+                  sorted
+                />
+                <Withheld buckets={o.rejectionReasons} />
+              </ChartCard>
+            </WidgetGrid>
+            <PageSection title={tr('analytics.build_a_chart', 'Build a chart')}>
+              <Ask props={props} period={data.filters.period} />
+            </PageSection>
+            <PageSection title={tr('analytics.fairness', 'Fairness')}>
+              <Fairness props={props} />
+            </PageSection>
           </div>
         );
       }}
