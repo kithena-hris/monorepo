@@ -37,7 +37,8 @@ export async function InboxView({
   return (
     <InboxScreen
       read={read}
-      view={view}
+      // Everything open and what waits on others are Action required now.
+      view={view === 'all' || view === 'requests' ? 'todo' : view}
       item={one('item')}
       source={one('source')}
       q={one('q')}

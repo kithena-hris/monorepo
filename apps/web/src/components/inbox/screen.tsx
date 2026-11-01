@@ -38,6 +38,7 @@ import {
   ChipGroupItem,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -119,19 +120,19 @@ export interface InboxScreenProps {
   readonly screen?: TaskScreen | null;
 }
 
-/** The views a chip shows; the rest are in the filter menu, beside the module. */
-const CHIPS = ['all', 'todo', 'done'] as const;
-const LANE: Readonly<Record<'todo' | 'requests' | 'updates', Shown['lane']>> = {
-  todo: 'task',
-  requests: 'request',
-  updates: 'update',
-};
+/**
+ * Three views: what needs you (your tasks, then what you asked of others,
+ * until it is answered), Notifications (what is only for you to know), and
+ * Completed (everything done, decided or read away). Snoozed tasks are in the
+ * filter menu, beside the module.
+ */
+const CHIPS = ['todo', 'updates', 'done'] as const;
 
 const VIEW_LABEL: Readonly<Record<View, () => string>> = {
-  all: () => t('components.inbox.screen.view_all', 'All'),
+  all: () => t('components.inbox.screen.view_action_required', 'Action required'),
   todo: () => t('components.inbox.screen.view_action_required', 'Action required'),
-  requests: () => t('components.inbox.screen.view_awaiting_response', 'Awaiting response'),
-  updates: () => t('components.inbox.screen.view_for_information', 'For information'),
+  requests: () => t('components.inbox.screen.view_action_required', 'Action required'),
+  updates: () => t('components.inbox.screen.view_notifications', 'Notifications'),
   snoozed: () => t('components.inbox.screen.view_snoozed', 'Snoozed'),
   done: () => t('components.inbox.screen.view_completed', 'Completed'),
 };
@@ -140,10 +141,12 @@ const SECTION_LABEL: Readonly<Record<SectionKey, () => string>> = {
   new: () => t('components.inbox.screen.section_new', 'New'),
   needs: () => t('components.inbox.screen.section_action_required', 'Action required'),
   waiting: () => t('components.inbox.screen.section_awaiting_response', 'Awaiting response'),
-  fyi: () => t('components.inbox.screen.section_for_information', 'For information'),
+  fyi: () => t('components.inbox.screen.section_earlier', 'Earlier'),
 };
 
-const path = (view: View): string => (view === 'all' ? '/inbox' : `/inbox/${view}`);
+/** Action required is the Inbox itself; each other view its own address. */
+const path = (view: View): string =>
+  view === 'todo' || view === 'all' || view === 'requests' ? '/inbox' : `/inbox/${view}`;
 
 const query = (params: Record<string, string | null>): string => {
   const search = new URLSearchParams(
@@ -198,15 +201,15 @@ function Screen({
   );
   const fresh = items.filter((i) => i.unread);
   const snoozedCount = snoozedOf(items).length;
-  // All is everything open: every other count is a part of it.
+  // Action required is the tasks that need you, as the sidebar counts them;
+  // Notifications, those not read yet.
   const counts: Readonly<Record<View, number>> = {
-    all: items.filter((i) => i.lane !== 'done' && !(i.lane === 'task' && i.snoozedUntil !== null))
-      .length,
+    all: read.counts.todo,
     todo: read.counts.todo,
-    requests: read.counts.requests,
-    updates: items.filter((i) => i.lane === 'update').length,
+    requests: read.counts.todo,
+    updates: items.filter((i) => i.lane === 'update' && i.unread).length,
     snoozed: snoozedCount,
-    done: items.filter((i) => i.lane === 'done').length,
+    done: 0,
   };
   const feed = view !== 'snoozed' && view !== 'done';
   // Where each sits is as it was when the page came: opening one here does not move it.
@@ -217,9 +220,9 @@ function Screen({
         ? i.lane === 'done'
         : view === 'snoozed'
           ? i.lane === 'task' && i.snoozedUntil !== null
-          : view === 'all'
-            ? true
-            : i.lane === LANE[view],
+          : view === 'updates'
+            ? i.lane === 'update'
+            : (i.lane === 'task' && i.snoozedUntil === null) || i.lane === 'request',
     ),
     { source, q: search, outcome },
   );
@@ -381,22 +384,17 @@ function Screen({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t('components.inbox.screen.show', 'Show')}</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={view}
-              onValueChange={(v) => {
-                go(v as View);
+            <DropdownMenuItem
+              disabled={snoozedCount === 0}
+              onSelect={() => {
+                go('snoozed');
               }}
             >
-              {(['all', 'todo', 'requests', 'updates', 'snoozed', 'done'] as const).map((v) => (
-                <DropdownMenuRadioItem key={v} value={v}>
-                  <span className="me-auto">{VIEW_LABEL[v]()}</span>
-                  {counts[v] > 0 ? (
-                    <span className="ms-4 text-fg-muted tabular-nums">{String(counts[v])}</span>
-                  ) : null}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
+              <span className="me-auto">{VIEW_LABEL.snoozed()}</span>
+              {snoozedCount > 0 ? (
+                <span className="ms-4 text-fg-muted tabular-nums">{String(snoozedCount)}</span>
+              ) : null}
+            </DropdownMenuItem>
             {read.modules.length > 1 ? (
               <>
                 <DropdownMenuSeparator />
@@ -575,6 +573,15 @@ function Screen({
       description={t(
         'components.inbox.screen.finished_tasks_decided_requests_and_older',
         'Finished tasks, decided requests and older updates stay here, for as long as your record does.',
+      )}
+    />
+  ) : view === 'updates' ? (
+    <EmptyState
+      icon={<icons.notifications />}
+      title={t('components.inbox.screen.no_notifications', 'No notifications')}
+      description={t(
+        'components.inbox.screen.what_is_only_for_you_to_know',
+        'What is only for you to know arrives here: a change decided, someone joining your team.',
       )}
     />
   ) : view === 'snoozed' ? (

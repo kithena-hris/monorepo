@@ -2995,6 +2995,10 @@
     "text": "New work arrives here first, and on your phone and desktop if you turn on push notifications.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
+  "components.inbox.screen.no_notifications": {
+    "text": "No notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
+  },
   "components.inbox.screen.nothing_done_yet": {
     "text": "Nothing done yet",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
@@ -3047,8 +3051,8 @@
     "text": "Awaiting response",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"waiting\" value."
   },
-  "components.inbox.screen.section_for_information": {
-    "text": "For information",
+  "components.inbox.screen.section_earlier": {
+    "text": "Earlier",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"fyi\" value."
   },
   "components.inbox.screen.section_new": {
@@ -3065,7 +3069,7 @@
   },
   "components.inbox.screen.show": {
     "text": "Show",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuLabel>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <ChipGroup>."
   },
   "components.inbox.screen.snooze_puts_a_task_away": {
     "text": "Snooze puts a task away until the day you pick; it comes back as new.",
@@ -3097,27 +3101,23 @@
   },
   "components.inbox.screen.view_action_required": {
     "text": "Action required",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"todo\" value."
-  },
-  "components.inbox.screen.view_all": {
-    "text": "All",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"all\" value."
-  },
-  "components.inbox.screen.view_awaiting_response": {
-    "text": "Awaiting response",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"requests\" value."
   },
   "components.inbox.screen.view_completed": {
     "text": "Completed",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"done\" value."
   },
-  "components.inbox.screen.view_for_information": {
-    "text": "For information",
+  "components.inbox.screen.view_notifications": {
+    "text": "Notifications",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"updates\" value."
   },
   "components.inbox.screen.view_snoozed": {
     "text": "Snoozed",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"snoozed\" value."
+  },
+  "components.inbox.screen.what_is_only_for_you_to_know": {
+    "text": "What is only for you to know arrives here: a change decided, someone joining your team.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
   "components.inbox.stack.more_like_this_one": {
     "text": "and {{count}} more like it",

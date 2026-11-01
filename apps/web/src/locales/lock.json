@@ -17556,13 +17556,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34744,13 +34744,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -51932,13 +51932,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -69120,13 +69120,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -86685,13 +86685,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -104250,13 +104250,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -121438,13 +121438,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -139003,13 +139003,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -156191,13 +156191,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -174133,13 +174133,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -191698,13 +191698,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -209640,13 +209640,13 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -226828,12 +226828,12 @@
     "shell:components.inbox.screen.module": "f148224ae44f",
     "shell:components.inbox.screen.section_action_required": "adf69e75cc7d",
     "shell:components.inbox.screen.section_awaiting_response": "9c7ae961f1a4",
-    "shell:components.inbox.screen.section_for_information": "30cc2f5381ee",
     "shell:components.inbox.screen.view_action_required": "adf69e75cc7d",
-    "shell:components.inbox.screen.view_all": "a52ace420f21",
-    "shell:components.inbox.screen.view_awaiting_response": "9c7ae961f1a4",
     "shell:components.inbox.screen.view_completed": "22a970d2e5b1",
-    "shell:components.inbox.screen.view_for_information": "30cc2f5381ee",
-    "shell:components.inbox.rows.action_required": "adf69e75cc7d"
+    "shell:components.inbox.rows.action_required": "adf69e75cc7d",
+    "shell:components.inbox.screen.no_notifications": "cbce2040cca5",
+    "shell:components.inbox.screen.section_earlier": "e10ae9907401",
+    "shell:components.inbox.screen.view_notifications": "788011833a5a",
+    "shell:components.inbox.screen.what_is_only_for_you_to_know": "c8e1355214f2"
   }
 }
