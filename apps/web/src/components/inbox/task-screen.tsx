@@ -3,7 +3,6 @@
 import { Spinner } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
-import { openTaskScreen } from '../../app/(app)/inbox/actions';
 import type { TaskScreen } from '../../lib/inbox/task-screen';
 import { t } from '../../lib/t';
 import {
@@ -15,6 +14,7 @@ import {
 } from '../act-screen';
 import { DocumentsScreen } from '../documents-screen';
 import { FramePane } from './frame-pane';
+import { addressOf, prefetchTaskScreen } from './task-screen-cache';
 
 const ACT_SCREENS: Readonly<
   Record<Exclude<TaskScreen['area'], 'documents'>, (props: ActScreenProps) => JSX.Element>
@@ -22,12 +22,6 @@ const ACT_SCREENS: Readonly<
   onboarding: OnboardingScreen,
   performance: PerformanceScreen,
   recruiting: RecruitingScreen,
-};
-
-/** A link as the screen's read keeps it: path and query. */
-const addressOf = (link: string): string => {
-  const url = new URL(link, 'http://inbox');
-  return `${url.pathname}${url.search}`;
 };
 
 /**
@@ -65,7 +59,7 @@ export function TaskScreenPane({
   useEffect(() => {
     if (!waiting) return;
     let live = true;
-    void openTaskScreen(link).then((s) => {
+    void prefetchTaskScreen(link).then((s) => {
       if (live) setAsked(s);
     });
     return () => {

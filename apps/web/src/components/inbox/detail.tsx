@@ -7,6 +7,7 @@ import {
   Button,
   ChatLog,
   ChatMessage,
+  Spinner,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -29,14 +30,16 @@ import {
   useRef,
   useState,
   useTransition,
+  type ComponentProps,
   type JSX,
   type ReactNode,
 } from 'react';
 
-import { moduleName, opensScreen, type Shown } from '../../lib/inbox/model';
+import { moduleName, type Shown } from '../../lib/inbox/model';
+import { opensScreen } from '../../lib/inbox/opens-screen';
 import type { TaskScreen } from '../../lib/inbox/task-screen';
 import { markRead, moveToDone, snooze } from '../../app/(app)/inbox/actions';
-import { OpenHere, OpenHereContext, type Act } from './pane';
+import { Inline, InlineContext, OpenHereContext, type Act } from './pane';
 import { dueOf, firstName, iconOf, when } from './format';
 import { MuteDialog } from './dialogs';
 import { DocumentsBody } from './detail-documents';
@@ -45,8 +48,30 @@ import { PeopleBody } from './detail-people';
 import { PerformanceBody } from './detail-performance';
 import { RecruitingBody } from './detail-recruiting';
 import { TimeOffBody } from './detail-timeoff';
-import { TaskScreenPane } from './task-screen';
 import { t } from '../../lib/t';
+
+// A task's own page in the pane, with every module's screen wrapper: fetched when one opens.
+const LazyTaskScreenPane = lazy(() =>
+  import('./task-screen').then((m) => ({ default: m.TaskScreenPane })),
+);
+
+function TaskScreenPane(props: ComponentProps<typeof LazyTaskScreenPane>): JSX.Element {
+  return (
+    <Suspense
+      fallback={
+        <div className="grid min-h-48 place-items-center">
+          <Spinner
+            label={t('components.inbox.task-screen.opening', 'Opening {{openIn}}', {
+              openIn: props.label,
+            })}
+          />
+        </div>
+      }
+    >
+      <LazyTaskScreenPane {...props} />
+    </Suspense>
+  );
+}
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const SnoozeDialog = lazy(() =>
@@ -231,6 +256,17 @@ export function InboxDetail({
   useEffect(() => {
     if (opened !== null) openedBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [opened]);
+  // An item with no form of its own: its page, in place (`Inline`).
+  const inline = (href: string): ReactNode => (
+    <TaskScreenPane
+      key={href}
+      link={href}
+      label={item.openIn}
+      version={item}
+      {...(screen === undefined || href !== item.link ? {} : { initial: screen })}
+      onDone={done}
+    />
+  );
   const done = (): void => {
     toast({
       title: t('components.inbox.detail.done_title', 'Done: {{title}}', { title: item.title }),
@@ -411,7 +447,7 @@ export function InboxDetail({
       {...(screen === undefined ? {} : { initial: screen })}
       onDone={done}
     />
-  ) : item.detail === null ? (
+  ) : item.detail === null && item.module !== 'people' ? (
     <GenericBody item={item} />
   ) : item.module === 'people' ? (
     <PeopleBody
@@ -510,7 +546,9 @@ export function InboxDetail({
           </ChatMessage>
         </ChatLog>
       )}
-      <OpenHereContext value={setOpened}>{body}</OpenHereContext>
+      <OpenHereContext value={setOpened}>
+        <InlineContext value={inline}>{body}</InlineContext>
+      </OpenHereContext>
       {opened === null ? null : (
         <section
           ref={openedBox}
@@ -584,16 +622,12 @@ export function InboxDetail({
 export const laneOf = (item: Pick<Shown, 'lane'>): string =>
   ({ task: 'todo', update: 'updates', request: 'requests', done: 'done' })[item.lane];
 
-/** A kind the shell does not know: the item alone, and where it lives (A2). */
+/** A kind the shell does not know: what it says, and its page in place beneath (A2). */
 function GenericBody({ item }: { readonly item: Shown }): JSX.Element {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
-      <div>
-        <OpenHere href={item.link} variant="primary">
-          {t('components.inbox.detail.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
-        </OpenHere>
-      </div>
+      <Inline href={item.link} />
     </div>
   );
 }

@@ -1223,10 +1223,6 @@
     "text": "It is in your documents, private to you and HR",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Request: the onClick of <Button>."
   },
-  "components.inbox.detail-documents.open_in_documents": {
-    "text": "Open in Documents",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, DocumentsBody: text inside <OpenHere>."
-  },
   "components.inbox.detail-documents.pdfs_images_office_files": {
     "text": "PDFs, images, Office files and CSV, up to 100 MB",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Request: the hint of <Actions>."
@@ -1349,7 +1345,7 @@
   },
   "components.inbox.detail-people.choose": {
     "text": "Choose",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: the placeholder of <SelectValue>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: the placeholder of <Combobox>."
   },
   "components.inbox.detail-people.countersign": {
     "text": "Countersign",
@@ -1447,6 +1443,10 @@
     "text": "Image",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the description of <ListItem>."
   },
+  "components.inbox.detail-people.invitation_sent": {
+    "text": "Invitation sent",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: a \"title\" value."
+  },
   "components.inbox.detail-people.it_goes_on_your_record_straight": {
     "text": "It goes on your record straight away.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <p>."
@@ -1535,6 +1535,10 @@
     "text": "Nothing changes on the record until HR decides. It takes effect from {{effectiveFrom}}.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: text inside <p>. Filled in: {{effectiveFrom}}."
   },
+  "components.inbox.detail-people.nothing_missing": {
+    "text": "Nothing missing",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the title of <Alert>."
+  },
   "components.inbox.detail-people.nothing_to_do": {
     "text": "Nothing to do.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Alert>."
@@ -1566,14 +1570,6 @@
   "components.inbox.detail-people.open": {
     "text": "Open",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <OpenHere>."
-  },
-  "components.inbox.detail-people.open_in": {
-    "text": "Open in {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Plain: text inside <OpenHere>. Filled in: {{openIn}}."
-  },
-  "components.inbox.detail-people.open_in_integrations": {
-    "text": "Open in Integrations",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <OpenHere>."
   },
   "components.inbox.detail-people.open_it_first": {
     "text": "Open it first",
@@ -1615,6 +1611,10 @@
     "text": "Questions on this task",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the label of <ChatLog>."
   },
+  "components.inbox.detail-people.reading_the_record": {
+    "text": "Reading the record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the label of <Spinner>."
+  },
   "components.inbox.detail-people.remind": {
     "text": "Remind",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the trailing of <Button>."
@@ -1651,6 +1651,10 @@
     "text": "Save",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <Button>."
   },
+  "components.inbox.detail-people.saved_to_the_record": {
+    "text": "Saved to the record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the onSubmit of <form>."
+  },
   "components.inbox.detail-people.saved_to_your_profile": {
     "text": "Saved to your profile",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: a \"title\" value."
@@ -1662,6 +1666,10 @@
   "components.inbox.detail-people.send_back": {
     "text": "Send back",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the confirm of <NoteDialog>."
+  },
+  "components.inbox.detail-people.send_invitation": {
+    "text": "Send invitation",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <Button>."
   },
   "components.inbox.detail-people.send_this_back_to": {
     "text": "Send this back to {{sender}}?",
@@ -1695,9 +1703,9 @@
     "text": "{{name}} sent it back",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the items of <KeyValues>. Filled in: {{name}}."
   },
-  "components.inbox.detail-people.set_up_and_invite": {
-    "text": "Set up and invite",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <OpenHere>."
+  "components.inbox.detail-people.show_the_endpoint": {
+    "text": "Show the endpoint",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <OpenHere>."
   },
   "components.inbox.detail-people.sign": {
     "text": "Sign",
@@ -1766,6 +1774,10 @@
   "components.inbox.detail-people.the_last_answer_was_nothing_new": {
     "text": "The last answer was {{value}}. Nothing new reaches it until it is fixed.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <Alert>. Filled in: {{value}}."
+  },
+  "components.inbox.detail-people.the_record_has_everything_required": {
+    "text": "The record has everything required. Send the invitation when you are ready.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <Alert>."
   },
   "components.inbox.detail-people.this_cant_be_shown_here": {
     "text": "This can’t be shown here",
@@ -1874,10 +1886,6 @@
   "components.inbox.detail-performance.declined": {
     "text": "Declined",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: the onConfirm of <NoteDialog>."
-  },
-  "components.inbox.detail-performance.open_in_performance": {
-    "text": "Open in Performance",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, PerformanceBody: text inside <OpenHere>."
   },
   "components.inbox.detail-performance.reason": {
     "text": "Reason",
@@ -1990,10 +1998,6 @@
   "components.inbox.detail-recruiting.notes": {
     "text": "Notes",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Scorecard: text inside <FieldLabel>."
-  },
-  "components.inbox.detail-recruiting.open_in_recruiting": {
-    "text": "Open in Recruiting",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, Approval: text inside <OpenHere>."
   },
   "components.inbox.detail-recruiting.open_it_in_recruiting_instead": {
     "text": "Open it in Recruiting instead.",
@@ -2215,10 +2219,6 @@
     "text": "Nudge once",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the hint of <Actions>."
   },
-  "components.inbox.detail-timeoff.open_in_time_off": {
-    "text": "Open in Time off",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <OpenHere>."
-  },
   "components.inbox.detail-timeoff.open_it_in_time_off_instead": {
     "text": "Open it in Time off instead.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Missing: text inside <Alert>."
@@ -2246,6 +2246,10 @@
   "components.inbox.detail-timeoff.s_note_2": {
     "text": "{{by}}’s note",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: the items of <KeyValues>. Filled in: {{by}}."
+  },
+  "components.inbox.detail-timeoff.show_the_request": {
+    "text": "Show the request",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <OpenHere>."
   },
   "components.inbox.detail-timeoff.stops_seeing_it_you_can_ask": {
     "text": "{{holder}} stops seeing it. You can ask again any time.",
@@ -2437,7 +2441,7 @@
   },
   "components.inbox.detail.that_did_not_work": {
     "text": "That did not work",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the title of <Alert>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the title of <Alert>."
   },
   "components.inbox.detail.their_message": {
     "text": "Their message",
@@ -2843,6 +2847,10 @@
     "text": "Where your tasks and updates reach you. The Inbox always has everything.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the description of <PageHeader>."
   },
+  "components.inbox.rows.action_required": {
+    "text": "Action required",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
+  },
   "components.inbox.rows.for": {
     "text": "For {{role}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{role}}."
@@ -2850,10 +2858,6 @@
   "components.inbox.rows.is_on_it": {
     "text": "{{value}} is on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{value}}."
-  },
-  "components.inbox.rows.needs_you": {
-    "text": "Needs you",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
   },
   "components.inbox.rows.new": {
     "text": "New",
@@ -2939,25 +2943,9 @@
     "text": "Every module",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuRadioItem>."
   },
-  "components.inbox.screen.filter_all": {
-    "text": "All",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"all\" value."
-  },
-  "components.inbox.screen.filter_by_module": {
-    "text": "Filter by module",
+  "components.inbox.screen.filter": {
+    "text": "Filter",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>."
-  },
-  "components.inbox.screen.filter_needs_you": {
-    "text": "Needs you",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"todo\" value."
-  },
-  "components.inbox.screen.filter_updates": {
-    "text": "Updates",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"updates\" value."
-  },
-  "components.inbox.screen.filter_waiting_short": {
-    "text": "Waiting",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"requests\" value."
   },
   "components.inbox.screen.finished_tasks_decided_requests_and_older": {
     "text": "Finished tasks, decided requests and older updates stay here, for as long as your record does.",
@@ -2987,6 +2975,10 @@
     "text": "Mark read",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
   },
+  "components.inbox.screen.module": {
+    "text": "Module",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuLabel>."
+  },
   "components.inbox.screen.modules_did_not_answer_one": {
     "text": "{{modules}} did not answer just now; its items will be back.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <p>. Filled in: {{count}}, {{modules}}. Plural: the words for a {{count}} of one."
@@ -3002,6 +2994,10 @@
   "components.inbox.screen.new_work_arrives_here": {
     "text": "New work arrives here first, and on your phone and desktop if you turn on push notifications.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.inbox.screen.no_notifications": {
+    "text": "No notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
   },
   "components.inbox.screen.nothing_done_yet": {
     "text": "Nothing done yet",
@@ -3047,21 +3043,21 @@
     "text": "Search your Inbox",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the placeholder of <SearchField>."
   },
-  "components.inbox.screen.section_fyi": {
-    "text": "For your information",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"fyi\" value."
-  },
-  "components.inbox.screen.section_needs": {
-    "text": "Needs you",
+  "components.inbox.screen.section_action_required": {
+    "text": "Action required",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"needs\" value."
+  },
+  "components.inbox.screen.section_awaiting_response": {
+    "text": "Awaiting response",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"waiting\" value."
+  },
+  "components.inbox.screen.section_earlier": {
+    "text": "Earlier",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"fyi\" value."
   },
   "components.inbox.screen.section_new": {
     "text": "New",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"new\" value."
-  },
-  "components.inbox.screen.section_waiting": {
-    "text": "Waiting on others",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"waiting\" value."
   },
   "components.inbox.screen.select": {
     "text": "Select",
@@ -3073,7 +3069,7 @@
   },
   "components.inbox.screen.show": {
     "text": "Show",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <ChipGroup>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <SegmentedControl>."
   },
   "components.inbox.screen.snooze_puts_a_task_away": {
     "text": "Snooze puts a task away until the day you pick; it comes back as new.",
@@ -3103,25 +3099,25 @@
     "text": "Updates are read or tidied together, and time-off approvals decided together",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>."
   },
-  "components.inbox.screen.view": {
-    "text": "View: {{view}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>. Filled in: {{view}}."
+  "components.inbox.screen.view_action_required": {
+    "text": "Action required",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"all\" value."
   },
-  "components.inbox.screen.view_done": {
-    "text": "Done",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code."
+  "components.inbox.screen.view_completed": {
+    "text": "Completed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"done\" value."
   },
-  "components.inbox.screen.view_inbox": {
-    "text": "Inbox",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code."
+  "components.inbox.screen.view_notifications": {
+    "text": "Notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"updates\" value."
   },
   "components.inbox.screen.view_snoozed": {
     "text": "Snoozed",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, VIEW_LABEL: a \"snoozed\" value."
   },
-  "components.inbox.screen.view_snoozed_count": {
-    "text": "Snoozed ({{count}})",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuItem>. Filled in: {{count}}."
+  "components.inbox.screen.what_is_only_for_you_to_know": {
+    "text": "What is only for you to know arrives here: a change decided, someone joining your team.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
   "components.inbox.stack.more_like_this_one": {
     "text": "and {{count}} more like it",
@@ -3137,7 +3133,7 @@
   },
   "components.inbox.task-screen.opening": {
     "text": "Opening {{openIn}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/task-screen.tsx, Wait: the label of <Spinner>. Filled in: {{openIn}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, TaskScreenPane: the label of <Spinner>. Filled in: {{openIn}}."
   },
   "components.kiosk-shell.hr_may_have_revoked_it_register": {
     "text": "HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations, and paste the new token here.",

@@ -9,13 +9,13 @@ import {
   filtered,
   groupsOf,
   itemsOf,
-  opensScreen,
   prune,
   shape,
   snoozedOf,
   snoozeUntil,
   stateOf,
 } from './model';
+import { opensScreen } from './opens-screen';
 
 const NOW = '2026-10-07T10:00:00.000Z';
 const ZONE = 'Europe/Madrid';

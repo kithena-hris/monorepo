@@ -40,7 +40,7 @@ export function RowBadges({
       ) : null}
       {fresh && item.lane === 'task' ? (
         <Badge size="sm" tone="accent">
-          {t('components.inbox.rows.needs_you', 'Needs you')}
+          {t('components.inbox.rows.action_required', 'Action required')}
         </Badge>
       ) : null}
       {/* Where it lives, in words rather than one more box beside the ones that matter. */}

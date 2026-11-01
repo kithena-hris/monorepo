@@ -32,7 +32,7 @@ import {
   submitScorecard,
 } from '../../app/(app)/inbox/actions';
 import { NoteDialog } from './dialogs';
-import { Actions, type BodyProps, OpenHere } from './pane';
+import { Actions, type BodyProps, OpenHere, Inline } from './pane';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -207,14 +207,7 @@ const longDay = (date: string): string =>
 function Approval({ item, act }: BodyProps): JSX.Element {
   const parsed = RecruitingApprovalDetail.safeParse(item.detail);
   const [rejecting, setRejecting] = useState(false);
-  if (!parsed.success)
-    return (
-      <Actions>
-        <OpenHere href={item.link}>
-          {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
-        </OpenHere>
-      </Actions>
-    );
+  if (!parsed.success) return <Inline href={item.link} />;
   const d = parsed.data;
   const id = d.kind === 'requisition' ? d.requisitionId : d.offerId;
   const per =
@@ -533,14 +526,7 @@ function Scorecard({ item, act, now }: BodyProps): JSX.Element {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [recommendation, setRecommendation] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
-  if (!parsed.success)
-    return (
-      <Actions>
-        <OpenHere href={item.link}>
-          {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
-        </OpenHere>
-      </Actions>
-    );
+  if (!parsed.success) return <Inline href={item.link} />;
   const d = parsed.data;
   const begun = Date.parse(d.startsAt) <= Date.parse(now);
   const rated = d.competencies.every((c) => ratings[c.key] !== undefined);
@@ -651,11 +637,5 @@ export function RecruitingBody(props: BodyProps): JSX.Element {
     return <Approval {...props} />;
   if (props.item.kind === 'recruiting.scorecard') return <Scorecard {...props} />;
   if (props.item.kind === 'recruiting.create-contract') return <CreateContract {...props} />;
-  return (
-    <Actions>
-      <OpenHere href={props.item.link}>
-        {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
-      </OpenHere>
-    </Actions>
-  );
+  return <Inline href={props.item.link} />;
 }

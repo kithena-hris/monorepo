@@ -129,6 +129,8 @@ export const InboxField = z.object({
   value: z.unknown().register(policy, asFreeText()),
   /** A change to it goes to HR first (PEO-077). */
   sensitive: z.boolean(),
+  /** An amount's currency (ISO 4217), so it is typed in place; absent from older answers. */
+  currency: plain(3).nullable().optional(),
 });
 export type InboxField = z.infer<typeof InboxField>;
 

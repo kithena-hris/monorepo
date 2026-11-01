@@ -129,6 +129,7 @@ const field = (f: RecordField, value: unknown): Plain<InboxField> => ({
   required: f.required,
   value: value ?? null,
   sensitive: f.sensitive,
+  currency: f.currency ?? null,
 });
 
 /** The queues the Review bundle counts, as HR's Review names and opens them. */

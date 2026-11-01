@@ -6,7 +6,6 @@ import { documents, people, recruiting, timeOff } from '../../../lib/people';
 import { changed, type InboxState, type Mute } from '../../../lib/inbox/model';
 import { changeState, inboxNow } from '../../../lib/inbox/server';
 import { answerInbox, type InboxReply } from '../../../lib/inbox/ask';
-import { taskScreen, type TaskScreen } from '../../../lib/inbox/task-screen';
 import { serverWords } from '../../../lib/server-words';
 import { type T } from '@reach/ui';
 
@@ -472,9 +471,4 @@ export async function nudgeItem(itemId: string): Promise<Outcome> {
       'That request cannot be nudged',
     ),
   };
-}
-
-/** A task's own screen, for the pane to draw it where the task sits (`task-screen.tsx`). */
-export async function openTaskScreen(link: string): Promise<TaskScreen | null> {
-  return taskScreen(link);
 }

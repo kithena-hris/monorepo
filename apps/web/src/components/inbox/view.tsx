@@ -2,7 +2,8 @@ import 'server-only';
 import type { JSX } from 'react';
 
 import { InboxScreen } from './screen';
-import { opensScreen, type View } from '../../lib/inbox/model';
+import type { View } from '../../lib/inbox/model';
+import { opensScreen } from '../../lib/inbox/opens-screen';
 import { inboxNow } from '../../lib/inbox/server';
 import { taskScreen } from '../../lib/inbox/task-screen';
 import { timeOff } from '../../lib/people';
@@ -29,11 +30,15 @@ export async function InboxView({
   ]);
   // The open item's own screen, when the pane draws one: read now, not after the page arrives.
   const open = read.items.find((i) => i.id === one('item'));
-  const screen = open !== undefined && opensScreen(open) ? await taskScreen(open.link) : undefined;
+  const screen =
+    open !== undefined && opensScreen(open)
+      ? await taskScreen(open.link, { withServerBuild: true })
+      : undefined;
   return (
     <InboxScreen
       read={read}
-      view={view}
+      // Everything open and what waits on others are Action required now.
+      view={view === 'all' || view === 'requests' ? 'todo' : view}
       item={one('item')}
       source={one('source')}
       q={one('q')}

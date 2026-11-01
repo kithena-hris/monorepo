@@ -6,7 +6,7 @@ import { useState, type JSX } from 'react';
 
 import { performanceAct } from '../../app/(app)/performance/actions';
 import { NoteDialog } from './dialogs';
-import { Actions, type BodyProps, OpenHere } from './pane';
+import { Actions, type BodyProps, OpenHere, Inline } from './pane';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -163,11 +163,7 @@ export function PerformanceBody(props: BodyProps): JSX.Element {
       {props.item.summary === null ? null : (
         <p className="text-base text-fg-muted">{props.item.summary}</p>
       )}
-      <Actions>
-        <OpenHere href={props.item.link}>
-          {tr('components.inbox.detail-performance.open_in_performance', 'Open in Performance')}
-        </OpenHere>
-      </Actions>
+      <Inline href={props.item.link} />
     </div>
   );
 }
