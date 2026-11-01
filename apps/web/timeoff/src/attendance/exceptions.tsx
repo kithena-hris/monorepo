@@ -2,6 +2,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
   Avatar,
   Button,
@@ -184,13 +185,13 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
               startIcon={<icons.download aria-hidden />}
               endIcon={<icons.expand aria-hidden />}
             >
-              {t(
-                'attendance.exceptions.export_for_the_labour_inspector',
-                'Export for the labour inspector',
-              )}
+              {t('attendance.exceptions.export', 'Export')}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              {t('attendance.exceptions.for_the_labour_inspector', 'For the labour inspector')}
+            </DropdownMenuLabel>
             <DropdownMenuItem asChild>
               <a href={file('csv')} download>
                 {t('attendance.exceptions.as_a_spreadsheet', 'As a spreadsheet (CSV)')}

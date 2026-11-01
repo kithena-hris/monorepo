@@ -7423,7 +7423,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -17546,7 +17545,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -24972,7 +24973,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -34718,7 +34718,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -42144,7 +42146,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -51890,7 +51891,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -59316,7 +59319,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -69062,7 +69064,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -76488,7 +76492,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -86611,7 +86614,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -94037,7 +94042,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -104160,7 +104164,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -113488,7 +113494,6 @@
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.date_holiday": "fc05f3746d6e",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -121332,7 +121337,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -128758,7 +128765,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -138881,7 +138887,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -146307,7 +146315,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -156053,7 +156060,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -163479,7 +163488,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -173979,7 +173987,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -181405,7 +181415,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -191528,7 +191537,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -198954,7 +198965,6 @@
     "timeoff:attendance.exceptions.a_day_in_lieu_is_owed": "3fee9d36aa5d",
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -209454,7 +209464,9 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -218782,7 +218794,6 @@
     "timeoff:attendance.exceptions.by_person": "67055273d6bc",
     "timeoff:attendance.exceptions.date_holiday": "fc05f3746d6e",
     "timeoff:attendance.exceptions.each_days_record_has_to_say": "16b3e2e37136",
-    "timeoff:attendance.exceptions.export_for_the_labour_inspector": "045b010056d0",
     "timeoff:attendance.exceptions.less_than_rest_between_days": "0befccdbcfc2",
     "timeoff:attendance.exceptions.loading_the_exceptions": "2e9d0227a2f4",
     "timeoff:attendance.exceptions.missed_clock_outs": "99a2c9c8035c",
@@ -226626,6 +226637,8 @@
     "recruiting:nav./recruiting/analytics.group": "a0d55310f82a",
     "recruiting:nav./recruiting/analytics.summary": "ea1a476a97cb",
     "timeoff:overview.overview.team_today": "9f0f03eafb2c",
-    "people:settings.organisation.numbering_action_of": "5dba051f135e"
+    "people:settings.organisation.numbering_action_of": "5dba051f135e",
+    "timeoff:attendance.exceptions.export": "3664895579f0",
+    "timeoff:attendance.exceptions.for_the_labour_inspector": "2adf64354b19"
   }
 }

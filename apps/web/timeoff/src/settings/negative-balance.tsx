@@ -12,8 +12,7 @@ import {
   PageSection,
   RadioCard,
   RadioGroup,
-  SegmentedControl,
-  SegmentedControlItem,
+  RadioGroupItem,
   Select,
   SelectContent,
   SelectItem,
@@ -217,23 +216,24 @@ function Editor({
                     <span id="negative-approvers" className="text-sm font-medium">
                       {t('settings.negative-balance.who_approves', 'Who approves')}
                     </span>
-                    <SegmentedControl
+                    <RadioGroup
                       aria-labelledby="negative-approvers"
                       value={rule.approvers}
+                      // Three answers in words: a line each, never a row wider than a phone.
                       onValueChange={(approvers) => {
                         if (approvers !== '') set({ approvers: approvers as Rule['approvers'] });
                       }}
                     >
-                      <SegmentedControlItem value="manager">
+                      <RadioGroupItem value="manager">
                         {t('settings.negative-balance.manager', 'Manager')}
-                      </SegmentedControlItem>
-                      <SegmentedControlItem value="manager_then_hr">
+                      </RadioGroupItem>
+                      <RadioGroupItem value="manager_then_hr">
                         {t('settings.negative-balance.manager_then_hr', 'Manager, then HR')}
-                      </SegmentedControlItem>
-                      <SegmentedControlItem value="hr">
+                      </RadioGroupItem>
+                      <RadioGroupItem value="hr">
                         {t('settings.negative-balance.hr_only', 'HR only')}
-                      </SegmentedControlItem>
-                    </SegmentedControl>
+                      </RadioGroupItem>
+                    </RadioGroup>
                   </div>
                 </>
               )}

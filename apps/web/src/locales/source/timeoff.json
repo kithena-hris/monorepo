@@ -751,9 +751,13 @@
     "text": "Each day’s record has to say when work ended. Each person is asked when they finished.",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"why\" value."
   },
-  "attendance.exceptions.export_for_the_labour_inspector": {
-    "text": "Export for the labour inspector",
+  "attendance.exceptions.export": {
+    "text": "Export",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <Button>."
+  },
+  "attendance.exceptions.for_the_labour_inspector": {
+    "text": "For the labour inspector",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <DropdownMenuLabel>."
   },
   "attendance.exceptions.less_than_rest_between_days": {
     "text": "Less than {{rest}} rest between days",
@@ -6577,7 +6581,7 @@
   },
   "settings.negative-balance.hr_only": {
     "text": "HR only",
-    "context": "Time Off: leave, absences, time tracking, policies. settings/negative-balance.tsx, Editor: text inside <SegmentedControlItem>."
+    "context": "Time Off: leave, absences, time tracking, policies. settings/negative-balance.tsx, Editor: text inside <RadioGroupItem>."
   },
   "settings.negative-balance.if_someone_leaves_while_negative": {
     "text": "If someone leaves while negative",
@@ -6605,11 +6609,11 @@
   },
   "settings.negative-balance.manager": {
     "text": "Manager",
-    "context": "Time Off: leave, absences, time tracking, policies. settings/negative-balance.tsx, Editor: text inside <SegmentedControlItem>."
+    "context": "Time Off: leave, absences, time tracking, policies. settings/negative-balance.tsx, Editor: text inside <RadioGroupItem>."
   },
   "settings.negative-balance.manager_then_hr": {
     "text": "Manager, then HR",
-    "context": "Time Off: leave, absences, time tracking, policies. settings/negative-balance.tsx, Editor: text inside <SegmentedControlItem>."
+    "context": "Time Off: leave, absences, time tracking, policies. settings/negative-balance.tsx, Editor: text inside <RadioGroupItem>."
   },
   "settings.negative-balance.most_common": {
     "text": "Most common",

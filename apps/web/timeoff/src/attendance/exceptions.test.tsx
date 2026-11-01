@@ -55,7 +55,7 @@ describe('exceptions for HR', () => {
   it('downloads the inspector’s record for the month, as CSV or PDF, and moves a month', async () => {
     render(<Exceptions load={ready()} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Export for the labour inspector' }));
+    await user.click(screen.getByRole('button', { name: 'Export' }));
     expect(
       (await screen.findByRole('menuitem', { name: 'As a spreadsheet (CSV)' })).getAttribute(
         'href',
