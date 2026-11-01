@@ -76,7 +76,7 @@ const LANE_TAG = {
   },
 };
 
-/** The pane's top line: kind, module › area, then Open in and the menu. */
+/** The pane's top line: kind, module › area, then the menu (Open in … is in it, never a button). */
 function Head({ item, menu }: { readonly item: Shown; readonly menu: ReactNode }): JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -92,11 +92,6 @@ function Head({ item, menu }: { readonly item: Shown; readonly menu: ReactNode }
             })}
       </Badge>
       <span className="flex-1" />
-      <Button asChild variant="ghost" size="sm" startIcon={<icons.externalLink aria-hidden />}>
-        <a href={item.link}>
-          {t('components.inbox.detail.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
-        </a>
-      </Button>
       {menu}
     </div>
   );

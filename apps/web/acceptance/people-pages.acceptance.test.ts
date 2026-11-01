@@ -189,6 +189,13 @@ describe('People overview: who you are here, what needs you, what is missing', (
     );
     await shot(page, 'overview-employee-desktop-light');
 
+    // Opened in the Inbox, the task asks only for what is missing, in place: no way out to fill it.
+    await page.goto(`${stack.shell}${(await gap.getAttribute('href')) ?? ''}`);
+    const task = page.getByRole('article');
+    await task.getByRole('button', { name: 'Save' }).waitFor({ timeout: 30_000 });
+    expect(await task.getByRole('button', { name: 'Fill in' }).count()).toBe(0);
+    expect(await task.getByRole('link', { name: /^Open in / }).count()).toBe(0);
+
     // A field's own link opens his profile at that field, cursor in it, marked missing.
     await page.goto(`${stack.shell}/people/me?field=emergency_contact`);
     const input = page.getByRole('textbox', { name: /Emergency contact/ });

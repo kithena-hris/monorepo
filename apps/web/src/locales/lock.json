@@ -6955,7 +6955,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -17562,7 +17561,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -24520,7 +24521,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -34750,7 +34750,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -41708,7 +41710,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -51938,7 +51939,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -58896,7 +58899,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -69126,7 +69128,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -76084,7 +76088,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -86691,7 +86694,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -93649,7 +93654,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -104256,7 +104260,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -112747,7 +112753,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.pdf": "1d393b0081b6",
     "shell:components.inbox.detail-people.persons_note": "644a28a72ecf",
@@ -121444,7 +121449,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -128402,7 +128409,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -139009,7 +139015,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -145967,7 +145975,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -156197,7 +156204,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -163155,7 +163164,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -174139,7 +174147,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -181097,7 +181107,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -191704,7 +191713,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -198662,7 +198673,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.preview": "324b134f57c7",
     "shell:components.inbox.detail-people.questions": "9a72221a2747",
@@ -209646,7 +209656,9 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -218137,7 +218149,6 @@
     "shell:components.inbox.detail-people.open_in_integrations": "33c3a445ec29",
     "shell:components.inbox.detail-people.open_it_first": "86f5696388a5",
     "shell:components.inbox.detail-people.open_it_where_it_lives_instead": "126089b59a83",
-    "shell:components.inbox.detail-people.open_onboarding": "5e8cc07a0404",
     "shell:components.inbox.detail-people.open_review": "a12335d67ab5",
     "shell:components.inbox.detail-people.pdf": "1d393b0081b6",
     "shell:components.inbox.detail-people.persons_note": "644a28a72ecf",
@@ -226834,6 +226845,8 @@
     "timeoff:insights.insights.team_calendar": "590b868a84ff",
     "timeoff:insights.insights.timesheets": "cc16b2df05b1",
     "shell:components.inbox.detail.close": "7d9eb7acb13e",
-    "shell:components.inbox.frame-pane.opening": "58397c8b0d92"
+    "shell:components.inbox.frame-pane.opening": "58397c8b0d92",
+    "shell:components.inbox.detail-people.save": "1509f561f241",
+    "shell:components.inbox.detail-people.saved_to_your_profile": "04ecb860e49f"
   }
 }

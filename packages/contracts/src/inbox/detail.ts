@@ -236,6 +236,12 @@ export const PeopleChecklistDetail = z.object({
       /** A section to fill in place, or a path to open; null for a tick. */
       section: plain(120).nullable(),
       link: plain(400).nullable(),
+      /**
+       * A section's step: only what it still needs, its required fields left
+       * empty, so the Inbox asks for those and nothing else. Absent from an
+       * answer that predates it.
+       */
+      fields: z.array(InboxField).optional(),
     }),
   ),
   /** The others on the same plan, and how far they are (G5). */
