@@ -27,6 +27,7 @@ import {
   Textarea,
   usePages,
   icons,
+  WidgetGrid,
 } from '@reach/ui';
 import { useCallback, useMemo, useState, type JSX, type ReactNode } from 'react';
 
@@ -298,14 +299,11 @@ function Roles({
         </Alert>
       )}
       {/* What each role means and who holds it, before the table of names (S14). */}
-      <ul
-        className="grid grid-cols-[minmax(0,1fr)] gap-4 @3xl/page:grid-cols-3"
-        aria-label={t('settings.roles.roles', 'Roles')}
-      >
+      <WidgetGrid role="list" aria-label={t('settings.roles.roles', 'Roles')}>
         {ROLES.map(({ role, label, means, icon }) => {
           const held = holders(role);
           return (
-            <li key={role} className="flex">
+            <div role="listitem" key={role} className="flex">
               <Card variant="outlined" padded className="flex flex-1 flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <Avatar name={label} shape="rounded" tone="accent" size="lg" fallback={icon} />
@@ -336,10 +334,10 @@ function Roles({
                   </AvatarGroup>
                 )}
               </Card>
-            </li>
+            </div>
           );
         })}
-      </ul>
+      </WidgetGrid>
       {holders('finance').length === 0 ? (
         <Alert tone="warning" title={t('settings.roles.nobody_has_finance', 'Nobody has Finance')}>
           {t(

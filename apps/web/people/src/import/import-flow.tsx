@@ -178,7 +178,7 @@ export interface ImportFlowProps {
   readonly onDownloadBlocked: (url: string) => void;
   /** From the mapping back to the upload. */
   readonly onBack: () => void;
-  /** Finished: back to Import & export. */
+  /** Finished: back to Import and export. */
   readonly onDone?: () => void;
   /**
    * Nothing is published and the viewer cannot set it up: the first import is
@@ -881,7 +881,7 @@ function Steps({
                 </Button>
                 <Button asChild size="sm" variant="ghost">
                   <a href="/people/import-export">
-                    {t('import.import-flow.import_export', 'Import & export')}
+                    {t('import.import-flow.import_export', 'Import and export')}
                   </a>
                 </Button>
               </div>
@@ -902,7 +902,7 @@ function Steps({
             action={
               <Button asChild size="sm">
                 <a href="/people/import-export">
-                  {t('import.import-flow.import_export', 'Import & export')}
+                  {t('import.import-flow.import_export', 'Import and export')}
                 </a>
               </Button>
             }

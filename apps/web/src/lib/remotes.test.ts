@@ -196,7 +196,7 @@ describe('currentPlace', () => {
     expect(at('/people/directory/list')).toBe('Directory');
     expect(at('/people/directory/org-chart')).toBe('Directory');
     expect(at('/people/:id/history')).toBe('Directory');
-    expect(at('/people/import')).toBe('Import & export');
+    expect(at('/people/import')).toBe('Import and export');
   });
 
   it('is nothing for a route no place claims', () => {
@@ -239,7 +239,7 @@ describe('headerFrame', () => {
     expect(items.map((i) => i.label)).toEqual([
       'Directory',
       'Review',
-      'Import & export',
+      'Import and export',
       'Insights',
     ]);
     expect(items.find((i) => i.current)?.label).toBe('Review');

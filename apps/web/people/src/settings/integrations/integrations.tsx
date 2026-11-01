@@ -1,7 +1,6 @@
 import {
   Alert,
   AppMark,
-  AutoGrid,
   Badge,
   Button,
   Card,
@@ -36,6 +35,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  WidgetGrid,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -559,7 +559,7 @@ function Directory({
       <h2 id="all-integrations" className="sr-only">
         {t('settings.integrations.integrations.all_integrations', 'All integrations')}
       </h2>
-      <AutoGrid minItemWidth="15rem" gap={4}>
+      <WidgetGrid>
         {cards.map((c) => (
           <Card key={c.id} className="flex flex-col">
             <CardHeader className="flex-row items-center gap-3">
@@ -604,7 +604,7 @@ function Directory({
             </CardFooter>
           </Card>
         ))}
-      </AutoGrid>
+      </WidgetGrid>
     </section>
   );
 }

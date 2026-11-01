@@ -159,7 +159,7 @@ export function ImportRunning({
       <p className="text-sm">
         {t(
           'import.import-run.it_carries_on_if_you_close',
-          'It carries on if you close this page. Come back here, or to Import & export, to see how it went; you will be told when it is done.',
+          'It carries on if you close this page. Come back here, or to Import and export, to see how it went; you will be told when it is done.',
         )}
       </p>
     </Card>

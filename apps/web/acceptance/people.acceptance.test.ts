@@ -463,14 +463,14 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
   it('imports every row and lists what it left empty for HR, without mapping anything by hand', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    // From Import & export, a page of its own, under its trail: not a modal.
+    // From Import and export, a page of its own, under its trail: not a modal.
     await page.goto(`${stack.shell}/people/import-export`);
     await page.waitForLoadState('networkidle');
     await page.getByRole('link', { name: 'Start import' }).first().click();
     await page.waitForURL(/\/people\/import$/);
     expect(await page.getByRole('dialog').count()).toBe(0);
     const trail = page.getByRole('navigation', { name: 'Breadcrumb' });
-    await trail.getByRole('link', { name: 'Import & export' }).waitFor();
+    await trail.getByRole('link', { name: 'Import and export' }).waitFor();
     expect(await trail.getByText('Import', { exact: true }).count()).toBe(1);
     await page.getByRole('navigation', { name: 'Importing people' }).waitFor();
 

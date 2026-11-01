@@ -41,7 +41,7 @@ export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[]
     },
     {
       path: '/people/import-export',
-      label: 'Import & export',
+      label: 'Import and export',
       icon: 'transfer',
       description: 'Move people data in and out, with one history',
       summary: 'Move data in and out',

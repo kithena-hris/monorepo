@@ -451,7 +451,7 @@ function Workforce({
         figures.push(
           <Stat
             key="left"
-            label={t('analytics.analytics.left_12m', 'Left, 12M')}
+            label={t('analytics.analytics.leavers_12_months', 'Leavers, 12 months')}
             value={attrition.leavers}
             description={t('analytics.analytics.attrition', '{{percent}} attrition', {
               percent: percent(attrition.percent),

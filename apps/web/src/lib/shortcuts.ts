@@ -104,7 +104,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   go('review', () => t('lib.shortcuts.review', 'Review'), 'r', '/people/review'),
   go(
     'import-export',
-    () => t('lib.shortcuts.import_export', 'Import & export'),
+    () => t('lib.shortcuts.import_export', 'Import and export'),
     'x',
     '/people/import-export',
   ),
@@ -659,7 +659,7 @@ export function destinationOf(shortcut: Shortcut, reach: Reachable): string | nu
 /**
  * What C makes on this page when the screen itself offers nothing
  * (`useScreenCommand('create')` wins): the area's action offered here (Add
- * person, on People's pages), or a new export from Import & export.
+ * person, on People's pages), or a new export from Import and export.
  */
 export function createOn(
   actions: readonly Place[],

@@ -75,7 +75,7 @@ describe('PeopleSections', () => {
     expect(links.getAllByRole('link').map((l) => l.textContent)).toEqual([
       expect.stringContaining('Directory'),
       expect.stringContaining('Review'),
-      expect.stringContaining('Import & export'),
+      expect.stringContaining('Import and export'),
     ]);
     expect(
       screen

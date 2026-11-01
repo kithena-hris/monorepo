@@ -259,7 +259,7 @@ export function ImportExport({
   return (
     <Stack gap={5}>
       <PageHeader
-        title={t('import.import-export.import_export', 'Import & export')}
+        title={t('import.import-export.import_and_export', 'Import and export')}
         description={t(
           'import.import-export.bring_people_in_from_a_spreadsheet',
           'Bring people in from a spreadsheet, or take data out with a recorded reason.',

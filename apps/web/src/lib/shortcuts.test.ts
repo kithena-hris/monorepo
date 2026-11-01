@@ -35,7 +35,7 @@ describe('the shortcut table', () => {
       'People',
       'Directory',
       'Review',
-      'Import & export',
+      'Import and export',
       'Insights',
       'Inbox',
       'My profile',

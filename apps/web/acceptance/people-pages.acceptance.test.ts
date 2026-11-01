@@ -9,7 +9,7 @@ import { browser, eventually, person, sections, signedIn, stack, useStack } from
 
 /**
  * People's pages as Acme's HR and staff use them: the overview, Insights'
- * tabs, Import & export as the server sends it, a page while the VM sleeps,
+ * tabs, Import and export as the server sends it, a page while the VM sleeps,
  * and moving between sections. Split from people.acceptance.test.ts so it
  * runs on a runner of its own. Acme starts as the setup wizard leaves it, its
  * legal entity confirmed and version 1 published; each test makes the rest
@@ -341,7 +341,7 @@ describe('A tab changes the page under the header, not the page', () => {
 });
 
 /**
- * Import & export's landing page: what is the same every time is in the
+ * Import and export's landing page: what is the same every time is in the
  * server's HTML and paints at once; only the history may follow it. With
  * `ACCEPTANCE_ROUTER_LATENCY_MS` (and `ACCEPTANCE_SLOW_OPERATION`) and
  * `LANDING_OUT`, a run also writes down how long each part took.
@@ -380,7 +380,7 @@ async function stream(
   return { ttfb, cards, history, total: performance.now() - start };
 }
 
-describe('Import & export, as the server sends it', () => {
+describe('Import and export, as the server sends it', () => {
   it('sends the header, both cards and their buttons in the HTML', async () => {
     // Warm: the first request compiles nothing in a production build, but
     // the renderer and the token are made once.
@@ -475,7 +475,7 @@ describe('Import & export, as the server sends it', () => {
           t0: performance.now(),
         };
       });
-      await (await sections(from)).getByRole('link', { name: 'Import & export' }).click();
+      await (await sections(from)).getByRole('link', { name: 'Import and export' }).click();
       await landed(from);
       moves.push(await timings(from));
       await from.close();
@@ -585,7 +585,7 @@ describe('Moving between People’s sections, tabs and views', () => {
     await move(sidebar('Insights'), /\/people\/insights\/what-changed/);
     await move(tab('Insights', 'Headcount'), /\/people\/insights\/headcount/);
     await move(tab('Insights', 'Turnover'), /\/people\/insights\/turnover/);
-    await move(sidebar('Import & export'), /\/people\/import-export/);
+    await move(sidebar('Import and export'), /\/people\/import-export/);
     await move(sidebar('Directory'), /\/people\/directory\/list/);
     await move(sidebar('Review'), /\/people\/review\/waiting/);
     await move(sidebar('Directory'), /\/people\/directory\/list/);
