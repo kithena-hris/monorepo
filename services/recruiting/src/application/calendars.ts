@@ -169,7 +169,10 @@ export async function calendarBusy(
   from: string,
   to: string,
 ): Promise<readonly (readonly [string, string])[]> {
-  const busy = await (await sessionOf(ctx, personId, 'calendar'))?.busy(from, to);
+  // A calendar that cannot be reached (a refused token, a timeout) is no busy times, never a failed screen.
+  const busy = await sessionOf(ctx, personId, 'calendar')
+    .then((session) => session?.busy(from, to))
+    .catch(() => undefined);
   return busy?.ok === true ? busy.value : [];
 }
 
