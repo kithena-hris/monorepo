@@ -61,6 +61,7 @@ import {
   Timeline,
   TimelineItem,
   TimePicker,
+  WidgetGrid,
 } from '@reach/ui';
 import { use, useRef, useState, type JSX, type ReactNode } from 'react';
 
@@ -2529,7 +2530,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               <h2 id="team-only" className="text-lg font-semibold">
                 {tr('job.only_your_team_sees_this', 'Only your team sees this')}
               </h2>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <WidgetGrid>
                 <Region
                   title={tr('job.hiring_team', 'Hiring team')}
                   onEdit={() => {
@@ -2727,7 +2728,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     className="text-sm"
                   />
                 </Region>
-              </div>
+              </WidgetGrid>
             </section>
 
             {/* The rest of the details, the languages and checks, publishing: a panel off the ad. */}
