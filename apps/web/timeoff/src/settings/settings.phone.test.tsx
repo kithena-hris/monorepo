@@ -13,7 +13,7 @@ import {
   LeaveTypes,
   NegativeBalance,
 } from '../index';
-import { underFloor } from '../test/floor';
+import { underFloor, pastEdge } from '../test/floor';
 import {
   approvals,
   attendance,
@@ -202,6 +202,8 @@ describe('Time Off’s settings on a phone', () => {
       result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`),
     ).toEqual([]);
     expect(underFloor(document.body)).toEqual([]);
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    expect(document.documentElement.scrollWidth, pastEdge(document.body, 390)).toBeLessThanOrEqual(
+      390,
+    );
   });
 });
