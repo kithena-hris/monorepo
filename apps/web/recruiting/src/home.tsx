@@ -22,6 +22,7 @@ import {
   Widget,
   WidgetGrid,
   WIDGET_LIMIT,
+  type ChartTone,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
 
@@ -48,12 +49,12 @@ const TASK_ICON: Readonly<Record<string, JSX.Element>> = {
   interview: <icons.meeting aria-hidden />,
 };
 
-const TASK_TONE = {
+const TASK_TONE: Readonly<Record<string, ChartTone>> = {
   approve_requisition: 'chart-4',
   approve_offer: 'chart-3',
   scorecard: 'chart-1',
   interview: 'chart-2',
-} as const;
+};
 
 const TASK_KIND: Readonly<Record<string, () => string>> = {
   approve_requisition: () => tr('home.kind_requisition', 'Requisition'),
@@ -300,7 +301,7 @@ function Tasks({
                 asChild
                 chevron
                 icon={TASK_ICON[t.kind] ?? <icons.pending aria-hidden />}
-                iconTone={TASK_TONE[t.kind as keyof typeof TASK_TONE] ?? 'chart-6'}
+                iconTone={TASK_TONE[t.kind] ?? 'chart-6'}
                 description={[TASK_KIND[t.kind]?.(), t.detail].filter(Boolean).join(' · ')}
                 {...(due === undefined ? {} : { meta: due })}
                 trailing={
