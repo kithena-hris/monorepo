@@ -4019,7 +4019,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -17622,7 +17621,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -17652,7 +17650,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -21674,7 +21673,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -34900,7 +34898,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -34930,7 +34927,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -38952,7 +38950,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -52178,7 +52175,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -52208,7 +52204,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -56230,7 +56227,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -69456,7 +69452,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -69486,7 +69481,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -73508,7 +73504,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -87111,7 +87106,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -87141,7 +87135,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -91163,7 +91158,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -104766,7 +104760,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -104796,7 +104789,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -109717,7 +109711,6 @@
     "performance:home.reviews_feedback_goals_and_learning_as_hr": "793a32def864",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -122044,7 +122037,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -122074,7 +122066,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -126096,7 +126089,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -139699,7 +139691,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -139729,7 +139720,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -143751,7 +143743,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -156977,7 +156968,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -157007,7 +156997,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -161029,7 +161020,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -175009,7 +174999,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -175039,7 +175028,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -179061,7 +179051,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -192664,7 +192653,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -192694,7 +192682,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -196716,7 +196705,6 @@
     "performance:home.reviews_feedback_goals_and_learning": "59bca99347a5",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -210696,7 +210684,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -210726,7 +210713,8 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -215647,7 +215635,6 @@
     "performance:home.reviews_feedback_goals_and_learning_as_hr": "793a32def864",
     "performance:home.reviews_to_write_nominations_and_learning": "0b58b3b9a86a",
     "performance:home.start_one_from_cycles_it_updates": "3719dd98a23a",
-    "performance:home.submitted": "531e42bbce8c",
     "performance:learning.acknowledgement_the_learner_confirms": "285c4ecd0dd9",
     "performance:learning.add": "9fd728c66c9a",
     "performance:learning.add_a_learning_item": "015075756512",
@@ -227974,7 +227961,6 @@
     "recruiting:home.kind_offer": "0cf57c63eb97",
     "recruiting:home.kind_requisition": "c74195e38c44",
     "recruiting:home.kind_scorecard": "fb99322b0290",
-    "recruiting:home.late": "0f950da185fc",
     "recruiting:home.late_count": "e8cb8a1288d3",
     "recruiting:home.later_count": "5a8ecc4da7be",
     "recruiting:home.new_count": "8c06aaf22b48",
@@ -228004,6 +227990,7 @@
     "recruiting:home.tasks_waiting": "1c86d90ff705",
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
-    "recruiting:home.try_another_filter": "047831f8d7ae"
+    "recruiting:home.try_another_filter": "047831f8d7ae",
+    "performance:home.percent_submitted": "9edfe9394ec3"
   }
 }

@@ -386,7 +386,6 @@
   "home.kind_offer": "Предложение",
   "home.kind_requisition": "Заявка на вакансию",
   "home.kind_scorecard": "Оценочный лист",
-  "home.late": "Просрочено",
   "home.late_count": "Просрочено: {{count}}",
   "home.later_count": "Позже: {{count}}",
   "home.live_on": "Опубликовано",

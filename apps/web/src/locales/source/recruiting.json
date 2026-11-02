@@ -1429,7 +1429,7 @@
   },
   "home.all_departments": {
     "text": "All departments",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the toolbar of <SelectItem>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the toolbar of <SelectValue>."
   },
   "home.all_done_today": {
     "text": "All done for today",
@@ -1473,7 +1473,7 @@
   },
   "home.drafted_on": {
     "text": "Drafted {{day}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: text inside <ListItem>. Filled in: {{day}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the supporting of <ListItem>. Filled in: {{day}}."
   },
   "home.drafts": {
     "text": "Drafts",
@@ -1570,10 +1570,6 @@
   "home.kithena_jobs": {
     "text": "Kithena Jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. shared.tsx, WHERE_FROM: a \"kithena_jobs\" value."
-  },
-  "home.late": {
-    "text": "Late",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the trailing of <Badge>."
   },
   "home.late_count": {
     "text": "{{count}} late",
@@ -1677,7 +1673,7 @@
   },
   "home.opened_on": {
     "text": "Opened {{day}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: text inside <ListItem>. Filled in: {{day}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the supporting of <ListItem>. Filled in: {{day}}."
   },
   "home.openings_filled": {
     "text": "Openings filled",
@@ -1741,7 +1737,7 @@
   },
   "home.sort_due": {
     "text": "Due first",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the toolbar of <SelectItem>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the toolbar of <SelectValue>."
   },
   "home.sort_fresh": {
     "text": "Most new this week",
