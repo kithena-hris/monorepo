@@ -77,7 +77,6 @@ const TASK_FILTER_LABEL: Readonly<Record<TaskFilter, () => string>> = {
   interviews: () => tr('home.filter_interviews', 'Interviews'),
 };
 const TASK_ORDER = ['due', 'title'] as const;
-type TaskOrder = (typeof TASK_ORDER)[number];
 
 /** The job states a filter shows. */
 const JOB_FILTERS = {
