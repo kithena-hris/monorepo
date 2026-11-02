@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.1156.0",
-    "@hookform/resolvers": "^5.9.1",
+    "@hookform/resolvers": "^6.0.0",
     "@kithena/contracts": "workspace:*",
     "@kithena/web-documents": "workspace:*",
     "@module-federation/runtime": "2.9.2",
