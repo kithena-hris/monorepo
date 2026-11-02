@@ -4,15 +4,16 @@ import { cn } from '../../lib/cn';
 import { toneVar, type ChartTone } from '../chart/tones';
 
 /**
- * A dashboard of widgets: columns of one fixed width, as many as the
- * container holds, and the rest of the row left empty rather than every
- * widget stretched to fill it. A widget is as wide as its content needs
- * (`span`), never as wide as the window happens to be.
+ * A dashboard of widgets.
  *
- * `size` is the column: `md` (19rem) for widgets with a list or a chart in
- * them, `sm` (13rem) for tiles that hold one figure. A `Widget` spans one to
- * four columns, and a span the container cannot fit falls back to as many
- * columns as there are, so a two-column widget is one column on a phone.
+ * `md`, for widgets with a list or a chart in them: two columns at most,
+ * each half the row, one under 39rem. Never three: a reader keeps two things
+ * side by side in mind, and a third loses the context of the first. A
+ * `Widget` with `span` 1 or 2 takes half the row, 3 or 4 the whole of it.
+ *
+ * `sm`, for tiles that hold one figure: columns of 13rem, as many as fit,
+ * the rest of the row left empty; a span the container cannot fit falls
+ * back to as many columns as there are.
  */
 export interface WidgetGridProps extends ComponentPropsWithoutRef<'div'> {
   readonly size?: 'sm' | 'md';
@@ -34,7 +35,11 @@ export function WidgetGrid({
         className,
       )}
       style={{
-        gridTemplateColumns: `repeat(auto-fill, minmax(min(${COLUMN[size]}, 100%), ${COLUMN[size]}))`,
+        gridTemplateColumns:
+          size === 'md'
+            ? // Each column at least half the row (less a gap), so a third never fits.
+              `repeat(auto-fill, minmax(min(100%, max(${COLUMN.md}, calc((100% - 1.25rem) / 2))), 1fr))`
+            : `repeat(auto-fill, minmax(min(${COLUMN[size]}, 100%), ${COLUMN[size]}))`,
         ...style,
       }}
       {...props}
@@ -48,11 +53,12 @@ export function WidgetGrid({
  * builds class names it can read in the source.
  */
 const SPAN = {
+  // Two columns at most: one or two is half the row, three or four the whole of it.
   md: {
     1: '',
-    2: '@min-[39rem]/widgets:col-span-2',
-    3: '@min-[39rem]/widgets:col-span-2 @min-[59rem]/widgets:col-span-3',
-    4: '@min-[39rem]/widgets:col-span-2 @min-[59rem]/widgets:col-span-3 @min-[79rem]/widgets:col-span-4',
+    2: '',
+    3: '@min-[39.5rem]/widgets:col-span-2',
+    4: '@min-[39.5rem]/widgets:col-span-2',
   },
   sm: {
     1: '',
@@ -96,7 +102,7 @@ export interface WidgetProps extends Omit<ComponentPropsWithoutRef<'section'>, '
   /** What the rows add up to, on the card's sunken fill above them: a segmented `Progress`, a few counts. */
   readonly insight?: ReactNode;
   readonly footer?: ReactNode;
-  /** How many of the grid's columns it takes, where the container has them. */
+  /** How wide it is: 1 or 2 half the row of a `md` grid, 3 or 4 the whole row. */
   readonly span?: 1 | 2 | 3 | 4;
   /** The grid it sits in, for its span's breakpoints. */
   readonly size?: 'sm' | 'md';

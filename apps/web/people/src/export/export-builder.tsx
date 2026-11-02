@@ -821,7 +821,7 @@ function ByHand({
           size: String(fields.size),
         })}
       >
-        <div className="grid gap-5 @container @2xl:grid-cols-3">
+        <div className="grid gap-5 @container @2xl:grid-cols-2">
           {state.sections.map((section) => {
             const keys = section.fields.map((f) => f.key);
             const picked = keys.filter((k) => fields.has(k)).length;

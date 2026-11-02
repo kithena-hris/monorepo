@@ -20,7 +20,7 @@ const meta = {
         component: [
           'A dashboard is a `WidgetGrid` of `Widget`s.',
           '',
-          'The grid has columns of one fixed width (`md` 19rem, `sm` 13rem) and leaves the rest of the row empty rather than stretching. A widget spans one to four columns and falls back to as many as the container has.',
+          'A `md` grid has two columns at most, each half the row (one under 39rem): never three widgets side by side. A widget with `span` 1 or 2 takes half the row, 3 or 4 the whole of it. A `sm` grid of figure tiles keeps columns of 13rem, as many as fit.',
           '',
           'A `List` inside a widget is its body (`flush`), not a card inside a card.',
           '',
