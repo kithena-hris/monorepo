@@ -168,9 +168,7 @@ export function WorkLocationsStep({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {note}
-      <div className="grid items-start gap-3 @3xl/page:grid-cols-2 @6xl/page:grid-cols-3">
-        {cards}
-      </div>
+      <div className="grid items-start gap-3 @3xl/page:grid-cols-2">{cards}</div>
       <p className="text-sm text-fg-muted">
         {t(
           'import.work-locations.a_new_work_location_is_added',
