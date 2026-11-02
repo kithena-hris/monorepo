@@ -255,7 +255,17 @@ function measure(options) {
     // on the element. An elevation shadow with a positive spread is not a focus
     // ring, and treating it as one reported sub-pixel "rings" on Storybook's
     // own chrome that no amount of squinting would find.
-    const restingShadow = getComputedStyle(el).boxShadow;
+    // A field's input rings on the shell around it (`:focus-within`), not on
+    // itself, so the shell and the one above it are candidates too: the first
+    // of them whose indicator changed on focus is the ring.
+    const candidates = [el, el.parentElement, el.parentElement?.parentElement].filter(Boolean);
+    const resting = candidates.map((c) => {
+      const s = getComputedStyle(c);
+      return {
+        shadow: s.boxShadow,
+        outline: `${s.outlineStyle} ${s.outlineWidth} ${s.outlineColor}`,
+      };
+    });
 
     try {
       el.focus({ preventScroll: true });
@@ -264,35 +274,57 @@ function measure(options) {
     }
     if (document.activeElement !== el) continue;
 
-    const styles = getComputedStyle(el);
-    const indicators = [];
+    let ringed = el;
+    let indicators = [];
+    for (const [i, candidate] of candidates.entries()) {
+      const styles = getComputedStyle(candidate);
+      const found = [];
+      const outlineWidth = parseFloat(styles.outlineWidth);
+      const outline = `${styles.outlineStyle} ${styles.outlineWidth} ${styles.outlineColor}`;
+      // On the element itself any outline counts; on a shell only one focus put there.
+      if (
+        styles.outlineStyle !== 'none' &&
+        outlineWidth > 0 &&
+        (i === 0 || outline !== resting[i].outline)
+      ) {
+        // Judged against what is behind the control, which is where a ring with a
+        // positive offset is drawn.
+        found.push({ colour: styles.outlineColor, inset: false, width: outlineWidth });
+      }
 
-    const outlineWidth = parseFloat(styles.outlineWidth);
-    if (styles.outlineStyle !== 'none' && outlineWidth > 0) {
-      // Judged against what is behind the control, which is where a ring with a
-      // positive offset is drawn.
-      indicators.push({ colour: styles.outlineColor, inset: false, width: outlineWidth });
-    }
-
-    // Computed box-shadow puts the colour first: "rgb(91, 91, 214) 0px 0px 0px 2px".
-    // A ring is a shadow with no blur and a spread, which is also how it is
-    // distinguished here from an ordinary elevation shadow.
-    if (styles.boxShadow && styles.boxShadow !== 'none' && styles.boxShadow !== restingShadow) {
-      for (const layer of styles.boxShadow.split(/,(?![^(]*\))/)) {
-        const colour = layer.match(/(rgba?\([^)]+\)|#[0-9a-f]{3,8})/i);
-        const lengths = layer.match(/-?\d*\.?\d+px/g);
-        if (!colour || !lengths || lengths.length < 4) continue;
-        const spread = parseFloat(lengths[3]);
-        if (spread < 1) continue;
-        indicators.push({ colour: colour[1], inset: layer.includes('inset'), width: spread });
+      // Computed box-shadow puts the colour first: "rgb(91, 91, 214) 0px 0px 0px 2px".
+      // A ring is a shadow with no blur and a spread, which is also how it is
+      // distinguished here from an ordinary elevation shadow.
+      if (
+        styles.boxShadow &&
+        styles.boxShadow !== 'none' &&
+        styles.boxShadow !== resting[i].shadow
+      ) {
+        for (const layer of styles.boxShadow.split(/,(?![^(]*\))/)) {
+          // Any colour function: Reach writes its rings in oklch, which an
+          // rgb-only match skipped, so every shell-drawn ring read as none.
+          const colour = layer.match(
+            /((?:rgba?|hsla?|oklch|oklab|lab|lch|color)\([^)]+\)|#[0-9a-f]{3,8})/i,
+          );
+          const lengths = layer.match(/-?\d*\.?\d+px/g);
+          if (!colour || !lengths || lengths.length < 4) continue;
+          const spread = parseFloat(lengths[3]);
+          if (spread < 1) continue;
+          found.push({ colour: colour[1], inset: layer.includes('inset'), width: spread });
+        }
+      }
+      if (found.length > 0) {
+        ringed = candidate;
+        indicators = found;
+        break;
       }
     }
 
     if (indicators.length === 0) continue;
     ringsSeen += 1;
 
-    const outside = backgroundOf(el.parentElement ?? el);
-    const inside = backgroundOf(el);
+    const outside = backgroundOf(ringed.parentElement ?? ringed);
+    const inside = backgroundOf(ringed);
     // The best ring wins. A control may carry both an outline and a shadow, and
     // one visible indicator is all the criterion asks for.
     let best = 0;
