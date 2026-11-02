@@ -29,4 +29,17 @@ describe('a member’s calendar (REC-135)', () => {
     ]);
     expect(asked).toEqual(['ada@acme.com']);
   });
+
+  it('is no busy times when the calendar cannot be reached, not a failed schedule', async () => {
+    const ctx = {
+      deps: { workspaceCalendar: () => Promise.reject(new Error('The operation timed out')) },
+      tx: {
+        connections: { list: () => Promise.resolve([]) },
+        members: { get: () => Promise.resolve({ workEmail: 'ada@acme.com' }) },
+      },
+    } as unknown as Ctx;
+    expect(await calendarBusy(ctx, 'p1', '2026-10-19T00:00:00Z', '2026-10-20T00:00:00Z')).toEqual(
+      [],
+    );
+  });
 });

@@ -1553,6 +1553,12 @@ export function Spotlight({
   const askMove = (to: string): void => {
     const target = chosen.stages.find((s) => s.id === to);
     if (target === undefined || to === chosen.stageId) return;
+    // An interview step asks for its interview on arrival, and that invitation is the
+    // candidate's news: no second email, and no second button to confirm the move.
+    if (target.category === 'interview') {
+      sendMove(to, null);
+      return;
+    }
     setMoveMessage(null);
     setMoving({ to, name: target.name });
   };
@@ -1859,7 +1865,8 @@ export function Spotlight({
             id="interviews"
             title={tr('candidate.interviews_and_scorecards', 'Interviews and scorecards')}
             action={
-              maySchedule && interviewing ? (
+              // At an interview step the page's own button schedules.
+              maySchedule && interviewing && stage?.category !== 'interview' ? (
                 <Button
                   size="sm"
                   variant="secondary"

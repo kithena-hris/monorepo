@@ -3,6 +3,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { Instant, Rating, Recommendation } from '@kithena/contracts';
 
 import { may } from '../domain/access/access.js';
+import { currentStage } from '../domain/pipeline/application.js';
 import {
   debrief,
   decideDebrief,
@@ -219,7 +220,10 @@ export async function scheduleScreen(
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
   const plan = await ctx.tx.jobs.plan(loaded.value.app.jobId);
-  const chosen = plan.find((p) => p.key === planKey) ?? plan[0] ?? null;
+  // The one asked for, else the one planned for the step they are at, else the first.
+  const here = currentStage(loaded.value.app);
+  const chosen =
+    plan.find((p) => p.key === planKey) ?? plan.find((p) => p.stageId === here) ?? plan[0] ?? null;
   // A month of days at once: the screen's calendar marks the days with a slot and lists one day's times.
   const start = from ?? (`${ctx.today}T00:00:00.000Z` as Instant);
   const end = new Date(Date.parse(start) + 35 * 86_400_000).toISOString() as Instant;
@@ -312,7 +316,8 @@ async function canMakeVideo(ctx: Ctx, interviewerIds: readonly string[]): Promis
   if (workspace === undefined) return false;
   for (const id of interviewerIds) {
     const email = (await ctx.tx.members.get(id as never))?.workEmail;
-    if (email && (await workspace(email)) !== null) return true;
+    // A Workspace that does not answer makes no Meet; the screen then asks for a link.
+    if (email && (await workspace(email).catch(() => null)) !== null) return true;
   }
   return false;
 }
