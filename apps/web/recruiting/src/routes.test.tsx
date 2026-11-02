@@ -80,13 +80,41 @@ describe('R1, home', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Hello, Ada' })).toBeTruthy();
     expect(
       screen
-        .getByRole('link', { name: 'Approve the requisition: Platform engineer' })
+        .getByRole('link', { name: /^Approve the requisition: Platform engineer/ })
         .getAttribute('href'),
     ).toBe('/recruiting/requisitions/r1/approve');
     expect(
-      screen.getByRole('link', { name: 'Senior Backend Engineer (m/w/d)' }).getAttribute('href'),
+      screen
+        .getByRole('link', { name: /^Senior Backend Engineer \(m\/w\/d\)/ })
+        .getAttribute('href'),
     ).toBe('/recruiting/jobs/j1');
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows the five newest open jobs, and See all only when there are more', () => {
+    const job = home.jobs[0] as HomeData['jobs'][number];
+    const many = (n: number): HomeData => ({
+      ...home,
+      jobs: Array.from({ length: n }, (_, i) => ({
+        ...job,
+        id: `j${String(i)}`,
+        title: `Job ${String(i)}`,
+        openedAt: `2026-10-${String(10 + i)}T09:00:00.000Z`,
+      })),
+    });
+    const { unmount } = render(<screens.Home load={ready(many(5))} />);
+    const jobs = screen.getByRole('list', { name: 'Jobs' });
+    expect(within(jobs).getAllByRole('link')).toHaveLength(5);
+    expect(screen.queryByRole('link', { name: /^See all/ })).toBeNull();
+    unmount();
+    render(<screens.Home load={ready(many(7))} />);
+    const links = within(screen.getByRole('list', { name: 'Jobs' })).getAllByRole('link');
+    expect(links).toHaveLength(5);
+    // Newest first: the last opened leads.
+    expect(links[0]?.textContent).toMatch(/^Job 6/);
+    expect(screen.getByRole('link', { name: 'See all 7' }).getAttribute('href')).toBe(
+      '/recruiting/jobs',
+    );
   });
 });
 
@@ -951,9 +979,7 @@ describe('R23, analytics', () => {
   };
 
   it('draws every chart on one page, and says when a small group is withheld', async () => {
-    const { container } = render(
-      <screens.Analytics load={ready(analytics)} search={{}} />,
-    );
+    const { container } = render(<screens.Analytics load={ready(analytics)} search={{}} />);
     expect(screen.getByText('1 group under five people withheld.')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
