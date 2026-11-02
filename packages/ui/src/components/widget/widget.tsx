@@ -67,6 +67,12 @@ const SPAN = {
  * the grid has them: for a card that is not a `Widget` (an assistant's card,
  * a chart card) laid out beside widgets.
  */
+/**
+ * How many rows a list widget shows: the top few, as its toolbar cuts them,
+ * and "See all" in its header only when there are more.
+ */
+export const WIDGET_LIMIT = 5;
+
 export function widgetSpan(span: 1 | 2 | 3 | 4, size: 'sm' | 'md' = 'md'): string {
   return SPAN[size][span];
 }
@@ -82,6 +88,13 @@ export interface WidgetProps extends Omit<ComponentPropsWithoutRef<'section'>, '
   readonly description?: ReactNode;
   /** One way on, at the header's end: "Open Inbox", "See all". */
   readonly action?: ReactNode;
+  /**
+   * How the list is cut, under the header: a `SegmentedControl` of filters and
+   * a sort `Select`. They change which `WIDGET_LIMIT` rows show, never how many.
+   */
+  readonly toolbar?: ReactNode;
+  /** What the rows add up to, on the card's sunken fill above them: a segmented `Progress`, a few counts. */
+  readonly insight?: ReactNode;
   readonly footer?: ReactNode;
   /** How many of the grid's columns it takes, where the container has them. */
   readonly span?: 1 | 2 | 3 | 4;
@@ -105,6 +118,8 @@ export function Widget({
   meta,
   description,
   action,
+  toolbar,
+  insight,
   footer,
   span = 1,
   size = 'md',
@@ -160,6 +175,14 @@ export function Widget({
           <div className="flex min-h-8 shrink-0 items-center gap-1">{action}</div>
         )}
       </header>
+      {toolbar === undefined ? null : (
+        <div className="flex flex-wrap items-center gap-2 px-5 pb-3 touch:px-4">{toolbar}</div>
+      )}
+      {insight === undefined ? null : (
+        <div className="mx-5 mb-3 flex flex-col gap-2 rounded-md bg-surface-sunken px-3.5 py-3 text-sm touch:mx-4">
+          {insight}
+        </div>
+      )}
       <div
         className={cn(
           'flex min-w-0 flex-1 flex-col',

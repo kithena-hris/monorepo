@@ -53,7 +53,8 @@ export async function viewer(ctx: Ctx): Promise<PerformanceViewer> {
 export async function homeScreen(ctx: Ctx): Promise<Result<unknown>> {
   await ensureSeeded(ctx);
   const name = await names(ctx);
-  const tasks = (await inbox(ctx)).filter((i) => i.lane === 'task').slice(0, 8);
+  // Every one: the overview shows its top five as its filter and sort cut them.
+  const tasks = (await inbox(ctx)).filter((i) => i.lane === 'task');
   const personId = ctx.viewer.personId;
   const cycles = await ctx.tx.cycles.find();
   const running = [];
@@ -123,7 +124,6 @@ export async function homeScreen(ctx: Ctx): Promise<Result<unknown>> {
       ? []
       : (await ctx.tx.goals.find({ ownerId: personId }))
           .filter((g) => g.status === 'active')
-          .slice(0, 4)
           .map((g) => ({
             id: g.id,
             title: g.title,

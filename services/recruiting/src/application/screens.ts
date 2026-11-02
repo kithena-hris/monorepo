@@ -69,7 +69,22 @@ async function counts(ctx: Ctx, job: JobRecord) {
   };
 }
 
-/** R1: my tasks and my jobs. */
+/** Who and which job an application is: a task's second line on the overview. */
+async function aboutApplication(ctx: Ctx, applicationId: string | null): Promise<string | null> {
+  if (applicationId === null) return null;
+  const app = await ctx.tx.applications.get(applicationId);
+  if (app === null) return null;
+  const [candidate, job] = await Promise.all([
+    ctx.tx.candidates.get(app.candidateId),
+    ctx.tx.jobs.get(app.jobId),
+  ]);
+  return [candidate?.name, job?.title].filter(Boolean).join(' · ') || null;
+}
+
+/**
+ * R1: my tasks and my jobs. Every job not archived, with what the overview
+ * filters, sorts and sums them by; each task with who and which job it is about.
+ */
 export async function home(ctx: Ctx): Promise<unknown> {
   const person = ctx.viewer.personId ?? '';
   const approvals = await ctx.tx.approvals.waitingOn(person);
@@ -80,36 +95,52 @@ export async function home(ctx: Ctx): Promise<unknown> {
   );
   const jobs = await myJobs(ctx);
   const settings = await generalSettings(ctx);
+  const locations = await ctx.tx.locations.list();
   const tasks = [
     ...(await Promise.all(
       approvals.map(async (a) => {
-        const subject =
-          a.subject.kind === 'requisition'
-            ? ((await ctx.tx.requisitions.get(a.subject.id))?.title ?? 'A requisition')
-            : (await ctx.tx.offers.get(a.subject.id)) === null
-              ? 'An offer'
-              : 'An offer';
+        if (a.subject.kind === 'requisition') {
+          const requisition = await ctx.tx.requisitions.get(a.subject.id);
+          return {
+            kind: 'approve_requisition',
+            id: a.subject.id,
+            title: `Approve: ${requisition?.title ?? 'A requisition'}`,
+            detail: null as string | null,
+            due: null as string | null,
+          };
+        }
+        const offer = await ctx.tx.offers.get(a.subject.id);
         return {
           kind: `approve_${a.subject.kind}`,
           id: a.subject.id,
-          title: `Approve: ${subject}`,
+          title: 'Approve: An offer',
+          detail: await aboutApplication(ctx, offer?.applicationId ?? null),
           due: null as string | null,
         };
       }),
     )),
-    ...owed.map((i) => ({
-      kind: 'scorecard',
-      id: i.id,
-      title: `Scorecard: ${i.title}`,
-      due: new Date(Date.parse(i.startsAt) + (i.minutes + 24 * 60) * 60_000).toISOString(),
-    })),
-    ...today.map((i) => ({
-      kind: 'interview',
-      id: i.id,
-      title: i.title,
-      due: i.startsAt,
-    })),
+    ...(await Promise.all(
+      owed.map(async (i) => ({
+        kind: 'scorecard',
+        id: i.id,
+        title: `Scorecard: ${i.title}`,
+        detail: await aboutApplication(ctx, i.applicationId),
+        due: new Date(Date.parse(i.startsAt) + (i.minutes + 24 * 60) * 60_000).toISOString(),
+      })),
+    )),
+    ...(await Promise.all(
+      today.map(async (i) => ({
+        kind: 'interview',
+        id: i.id,
+        title: i.title,
+        detail: await aboutApplication(ctx, i.applicationId),
+        due: i.startsAt,
+      })),
+    )),
   ];
+  const shown = (
+    await Promise.all(jobs.map(async (j) => ((await archivedAt(ctx, j.id)) === null ? j : null)))
+  ).filter((j) => j !== null);
   return {
     viewer: {
       personId: ctx.viewer.personId,
@@ -120,17 +151,23 @@ export async function home(ctx: Ctx): Promise<unknown> {
     requisitionsOn: settings.requisitionsOn,
     tasks,
     jobs: await Promise.all(
-      jobs
-        .filter((j) => j.state !== 'closed')
-        .map(async (j) => ({
+      shown.map(async (j) => {
+        const hm =
+          (await jobFacts(ctx, j)).team.find((m) => m.role === 'hiring_manager')?.personId ?? null;
+        return {
           id: j.id,
-          title: j.title,
+          title: j.title === '' ? j.internalTitle : j.title,
           state: j.state,
           department: j.department,
+          location: locations.find((l) => l.id === j.locationIds[0])?.name ?? null,
           openings: j.openings,
           hired: j.hired,
+          createdAt: j.createdAt,
+          openedAt: j.openedAt,
+          hiringManager: hm === null ? null : { personId: hm, name: await nameOf(ctx, hm) },
           counts: await counts(ctx, j),
-        })),
+        };
+      }),
     ),
   };
 }

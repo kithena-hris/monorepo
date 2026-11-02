@@ -1409,11 +1409,15 @@
   },
   "home.a_job_opens_from_an_approved": {
     "text": "A job opens from an approved requisition.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the description of <EmptyState>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the description of <EmptyState>."
   },
   "home.active_and_new": {
     "text": "{{active}} active · {{fresh}} new",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>. Filled in: {{active}}, {{fresh}}."
+  },
+  "home.active_and_new_week": {
+    "text": "{{active}} active · {{fresh}} new this week",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the valueLabel of <Progress>. Filled in: {{active}}, {{fresh}}."
   },
   "home.active_candidates": {
     "text": "Active candidates",
@@ -1423,9 +1427,17 @@
     "text": "All",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"all\" value."
   },
-  "home.all_jobs": {
-    "text": "All jobs",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the action of <a>."
+  "home.all_departments": {
+    "text": "All departments",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the toolbar of <SelectItem>."
+  },
+  "home.all_done_today": {
+    "text": "All done for today",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>."
+  },
+  "home.all_submitted": {
+    "text": "All submitted",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>."
   },
   "home.approvals_scorecards_and_todays_interviews_land": {
     "text": "Approvals, scorecards and today’s interviews land here.",
@@ -1435,9 +1447,13 @@
     "text": "Archived",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"archived\" value."
   },
-  "home.candidates": {
-    "text": "{{active}} candidates",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>. Filled in: {{active}}."
+  "home.candidates_by_step": {
+    "text": "Candidates by step",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the label of <Progress>."
+  },
+  "home.candidates_count": {
+    "text": "{{count}} active",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the supporting of <ListItem>. Filled in: {{count}}."
   },
   "home.candidates_header": {
     "text": "Candidates",
@@ -1451,9 +1467,45 @@
     "text": "Closed",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"closed\" value."
   },
+  "home.department": {
+    "text": "Department",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the aria-label of <SelectTrigger>."
+  },
+  "home.drafted_on": {
+    "text": "Drafted {{day}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: text inside <ListItem>. Filled in: {{day}}."
+  },
   "home.drafts": {
     "text": "Drafts",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"drafts\" value."
+  },
+  "home.filter_all": {
+    "text": "All",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_FILTER_LABEL: a \"all\" value."
+  },
+  "home.filter_approvals": {
+    "text": "Approvals",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_FILTER_LABEL: a \"approvals\" value."
+  },
+  "home.filter_closed": {
+    "text": "Closed",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JOB_FILTER_LABEL: a \"closed\" value."
+  },
+  "home.filter_drafts": {
+    "text": "Drafts",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JOB_FILTER_LABEL: a \"drafts\" value."
+  },
+  "home.filter_interviews": {
+    "text": "Interviews",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_FILTER_LABEL: a \"interviews\" value."
+  },
+  "home.filter_open": {
+    "text": "Open",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JOB_FILTER_LABEL: a \"open\" value."
+  },
+  "home.filter_scorecards": {
+    "text": "Scorecards",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_FILTER_LABEL: a \"scorecards\" value."
   },
   "home.from_the_inbox_for_recruiting": {
     "text": "From the Inbox, for Recruiting",
@@ -1463,17 +1515,21 @@
     "text": "Hello, {{value}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the title of <PageHeader>. Filled in: {{value}}."
   },
+  "home.hired_of": {
+    "text": "{{hired}} of {{openings}} hired",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the supporting of <ListItem>. Filled in: {{hired}}, {{openings}}."
+  },
   "home.hiring_manager": {
     "text": "Hiring manager",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
   },
-  "home.in_all": {
-    "text": "{{length}} in all",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>. Filled in: {{length}}."
-  },
   "home.internal_board": {
     "text": "Internal board",
     "context": "Recruiting: jobs, candidates, interviews, offers. shared.tsx, WHERE_FROM: a \"internal_board\" value."
+  },
+  "home.interviewing_count": {
+    "text": "{{count}} interviewing",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the segments of <Progress>. Filled in: {{count}}."
   },
   "home.interviews_today": {
     "text": "Interviews today",
@@ -1485,15 +1541,47 @@
   },
   "home.jobs": {
     "text": "Jobs",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the title of <PageHeader>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the title of <Widget>."
   },
   "home.jobs_lower": {
     "text": "jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the what of <Loaded>."
   },
+  "home.jobs_youre_on": {
+    "text": "The jobs you are on, newest first",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the description of <Widget>."
+  },
+  "home.kind_interview": {
+    "text": "Interview",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_KIND: a \"interview\" value."
+  },
+  "home.kind_offer": {
+    "text": "Offer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_KIND: a \"approve_offer\" value."
+  },
+  "home.kind_requisition": {
+    "text": "Requisition",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_KIND: a \"approve_requisition\" value."
+  },
+  "home.kind_scorecard": {
+    "text": "Scorecard",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_KIND: a \"scorecard\" value."
+  },
   "home.kithena_jobs": {
     "text": "Kithena Jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. shared.tsx, WHERE_FROM: a \"kithena_jobs\" value."
+  },
+  "home.late": {
+    "text": "Late",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the trailing of <Badge>."
+  },
+  "home.late_count": {
+    "text": "{{count}} late",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>. Filled in: {{count}}."
+  },
+  "home.later_count": {
+    "text": "{{count}} later",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the segments of <Progress>. Filled in: {{count}}."
   },
   "home.live_on": {
     "text": "Live on",
@@ -1503,21 +1591,25 @@
     "text": "More",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <MoreMenu>."
   },
-  "home.new": {
-    "text": "{{newThisWeek}} new",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>. Filled in: {{newThisWeek}}."
+  "home.new_count": {
+    "text": "{{count}} new this week",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the supporting of <ListItem>. Filled in: {{count}}."
   },
   "home.new_job": {
     "text": "New job",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the action of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the action of <Button>."
   },
   "home.new_requisition": {
     "text": "New requisition",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the action of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the action of <Button>."
   },
-  "home.new_this_week": {
-    "text": "{{fresh}} new this week",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>. Filled in: {{fresh}}."
+  "home.next_at": {
+    "text": "Next: {{when}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>. Filled in: {{when}}."
+  },
+  "home.no_active_candidates": {
+    "text": "No active candidates in these jobs yet.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the insight of <p>."
   },
   "home.no_closed_jobs": {
     "text": "No closed jobs",
@@ -1531,9 +1623,13 @@
     "text": "No job matches “{{q}}”",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the title of <EmptyState>. Filled in: {{q}}."
   },
+  "home.no_jobs_here": {
+    "text": "No jobs here",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the title of <EmptyState>."
+  },
   "home.no_jobs_yet": {
     "text": "No jobs yet",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the title of <EmptyState>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the title of <EmptyState>."
   },
   "home.no_open_jobs": {
     "text": "No open jobs",
@@ -1542,6 +1638,14 @@
   "home.no_team_or_place_yet": {
     "text": "No team or place yet",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>."
+  },
+  "home.none_booked_today": {
+    "text": "None booked today",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>."
+  },
+  "home.none_of_these": {
+    "text": "None of these",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the title of <EmptyState>."
   },
   "home.not_published": {
     "text": "Not published",
@@ -1555,17 +1659,13 @@
     "text": "Nothing waiting for you",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the title of <EmptyState>."
   },
-  "home.open": {
-    "text": "{{length}} open",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Widget>. Filled in: {{length}}."
+  "home.offer_count": {
+    "text": "{{count}} at offer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the segments of <Progress>. Filled in: {{count}}."
   },
   "home.open_a_job_to_start_hiring": {
     "text": "Open a job to start hiring.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the description of <EmptyState>."
-  },
-  "home.open_inbox": {
-    "text": "Open Inbox",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the action of <a>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the description of <EmptyState>."
   },
   "home.open_jobs": {
     "text": "Open jobs",
@@ -1575,9 +1675,25 @@
     "text": "Open",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"open\" value."
   },
-  "home.pipeline": {
-    "text": "Pipeline",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
+  "home.opened_on": {
+    "text": "Opened {{day}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: text inside <ListItem>. Filled in: {{day}}."
+  },
+  "home.openings_filled": {
+    "text": "Openings filled",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <Progress>."
+  },
+  "home.openings_hired": {
+    "text": "{{hired}} of {{openings}} openings filled",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>. Filled in: {{hired}}, {{openings}}."
+  },
+  "home.overdue_count": {
+    "text": "{{count}} overdue",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the segments of <Progress>. Filled in: {{count}}."
+  },
+  "home.overdue_since": {
+    "text": "Overdue · {{day}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: text built in code. Filled in: {{day}}."
   },
   "home.recruiting": {
     "text": "Recruiting",
@@ -1587,9 +1703,17 @@
     "text": "Scorecards owed",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <Stat>."
   },
+  "home.screening_count": {
+    "text": "{{count}} screening",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the segments of <Progress>. Filled in: {{count}}."
+  },
   "home.search_jobs": {
     "text": "Search jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the label of <Search>."
+  },
+  "home.see_all": {
+    "text": "See all {{count}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SeeAll: text inside <To>. Filled in: {{count}}."
   },
   "home.share_link": {
     "text": "Share link",
@@ -1599,9 +1723,45 @@
     "text": "Show",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the aria-label of <SegmentedControl>."
   },
+  "home.show_jobs": {
+    "text": "Show jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the aria-label of <SegmentedControl>."
+  },
+  "home.show_tasks": {
+    "text": "Show tasks",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the aria-label of <SegmentedControl>."
+  },
   "home.showing": {
     "text": "{{label}} {{count}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: text inside <SegmentedControlItem>. Filled in: {{label}}, {{count}}."
+  },
+  "home.sort_candidates": {
+    "text": "Most candidates",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JOB_ORDER_LABEL: a \"candidates\" value."
+  },
+  "home.sort_due": {
+    "text": "Due first",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the toolbar of <SelectItem>."
+  },
+  "home.sort_fresh": {
+    "text": "Most new this week",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JOB_ORDER_LABEL: a \"fresh\" value."
+  },
+  "home.sort_jobs": {
+    "text": "Sort jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the aria-label of <SelectTrigger>."
+  },
+  "home.sort_newest": {
+    "text": "Newest",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JOB_ORDER_LABEL: a \"newest\" value."
+  },
+  "home.sort_tasks": {
+    "text": "Sort tasks",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the aria-label of <SelectTrigger>."
+  },
+  "home.sort_title": {
+    "text": "Title, A–Z",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JOB_ORDER_LABEL: a \"title\" value."
   },
   "home.state": {
     "text": "State",
@@ -1611,6 +1771,14 @@
     "text": "Tasks",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the title of <Widget>."
   },
+  "home.tasks_by_when": {
+    "text": "Tasks by when they are due",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the label of <Progress>."
+  },
+  "home.tasks_waiting": {
+    "text": "{{count}} waiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the valueLabel of <Progress>. Filled in: {{count}}."
+  },
   "home.text": {
     "text": "{{name}} {{count}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, MiniPipeline: the aria-label of <span>. Filled in: {{name}}, {{count}}."
@@ -1619,13 +1787,21 @@
     "text": "{{name}}: {{count}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, MiniPipeline: the title of <span>. Filled in: {{name}}, {{count}}."
   },
+  "home.this_week": {
+    "text": "this week",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the deltaLabel of <Stat>."
+  },
   "home.title_team_place_or_manager": {
     "text": "Title, team, place or manager",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the placeholder of <Search>."
   },
-  "home.your_jobs": {
-    "text": "Your jobs",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the label of <DataTable>."
+  "home.today_count": {
+    "text": "{{count}} today",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the segments of <Progress>. Filled in: {{count}}."
+  },
+  "home.try_another_filter": {
+    "text": "Try another state or department.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs5: the description of <EmptyState>."
   },
   "interviews.a_google_meet_link": {
     "text": "a Google Meet link",

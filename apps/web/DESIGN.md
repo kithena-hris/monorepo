@@ -26,6 +26,7 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 - **A figure is a `Stat` tile on `WidgetGrid size="sm"`**, all tiles one size, with an icon. A trend is a chart, never a sentence.
 - **Every widget leads somewhere.** A tile opens what it counts (`Stat`'s `href`: the label is the link, stretched over the tile, with a chevron); a widget or chart card carries its one action in its header (Open Inbox, All jobs, Calibrate, Remind, Team calendar). A figure with nothing to do about it is a figure nobody needed.
 - **A table never shows a loaded row empty.** It draws ahead in the direction it moves, and a jump past what is drawn (a fling, a scrollbar drag, Back to top) is drawn inside the scroll event (`useCatchUp` in `lib/draw-ahead.ts`), so the frame it paints has the rows, not hairlines filling in.
+- **A list widget shows its top five, never the whole list.** `WIDGET_LIMIT` (5) rows, as the widget's `toolbar` cuts them: a `SegmentedControl` of a few filters and a sort `Select`, both in the query string, so a filter changes which five show, never how many. Its `insight` sits above the rows on the card's sunken fill and says what the filtered rows add up to (a segmented `Progress`: overdue, this week, later; screening, interviewing, at offer). Its header offers "See all N" to the full list only when there are more than five; exactly five, or fewer, and the header has no link. Rows carry their detail: who and what it is about, when, and its state.
 - **A widget is a card with a header**: an icon in a tinted tile, the title (wrapped, never cut), a count or state as `meta`, and one way on. A list or a table inside it is its body, flush to its edges (`flush`); a card never holds a second card. `Card`, a surfaced `PageSection` and `Widget` mark themselves `data-surface`, and `List` and `Table` drop their own card inside one.
 - **A table's card is as wide as its columns**, not as wide as the page.
 - **Every titled group on a page is a card.** One column only where several would not read better; a profile's sections sit two to a row on a wide page.
@@ -60,6 +61,7 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
   - name and days in stage;
   - one badge row: ideal, match, knockout, duplicate;
   - an optional footer line: the next interview, or the scorecards owed.
+- **Overview** (`home.tsx`, `Home`): four figures (open jobs with openings filled, active candidates with this week's new, interviews today with the next one, scorecards owed with how many are late), then Tasks and Jobs side by side, each a top-five widget. Tasks filter by kind (approvals, scorecards, interviews) and sort by due date; Jobs filter by state and department and sort by newest, candidates or new this week. The jobs insight is the filtered candidates by phase (screening, interviewing, at offer).
 - **Jobs list** (`home.tsx`): a `SegmentedControl` of states (Open, Drafts, Closed, Archived, All) with counts, a search, and a `DataTable` with these columns:
   - the job, with its team and place;
   - its pipeline as accent bars, plus its active and new counts;

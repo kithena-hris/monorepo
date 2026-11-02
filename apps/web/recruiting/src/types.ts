@@ -111,15 +111,22 @@ export interface HomeData {
     readonly kind: string;
     readonly id: string;
     readonly title: string;
+    /** Who and which job it is about: "Ada Lovelace · Sales Manager". */
+    readonly detail?: string | null;
     readonly due: string | null;
   }[];
+  /** Every job the viewer is on and not archived; the overview shows the top five as filtered. */
   readonly jobs: readonly {
     readonly id: string;
     readonly title: string;
     readonly state: string;
     readonly department: string | null;
+    readonly location?: string | null;
     readonly openings: number;
     readonly hired: number;
+    readonly createdAt?: string;
+    readonly openedAt?: string | null;
+    readonly hiringManager?: { readonly personId: string; readonly name: string | null } | null;
     readonly counts: JobCounts;
   }[];
 }

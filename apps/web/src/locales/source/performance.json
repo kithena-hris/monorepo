@@ -3343,37 +3343,33 @@
     "text": "Your goals for the period add up to 100%",
     "context": "Performance: reviews, goals, feedback, learning. goals.tsx, NewGoal: the hint of <NumberField>."
   },
-  "home.all": {
-    "text": "All",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <To>."
-  },
-  "home.all_cycles": {
-    "text": "All cycles",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <a>."
-  },
-  "home.all_goals": {
-    "text": "All goals",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <To>."
+  "home.active_this_period": {
+    "text": "Active this period",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the description of <Widget>."
   },
   "home.assigned_to_you": {
     "text": "Assigned to you",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the title of <Widget>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the title of <Widget>."
   },
   "home.at_risk": {
     "text": "At risk",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, CONFIDENCE: a \"at_risk\" value."
   },
-  "home.cycle_released": {
-    "text": "{{cycle}} · Released {{day}}",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the description of <ListItem>. Filled in: {{cycle}}, {{day}}."
+  "home.at_risk_count": {
+    "text": "{{count}} at risk",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the segments of <Progress>. Filled in: {{count}}."
   },
-  "home.cycle_seen_when_released": {
-    "text": "{{cycle}} · You see it when it is released",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the description of <ListItem>. Filled in: {{cycle}}."
+  "home.average_progress": {
+    "text": "{{average}}% on average",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the valueLabel of <Progress>. Filled in: {{average}}."
+  },
+  "home.cycles_lower": {
+    "text": "cycles",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the label of <Cut>."
   },
   "home.cycles_you_own": {
     "text": "Cycles you own",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the title of <Widget>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the title of <Widget>."
   },
   "home.done": {
     "text": "Done",
@@ -3381,15 +3377,67 @@
   },
   "home.due": {
     "text": "due {{due}}",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the description of <ListItem>. Filled in: {{due}}."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: text inside <ListItem>. Filled in: {{due}}."
+  },
+  "home.filter_all": {
+    "text": "All",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"all\" value."
+  },
+  "home.filter_at_risk": {
+    "text": "At risk",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"risk\" value."
+  },
+  "home.filter_being_written": {
+    "text": "Being written",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"writing\" value."
+  },
+  "home.filter_overdue": {
+    "text": "Overdue",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"overdue\" value."
+  },
+  "home.filter_released": {
+    "text": "Released",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"released\" value."
+  },
+  "home.filter_running": {
+    "text": "Running",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"running\" value."
+  },
+  "home.filter_this_week": {
+    "text": "This week",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"week\" value."
+  },
+  "home.filter_upcoming": {
+    "text": "Upcoming",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, FILTERS: a \"upcoming\" value."
   },
   "home.from": {
     "text": "{{who}} · from {{start}}",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the description of <ListItem>. Filled in: {{who}}, {{start}}."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the description of <ListItem>. Filled in: {{who}}, {{start}}."
+  },
+  "home.from_the_inbox": {
+    "text": "From the Inbox, for Performance",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the description of <Widget>."
   },
   "home.give_feedback": {
     "text": "Give feedback",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the actions of <a>."
+  },
+  "home.goals_by_confidence": {
+    "text": "Goals by confidence",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the label of <Progress>."
+  },
+  "home.goals_lower": {
+    "text": "goals",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the label of <Cut>."
+  },
+  "home.in_running_cycles": {
+    "text": "In the cycles running now",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the description of <Widget>."
+  },
+  "home.later_count": {
+    "text": "{{count}} later",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the segments of <Progress>. Filled in: {{count}}."
   },
   "home.new_cycle": {
     "text": "New cycle",
@@ -3397,39 +3445,75 @@
   },
   "home.no_cycle_is_running": {
     "text": "No cycle is running",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the title of <EmptyState>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the title of <EmptyState>."
   },
   "home.no_goals_for_this_period_yet": {
     "text": "No goals for this period yet.",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: text inside <p>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the title of <EmptyState>."
   },
   "home.nobody_is_writing_about_you_in": {
     "text": "Nobody is writing about you in a running cycle.",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: text inside <p>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the description of <EmptyState>."
+  },
+  "home.none_of_these": {
+    "text": "None of these",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the title of <EmptyState>."
+  },
+  "home.nothing_about_you": {
+    "text": "Nothing about you yet",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the title of <EmptyState>."
   },
   "home.nothing_needs_you": {
     "text": "Nothing needs you",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the title of <EmptyState>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the title of <EmptyState>."
   },
   "home.off_track": {
     "text": "Off track",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, CONFIDENCE: a \"off_track\" value."
   },
+  "home.off_track_count": {
+    "text": "{{count}} off track",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the segments of <Progress>. Filled in: {{count}}."
+  },
   "home.on_track": {
     "text": "On track",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, CONFIDENCE: a \"on_track\" value."
   },
-  "home.open_inbox": {
-    "text": "Open Inbox",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the action of <a>."
+  "home.on_track_count": {
+    "text": "{{count}} on track",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the segments of <Progress>. Filled in: {{count}}."
+  },
+  "home.open_goals": {
+    "text": "Open goals",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the action of <To>."
   },
   "home.overdue": {
     "text": "Overdue",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the trailing of <Badge>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the trailing of <Badge>."
+  },
+  "home.overdue_count": {
+    "text": "{{count}} overdue",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the segments of <Progress>. Filled in: {{count}}."
   },
   "home.performance": {
     "text": "Performance",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the what of <Loaded>."
+  },
+  "home.progress_done": {
+    "text": "{{progress}}% done",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the description of <ListItem>. Filled in: {{progress}}."
+  },
+  "home.released_count": {
+    "text": "{{count}} released",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the segments of <Progress>. Filled in: {{count}}."
+  },
+  "home.released_of": {
+    "text": "{{released}} of {{count}} released",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the valueLabel of <Progress>. Filled in: {{released}}, {{count}}."
+  },
+  "home.released_on": {
+    "text": "Released {{day}}",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the meta of <ListItem>. Filled in: {{day}}."
   },
   "home.request_feedback": {
     "text": "Request feedback",
@@ -3437,11 +3521,11 @@
   },
   "home.retry_launch": {
     "text": "Retry launch",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the trailing of <span>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the trailing of <span>."
   },
   "home.reviews_about_you": {
     "text": "Reviews about you",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the title of <Widget>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the title of <Widget>."
   },
   "home.reviews_feedback_goals_and_learning": {
     "text": "Reviews, feedback, goals and learning.",
@@ -3451,25 +3535,113 @@
     "text": "Reviews, feedback, goals and learning. As HR.",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the description of <PageHeader>."
   },
+  "home.reviews_lower": {
+    "text": "reviews",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the label of <Cut>."
+  },
+  "home.reviews_released": {
+    "text": "Reviews released to you",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the label of <Progress>."
+  },
+  "home.reviews_submitted_on_average": {
+    "text": "Reviews submitted, on average",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the label of <Progress>."
+  },
   "home.reviews_to_write_nominations_and_learning": {
     "text": "Reviews to write, nominations and learning due land here and in your Inbox.",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the description of <EmptyState>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the description of <EmptyState>."
+  },
+  "home.see_all": {
+    "text": "See all {{count}}",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SeeAll: text inside <To>. Filled in: {{count}}."
+  },
+  "home.seen_when_released": {
+    "text": "You see it when it is released",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the meta of <ListItem>."
+  },
+  "home.show_label": {
+    "text": "Show {{label}}",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cut: the aria-label of <SegmentedControl>. Filled in: {{label}}."
+  },
+  "home.sort_behind": {
+    "text": "Furthest behind",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"behind\" value."
+  },
+  "home.sort_cycle": {
+    "text": "By cycle",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"cycle\" value."
+  },
+  "home.sort_due": {
+    "text": "Due first",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"due\" value."
+  },
+  "home.sort_label": {
+    "text": "Sort {{label}}",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cut: the aria-label of <SelectTrigger>. Filled in: {{label}}."
+  },
+  "home.sort_least_progress": {
+    "text": "Least progress",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"least\" value."
+  },
+  "home.sort_most_progress": {
+    "text": "Most progress",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"most\" value."
+  },
+  "home.sort_name": {
+    "text": "Name, A–Z",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"name\" value."
+  },
+  "home.sort_newest": {
+    "text": "Newest",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"newest\" value."
+  },
+  "home.sort_start": {
+    "text": "Starts latest",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"start\" value."
+  },
+  "home.sort_title": {
+    "text": "Title, A–Z",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, SORTS: a \"title\" value."
   },
   "home.start_one_from_cycles_it_updates": {
     "text": "Start one from Cycles; it updates here as reviews come in.",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the description of <EmptyState>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the description of <EmptyState>."
   },
   "home.submitted": {
     "text": "{{name}}: {{progress}}% submitted",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the label of <Progress>. Filled in: {{name}}, {{progress}}."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the label of <Progress>. Filled in: {{name}}, {{progress}}."
   },
-  "home.text_2": {
-    "text": "{{title}}: {{progress}}%",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the label of <Progress>. Filled in: {{title}}, {{progress}}."
+  "home.submitted_average": {
+    "text": "{{average}}% submitted across {{count}} running",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the valueLabel of <Progress>. Filled in: {{average}}, {{count}}."
+  },
+  "home.tasks_by_when": {
+    "text": "Tasks by when they are due",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the label of <Progress>."
+  },
+  "home.tasks_lower": {
+    "text": "tasks",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the label of <Cut>."
+  },
+  "home.this_week_count": {
+    "text": "{{count}} this week",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the segments of <Progress>. Filled in: {{count}}."
+  },
+  "home.updates_as_reviews_come_in": {
+    "text": "Updates as reviews come in",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the description of <Widget>."
+  },
+  "home.waiting": {
+    "text": "{{count}} waiting",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the valueLabel of <Progress>. Filled in: {{count}}."
+  },
+  "home.writing_count": {
+    "text": "{{count}} being written",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, AboutYou: the segments of <Progress>. Filled in: {{count}}."
   },
   "home.your_goals": {
     "text": "Your goals",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the title of <Widget>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Goals: the title of <Widget>."
   },
   "learning.acknowledgement_the_learner_confirms": {
     "text": "Acknowledgement the learner confirms",
