@@ -31,7 +31,6 @@ import {
   day,
   kindLabel,
   useAct,
-  words,
 } from './shared';
 import type { ScreenProps } from './types';
 import { t as tr } from './i18n';
