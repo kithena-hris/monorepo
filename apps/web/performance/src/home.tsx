@@ -31,7 +31,6 @@ import {
   day,
   kindLabel,
   useAct,
-  words,
 } from './shared';
 import type { ScreenProps } from './types';
 import { t as tr } from './i18n';
@@ -169,7 +168,7 @@ function Cut<F extends string, S extends string>({
           aria-label={tr('home.sort_label', 'Sort {{label}}', { label })}
           className="ms-auto w-auto"
         >
-          <SelectValue />
+          <SelectValue>{sorts[sort]}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {(Object.keys(sorts) as S[]).map((o) => (
@@ -252,14 +251,14 @@ function Tasks({ data, props }: { readonly data: HomeData; readonly props: Props
               {
                 value: overdue,
                 label: tr('home.overdue_count', '{{count}} overdue', { count: String(overdue) }),
-                tone: 'chart-5',
+                tone: 'danger',
               },
               {
                 value: thisWeek,
                 label: tr('home.this_week_count', '{{count}} this week', {
                   count: String(thisWeek),
                 }),
-                tone: 'chart-4',
+                tone: 'warning',
               },
               {
                 value: shown.length - overdue - thisWeek,
@@ -298,7 +297,8 @@ function Tasks({ data, props }: { readonly data: HomeData; readonly props: Props
               icon={<icons.review aria-hidden />}
               iconTone={late(t) ? 'chart-5' : 'chart-1'}
               {...(t.summary === null ? {} : { description: t.summary })}
-              {...(t.due === null
+              // Late says so once, as a badge; otherwise when it is due sits by the title.
+              {...(t.due === null || late(t)
                 ? {}
                 : { meta: tr('home.due', 'due {{due}}', { due: day(t.due) }) })}
               trailing={
@@ -530,14 +530,14 @@ function Goals({ data, props }: { readonly data: HomeData; readonly props: Props
                 label: tr('home.at_risk_count', '{{count}} at risk', {
                   count: String(count(['at_risk'])),
                 }),
-                tone: 'chart-4',
+                tone: 'warning',
               },
               {
                 value: count(['off_track']),
                 label: tr('home.off_track_count', '{{count}} off track', {
                   count: String(count(['off_track'])),
                 }),
-                tone: 'chart-5',
+                tone: 'danger',
               },
             ]}
           />
@@ -704,27 +704,16 @@ function Cycles({ data, props }: { readonly data: HomeData; readonly props: Prop
                 who: c.who,
                 start: day(c.start),
               })}
-              meta={<CycleBadge state={c.state} />}
-              trailing={
-                c.state === 'in_progress' ? (
-                  <span className="w-28">
-                    <Progress
-                      value={c.progress}
-                      showValue
-                      label={tr('home.submitted', '{{name}}: {{progress}}% submitted', {
-                        name: c.name,
-                        progress: String(c.progress),
-                      })}
-                    />
-                  </span>
-                ) : (
-                  <span className="text-sm">
-                    {c.state === 'launch_failed'
-                      ? tr('home.retry_launch', 'Retry launch')
-                      : words(c.state)}
-                  </span>
-                )
+              supporting={
+                c.state === 'in_progress'
+                  ? tr('home.percent_submitted', '{{progress}}% of reviews submitted', {
+                      progress: String(c.progress),
+                    })
+                  : c.state === 'launch_failed'
+                    ? tr('home.retry_launch', 'Retry launch')
+                    : undefined
               }
+              trailing={<CycleBadge state={c.state} />}
             >
               <To href={`/performance/cycles/${c.id}`} onNavigate={props.onNavigate}>
                 {c.name}

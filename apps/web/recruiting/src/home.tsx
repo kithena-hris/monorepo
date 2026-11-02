@@ -191,7 +191,8 @@ function Tasks({
       : // Undated last: an approval waits, it is not late.
         (a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'),
   );
-  const overdue = shown.filter((t) => t.due !== null && t.due < now).length;
+  const late = (t: Task): boolean => t.due !== null && t.due < now;
+  const overdue = shown.filter(late).length;
   const dueToday = shown.filter(
     (t) => t.due !== null && t.due >= now && t.due.slice(0, 10) === today,
   ).length;
@@ -236,7 +237,11 @@ function Tasks({
                 aria-label={tr('home.sort_tasks', 'Sort tasks')}
                 className="ms-auto w-auto"
               >
-                <SelectValue />
+                <SelectValue>
+                  {order === 'due'
+                    ? tr('home.sort_due', 'Due first')
+                    : tr('home.sort_title', 'Title, A–Z')}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="due">{tr('home.sort_due', 'Due first')}</SelectItem>
@@ -259,12 +264,12 @@ function Tasks({
               {
                 value: overdue,
                 label: tr('home.overdue_count', '{{count}} overdue', { count: String(overdue) }),
-                tone: 'chart-5',
+                tone: 'danger',
               },
               {
                 value: dueToday,
                 label: tr('home.today_count', '{{count}} today', { count: String(dueToday) }),
-                tone: 'chart-4',
+                tone: 'warning',
               },
               {
                 value: later,
@@ -303,11 +308,12 @@ function Tasks({
                 icon={TASK_ICON[t.kind] ?? <icons.pending aria-hidden />}
                 iconTone={TASK_TONE[t.kind] ?? 'chart-6'}
                 description={[TASK_KIND[t.kind]?.(), t.detail].filter(Boolean).join(' · ')}
-                {...(due === undefined ? {} : { meta: due })}
+                // Late says so once, as a badge; otherwise when it is due sits by the title.
+                {...(due === undefined || late(t) ? {} : { meta: due })}
                 trailing={
-                  t.due !== null && t.due < now ? (
+                  late(t) ? (
                     <Badge size="sm" tone="danger">
-                      {tr('home.late', 'Late')}
+                      {due}
                     </Badge>
                   ) : undefined
                 }
@@ -394,7 +400,9 @@ function Jobs5({
                   aria-label={tr('home.department', 'Department')}
                   className="w-auto"
                 >
-                  <SelectValue />
+                  <SelectValue>
+                    {department ?? tr('home.all_departments', 'All departments')}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">
@@ -417,7 +425,7 @@ function Jobs5({
                 aria-label={tr('home.sort_jobs', 'Sort jobs')}
                 className="ms-auto w-auto"
               >
-                <SelectValue />
+                <SelectValue>{JOB_ORDER_LABEL[order]()}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {JOB_ORDER.map((o) => (
@@ -534,23 +542,16 @@ function Jobs5({
                       openings: String(j.openings),
                     })
                   : null,
+                since(j) === ''
+                  ? null
+                  : j.openedAt == null
+                    ? tr('home.drafted_on', 'Drafted {{day}}', { day: day(since(j)) })
+                    : tr('home.opened_on', 'Opened {{day}}', { day: day(since(j)) }),
               ]
                 .filter(Boolean)
                 .join(' · ')}
-              {...(since(j) === ''
-                ? {}
-                : {
-                    meta:
-                      j.openedAt == null
-                        ? tr('home.drafted_on', 'Drafted {{day}}', { day: day(since(j)) })
-                        : tr('home.opened_on', 'Opened {{day}}', { day: day(since(j)) }),
-                  })}
-              trailing={
-                <span className="flex items-center gap-3">
-                  <MiniPipeline counts={j.counts} />
-                  {j.state === 'open' ? null : <StateBadge state={j.state} />}
-                </span>
-              }
+              // The title keeps the row's width; the steps are summed above the rows.
+              {...(j.state === 'open' ? {} : { trailing: <StateBadge state={j.state} /> })}
             >
               <To href={`/recruiting/jobs/${j.id}`} onNavigate={props.onNavigate}>
                 {j.title}

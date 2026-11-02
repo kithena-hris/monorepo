@@ -3495,6 +3495,10 @@
     "text": "{{count}} overdue",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Tasks: the segments of <Progress>. Filled in: {{count}}."
   },
+  "home.percent_submitted": {
+    "text": "{{progress}}% of reviews submitted",
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the supporting of <ListItem>. Filled in: {{progress}}."
+  },
   "home.performance": {
     "text": "Performance",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the what of <Loaded>."
@@ -3521,7 +3525,7 @@
   },
   "home.retry_launch": {
     "text": "Retry launch",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the trailing of <span>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the supporting of <ListItem>."
   },
   "home.reviews_about_you": {
     "text": "Reviews about you",
@@ -3606,10 +3610,6 @@
   "home.start_one_from_cycles_it_updates": {
     "text": "Start one from Cycles; it updates here as reviews come in.",
     "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the description of <EmptyState>."
-  },
-  "home.submitted": {
-    "text": "{{name}}: {{progress}}% submitted",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Cycles: the label of <Progress>. Filled in: {{name}}, {{progress}}."
   },
   "home.submitted_average": {
     "text": "{{average}}% submitted across {{count}} running",
