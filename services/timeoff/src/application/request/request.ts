@@ -71,6 +71,8 @@ const preview = (a: Assessment): Preview => ({
   approver: a.approver,
 });
 
+const BOOKED: readonly LeaveRequest['status'][] = [...LIVE, 'taken'];
+
 async function overlaps(
   tx: Tx,
   personId: PersonId,
@@ -78,7 +80,8 @@ async function overlaps(
   to: CalendarDate,
   excluding: string | null,
 ): Promise<boolean> {
-  const live = await tx.requests.list({ personIds: [personId], statuses: LIVE, from, to });
+  // Taken too, as the database's `request_no_overlap` counts it: those days were had.
+  const live = await tx.requests.list({ personIds: [personId], statuses: BOOKED, from, to });
   return live.some((r) => r.request.id !== excluding);
 }
 
