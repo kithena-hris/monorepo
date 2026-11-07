@@ -222,6 +222,9 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
         const result = await transact(deps, event.tenantId, async (tx) => {
           const existing = await tx.members.get(p.personId);
           const teamKey = p.orgUnitId === null ? null : teamKeyOf(p.orgUnitId);
+          // Where they sit, as `org_changed` says it: the office's country and zone.
+          const locationKey = p.locationId === null ? null : locationKeyOf(p.locationId);
+          const place = locationKey === null ? null : await tx.locations.get(locationKey);
           const fields = MemberFields.parse({
             ...(existing === null ? {} : fieldsOf(existing)),
             personId: p.personId,
@@ -232,6 +235,9 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
             managerPersonId: p.managerId,
             teamKey,
             teamName: existing !== null && existing.teamKey === teamKey ? existing.teamName : null,
+            locationKey,
+            country: place?.country ?? existing?.country ?? null,
+            timeZone: place?.timeZone ?? existing?.timeZone,
             hireDate: p.hireDate ?? existing?.hireDate ?? null,
             terminationDate: p.lastWorkingDay,
             status: statusOf(p.status) ?? 'active',

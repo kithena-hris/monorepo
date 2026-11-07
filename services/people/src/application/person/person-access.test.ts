@@ -22,6 +22,7 @@ const MARCO = '00000000-0000-4000-8000-0000000000a2';
 const ADA_ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
 const MARCO_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
 const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
+const LOCATION = '00000000-0000-4000-8000-0000000000c1';
 
 const salary = define({
   key: 'base_salary',
@@ -700,6 +701,31 @@ describe('hiring', () => {
       'people.person.status_changed',
       'people.person.hired',
     ]);
+  });
+
+  it('says where somebody sits after the hire, so a module that just met them places them', async () => {
+    const store = inMemoryPeople([versionOf(3, [title, ...nameKeys])]);
+    store.seed(ADA, {
+      account: null,
+      fields: { givenName: 'Ada', familyName: 'Lovelace', workEmail: 'ada@acme.test' },
+      custom: { location_id: LOCATION },
+    });
+    const row = store.rows.get(ADA);
+    if (row) row.snapshot = { ...row.snapshot, status: 'provisional', hireDate: null };
+    await personAccess(store.deps).hire(tx, {
+      ...asking(hr),
+      personId: ADA,
+      hireDate: '2026-10-01',
+    });
+    expect(store.events.map((e) => e.eventName)).toEqual([
+      'people.person.status_changed',
+      'people.person.hired',
+      'people.person.org_changed',
+    ]);
+    expect(store.events.at(-1)).toMatchObject({
+      effectiveFrom: '2026-10-01',
+      payload: { personId: ADA, locationId: LOCATION },
+    });
   });
 
   it('is HR’s to do', async () => {
@@ -1473,7 +1499,11 @@ describe('a salary', () => {
       const view = await people.read(tx, { ...asking(hr), personId: ADA, amounts: true });
       return view.ok ? view.value.attributes['base_salary'] : undefined;
     };
-    const on = { tenantId: TENANT, personId: ADA, correlationId: '00000000-0000-4000-8000-0000000000c2' };
+    const on = {
+      tenantId: TENANT,
+      personId: ADA,
+      correlationId: '00000000-0000-4000-8000-0000000000c2',
+    };
 
     // Not yet: nothing comes into force before its day.
     expect(await today.bringIntoForce(tx, on)).toMatchObject(ok({ applied: 0 }));

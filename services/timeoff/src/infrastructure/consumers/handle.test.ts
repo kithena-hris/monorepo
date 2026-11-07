@@ -6,6 +6,7 @@ import {
   PersonIdentityLinked,
   PersonManagerChanged,
   PersonOrgChanged,
+  PersonSnapshot,
   PersonStatusChanged,
   PersonSyncedFromExternal,
   PersonTerminated,
@@ -182,6 +183,46 @@ describe('the People consumer', () => {
       status: 'active',
       lastEventId: id(9),
       lastEffectiveFrom: '2026-09-20',
+    });
+  });
+
+  it('places somebody from the snapshot where they sit: the office, its country and zone', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const handle = timeoffConsumer(app.deps);
+    expect(
+      await handle(
+        envelope(LocationCreated, 1, '2026-01-01', {
+          locationId: MADRID_OFFICE,
+          legalEntityId: '2e2e2e2e-0000-4000-8000-000000000001',
+          name: 'Madrid office',
+          country: 'ES',
+          timeZone: 'Europe/Madrid',
+          effectiveFrom: '2026-01-01',
+        }),
+      ),
+    ).toBe('applied');
+    expect(
+      await handle(
+        envelope(PersonSnapshot, 2, '2026-10-01', {
+          personId: ADAM,
+          identityAccountId: null,
+          name: { given: 'Adam', family: 'Novak', preferred: null },
+          workEmail: 'adam.novak@acme.example',
+          status: 'active',
+          hireDate: '2024-03-04',
+          lastWorkingDay: null,
+          managerId: null,
+          orgUnitId: null,
+          locationId: MADRID_OFFICE,
+          legalEntityId: null,
+          title: null,
+        }),
+      ),
+    ).toBe('applied');
+    expect(app.state(TENANT).members.get(ADAM)).toMatchObject({
+      locationKey: locationKeyOf(MADRID_OFFICE),
+      country: 'ES',
+      timeZone: 'Europe/Madrid',
     });
   });
 

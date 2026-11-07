@@ -1,3 +1,4 @@
+import { inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { CalendarDate, DateSpan, LeaveTypeKey, TenantId } from '@kithena/contracts';
@@ -193,7 +194,11 @@ async function leaveOf(
 ): Promise<{ sent: number; refused: number }> {
   const today = systemClock.date(m.timeZone);
   const already = await uow.run(tenantId, (tx) => tx.requests.list({ personIds: [m.personId] }));
-  if (already.some((r) => r.request.span.from >= '2026-01-01')) return { sent: 0, refused: 0 };
+  // Annual leave decides it: a run before the member had a country booked only their sick days.
+  const booked = already.some(
+    (r) => r.request.leaveType.key === vacation && r.request.span.from >= '2026-01-01',
+  );
+  if (booked) return { sent: 0, refused: 0 };
   const allowance = ALLOWANCE[m.country ?? ''] ?? 20;
   const plan = planLeave({
     personId: m.personId,
@@ -254,10 +259,21 @@ async function punchesOf(
         tx.requests.list({ personIds: [m.personId], statuses: ['approved', 'taken'] }),
       ]),
     );
-    if ((had.get(m.personId)?.length ?? 0) > 0) return;
     const off = new Set(holidaysAt.get(m.locationKey ?? '') ?? []);
     for (const r of requests) {
       for (let d = r.request.span.from; d <= r.request.span.to; d = addDays(d, 1)) off.add(d);
+    }
+    const kept = had.get(m.personId) ?? [];
+    if (kept.length > 0) {
+      // Clocked already: only the days since found to be off (a holiday, leave) are taken back.
+      const wrong = kept.filter((p) => off.has(fixedClock(p.at).date(m.timeZone))).map((p) => p.id);
+      for (let i = 0; i < wrong.length; i += 2000) {
+        await withTenant(db, tenantId, (tx) =>
+          tx.delete(punch).where(inArray(punch.id, wrong.slice(i, i + 2000))),
+        );
+      }
+      written -= wrong.length;
+      return;
     }
     const workDays = new Set(m.workPattern ?? [1, 2, 3, 4, 5]);
     const recent = addDays(yesterday, -20);
