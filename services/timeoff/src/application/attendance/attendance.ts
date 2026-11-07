@@ -349,18 +349,17 @@ export const teamRightNow =
       const now = deps.clock.instant();
       const people: RightNow['people'][number][] = [];
       const needsYou: RightNow['needsYou'][number][] = [];
-      // Each report's punches, schedule and decided overtime, read at once.
-      const read = await Promise.all(
-        mine.map(async (m) => ({
-          clock: await clockOf(tx, m, caller.tenantId),
-          schedule: await scheduleOf(tx, m),
-          decided: new Set((await tx.attendance.overtime(m.personId)).map((o) => o.date)),
-        })),
-      );
-      for (const [i, m] of mine.entries()) {
-        const r = read[i];
-        if (r === undefined) continue;
-        const { clock, schedule, decided } = r;
+      // Every report's punches, schedules and decided overtime in three queries,
+      // from far enough back that a correction made this month to last month's
+      // punch still finds the punch it replaced.
+      const utcToday = deps.clock.date('UTC');
+      const of = await attendanceOf(tx, mine, caller.tenantId, {
+        from: addDays(utcToday, -2 * NEEDS_YOU_DAYS),
+        to: utcToday,
+      });
+      for (const m of mine) {
+        const { clock, schedule, decided: done } = of(m);
+        const decided = new Set(done.map((o) => o.date));
         const today = deps.clock.date(m.timeZone);
         const day = (date: CalendarDate) =>
           dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules });
