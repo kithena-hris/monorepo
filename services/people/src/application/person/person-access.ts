@@ -1241,7 +1241,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             personId: person.snapshot.id,
             attributeKey: d.key,
           });
-          if (plaintext !== null) values.set(d.key, d.dataType === 'money' ? (JSON.parse(plaintext) as unknown) : plaintext);
+          if (plaintext !== null)
+            values.set(
+              d.key,
+              d.dataType === 'money' ? (JSON.parse(plaintext) as unknown) : plaintext,
+            );
         }
       }
     }
@@ -1594,7 +1598,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     );
     const { refused } = partitioned;
     if (refused.length > 0) return err(refusalOf(byKey, refused, relations));
-    const allowed = asking.allocated === true ? { ...partitioned.allowed, ...own } : partitioned.allowed;
+    const allowed =
+      asking.allocated === true ? { ...partitioned.allowed, ...own } : partitioned.allowed;
 
     const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...allowed });
     const effectiveFrom = asking.effectiveFrom ?? day;
@@ -2742,7 +2747,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
     async read(
       tx: Tx,
-      asking: Asking & { readonly personId: string; readonly asOf?: string; readonly amounts?: boolean },
+      asking: Asking & {
+        readonly personId: string;
+        readonly asOf?: string;
+        readonly amounts?: boolean;
+      },
     ): Promise<Result<PersonView>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
@@ -3594,6 +3603,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const { zone } = await calendarOf(tx, asking.tenantId, on.values);
       const hired = aggregate.hire(hireDate, facts.value, contextFor(asking), zone);
       if (!hired.ok) return hired;
+      // Where they sit, after the hire that introduces them: a module ignores
+      // an event about somebody it does not know yet, so a placement written
+      // before the hire (a draft's values, an import's row) never reached one.
+      const org = orgOf(on.values);
+      if (Object.values(org).some((v) => v !== null)) {
+        aggregate.moveOrg(org, contextFor(asking, deps.newId()), hireDate);
+      }
       shareIdentityFacts(aggregate, asking, person.values, hireDate);
 
       await deps.people.save(tx, aggregate);
