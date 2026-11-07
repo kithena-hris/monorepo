@@ -129,6 +129,24 @@ describe('sending, changing and cancelling (TOF-037)', () => {
     expect(again).toMatchObject({ ok: false, error: { code: 'OVERLAP' } });
   });
 
+  it('refuses dates already taken as an overlap, not a database error', async () => {
+    const { app, s, ask, approve } = setup();
+    const sent = await ask(people.adam, '2026-09-21', '2026-09-22');
+    if (!sent.ok) throw new Error(sent.error.message);
+    approve(sent.value.requestId);
+    const taken = s.requests.get(sent.value.requestId)?.request.markTaken({
+      ...app.deps,
+      actor: { kind: 'system', process: 'test' },
+      correlationId: '00000000-0000-4000-8000-0000000000c1',
+      causationId: null,
+      timeZone: 'Europe/Madrid',
+    });
+    expect(taken?.ok).toBe(true);
+
+    const again = await ask(people.adam, '2026-09-22', '2026-09-23');
+    expect(again).toMatchObject({ ok: false, error: { code: 'OVERLAP' } });
+  });
+
   it('changes: the old dates stay booked until the new ones are approved', async () => {
     const { app, s, ask, approve, left } = setup();
     const sent = await ask(people.adam, '2026-10-19', '2026-10-23');
