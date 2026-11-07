@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 import { ok, type Result } from '@kithena/domain-kit';
-import type { CalendarDate, DayAmount, PersonId, TeamKey, TenantId } from '@kithena/contracts';
+import type {
+  CalendarDate,
+  DayAmount,
+  Instant,
+  PersonId,
+  TeamKey,
+  TenantId,
+} from '@kithena/contracts';
 
 import { AttendanceClock, type Punch } from '../../domain/attendance/clock.js';
 import { dayOf, type AttendanceRules } from '../../domain/attendance/day.js';
@@ -472,7 +479,11 @@ export const insights =
         const [rules, annual, punches, schedules, standard] = await Promise.all([
           tx.attendance.rules(),
           annualFactsOf(tx, scope.members, (m) => deps.clock.date(m.timeZone)),
-          tx.attendance.punchesOf(ids),
+          // The six months on show, with a day either side for a shift across midnight.
+          tx.attendance.punchesOf(ids, {
+            from: `${addDays(addMonths(first, 1 - MONTHS), -2)}T00:00:00.000Z` as Instant,
+            to: `${addDays(today, 2)}T23:59:59.999Z` as Instant,
+          }),
           tx.attendance.schedulesOf(ids),
           companySchedule(tx),
         ]);

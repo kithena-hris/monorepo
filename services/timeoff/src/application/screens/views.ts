@@ -1197,6 +1197,8 @@ export const HolidaySettingsView = named(
         'TimeOffLocationHolidays',
         z.object({
           locationKey: LocationKey,
+          /** The office's name as People has it; null before People has said. */
+          name: z.string().nullable(),
           layerKeys: z.array(z.string()),
           holidays: z.array(
             z

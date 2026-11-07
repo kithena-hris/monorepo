@@ -125,7 +125,7 @@ export const OPERATIONS = {
   /** T36: holiday calendars, and what each work location observes in a year; HR */
   TimeOffHolidaySettings: `query TimeOffHolidaySettings($year: Int!) {
     timeOffHolidaySettings(year: $year) {
-      layers { holidays { date name } key level name weekendRule } locations { holidays { date layer movedFrom name } layerKeys locationKey } packs { country reviewed version } year
+      layers { holidays { date name } key level name weekendRule } locations { holidays { date layer movedFrom name } layerKeys locationKey name } packs { country reviewed version } year
     }
   }`,
 
