@@ -518,6 +518,8 @@ export interface InMemoryTimeOff {
   state(tenantId: TenantId): State;
   /** Accounts holding `hr_admin`. */
   readonly hrAccounts: Set<string>;
+  /** Accounts holding `super_admin`. */
+  readonly superAccounts: Set<string>;
   readonly notices: { tenantId: TenantId; to: PersonId | 'hr'; notice: Notice; key: string }[];
   readonly timers: { started: string[]; closed: string[] };
 }
@@ -547,10 +549,12 @@ export function inMemoryTimeOff(at = '2026-10-01T07:00:00.000Z'): InMemoryTimeOf
   };
 
   const hrAccounts = new Set<string>();
+  const superAccounts = new Set<string>();
   const check: Sync<Authorizer>['check'] = (tenantId, { user, relation, object }) => {
     const s = state(tenantId);
-    if (relation === 'hr_admin') {
-      return user.startsWith('account:') && hrAccounts.has(user.slice('account:'.length));
+    if (relation === 'hr_admin' || relation === 'super_admin') {
+      const held = relation === 'hr_admin' ? hrAccounts : superAccounts;
+      return user.startsWith('account:') && held.has(user.slice('account:'.length));
     }
     const person = user.startsWith('person:') ? user.slice('person:'.length) : null;
     const member = s.members.get(object.slice('member:'.length));
@@ -624,6 +628,7 @@ export function inMemoryTimeOff(at = '2026-10-01T07:00:00.000Z'): InMemoryTimeOf
     clock,
     state,
     hrAccounts,
+    superAccounts,
     notices,
     timers: timerLog,
   };

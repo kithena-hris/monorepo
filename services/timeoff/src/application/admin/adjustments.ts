@@ -16,6 +16,7 @@ import {
   adjustedEvents,
   forbidden,
   isHrAdmin,
+  isSuperAdmin,
   notFound,
   post,
   refuse,
@@ -28,8 +29,9 @@ import {
  *
  * HR's goes into the ledger as it is made. A manager's — anyone who approves
  * the person's time off — waits for HR, and so does HR's own balance, which
- * another HR administrator decides. Nobody else may ask, and nobody decides
- * one they asked for.
+ * another HR administrator decides. Only the company's super administrator
+ * adjusts and decides their own; nobody else may ask, and nobody else
+ * decides one they asked for.
  */
 
 type AdjustDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'newId' | 'notifier'>;
@@ -94,7 +96,7 @@ export const adjustBalance =
           ...input,
           effectiveOn: input.effectiveOn ?? deps.clock.date(member.timeZone),
           proposedBy: caller.accountId,
-          byHr: hr && !own,
+          byHr: hr && (!own || (await isSuperAdmin(deps, caller))),
         },
         ctx,
       );
@@ -130,14 +132,15 @@ export const decideBalanceAdjustment =
       if (!(await isHrAdmin(deps, caller))) return forbidden();
       const held = await tx.adjustments.get(input.adjustmentId);
       if (held === null) return notFound('Adjustment');
-      // HR's own balance is another HR administrator's to decide.
-      if (held.personId === caller.personId) return forbidden();
+      // Their own, or one they asked for: the super administrator's alone to decide.
+      const superAdministrator = await isSuperAdmin(deps, caller);
+      if (held.personId === caller.personId && !superAdministrator) return forbidden();
       const member = await tx.members.get(held.personId);
       if (member === null) return notFound('Member');
       const ctx = contextFor(deps, userActor(caller), caller.correlationId, member.timeZone);
       const decided = decideAdjustment(
         held,
-        { approve: input.approve, by: caller.accountId, note: input.note },
+        { approve: input.approve, by: caller.accountId, note: input.note, superAdministrator },
         ctx,
       );
       if (!decided.ok) return decided;
@@ -167,7 +170,10 @@ export const balanceAdjustments =
   (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
   (caller: Caller): Promise<Result<{ hr: boolean; items: readonly AdjustmentView[] }>> =>
     transact(deps, caller.tenantId, async (tx) => {
-      const hr = await isHrAdmin(deps, caller);
+      const [hr, superAdministrator] = await Promise.all([
+        isHrAdmin(deps, caller),
+        isSuperAdmin(deps, caller),
+      ]);
       const month = new Date(Date.parse(deps.clock.instant()) - 30 * 86_400_000).toISOString();
       const all = [
         ...(await tx.adjustments.list({ status: 'pending' })),
@@ -186,8 +192,8 @@ export const balanceAdjustments =
           canDecide:
             hr &&
             a.status === 'pending' &&
-            a.personId !== caller.personId &&
-            a.proposedBy !== caller.accountId,
+            (superAdministrator ||
+              (a.personId !== caller.personId && a.proposedBy !== caller.accountId)),
         });
       }
       return ok({ hr, items });

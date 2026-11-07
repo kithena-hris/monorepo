@@ -20,6 +20,7 @@ import type { DateRange } from '../domain/days.js';
  *     type tenant
  *       relations
  *         define hr_admin: [account]
+ *         define super_admin: [account]
  *     type member
  *       relations
  *         define subject: [person]
@@ -65,8 +66,13 @@ export const TIMEOFF_AUTHORIZATION_MODEL = {
     },
     {
       type: 'tenant',
-      relations: { hr_admin: { this: {} } },
-      metadata: { relations: { hr_admin: { directly_related_user_types: [{ type: 'account' }] } } },
+      relations: { hr_admin: { this: {} }, super_admin: { this: {} } },
+      metadata: {
+        relations: {
+          hr_admin: { directly_related_user_types: [{ type: 'account' }] },
+          super_admin: { directly_related_user_types: [{ type: 'account' }] },
+        },
+      },
     },
     {
       type: 'member',
@@ -143,6 +149,8 @@ export interface TimeOffFga {
   ): Promise<'applied' | 'unchanged'>;
   /** HR, as an account role on the tenant. */
   setHrAdmin(tenantId: TenantId, accountId: string, holds: boolean): Promise<void>;
+  /** The company's super administrator, as an account role on the tenant. */
+  setSuperAdmin(tenantId: TenantId, accountId: string, holds: boolean): Promise<void>;
 }
 
 const same = (a: TupleKey, b: TupleKey) =>
@@ -286,6 +294,16 @@ export function openFga(
       };
       await replace(fga, await readAll(fga, tuple), holds ? [tuple] : []);
     },
+
+    async setSuperAdmin(tenantId, accountId, holds) {
+      const fga = await client();
+      const tuple = {
+        user: `account:${accountId}`,
+        relation: 'super_admin',
+        object: `tenant:${tenantId}`,
+      };
+      await replace(fga, await readAll(fga, tuple), holds ? [tuple] : []);
+    },
   };
 }
 
@@ -321,6 +339,7 @@ export interface MemberTuples {
   /** Read the member's row and bring its tuples in line with it. */
   resync(tenantId: TenantId, personId: PersonId): Promise<void>;
   setHrAdmin(tenantId: TenantId, accountId: string, holds: boolean): Promise<void>;
+  setSuperAdmin(tenantId: TenantId, accountId: string, holds: boolean): Promise<void>;
 }
 
 /**
@@ -346,7 +365,7 @@ export interface MemberTuples {
  */
 export function syncingTuples(
   uow: UnitOfWork,
-  fga: Pick<TimeOffFga, 'syncMember' | 'syncCover' | 'setHrAdmin'>,
+  fga: Pick<TimeOffFga, 'syncMember' | 'syncCover' | 'setHrAdmin' | 'setSuperAdmin'>,
 ): { readonly uow: UnitOfWork; readonly tuples: MemberTuples } {
   const resync = async (tenantId: TenantId, personId: PersonId): Promise<void> => {
     const row = await uow.run(tenantId, (tx) => tx.members.get(personId));
@@ -428,6 +447,7 @@ export function syncingTuples(
     tuples: {
       resync,
       setHrAdmin: (tenantId, accountId, holds) => fga.setHrAdmin(tenantId, accountId, holds),
+      setSuperAdmin: (tenantId, accountId, holds) => fga.setSuperAdmin(tenantId, accountId, holds),
     },
   };
 }

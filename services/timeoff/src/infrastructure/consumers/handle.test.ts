@@ -231,6 +231,10 @@ const graph = () => {
         calls.push(`hr_admin ${accountId} ${String(holds)}`);
         return Promise.resolve();
       },
+      setSuperAdmin: (_t: string, accountId: string, holds: boolean) => {
+        calls.push(`super_admin ${accountId} ${String(holds)}`);
+        return Promise.resolve();
+      },
     },
   };
 };
@@ -248,9 +252,19 @@ describe('the graph beside the projection', () => {
     const handle = timeoffConsumer({ ...app.deps, tuples });
 
     expect(await handle(naming(TenantAdministratorNamed, 1, 'module.timeoff'))).toBe('applied');
-    expect(await handle(naming(TenantAdministratorNamed, 2, 'module.people'))).toBe('ignored');
+    expect(await handle(naming(TenantAdministratorNamed, 2, 'module.documents'))).toBe('ignored');
     expect(await handle(naming(TenantAdministratorRemoved, 3, 'module.timeoff'))).toBe('applied');
     expect(calls).toEqual([`hr_admin ${HR_ACCOUNT} true`, `hr_admin ${HR_ACCOUNT} false`]);
+  });
+
+  it("makes People's administrator the super administrator, and takes it back", async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const { calls, tuples } = graph();
+    const handle = timeoffConsumer({ ...app.deps, tuples });
+
+    expect(await handle(naming(TenantAdministratorNamed, 1, 'module.people'))).toBe('applied');
+    expect(await handle(naming(TenantAdministratorRemoved, 2, 'module.people'))).toBe('applied');
+    expect(calls).toEqual([`super_admin ${HR_ACCOUNT} true`, `super_admin ${HR_ACCOUNT} false`]);
   });
 
   it('resyncs a member when a redelivered event changes nothing', async () => {

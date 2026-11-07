@@ -53,6 +53,24 @@ describe('deciding (TOF-038)', () => {
     expect(app.timers.closed).toEqual([id]);
   });
 
+  it('lets only the super administrator decide their own request', async () => {
+    const { app, s, ask, decide } = setup();
+    const id = await ask(people.adam, '2026-10-19', '2026-10-23');
+    const adam = caller(people.adam);
+    // HR deciding their own is still nobody's.
+    app.hrAccounts.add(adam.accountId);
+    expect(await decide(adam, { requestId: id, decision: 'approve' })).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+    app.superAccounts.add(adam.accountId);
+    expect(await decide(adam, { requestId: id, decision: 'approve' })).toMatchObject({
+      ok: true,
+      value: { status: 'approved' },
+    });
+    expect(s.requests.get(id)?.request.status).toBe('approved');
+  });
+
   it('walks a manager-then-HR chain one step at a time', async () => {
     const { s, ask, decide } = setup();
     s.rules = [

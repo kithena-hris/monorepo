@@ -394,6 +394,8 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
        * The back office named, or stopped naming, somebody as Time Off's
        * administrator (PEO-112): HR, in Time Off's words. Identity raises one
        * event per account and module, so the tuple is the latest of them.
+       * People's administrator is the company's super administrator, the one
+       * who decides their own time off: the same event, for People.
        */
       case TenantAdministratorNamed.name:
       case TenantAdministratorRemoved.name: {
@@ -402,9 +404,12 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
           ? parse(TenantAdministratorNamed, raw)
           : parse(TenantAdministratorRemoved, raw);
         if (!event) return 'rejected';
-        if (event.payload.entitlement !== 'module.timeoff' || deps.tuples === undefined) {
-          return 'ignored';
+        if (deps.tuples === undefined) return 'ignored';
+        if (event.payload.entitlement === 'module.people') {
+          await deps.tuples.setSuperAdmin(event.tenantId, event.payload.accountId, named);
+          return 'applied';
         }
+        if (event.payload.entitlement !== 'module.timeoff') return 'ignored';
         await deps.tuples.setHrAdmin(event.tenantId, event.payload.accountId, named);
         return 'applied';
       }

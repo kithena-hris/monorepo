@@ -684,9 +684,10 @@ export interface UnitOfWork {
 
 /**
  * The relations TOF-048's OpenFGA model defines: `approver`, `delegate` and
- * `teammate` on `member:<personId>`, `hr_admin` on `tenant:<tenantId>`.
+ * `teammate` on `member:<personId>`, `hr_admin` and `super_admin` on
+ * `tenant:<tenantId>`.
  */
-export type Relation = 'approver' | 'delegate' | 'hr_admin' | 'teammate';
+export type Relation = 'approver' | 'delegate' | 'hr_admin' | 'super_admin' | 'teammate';
 
 /** OpenFGA's `Check`, as one question, and `ListObjects` for a member's many. */
 export interface Authorizer {
@@ -706,7 +707,7 @@ export interface Authorizer {
   members(
     tenantId: TenantId,
     user: `person:${string}`,
-    relation: Exclude<Relation, 'hr_admin'>,
+    relation: Exclude<Relation, 'hr_admin' | 'super_admin'>,
   ): Promise<readonly string[]>;
 }
 

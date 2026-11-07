@@ -9,8 +9,9 @@ import { amount, days } from '../days.js';
  * goes into the ledger as it is made; a manager's waits for HR to approve it.
  * Either way it says why, and the reason is what the person sees beside it.
  *
- * Nobody decides their own: HR adjusting their own balance waits for another
- * HR administrator, and the one who asked never approves it.
+ * Nobody decides their own but the company's super administrator: HR
+ * adjusting their own balance waits for another HR administrator, and the
+ * one who asked never approves it.
  */
 
 export type AdjustmentStatus = 'pending' | 'approved' | 'declined';
@@ -44,7 +45,7 @@ export function proposeAdjustment(
     readonly effectiveOn: CalendarDate;
     readonly reason: string;
     readonly proposedBy: string;
-    /** HR, and not adjusting their own balance: approved as it is made. */
+    /** HR (and not their own balance, unless the super administrator): approved as it is made. */
     readonly byHr: boolean;
   },
   ctx: Pick<EventContext, 'newId' | 'clock'>,
@@ -78,13 +79,21 @@ export function proposeAdjustment(
 
 export function decideAdjustment(
   adjustment: Adjustment,
-  decision: { readonly approve: boolean; readonly by: string; readonly note?: string | null },
+  decision: {
+    readonly approve: boolean;
+    readonly by: string;
+    readonly note?: string | null;
+    /** The company's super administrator, the one who may decide what they asked for. */
+    readonly superAdministrator?: boolean;
+  },
   ctx: Pick<EventContext, 'clock'>,
 ): Result<Adjustment> {
   if (adjustment.status !== 'pending') {
     return err(failure('ALREADY_DECIDED', 'This adjustment was already decided'));
   }
-  if (decision.by === adjustment.proposedBy) return err(Forbidden());
+  if (decision.by === adjustment.proposedBy && decision.superAdministrator !== true) {
+    return err(Forbidden());
+  }
   const note = decision.note?.trim() ?? '';
   return ok({
     ...adjustment,
