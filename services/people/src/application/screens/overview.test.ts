@@ -513,6 +513,18 @@ describe('the org chart', () => {
     });
   });
 
+  it('leaves off a record that was never a person, which HR’s directory still lists', async () => {
+    const w = world();
+    const NEVER = '00000000-0000-4000-8000-0000000000d8';
+    w.store.seed(NEVER, { ...person('Never', 'Was', null), status: 'discarded' });
+    const asking = w.as(HR_ACCOUNT, 'hr');
+    const { people } = await chart(w, asking);
+    expect(people.map((p) => p.id)).not.toContain(NEVER);
+    const directory = await directoryView(w.deps, asking, { search: '', filters: {} });
+    if (!directory.ok) throw new Error(directory.error.message);
+    expect(directory.value.people.map((p) => p.id)).toContain(NEVER);
+  });
+
   it('draws what the directory shows, and for HR the status and the leavers', async () => {
     const w = world();
     const asking = w.as(HR_ACCOUNT, 'hr');
