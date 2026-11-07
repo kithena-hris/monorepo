@@ -272,8 +272,14 @@ export interface OvertimeDecision {
 /** Punches are append-only (TOF-033); periods lock when closed. */
 export interface AttendanceStore {
   punches(personId: PersonId): Promise<readonly Punch[]>;
-  /** `punches` for many members in one query. */
-  punchesOf(personIds: readonly PersonId[]): Promise<ReadonlyMap<PersonId, readonly Punch[]>>;
+  /**
+   * `punches` for many members in one query; with a window, only the punches
+   * whose instant falls inside it, which is what a period's report reads.
+   */
+  punchesOf(
+    personIds: readonly PersonId[],
+    window?: { readonly from: Instant; readonly to: Instant },
+  ): Promise<ReadonlyMap<PersonId, readonly Punch[]>>;
   appendPunch(personId: PersonId, punch: Punch): Promise<void>;
   /** The member's own schedule, or `null` for the tenant default. */
   schedule(personId: PersonId): Promise<Schedule | null>;
@@ -290,6 +296,10 @@ export interface AttendanceStore {
   lines(): Promise<readonly TimeLine[]>;
   appendLine(line: TimeLine): Promise<void>;
   overtime(personId: PersonId): Promise<readonly OvertimeDecision[]>;
+  /** `overtime` for many members in one query; a member with none is absent. */
+  overtimeOf(
+    personIds: readonly PersonId[],
+  ): Promise<ReadonlyMap<PersonId, readonly OvertimeDecision[]>>;
   decideOvertime(decision: OvertimeDecision): Promise<void>;
 }
 

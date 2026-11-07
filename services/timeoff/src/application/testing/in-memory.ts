@@ -317,7 +317,15 @@ function stores(tenantId: TenantId, s: State): Tx {
     }),
     attendance: promised<AttendanceStore>({
       punches: (personId) => s.punches.get(personId) ?? [],
-      punchesOf: (personIds) => new Map(personIds.map((id) => [id, s.punches.get(id) ?? []])),
+      punchesOf: (personIds, window) =>
+        new Map(
+          personIds.map((id) => [
+            id,
+            (s.punches.get(id) ?? []).filter(
+              (p) => window === undefined || (p.at >= window.from && p.at <= window.to),
+            ),
+          ]),
+        ),
       appendPunch: (personId, punch) => {
         s.punches.set(personId, [...(s.punches.get(personId) ?? []), punch]);
       },
@@ -349,6 +357,13 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.lines.push(line);
       },
       overtime: (personId) => s.overtime.filter((o) => o.personId === personId),
+      overtimeOf: (personIds) =>
+        new Map(
+          personIds.flatMap((id) => {
+            const mine = s.overtime.filter((o) => o.personId === id);
+            return mine.length === 0 ? [] : [[id, mine] as const];
+          }),
+        ),
       decideOvertime: (decision) => {
         s.overtime.push(decision);
       },

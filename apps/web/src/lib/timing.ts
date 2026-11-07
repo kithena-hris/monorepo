@@ -5,23 +5,23 @@
  *
  * A log line rather than a `Server-Timing` header: a server component cannot
  * set a response header, and a navigation's payload is streamed before most
- * of these calls finish anyway. Off by default, and always in a browser.
+ * of these calls finish anyway. Off by default, except a call past `SLOW_MS`.
  */
 const on = process.env['KITHENA_TIMING'] === '1';
 
+/** Past this, a call is logged even with timing off. */
+const SLOW_MS = 500;
+
 export async function timed<T>(name: string, work: Promise<T>): Promise<T> {
-  if (!on) return work;
   const start = performance.now();
   try {
     return await work;
   } finally {
-    console.log(
-      JSON.stringify({
-        msg: 'timing',
-        name,
-        at: Math.round(start),
-        ms: Math.round(performance.now() - start),
-      }),
-    );
+    const ms = Math.round(performance.now() - start);
+    // A slow call is logged whatever the switch says: production finds its
+    // own slow reads in the runtime logs without a deploy to turn this on.
+    if (on || ms >= SLOW_MS) {
+      console.log(JSON.stringify({ msg: 'timing', name, at: Math.round(start), ms }));
+    }
   }
 }
