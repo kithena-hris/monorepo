@@ -41,6 +41,7 @@ import type {
   Location,
   LocationStore,
   Member,
+  MemberDay,
   MemberStore,
   Notice,
   Notifier,
@@ -55,6 +56,7 @@ import type {
   StoredPlan,
   Tx,
   UnitOfWork,
+  WorkedMonth,
 } from '../ports.js';
 
 /**
@@ -84,6 +86,7 @@ interface State {
   periods: Map<string, PayPeriod>;
   lines: TimeLine[];
   overtime: OvertimeDecision[];
+  workedDays: MemberDay[];
   feeds: Map<string, number>;
   adjustments: Map<string, StoredAdjustment>;
   decisions: RequestDecision[];
@@ -122,6 +125,7 @@ const empty = (): State => ({
   periods: new Map(),
   lines: [],
   overtime: [],
+  workedDays: [],
   feeds: new Map(),
   adjustments: new Map(),
   decisions: [],
@@ -366,6 +370,46 @@ function stores(tenantId: TenantId, s: State): Tx {
         ),
       decideOvertime: (decision) => {
         s.overtime.push(decision);
+      },
+      workedDays: (q) =>
+        s.workedDays
+          .filter(
+            (d) =>
+              d.date >= q.from &&
+              d.date <= q.to &&
+              (q.personIds === undefined || q.personIds.includes(d.personId)) &&
+              (q.statuses === undefined || q.statuses.includes(d.status)) &&
+              (q.notable === undefined ||
+                d.status === 'open' ||
+                d.overtimeMinutes > 0 ||
+                d.restMinutes !== null ||
+                q.notable.orOn.includes(d.date)),
+          )
+          .toSorted((a, b) => a.date.localeCompare(b.date)),
+      keepWorkedDays: (personId, from, to, days) => {
+        s.workedDays = [
+          ...s.workedDays.filter((d) => d.personId !== personId || d.date < from || d.date > to),
+          ...days.map((d) => ({ ...d, personId })),
+        ];
+      },
+      workedMonths: (from, to) => {
+        const months = new Map<string, WorkedMonth>();
+        for (const d of s.workedDays) {
+          if (d.date < from || d.date > to) continue;
+          const key = `${d.personId}/${d.date.slice(0, 7)}`;
+          const was = months.get(key) ?? {
+            personId: d.personId,
+            month: d.date.slice(0, 7),
+            missedClockOuts: 0,
+            overtimeMinutes: 0,
+          };
+          months.set(key, {
+            ...was,
+            missedClockOuts: was.missedClockOuts + (d.status === 'open' ? 1 : 0),
+            overtimeMinutes: was.overtimeMinutes + (d.status === 'complete' ? d.overtimeMinutes : 0),
+          });
+        }
+        return [...months.values()];
       },
     }),
     adjustments: promised<AdjustmentStore>({

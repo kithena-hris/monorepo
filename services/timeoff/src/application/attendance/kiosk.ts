@@ -15,6 +15,7 @@ import { clockInRefused } from '../../domain/attendance/day.js';
 import { CLOCK_SKEW_SECONDS, clockSkew, kindAt, unseen } from '../../domain/attendance/kiosk.js';
 import type { Caller, Deps, KioskCredentialKind, KioskDevice, Member, Tx } from '../ports.js';
 import { forbidden, isHrAdmin, notFound, refuse, self, transact } from '../shared.js';
+import { keepDaysAround } from './attendance.js';
 
 /**
  * Kiosk devices (PRD §11.9, TOF-107): a wall tablet at a location, which
@@ -380,6 +381,7 @@ export const kioskPunches =
           continue;
         }
         await tx.attendance.appendPunch(member.personId, done.value);
+        await keepDaysAround(tx, deps, member, [done.value.at]);
         await tx.outbox.publish(clock.drainEvents());
         punched++;
         results.set(item.sequence, {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type {
   AttendanceWorkModel,
@@ -12,18 +12,20 @@ import type {
   TenantId,
 } from '@kithena/contracts';
 
-import { DEFAULT_RULES, type AttendanceRules } from '../domain/attendance/day.js';
+import { DEFAULT_RULES, type AttendanceRules, type WorkedDay } from '../domain/attendance/day.js';
 import type { Punch } from '../domain/attendance/clock.js';
 import type { Schedule } from '../domain/attendance/schedule.js';
 import type {
   AttendanceStore,
   KioskDevice,
   KioskStore,
+  MemberDay,
   OvertimeDecision,
 } from '../application/ports.js';
 import { instantOf } from './drizzle-leave.js';
 import { readSetting, writeSetting } from './drizzle-settings.js';
 import {
+  attendanceDay,
   kioskCredential,
   kioskDevice,
   memberSchedule,
@@ -256,6 +258,80 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
         outcome: d.outcome,
         decidedBy: d.decidedBy,
       });
+    },
+
+    async workedDays(q) {
+      if (q.personIds?.length === 0) return [];
+      const rows = await tx
+        .select()
+        .from(attendanceDay)
+        .where(
+          and(
+            // Named, so a company-wide period reads `attendance_day_period_idx`.
+            eq(attendanceDay.tenantId, tenantId),
+            gte(attendanceDay.date, q.from),
+            lte(attendanceDay.date, q.to),
+            q.personIds === undefined ? undefined : inArray(attendanceDay.personId, [...q.personIds]),
+            q.statuses === undefined ? undefined : inArray(attendanceDay.status, [...q.statuses]),
+            q.notable === undefined
+              ? undefined
+              : or(
+                  eq(attendanceDay.status, 'open'),
+                  gt(attendanceDay.overtimeMinutes, 0),
+                  isNotNull(attendanceDay.restMinutes),
+                  q.notable.orOn.length === 0
+                    ? undefined
+                    : inArray(attendanceDay.date, [...q.notable.orOn]),
+                ),
+          ),
+        )
+        .orderBy(asc(attendanceDay.date));
+      return rows.map(
+        (r): MemberDay => ({
+          personId: r.personId as PersonId,
+          date: r.date as CalendarDate,
+          status: r.status as WorkedDay['status'],
+          workedMinutes: r.workedMinutes,
+          overtimeMinutes: r.overtimeMinutes,
+          restMinutes: r.restMinutes,
+        }),
+      );
+    },
+
+    async keepWorkedDays(personId, from, to, days) {
+      await tx
+        .delete(attendanceDay)
+        .where(
+          and(
+            eq(attendanceDay.tenantId, tenantId),
+            eq(attendanceDay.personId, personId),
+            gte(attendanceDay.date, from),
+            lte(attendanceDay.date, to),
+          ),
+        );
+      if (days.length === 0) return;
+      await tx.insert(attendanceDay).values(days.map((d) => ({ tenantId, personId, ...d })));
+    },
+
+    async workedMonths(from, to) {
+      const month = sql<string>`to_char(${attendanceDay.date}, 'YYYY-MM')`;
+      const rows = await tx
+        .select({
+          personId: attendanceDay.personId,
+          month,
+          missedClockOuts: sql<number>`count(*) filter (where ${attendanceDay.status} = 'open')::int`,
+          overtimeMinutes: sql<number>`coalesce(sum(${attendanceDay.overtimeMinutes}) filter (where ${attendanceDay.status} = 'complete'), 0)::int`,
+        })
+        .from(attendanceDay)
+        .where(
+          and(
+            eq(attendanceDay.tenantId, tenantId),
+            gte(attendanceDay.date, from),
+            lte(attendanceDay.date, to),
+          ),
+        )
+        .groupBy(attendanceDay.personId, month);
+      return rows.map((r) => ({ ...r, personId: r.personId as PersonId }));
     },
   };
 }

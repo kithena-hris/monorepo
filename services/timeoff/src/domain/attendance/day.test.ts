@@ -11,6 +11,7 @@ import {
   overtimeBecomes,
   restBreaches,
   weekOf,
+  workedDays,
 } from './day.js';
 import { hm, weekdays, type Schedule } from './schedule.js';
 import { MADRID, at, punch, thursdayNoon, week } from './t20.fixture.js';
@@ -237,5 +238,53 @@ describe('only inside the office area', () => {
   it('checks the clock-in only, and never a reader, which is at the office', () => {
     expect(outsideOfficeArea(area, clockIn({ kind: 'out' }))).toBe(false);
     expect(outsideOfficeArea(area, clockIn({ source: 'kiosk' }))).toBe(false);
+  });
+});
+
+describe('worked days, as the reports keep them', () => {
+  const kept = (punches: readonly Punch[], from: string, to: string) =>
+    workedDays({
+      shifts: unwrap(shiftsOf(punches, MADRID)),
+      schedule: madrid,
+      now: thursdayNoon,
+      timeZone: MADRID,
+      rules: DEFAULT_RULES,
+      from: CalendarDate.parse(from),
+      to: CalendarDate.parse(to),
+    });
+
+  it('keeps only the days in range with a shift, each as the day reads', () => {
+    const tuesday = dayFor('2026-09-29');
+    expect(kept(week, '2026-09-29', '2026-10-04')).toEqual([
+      {
+        date: '2026-09-29',
+        status: 'complete',
+        workedMinutes: tuesday.workedMinutes,
+        overtimeMinutes: tuesday.overtimeMinutes,
+        restMinutes: null,
+      },
+      // Forgotten: Thursday's clock-in closed it.
+      { date: '2026-09-30', status: 'open', workedMinutes: null, overtimeMinutes: 0, restMinutes: null },
+      // Still running at noon: a report asks again later.
+      {
+        date: '2026-10-01',
+        status: 'live',
+        workedMinutes: dayFor('2026-10-01').workedMinutes,
+        overtimeMinutes: 0,
+        restMinutes: null,
+      },
+    ]);
+  });
+
+  it('carries a short rest on the day after it, from a shift before the range', () => {
+    const late = [
+      punch('2026-09-28', '12:00', 'in'),
+      punch('2026-09-28', '22:00', 'out'),
+      punch('2026-09-29', '08:00', 'in'),
+      punch('2026-09-29', '16:00', 'out'),
+    ];
+    expect(kept(late, '2026-09-29', '2026-09-29')).toMatchObject([
+      { date: '2026-09-29', status: 'complete', restMinutes: 600 },
+    ]);
   });
 });

@@ -12,6 +12,7 @@ import {
   type TenantId,
 } from '@kithena/contracts';
 
+import { keepDaysAround } from '../application/attendance/attendance.js';
 import { upsertIn } from '../application/member/sync.js';
 import { MemberFields, type Tx, type UnitOfWork } from '../application/ports.js';
 import { persist } from '../application/request/request.js';
@@ -422,6 +423,10 @@ export async function seedAcme(
         supersedes: null,
         reason: null,
       });
+    }
+    const adam = await tx.members.get(team.adam);
+    if (adam !== null) {
+      await keepDaysAround(tx, now, adam, punches.map(([d, hhmm]) => Instant.parse(`${d}T${hhmm}:00+02:00`)));
     }
     return ok({ members: roster.length, requests: requests.length });
   });
