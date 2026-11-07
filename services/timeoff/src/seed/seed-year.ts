@@ -1,4 +1,3 @@
-import { inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { CalendarDate, DateSpan, LeaveTypeKey, TenantId } from '@kithena/contracts';
@@ -273,18 +272,8 @@ async function punchesOf(
     for (const r of requests) {
       for (let d = r.request.span.from; d <= r.request.span.to; d = addDays(d, 1)) off.add(d);
     }
-    const kept = had.get(m.personId) ?? [];
-    if (kept.length > 0) {
-      // Clocked already: only the days since found to be off (a holiday, leave) are taken back.
-      const wrong = kept.filter((p) => off.has(fixedClock(p.at).date(m.timeZone))).map((p) => p.id);
-      for (let i = 0; i < wrong.length; i += 2000) {
-        await withTenant(db, tenantId, (tx) =>
-          tx.delete(punch).where(inArray(punch.id, wrong.slice(i, i + 2000))),
-        );
-      }
-      written -= wrong.length;
-      return;
-    }
+    // Punches are append-only, so somebody clocked already keeps what they have.
+    if ((had.get(m.personId) ?? []).length > 0) return;
     const workDays = new Set(m.workPattern ?? [1, 2, 3, 4, 5]);
     const recent = addDays(yesterday, -20);
     // Somebody on leave stopped clocking a while ago.
