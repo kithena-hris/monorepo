@@ -55,6 +55,22 @@ describe('member sync (TOF-035)', () => {
     expect(s.ledger.filter((e) => e.personId === NEW)).toHaveLength(1);
   });
 
+  it('grants the year once somebody known without a country is placed where a policy applies', async () => {
+    const app = world();
+    const upsert = upsertMember(app.deps);
+    const nowhere = { locationKey: null, country: null, hireDate: '2026-01-01' };
+    await upsert(TENANT, fields(nowhere), applied('e1', '2026-01-01'));
+    // Known before any policy applied to them: nothing owed was posted.
+    const s = app.state(TENANT);
+    s.ledger.splice(0, s.ledger.length);
+
+    await upsert(TENANT, fields({ hireDate: '2026-01-01' }), applied('e2', '2026-10-01'));
+    expect(live(s.ledger.filter((e) => e.personId === NEW)).map((e) => e.kind)).toEqual(['grant']);
+    // Told again, nothing more is owed.
+    await upsert(TENANT, fields({ hireDate: '2026-01-01' }), applied('e3', '2026-10-02'));
+    expect(s.ledger.filter((e) => e.personId === NEW)).toHaveLength(1);
+  });
+
   it('termination re-folds pro rata and deducts a negative balance from final pay', async () => {
     const app = world('2026-07-01T08:00:00.000Z');
     await upsertMember(app.deps)(TENANT, fields({ hireDate: '2026-01-01' }), applied('e1'));
