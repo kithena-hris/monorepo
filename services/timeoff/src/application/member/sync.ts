@@ -103,7 +103,13 @@ export async function upsertIn(
     lastEffectiveFrom: applied.effectiveFrom ?? existing?.lastEffectiveFrom ?? null,
   };
   await tx.members.save(member);
-  if (existing !== null) return ok({ member, created: false, applied: true, posted: [] });
+  // A policy applies by country or office, so a move there can change what is owed.
+  const moved =
+    existing !== null &&
+    (existing.country !== member.country || existing.locationKey !== member.locationKey);
+  if (existing !== null && !moved) {
+    return ok({ member, created: false, applied: true, posted: [] });
+  }
 
   const ctx = contextFor(deps, ACTOR, applied.correlationId, member.timeZone);
   const today = deps.clock.date(member.timeZone);
@@ -112,11 +118,14 @@ export async function upsertIn(
   for (const key of await trackedTypes(tx)) {
     const policy = await policyFor(tx, member, key, on);
     if (policy === null) continue;
-    const done = await postEntitlement(tx, ctx, member, policy.policy, on);
+    // Moved: the year re-folded under the policy that now applies, as a publish does.
+    const done = moved
+      ? await refold(tx, ctx, member, policy.policy, on, on)
+      : await postEntitlement(tx, ctx, member, policy.policy, on);
     if (!done.ok) return done;
     posted.push(...done.value);
   }
-  return ok({ member, created: true, applied: true, posted });
+  return ok({ member, created: !moved, applied: true, posted });
 }
 
 export interface Settlement {

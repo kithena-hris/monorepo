@@ -15,7 +15,10 @@ import {
 } from '../application/admin/admin.js';
 import { decideRequest } from '../application/approval/decide.js';
 import { markTakenDue } from '../application/jobs.js';
+import { refold } from '../application/entitlement.js';
+import { contextFor, systemActor } from '../application/ports.js';
 import type { Authorizer, Caller, Deps, Member } from '../application/ports.js';
+import { policyFor } from '../application/shared.js';
 import { sendRequest } from '../application/request/request.js';
 import { resolveHolidays } from '../domain/calendar/holiday-calendar.js';
 import { addDays, weekday } from '../domain/calendar/working-days.js';
@@ -199,6 +202,13 @@ async function leaveOf(
     (r) => r.request.leaveType.key === vacation && r.request.span.from >= '2026-01-01',
   );
   if (booked) return { sent: 0, refused: 0 };
+  // Placed after the policies were published: the year's allowance, as a move now posts it.
+  await uow.run(tenantId, async (tx) => {
+    const policy = await policyFor(tx, m, vacation, today);
+    if (policy === null) return;
+    const ctx = contextFor(depsAt(now), systemActor('timeoff-seed'), CORRELATION, m.timeZone);
+    await refold(tx, ctx, m, policy.policy, today, today);
+  });
   const allowance = ALLOWANCE[m.country ?? ''] ?? 20;
   const plan = planLeave({
     personId: m.personId,
