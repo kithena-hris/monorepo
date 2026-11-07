@@ -283,6 +283,10 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.decisions
           .filter((d) => ids.includes(d.requestId))
           .toSorted((a, b) => a.decidedAt.localeCompare(b.decidedAt)),
+      decisionsBy: (accountId) =>
+        s.decisions
+          .filter((d) => d.decidedBy === accountId)
+          .toSorted((a, b) => a.decidedAt.localeCompare(b.decidedAt)),
     }),
     approvals: promised<ApprovalStore>({
       rules: () => s.rules,

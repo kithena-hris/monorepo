@@ -398,6 +398,9 @@ describe('requests', () => {
     await run((tx) => tx.requests.recordDecision(decision));
     expect(await run((tx) => tx.requests.decisions([id]))).toEqual([decision]);
     expect(await run((tx) => tx.requests.decisions([]))).toEqual([]);
+    const marcos = await run((tx) => tx.requests.decisionsBy(MARCO_ACCOUNT));
+    expect(marcos).toContainEqual(decision);
+    expect(marcos.every((x) => x.decidedBy === MARCO_ACCOUNT)).toBe(true);
 
     // Marco swaps the 21st out; Adam accepts.
     const loaded = back?.request as LeaveRequest;

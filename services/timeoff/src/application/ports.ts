@@ -217,6 +217,8 @@ export interface RequestStore {
   recordDecision(decision: RequestDecision): Promise<void>;
   /** The decisions on these requests, oldest first. */
   decisions(requestIds: readonly LeaveRequestId[]): Promise<readonly RequestDecision[]>;
+  /** Every decision one account made, oldest first: their receipts in Done. */
+  decisionsBy(accountId: string): Promise<readonly RequestDecision[]>;
 }
 
 /**
