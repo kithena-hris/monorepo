@@ -4,7 +4,6 @@ import {
   CalendarDate,
   DateSpan,
   LeaveTypeKey,
-  type LocationKey,
   TenantId,
 } from '@kithena/contracts';
 import { fixedClock, systemClock } from '@kithena/domain-kit';
@@ -24,7 +23,6 @@ import type { Authorizer, Caller, Deps, Member } from '../application/ports.js';
 import { sendRequest } from '../application/request/request.js';
 import { resolveHolidays } from '../domain/calendar/holiday-calendar.js';
 import { addDays, weekday } from '../domain/calendar/working-days.js';
-import type { LeaveRequestId } from '../domain/request/leave-request.js';
 import { timeoffFgaFrom } from '../infrastructure/openfga.js';
 import { punch } from '../infrastructure/tables.js';
 import { drizzleUnitOfWork, uuidv7 } from '../infrastructure/unit-of-work.js';
@@ -174,13 +172,13 @@ async function calendars(members: readonly Member[]): Promise<Map<string, Set<st
     ...new Set(members.flatMap((m) => (m.locationKey === null ? [] : [m.locationKey]))),
   ];
   for (const key of keys) {
-    const location = await uow.run(tenantId, (tx) => tx.locations.get(key as LocationKey));
+    const location = await uow.run(tenantId, (tx) => tx.locations.get(key));
     const country =
       location?.country ?? members.find((m) => m.locationKey === key)?.country ?? null;
     const chosen = calendarsFor(country, location?.name ?? '');
-    const assigned = await uow.run(tenantId, (tx) => tx.holidays.assigned(key as LocationKey));
+    const assigned = await uow.run(tenantId, (tx) => tx.holidays.assigned(key));
     if (assigned.length === 0 && chosen.length > 0) {
-      const done = await assignHolidayCalendars(deps)(hr, key as LocationKey, chosen);
+      const done = await assignHolidayCalendars(deps)(hr, key, chosen);
       if (!done.ok) throw new Error(done.error.message);
     }
     const layers = CALENDARS.filter((l) =>
@@ -235,7 +233,7 @@ async function leaveOf(
     // A chain of more than one step: each decides in turn.
     for (let step = 0; step < 3; step += 1) {
       const decided = await decideRequest(depsAt(decidedAt))(decider, {
-        requestId: request.value.requestId as LeaveRequestId,
+        requestId: request.value.requestId,
         decision: 'approve',
       });
       if (!decided.ok || decided.value.next === null) break;
@@ -279,8 +277,8 @@ async function punchesOf(
           tenantId,
           id: uuidv7(),
           personId: m.personId,
-          at: at as never,
-          recordedAt: at as never,
+          at,
+          recordedAt: at,
           kind: p.kind,
           source: 'web',
           workModel: 'office',
