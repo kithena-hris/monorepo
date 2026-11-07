@@ -2398,8 +2398,17 @@ export async function directoryView(
 
 /* ----------------------------------------------------------- org chart -- */
 
-/** The most people an org chart draws; past it the chart says it is cut short. */
-export const ORG_CHART_MAX = 2000;
+/**
+ * The most people an org chart draws; past it the chart says it is cut short.
+ * Read by name, so a cut drops managers at random and their reports become
+ * roots: it sits well above any company's size rather than near it. The
+ * chart opens a few levels deep (`openingCollapsed`), so the browser draws
+ * only those.
+ *
+ * ponytail: one read of everybody, ~300 bytes a person; read by subtree when a
+ * company outgrows it.
+ */
+export const ORG_CHART_MAX = 20_000;
 
 export interface OrgChartView {
   readonly people: readonly {
