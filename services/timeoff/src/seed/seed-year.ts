@@ -1,11 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import {
-  CalendarDate,
-  DateSpan,
-  LeaveTypeKey,
-  TenantId,
-} from '@kithena/contracts';
+import { CalendarDate, DateSpan, LeaveTypeKey, TenantId } from '@kithena/contracts';
 import { fixedClock, systemClock } from '@kithena/domain-kit';
 import { withTenant } from '@kithena/db-kit';
 import { logger } from '@kithena/telemetry';
