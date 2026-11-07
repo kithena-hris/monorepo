@@ -17651,7 +17651,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34928,7 +34934,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -52205,7 +52217,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -69482,7 +69500,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -87136,7 +87160,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -104790,7 +104820,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -122067,7 +122103,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -139721,7 +139763,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -156998,7 +157046,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -175029,7 +175083,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -192683,7 +192743,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -210714,7 +210780,13 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -227991,6 +228063,12 @@
     "recruiting:home.this_week": "7d76655e727c",
     "recruiting:home.today_count": "9589d3eb94ce",
     "recruiting:home.try_another_filter": "047831f8d7ae",
-    "performance:home.percent_submitted": "9edfe9394ec3"
+    "performance:home.percent_submitted": "9edfe9394ec3",
+    "timeoff:approvals.adjustments.available_days": "b7b1ee1c7d53",
+    "timeoff:approvals.adjustments.available_hours": "f7d3f6db3b25",
+    "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
+    "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
+    "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
   }
 }
