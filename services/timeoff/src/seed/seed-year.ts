@@ -13,6 +13,7 @@ import {
   saveHolidayCalendar,
 } from '../application/admin/admin.js';
 import { decideRequest } from '../application/approval/decide.js';
+import { keepDays } from '../application/attendance/attendance.js';
 import { markTakenDue } from '../application/jobs.js';
 import { refold } from '../application/entitlement.js';
 import { contextFor, systemActor } from '../application/ports.js';
@@ -44,8 +45,8 @@ import {
  * `TENANT_ID` names the company; `SUPER_ADMIN_EMAILS` the members whose
  * account is its super administrator, written to the graph as identity would
  * on naming People's administrator. Run again, it adds what is missing:
- * leave types, calendars and policies once, time off and punches for whoever
- * has none yet.
+ * leave types, calendars and policies once, time off, punches and the days
+ * the reports read (`attendance_day`) for whoever has none yet.
  *
  * Demo data, by a script, as Time Off's own service account: the requests
  * and decisions go through the application, and only the punches are
@@ -273,7 +274,7 @@ async function punchesOf(
       for (let d = r.request.span.from; d <= r.request.span.to; d = addDays(d, 1)) off.add(d);
     }
     // Punches are append-only, so somebody clocked already keeps what they have.
-    if ((had.get(m.personId) ?? []).length > 0) return;
+    if ((had.get(m.personId) ?? []).length > 0) return keptDays(m, first, yesterday);
     const workDays = new Set(m.workPattern ?? [1, 2, 3, 4, 5]);
     const recent = addDays(yesterday, -20);
     // Somebody on leave stopped clocking a while ago.
@@ -299,8 +300,17 @@ async function punchesOf(
       await withTenant(db, tenantId, (tx) => tx.insert(punch).values(rows.slice(i, i + 2000)));
     }
     written += rows.length;
+    await keptDays(m, first, yesterday);
   });
   return written;
+}
+
+/** The days the reports read, from the punches, for whoever has none kept yet. */
+async function keptDays(m: Member, from: CalendarDate, to: CalendarDate): Promise<void> {
+  await uow.run(tenantId, async (tx) => {
+    const kept = await tx.attendance.workedDays({ from, to, personIds: [m.personId] });
+    if (kept.length === 0) await keepDays(tx, depsAt(systemClock.instant()), m, from, to);
+  });
 }
 
 async function superAdministrators(members: readonly Member[]): Promise<void> {

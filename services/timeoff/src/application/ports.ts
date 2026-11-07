@@ -18,7 +18,7 @@ import type { ApprovalRule, ApproverRole, AutoApproval } from '../domain/approva
 import type { Delegation } from '../domain/approval/delegation.js';
 import type { Adjustment, AdjustmentStatus } from '../domain/balance/adjustment.js';
 import type { Punch } from '../domain/attendance/clock.js';
-import type { AttendanceRules } from '../domain/attendance/day.js';
+import type { AttendanceRules, WorkedDay } from '../domain/attendance/day.js';
 import type { PayPeriod, TimeLine } from '../domain/attendance/pay-period.js';
 import type { Schedule } from '../domain/attendance/schedule.js';
 import type { HolidayLayer } from '../domain/calendar/holiday-calendar.js';
@@ -301,6 +301,39 @@ export interface AttendanceStore {
     personIds: readonly PersonId[],
   ): Promise<ReadonlyMap<PersonId, readonly OvertimeDecision[]>>;
   decideOvertime(decision: OvertimeDecision): Promise<void>;
+  /**
+   * Members' worked days from `from` to `to`, everyone's when none are named.
+   * `notable` keeps only what a report lists: a day left open, overtime, a
+   * short rest, or a day on one of `orOn` (the holidays in the range).
+   */
+  workedDays(query: {
+    readonly from: CalendarDate;
+    readonly to: CalendarDate;
+    readonly personIds?: readonly PersonId[];
+    readonly statuses?: readonly WorkedDay['status'][];
+    readonly notable?: { readonly orOn: readonly CalendarDate[] };
+  }): Promise<readonly MemberDay[]>;
+  /** A member's worked days from `from` to `to` become `days`, and only those. */
+  keepWorkedDays(
+    personId: PersonId,
+    from: CalendarDate,
+    to: CalendarDate,
+    days: readonly WorkedDay[],
+  ): Promise<void>;
+  /** Each member's open days and complete overtime per month, summed where they are kept. */
+  workedMonths(from: CalendarDate, to: CalendarDate): Promise<readonly WorkedMonth[]>;
+}
+
+export interface MemberDay extends WorkedDay {
+  readonly personId: PersonId;
+}
+
+export interface WorkedMonth {
+  readonly personId: PersonId;
+  /** `YYYY-MM`. */
+  readonly month: string;
+  readonly missedClockOuts: number;
+  readonly overtimeMinutes: number;
 }
 
 /* ----------------------------------------------------------------- kiosk -- */

@@ -26,7 +26,7 @@ export interface Exception {
 }
 
 export function exceptionsOf(args: {
-  readonly days: readonly Day[];
+  readonly days: readonly Pick<Day, 'date' | 'status' | 'workedMinutes' | 'overtimeMinutes'>[];
   readonly restBreaches: readonly { readonly date: CalendarDate; readonly restMinutes: number }[];
   /** The holidays where the member works. */
   readonly holidays: readonly { readonly date: CalendarDate; readonly name: string }[];

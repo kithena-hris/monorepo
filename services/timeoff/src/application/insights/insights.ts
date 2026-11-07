@@ -1,19 +1,13 @@
-import { createHash } from 'node:crypto';
 import { ok, type Result } from '@kithena/domain-kit';
 import type {
   CalendarDate,
   DayAmount,
-  Instant,
   PersonId,
   TeamKey,
   TenantId,
 } from '@kithena/contracts';
 
-import { AttendanceClock, type Punch } from '../../domain/attendance/clock.js';
-import { dayOf, type AttendanceRules } from '../../domain/attendance/day.js';
-import type { Schedule } from '../../domain/attendance/schedule.js';
 import { balanceOn } from '../../domain/balance/ledger.js';
-import { datesIn } from '../../domain/calendar/working-days.js';
 import { addDays, addMonths, amount, days, Decimal, sum } from '../../domain/days.js';
 import {
   describable,
@@ -24,7 +18,7 @@ import {
 } from '../../domain/insights/insights.js';
 import type { Writer } from '../assist/ports.js';
 import { written, type Line } from '../assist/written.js';
-import { companySchedule } from '../attendance/attendance.js';
+import { workedMonthsOf } from '../attendance/attendance.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
 import { forbidden, isHrAdmin, leaveYear, policyFrom, relatedIds, transact } from '../shared.js';
 
@@ -319,60 +313,26 @@ export async function annualFactsOf(
   );
 }
 
-/**
- * A month's attendance counts for one member, kept once the month has ended.
- *
- * A sliding window: of the six months Insights shows, only the one still
- * running moves; an ended month is built again only when what it is built
- * from changes. For a day already over, \`dayOf\` depends on that day's
- * shifts, the schedule, the attendance rules and the zone, and on "now" only
- * as "the day is over", which an ended month always is. So the key is a hash
- * of exactly those for the month: a correction, a late punch, a new schedule
- * or new rules is a new key, and nothing stale is ever read.
- *
- * ponytail: per process, the oldest out past 20,000 member-months; a table
- * kept by the nightly job if there is ever more than one Time Off process.
- */
-const endedMonths = new Map<string, { missedClockOuts: number; overtimeMinutes: number }>();
-const KEEP_MONTHS = 20_000;
-
 /** A member's six months, from what was read for the whole company at once. */
 function factsOf(
-  deps: Pick<Deps, 'clock'>,
-  tenantId: Caller['tenantId'],
   m: Member,
   months: readonly string[],
   read: {
-    readonly rules: AttendanceRules;
     readonly annual: AnnualFacts | undefined;
-    readonly punches: readonly Punch[];
-    readonly schedule: Schedule;
+    /** Open days and overtime by `YYYY-MM`, summed where the days are kept. */
+    readonly attendance: ReadonlyMap<string, { missedClockOuts: number; overtimeMinutes: number }>;
   },
 ): MemberYear {
-  const { rules } = read;
-  const today = deps.clock.date(m.timeZone);
   const { left, losesAtYearEnd, lastDayOff, requests } = read.annual ?? {
     left: amount('0'),
     losesAtYearEnd: amount('0'),
     lastDayOff: null,
     requests: [],
   };
-  const clock = AttendanceClock.of({
-    tenantId,
-    personId: m.personId,
-    timeZone: m.timeZone,
-    punches: read.punches,
-  });
-  const schedule = read.schedule;
-  const now = deps.clock.instant();
-  // Only a day with a shift can be open or carry overtime; the rest count for
-  // neither, so they are never built.
-  const shiftDays = new Set(clock.shifts.map((s) => s.date));
   const byMonth = new Map<string, Omit<Monthly, 'month'>>();
   for (const month of months) {
     const from = `${month}-01` as CalendarDate;
     const to = addDays(addMonths(from, 1), -1);
-    const last = to < today ? to : addDays(today, -1);
     const taken = (category: (c: string) => boolean) =>
       amount(
         sum(
@@ -386,55 +346,11 @@ function factsOf(
             .map((r) => days(r.request.span.workingDays)),
         ),
       );
-    const count = (): { missedClockOuts: number; overtimeMinutes: number } => {
-      const worked =
-        last < from
-          ? []
-          : datesIn(from, last)
-              .filter((date) => shiftDays.has(date))
-              .map((date) =>
-                dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
-              );
-      return {
-        missedClockOuts: worked.filter((w) => w.status === 'open').length,
-        overtimeMinutes: worked.reduce(
-          (n, w) => n + (w.status === 'complete' ? w.overtimeMinutes : 0),
-          0,
-        ),
-      };
-    };
-    let attendance: { missedClockOuts: number; overtimeMinutes: number };
-    if (to >= today) {
-      attendance = count();
-    } else {
-      const key = createHash('sha256')
-        .update(
-          JSON.stringify([
-            tenantId,
-            m.personId,
-            month,
-            m.timeZone,
-            schedule,
-            rules,
-            clock.shifts.filter((s) => s.date >= from && s.date <= to),
-          ]),
-        )
-        .digest('hex');
-      const held = endedMonths.get(key);
-      if (held === undefined) {
-        attendance = count();
-        if (endedMonths.size >= KEEP_MONTHS)
-          endedMonths.delete(endedMonths.keys().next().value ?? '');
-        endedMonths.set(key, attendance);
-      } else {
-        attendance = held;
-      }
-    }
     byMonth.set(month, {
       vacation: taken((c) => c === 'annual_leave'),
       personal: taken((c) => c !== 'annual_leave' && c !== 'sick_leave'),
       sick: taken((c) => c === 'sick_leave'),
-      ...attendance,
+      ...(read.attendance.get(month) ?? { missedClockOuts: 0, overtimeMinutes: 0 }),
     });
   }
   return {
@@ -475,24 +391,15 @@ export const insights =
           (await tx.settings.get('cohort_minimum'))?.value ?? DEFAULT_COHORT_MINIMUM;
         // What every member's year is built from, read for all of them at
         // once: a handful of queries, not several per member.
-        const ids = scope.members.map((m) => m.personId);
-        const [rules, annual, punches, schedules, standard] = await Promise.all([
-          tx.attendance.rules(),
+        const [annual, attendance] = await Promise.all([
           annualFactsOf(tx, scope.members, (m) => deps.clock.date(m.timeZone)),
-          // The six months on show, with a day either side for a shift across midnight.
-          tx.attendance.punchesOf(ids, {
-            from: `${addDays(addMonths(first, 1 - MONTHS), -2)}T00:00:00.000Z` as Instant,
-            to: `${addDays(today, 2)}T23:59:59.999Z` as Instant,
-          }),
-          tx.attendance.schedulesOf(ids),
-          companySchedule(tx),
+          // The six months on show, to yesterday: each member's kept days, summed.
+          workedMonthsOf(tx, deps, scope.members, addMonths(first, 1 - MONTHS), addDays(today, -1)),
         ]);
         const years: MemberYear[] = scope.members.map((m) =>
-          factsOf(deps, caller.tenantId, m, months, {
-            rules,
+          factsOf(m, months, {
             annual: annual.get(m.personId),
-            punches: punches.get(m.personId) ?? [],
-            schedule: schedules.get(m.personId) ?? standard,
+            attendance: attendance.get(m.personId) ?? new Map(),
           }),
         );
 

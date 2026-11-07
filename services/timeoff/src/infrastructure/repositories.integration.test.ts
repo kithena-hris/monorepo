@@ -5,6 +5,7 @@ import postgres from 'postgres';
 import { readdir, readFile } from 'node:fs/promises';
 import { fixedClock } from '@kithena/domain-kit';
 import {
+  type CalendarDate,
   DateSpan,
   DayAmount,
   LeaveApproved,
@@ -33,6 +34,7 @@ import { sendRequest } from '../application/request/request.js';
 import { sequentialIds } from '../application/testing/in-memory.js';
 import {
   caller,
+  d,
   MADRID,
   member,
   people,
@@ -43,6 +45,7 @@ import {
   vacationType,
 } from '../application/testing/world.js';
 import { es } from '../country-packs/es.js';
+import type { WorkedDay } from '../domain/attendance/day.js';
 import { week } from '../domain/attendance/t20.fixture.js';
 import { decideAdjustment, proposeAdjustment } from '../domain/balance/adjustment.js';
 import { entry } from '../domain/balance/ledger.js';
@@ -691,6 +694,53 @@ describe('attendance', () => {
           outcome: 'comp',
           decidedBy: MARCO_ACCOUNT,
         },
+      ]);
+    });
+  });
+});
+
+describe('worked days', () => {
+  it('replaces a member’s days in a range, finds the notable ones and sums a month', async () => {
+    const day = (date: string, over: Partial<WorkedDay> = {}): WorkedDay => ({
+      date: date as CalendarDate,
+      status: 'complete',
+      workedMinutes: 480,
+      overtimeMinutes: 0,
+      restMinutes: null,
+      ...over,
+    });
+    await run(async (tx) => {
+      await tx.attendance.keepWorkedDays(people.adam, d('2026-08-01'), d('2026-08-31'), [
+        day('2026-08-03'),
+        day('2026-08-04', { overtimeMinutes: 45 }),
+        day('2026-08-05', { status: 'open', workedMinutes: null }),
+        day('2026-08-06', { restMinutes: 600 }),
+        day('2026-08-07', { status: 'live' }),
+      ]);
+      // Worked out again: the 3rd goes, the rest of the month is left alone.
+      await tx.attendance.keepWorkedDays(people.adam, d('2026-08-03'), d('2026-08-03'), []);
+    });
+    await run(async (tx) => {
+      const august = { from: d('2026-08-01'), to: d('2026-08-31') };
+      expect((await tx.attendance.workedDays(august)).map((x) => x.date)).toEqual([
+        '2026-08-04',
+        '2026-08-05',
+        '2026-08-06',
+        '2026-08-07',
+      ]);
+      expect(
+        (await tx.attendance.workedDays({ ...august, notable: { orOn: [d('2026-08-07')] } })).map(
+          (x) => x.date,
+        ),
+      ).toEqual(['2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07']);
+      expect(
+        (await tx.attendance.workedDays({ ...august, notable: { orOn: [] } })).map((x) => x.date),
+      ).toEqual(['2026-08-04', '2026-08-05', '2026-08-06']);
+      expect(
+        await tx.attendance.workedDays({ ...august, statuses: ['live'], personIds: [people.adam] }),
+      ).toEqual([{ personId: people.adam, ...day('2026-08-07', { status: 'live' }) }]);
+      expect(await tx.attendance.workedMonths(august.from, august.to)).toEqual([
+        { personId: people.adam, month: '2026-08', missedClockOuts: 1, overtimeMinutes: 45 },
       ]);
     });
   });

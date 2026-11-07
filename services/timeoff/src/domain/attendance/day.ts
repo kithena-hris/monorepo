@@ -266,6 +266,48 @@ export function restBreaches(
 }
 
 /**
+ * A day with a shift as a report keeps it: what HR's exceptions, the pay
+ * period and Insights read, so none of them reads a punch. A day without a
+ * shift is nobody's exception and pays nothing, so it is never kept.
+ */
+export interface WorkedDay {
+  readonly date: CalendarDate;
+  /** `live` is the one a later moment can change: it is asked again when read. */
+  readonly status: Exclude<DayStatus, 'planned' | 'absent'>;
+  readonly workedMinutes: number | null;
+  readonly overtimeMinutes: number;
+  /** The rest before the day's first shift, when shorter than the rules allow. */
+  readonly restMinutes: number | null;
+}
+
+/** The days from `from` to `to` that have a shift, as the day and the rest rule read them. */
+export function workedDays(args: {
+  /** All of the person's shifts around the range; one before it carries a short rest. */
+  shifts: readonly Shift[];
+  schedule: Schedule;
+  now: Instant;
+  timeZone: string;
+  rules: AttendanceRules;
+  from: CalendarDate;
+  to: CalendarDate;
+}): WorkedDay[] {
+  const rest = new Map(restBreaches(args.shifts, args.rules).map((r) => [r.date, r.restMinutes]));
+  const dates = [...new Set(args.shifts.map((s) => s.date))]
+    .filter((d) => d >= args.from && d <= args.to)
+    .toSorted();
+  return dates.map((date) => {
+    const day = dayOf({ ...args, date });
+    return {
+      date,
+      status: day.status as WorkedDay['status'],
+      workedMinutes: day.workedMinutes,
+      overtimeMinutes: day.overtimeMinutes,
+      restMinutes: rest.get(date) ?? null,
+    };
+  });
+}
+
+/**
  * What overtime turns into (T33): comp time hour for hour, paid at the
  * multiplier, or whichever the person picks when the policy lets them.
  */

@@ -1,4 +1,4 @@
-import { err, Conflict, ok, type Result } from '@kithena/domain-kit';
+import { err, Conflict, localDate, ok, type Result } from '@kithena/domain-kit';
 import {
   CalendarDate,
   TeamKey,
@@ -20,6 +20,7 @@ import {
   overtimeBecomes,
   restBreaches,
   weekOf,
+  workedDays,
   type Day,
   type Office,
   type WeekTotal,
@@ -50,8 +51,10 @@ import {
   type Caller,
   type Deps,
   type Member,
+  type MemberDay,
   type OvertimeDecision,
   type Tx,
+  type WorkedMonth,
 } from '../ports.js';
 import {
   forbidden,
@@ -174,6 +177,114 @@ async function attendanceOf(
   });
 }
 
+/**
+ * A member's worked days from `from` to `to`, worked out again from their
+ * punches and kept (`attendance_day`), which is what the reports read. The
+ * punches are read two days either side: a shift across midnight, and the
+ * shift before the first day, whose end is that day's rest.
+ */
+export async function keepDays(
+  tx: Tx,
+  deps: Pick<Deps, 'clock'>,
+  member: Member,
+  from: CalendarDate,
+  to: CalendarDate,
+): Promise<void> {
+  const window = {
+    from: `${addDays(from, -2)}T00:00:00.000Z` as Instant,
+    to: `${addDays(to, 2)}T23:59:59.999Z` as Instant,
+  };
+  const [punches, schedule, rules] = await Promise.all([
+    tx.attendance.punchesOf([member.personId], window),
+    scheduleOf(tx, member),
+    tx.attendance.rules(),
+  ]);
+  const clock = AttendanceClock.of({
+    tenantId: tx.tenantId,
+    personId: member.personId,
+    timeZone: member.timeZone,
+    punches: punches.get(member.personId) ?? [],
+  });
+  const days = workedDays({
+    shifts: clock.shifts,
+    schedule,
+    rules,
+    now: deps.clock.instant(),
+    timeZone: member.timeZone,
+    from,
+    to,
+  });
+  await tx.attendance.keepWorkedDays(member.personId, from, to, days);
+}
+
+/**
+ * `keepDays` around punches just written: the day each lands on, the day
+ * before (a clock-in closes yesterday's forgotten shift, and a night shift
+ * is the day it started) and the day after (whose rest it shortens).
+ */
+export async function keepDaysAround(
+  tx: Tx,
+  deps: Pick<Deps, 'clock'>,
+  member: Member,
+  instants: readonly Instant[],
+): Promise<void> {
+  const dates = instants.map((i) => localDate(i, member.timeZone)).toSorted();
+  const first = dates[0];
+  const last = dates.at(-1);
+  if (first === undefined || last === undefined) return;
+  await keepDays(tx, deps, member, addDays(first, -1), addDays(last, 1));
+}
+
+/**
+ * Members' kept days for a report. A `live` day before the member's today is
+ * asked again first: nobody clocked out, and time alone has made it `open`.
+ */
+async function workedDaysOf(
+  tx: Tx,
+  deps: Pick<Deps, 'clock'>,
+  members: readonly Member[],
+  query: Parameters<Tx['attendance']['workedDays']>[0],
+): Promise<readonly MemberDay[]> {
+  const byId = new Map(members.map((m) => [m.personId, m]));
+  const live = await tx.attendance.workedDays({
+    from: query.from,
+    to: query.to,
+    ...(query.personIds === undefined ? {} : { personIds: query.personIds }),
+    statuses: ['live'],
+  });
+  const stale = new Map<Member, CalendarDate[]>();
+  for (const d of live) {
+    const m = byId.get(d.personId);
+    if (m === undefined || d.date >= deps.clock.date(m.timeZone)) continue;
+    stale.set(m, [...(stale.get(m) ?? []), d.date]);
+  }
+  for (const [m, dates] of stale) {
+    // oxlint-disable-next-line no-await-in-loop -- one transaction; only forgotten clock-outs
+    await keepDays(tx, deps, m, dates[0] as CalendarDate, dates.at(-1) as CalendarDate);
+  }
+  return tx.attendance.workedDays(query);
+}
+
+/** Each member's open days and complete overtime per month, from `from` to `to`, as kept. */
+export async function workedMonthsOf(
+  tx: Tx,
+  deps: Pick<Deps, 'clock'>,
+  members: readonly Member[],
+  from: CalendarDate,
+  to: CalendarDate,
+): Promise<ReadonlyMap<PersonId, ReadonlyMap<string, Omit<WorkedMonth, 'personId' | 'month'>>>> {
+  // A forgotten clock-out still kept as `live` is asked again before anything is summed.
+  await workedDaysOf(tx, deps, members, { from, to, statuses: ['live'] });
+  const out = new Map<PersonId, Map<string, Omit<WorkedMonth, 'personId' | 'month'>>>();
+  for (const w of await tx.attendance.workedMonths(from, to)) {
+    const held =
+      out.get(w.personId) ?? new Map<string, Omit<WorkedMonth, 'personId' | 'month'>>();
+    held.set(w.month, { missedClockOuts: w.missedClockOuts, overtimeMinutes: w.overtimeMinutes });
+    out.set(w.personId, held);
+  }
+  return out;
+}
+
 /** S16: HR switched this way of clocking in off. */
 export const clockInOff = (): Result<never> =>
   refuse('CLOCK_IN_OFF', 'Clocking in this way is switched off. Ask HR.');
@@ -199,6 +310,7 @@ export const punch =
       });
       if (!punched.ok) return punched;
       await tx.attendance.appendPunch(member.value.personId, punched.value);
+      await keepDaysAround(tx, deps, member.value, [punched.value.at]);
       await tx.outbox.publish(clock.drainEvents());
       return ok({ punch: punched.value, state: clock.state });
     });
@@ -245,6 +357,10 @@ export const correctPunch =
       });
       if (!corrected.ok) return corrected;
       await tx.attendance.appendPunch(member.personId, corrected.value);
+      await keepDaysAround(tx, deps, member, [
+        corrected.value.at,
+        ...(replaced === undefined ? [] : [replaced.at]),
+      ]);
       await tx.outbox.publish(clock.drainEvents());
       return ok({
         punch: corrected.value,
@@ -570,29 +686,35 @@ export const attendanceExceptions =
       const allowed = await hrPeriod(deps, caller, input.from, input.to);
       if (!allowed.ok) return allowed;
       const members = (await tx.members.list()).filter((m) => m.status !== 'left');
-      const [rules, of] = await Promise.all([
-        tx.attendance.rules(),
-        attendanceOf(tx, members, caller.tenantId, input),
-      ]);
+      const rules = await tx.attendance.rules();
       const holidays = holidaysFor(tx, input.from, input.to);
-      const now = deps.clock.instant();
+      const observed = new Map(members.map((m) => [m.personId, holidays(m)]));
+      const holidayDates = [
+        ...new Set((await Promise.all(observed.values())).flatMap((hs) => hs.map((h) => h.date))),
+      ];
+      // Only what could be listed: a day left open, overtime, a short rest, a holiday worked.
+      const kept = await workedDaysOf(tx, deps, members, {
+        from: input.from,
+        to: input.to,
+        notable: { orOn: holidayDates },
+      });
+      const byPerson = new Map<PersonId, MemberDay[]>();
+      for (const d of kept) byPerson.set(d.personId, [...(byPerson.get(d.personId) ?? []), d]);
+      const decidedOf = await tx.attendance.overtimeOf([...byPerson.keys()]);
       const items: AttendanceExceptions['items'][number][] = [];
       for (const m of members) {
         const today = deps.clock.date(m.timeZone);
         const to = input.to < today ? input.to : today;
-        if (to < input.from) continue;
-        const { clock, schedule, decided } = of(m);
-        const days = datesIn(input.from, to).map((date) =>
-          dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
-        );
+        const days = (byPerson.get(m.personId) ?? []).filter((d) => d.date <= to);
+        if (days.length === 0) continue;
         const found = exceptionsOf({
           days,
-          restBreaches: restBreaches(clock.shifts, rules).filter(
-            (r) => r.date >= input.from && r.date <= to,
+          restBreaches: days.flatMap((d) =>
+            d.restMinutes === null ? [] : [{ date: d.date, restMinutes: d.restMinutes }],
           ),
-          // eslint-disable-next-line no-await-in-loop -- read once per location, then held
-          holidays: (await holidays(m)).filter((h) => h.date <= to),
-          decided: decided.map((o) => o.date),
+          // oxlint-disable-next-line no-await-in-loop -- read once per location, then held
+          holidays: (await (observed.get(m.personId) ?? [])).filter((h) => h.date <= to),
+          decided: (decidedOf.get(m.personId) ?? []).map((o) => o.date),
         });
         for (const e of found) {
           items.push({
@@ -755,17 +877,20 @@ export const closePayPeriod =
       }
 
       const rules = await tx.attendance.rules();
-      const now = deps.clock.instant();
       const members = (await tx.members.list()).filter((m) => m.status !== 'left');
       const tracked = await trackedDays(tx);
       const balances = new Map<
         PersonId,
         { unpaidDays: DayAmount; negativeBalanceDays: DayAmount }
       >();
-      const [of, factsOf] = await Promise.all([
-        attendanceOf(tx, members, caller.tenantId, period),
-        leaveFactsOf(tx, members, period, tracked),
-      ]);
+      const factsOf = await leaveFactsOf(tx, members, period, tracked);
+      const kept = await workedDaysOf(tx, deps, members, { ...period, statuses: ['complete'] });
+      const workedOf = new Map<PersonId, Map<CalendarDate, number>>();
+      for (const d of kept) {
+        const held = workedOf.get(d.personId) ?? new Map<CalendarDate, number>();
+        if (d.workedMinutes !== null) held.set(d.date, d.workedMinutes);
+        workedOf.set(d.personId, held);
+      }
       // Read once and kept as lines are posted: asked per member and per day,
       // a month of a large company read the whole table tens of thousands of times.
       const periods = await tx.attendance.periods();
@@ -778,24 +903,14 @@ export const closePayPeriod =
       }
       for (const m of members) {
         const posted = postedOf.get(m.personId) ?? new Set<CalendarDate>();
-        const { clock, schedule } = of(m);
-        for (const date of datesIn(period.from, period.to)) {
+        for (const [date, workedMinutes] of workedOf.get(m.personId) ?? []) {
           if (posted.has(date)) continue;
-          const day = dayOf({
-            date,
-            schedule,
-            shifts: clock.shifts,
-            now,
-            timeZone: m.timeZone,
-            rules,
-          });
-          if (day.status !== 'complete' || day.workedMinutes === null) continue;
           const line = postLine(periods, lines, {
             id: deps.newId(),
             personId: m.personId,
             team: m.teamKey ?? NO_TEAM,
             date,
-            workedMinutes: day.workedMinutes,
+            workedMinutes,
             compMinutes: 0,
             paidMinutes: 0,
             supersedes: null,
@@ -854,29 +969,25 @@ interface Late extends MemberMonth {
 async function monthOf(
   tx: Tx,
   deps: Pick<Deps, 'clock'>,
-  tenantId: Caller['tenantId'],
   from: CalendarDate,
   to: CalendarDate,
 ): Promise<Late[]> {
   const members = (await tx.members.list()).filter((m) => m.status !== 'left');
-  const [rules, tracked] = await Promise.all([tx.attendance.rules(), trackedDays(tx)]);
-  const [of, factsOf] = await Promise.all([
-    attendanceOf(tx, members, tenantId, { from, to }),
-    leaveFactsOf(tx, members, { from, to }, tracked),
-  ]);
-  const now = deps.clock.instant();
+  const tracked = await trackedDays(tx);
+  const factsOf = await leaveFactsOf(tx, members, { from, to }, tracked);
+  // Only a day left open or with overtime is late; the rest are never read.
+  const kept = await workedDaysOf(tx, deps, members, { from, to, notable: { orOn: [] } });
+  const byPerson = new Map<PersonId, MemberDay[]>();
+  for (const d of kept) byPerson.set(d.personId, [...(byPerson.get(d.personId) ?? []), d]);
+  const overtime = await tx.attendance.overtimeOf(members.map((m) => m.personId));
   const out: Late[] = [];
   for (const m of members) {
     const today = deps.clock.date(m.timeZone);
     const last = to < today ? to : addDays(today, -1);
-    const { clock, schedule, decided: held } = of(m);
-    const days =
-      last < from
-        ? []
-        : datesIn(from, last).map((date) =>
-            dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
-          );
-    const decisions = held.filter((o) => o.date >= from && o.date <= to);
+    const days = (byPerson.get(m.personId) ?? []).filter((d) => d.date <= last);
+    const decisions = (overtime.get(m.personId) ?? []).filter(
+      (o) => o.date >= from && o.date <= to,
+    );
     const decided = new Set(decisions.map((o) => o.date));
     const waiting = days.filter(
       (d) => d.status === 'complete' && d.overtimeMinutes > 0 && !decided.has(d.date),
@@ -931,7 +1042,7 @@ export const payPeriodScreen =
       const from = CalendarDate.parse(`${input.from.slice(0, 8)}01`);
       const to = monthEnd(from);
       const period = (await tx.attendance.periods()).find((p) => p.from <= from && from <= p.to);
-      const members = await monthOf(tx, deps, caller.tenantId, from, to);
+      const members = await monthOf(tx, deps, from, to);
       if (period !== undefined && period.closedAt !== null) {
         // What Payroll was sent: the period's lines, nobody late.
         const sent = new Map(
@@ -979,7 +1090,7 @@ export const remindPayPeriod =
       const from = CalendarDate.parse(`${input.from.slice(0, 8)}01`);
       const today = deps.clock.date('UTC');
       let told = 0;
-      for (const m of await monthOf(tx, deps, caller.tenantId, from, monthEnd(from))) {
+      for (const m of await monthOf(tx, deps, from, monthEnd(from))) {
         if (input.teamKey !== null && m.team !== input.teamKey) continue;
         for (const date of m.openDates) {
           await deps.notifier.notify(

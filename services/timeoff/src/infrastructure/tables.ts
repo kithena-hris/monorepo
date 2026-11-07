@@ -365,6 +365,22 @@ export const memberSchedule = timeoff.table(
   (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.effectiveFrom] })],
 );
 
+/** Each member's worked days as the reports read them; rewritten with its punches. */
+export const attendanceDay = timeoff.table(
+  'attendance_day',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    date: calendarDate('date').notNull(),
+    status: text('status').notNull(),
+    workedMinutes: integer('worked_minutes'),
+    overtimeMinutes: integer('overtime_minutes').notNull().default(0),
+    restMinutes: integer('rest_minutes'),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.date] })],
+);
+
 export const payPeriod = timeoff.table(
   'pay_period',
   {

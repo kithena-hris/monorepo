@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { fixedClock } from '@kithena/domain-kit';
+import { Instant, PunchInput } from '@kithena/contracts';
 
 import { recordingWriter, shown } from '../testing/assist.js';
 import { caller, hr, people, TENANT, world } from '../testing/world.js';
-import { punch } from '../../domain/attendance/t20.fixture.js';
+import { correctPunch, punch as punchIn } from '../attendance/attendance.js';
 import { insights } from './insights.js';
 
 /**
@@ -115,23 +117,27 @@ describe('insights (TOF-097)', () => {
     expect(plain.ok && plain.value.points.every((p) => !p.ai)).toBe(true);
   });
 
-  it('keeps an ended month, and builds it again when a late correction changes it', async () => {
-    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
-    const s = app.state(TENANT);
-    // Adam forgot to clock out on 9 September: one missed clock-out that month.
-    s.punches.set(people.adam, [punch('2026-09-09', '09:00', 'in')]);
+  it('counts a forgotten clock-out, and stops once it is corrected a month late', async () => {
+    // Adam clocks in on 9 September and never out.
+    const app = world('2026-09-09T07:00:00.000Z', { withGrant: true });
+    const adam = caller(people.adam);
+    await punchIn(app.deps)(adam, PunchInput.parse({ kind: 'in', source: 'web', workModel: 'office' }));
+    const later = { ...app.deps, clock: fixedClock('2026-10-01T07:00:00.000Z') };
     const september = async () => {
-      const read = await insights(app.deps)(hr);
+      const read = await insights(later)(hr);
       if (!read.ok) throw new Error(read.error.message);
       return read.value.months.find((m) => m.month === '2026-09')?.missedClockOuts;
     };
     expect(await september()).toBe(1);
     expect(await september()).toBe(1);
-    // The clock-out, added a month late: the month is built again, not read back.
-    s.punches.set(people.adam, [
-      punch('2026-09-09', '09:00', 'in'),
-      punch('2026-09-09', '17:30', 'out'),
-    ]);
+    const corrected = await correctPunch(later)(adam, {
+      personId: people.adam,
+      supersedes: null,
+      at: Instant.parse('2026-09-09T15:30:00.000Z'),
+      kind: 'out',
+      reason: 'Forgot to clock out',
+    });
+    expect(corrected.ok).toBe(true);
     expect(await september()).toBe(0);
   });
 });
