@@ -255,7 +255,8 @@ export const holidaySettings =
       for (const locationKey of [...locations].toSorted()) {
         const layerKeys = [...(await tx.holidays.assigned(locationKey))];
         const mine = layerKeys.flatMap((k) => layers.filter((l) => l.key === k));
-        rows.push({ locationKey, layerKeys, holidays: resolveHolidays(mine, query.year) });
+        const name = (await tx.locations.get(locationKey))?.name ?? null;
+        rows.push({ locationKey, name, layerKeys, holidays: resolveHolidays(mine, query.year) });
       }
       return ok({
         year: query.year,

@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type {
   AttendanceWorkModel,
   CalendarDate,
+  Instant,
   PersonId,
   PunchKind,
   PunchSource,
@@ -61,13 +62,23 @@ const punchOf = (r: typeof punch.$inferSelect): Punch => ({
 });
 
 export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): AttendanceStore {
-  const punchesOf = async (personIds: readonly PersonId[]): Promise<Map<PersonId, Punch[]>> => {
+  const punchesOf = async (
+    personIds: readonly PersonId[],
+    window?: { readonly from: Instant; readonly to: Instant },
+  ): Promise<Map<PersonId, Punch[]>> => {
     const out = new Map<PersonId, Punch[]>(personIds.map((id) => [id, []]));
     if (personIds.length === 0) return out;
+    // Through `punch_timeline_idx` (tenant, person, at): a period reads its own days.
     const rows = await tx
       .select()
       .from(punch)
-      .where(inArray(punch.personId, [...personIds]))
+      .where(
+        and(
+          inArray(punch.personId, [...personIds]),
+          window === undefined ? undefined : gte(punch.at, window.from),
+          window === undefined ? undefined : lte(punch.at, window.to),
+        ),
+      )
       .orderBy(asc(punch.recordedAt), asc(punch.id));
     for (const r of rows) out.get(r.personId as PersonId)?.push(punchOf(r));
     return out;
@@ -200,6 +211,28 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
       });
     },
 
+    async overtimeOf(personIds) {
+      if (personIds.length === 0) return new Map();
+      const rows = await tx
+        .select()
+        .from(overtimeDecision)
+        .where(inArray(overtimeDecision.personId, [...personIds]))
+        .orderBy(asc(overtimeDecision.day));
+      const out = new Map<PersonId, OvertimeDecision[]>();
+      for (const r of rows) {
+        const id = r.personId as PersonId;
+        const list = out.get(id) ?? [];
+        list.push({
+          personId: id,
+          date: r.day as CalendarDate,
+          minutes: r.minutes,
+          outcome: r.outcome as OvertimeDecision['outcome'],
+          decidedBy: r.decidedBy,
+        });
+        out.set(id, list);
+      }
+      return out;
+    },
     async overtime(personId) {
       const rows = await tx
         .select()

@@ -27,6 +27,22 @@
     "text": "Approve",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Ready: the trailing of <Button>."
   },
+  "approvals.adjustments.available_days": {
+    "text": "Available days",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: the label of <NumberField>."
+  },
+  "approvals.adjustments.available_hours": {
+    "text": "Available hours",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: the label of <NumberField>."
+  },
+  "approvals.adjustments.available_now": {
+    "text": "Available now: {{left}}",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: text inside <p>. Filled in: {{left}}."
+  },
+  "approvals.adjustments.available_now_change": {
+    "text": "Available now: {{left}} · this {{change}}",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: text inside <p>. Filled in: {{left}}, {{change}}."
+  },
   "approvals.adjustments.balance_adjustments": {
     "text": "Balance adjustments",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjustments: the title of <Header>."
@@ -139,6 +155,10 @@
     "text": "+{{count}} days",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
+  "approvals.adjustments.reading_the_balance": {
+    "text": "Reading what they have now",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: text inside <p>."
+  },
   "approvals.adjustments.saving": {
     "text": "Saving",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: the loadingLabel of <Button>."
@@ -146,6 +166,10 @@
   "approvals.adjustments.send_to_hr": {
     "text": "Send to HR",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: text inside <Button>."
+  },
+  "approvals.adjustments.set_to": {
+    "text": "Set to",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/adjustments.tsx, Adjust: text inside <SegmentedControlItem>."
   },
   "approvals.adjustments.take_away": {
     "text": "Take away",

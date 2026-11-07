@@ -93,7 +93,7 @@ export async function self(tx: Tx, caller: Caller): Promise<Result<Member>> {
 export async function relates(
   deps: Pick<Deps, 'authz'>,
   caller: Caller,
-  relation: Exclude<Relation, 'hr_admin'>,
+  relation: Exclude<Relation, 'hr_admin' | 'super_admin'>,
   personId: PersonId,
 ): Promise<boolean> {
   if (caller.personId === null) return false;
@@ -113,7 +113,7 @@ export async function relates(
 export async function relatedIds(
   deps: Pick<Deps, 'authz'>,
   caller: Caller,
-  relation: Exclude<Relation, 'hr_admin'>,
+  relation: Exclude<Relation, 'hr_admin' | 'super_admin'>,
 ): Promise<ReadonlySet<string>> {
   if (caller.personId === null) return new Set();
   return new Set(await deps.authz.members(caller.tenantId, `person:${caller.personId}`, relation));
@@ -123,6 +123,18 @@ export const isHrAdmin = (deps: Pick<Deps, 'authz'>, caller: Caller): Promise<bo
   deps.authz.check(caller.tenantId, {
     user: `account:${caller.accountId}`,
     relation: 'hr_admin',
+    object: `tenant:${caller.tenantId}`,
+  });
+
+/**
+ * The company's super administrator: whoever administers People, and through
+ * it every module (identity names them everywhere). The only one who decides
+ * their own time off and their own balance; nobody else ever does.
+ */
+export const isSuperAdmin = (deps: Pick<Deps, 'authz'>, caller: Caller): Promise<boolean> =>
+  deps.authz.check(caller.tenantId, {
+    user: `account:${caller.accountId}`,
+    relation: 'super_admin',
     object: `tenant:${caller.tenantId}`,
   });
 

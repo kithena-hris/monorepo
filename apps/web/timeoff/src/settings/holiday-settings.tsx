@@ -67,6 +67,8 @@ export interface HolidaySettingsData {
   readonly draftProblem?: string | null;
   readonly locations: readonly {
     readonly locationKey: string;
+    /** The office's name; absent or null before People has said, when the key stands in. */
+    readonly name?: string | null;
     readonly layerKeys: readonly string[];
     readonly holidays: readonly {
       readonly date: string;
@@ -138,7 +140,7 @@ function Keeps({
   return (
     <PageSection
       title={t('settings.holiday-settings.calendars_keeps', 'Calendars {{placeName}} keeps', {
-        placeName: placeName(location.locationKey),
+        placeName: location.name ?? placeName(location.locationKey),
       })}
       surface
     >
@@ -309,7 +311,7 @@ function Ready({
                       href={`/settings/time-off/holidays/${String(data.year)}?location=${encodeURIComponent(l.locationKey)}`}
                       aria-current={current ? 'page' : undefined}
                     >
-                      {placeName(l.locationKey)}
+                      {l.name ?? placeName(l.locationKey)}
                     </a>
                   </ListItem>
                 );
@@ -350,7 +352,7 @@ function Ready({
           </div>
           <PageSection
             title={t('settings.holiday-settings.in', '{{placeName}} in {{year}}', {
-              placeName: placeName(chosen.locationKey),
+              placeName: chosen.name ?? placeName(chosen.locationKey),
               year: String(data.year),
             })}
             description={layersOf(chosen.layerKeys)}
@@ -368,7 +370,7 @@ function Ready({
                 aria-label={t(
                   'settings.holiday-settings.holidays_in',
                   'Holidays in {{placeName}}',
-                  { placeName: placeName(chosen.locationKey) },
+                  { placeName: chosen.name ?? placeName(chosen.locationKey) },
                 )}
               >
                 {chosen.holidays.map((h) => (

@@ -41,7 +41,7 @@ import {
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { hm, weekdays, type Schedule } from '../../domain/attendance/schedule.js';
-import { entry } from '../../domain/balance/ledger.js';
+import { balanceOn, entry } from '../../domain/balance/ledger.js';
 import { datesIn, weekday } from '../../domain/calendar/working-days.js';
 import { addDays, addMonths, amount, days as dayCount, sum } from '../../domain/days.js';
 import {
@@ -54,10 +54,11 @@ import {
   type Tx,
 } from '../ports.js';
 import {
-  balanceFor,
   forbidden,
   isHrAdmin,
+  leaveYear,
   notFound,
+  policyFrom,
   post,
   refuse,
   relatedIds,
@@ -129,6 +130,49 @@ const isCorrection = (p: Punch): boolean => p.deviceId === null && p.at !== p.re
 
 const scheduleOf = async (tx: Tx, member: Member): Promise<Schedule> =>
   (await tx.attendance.schedule(member.personId)) ?? (await companySchedule(tx));
+
+/** One member's attendance over a period, as a report reads it. */
+interface MemberAttendance {
+  readonly clock: AttendanceClock;
+  readonly schedule: Schedule;
+  readonly decided: readonly OvertimeDecision[];
+}
+
+/**
+ * What a period's report reads of every member, at once: the punches around
+ * the period, each schedule and each decided overtime — three queries however
+ * many members, where asking member by member was three each, and a company
+ * of thousands waited on thousands.
+ */
+async function attendanceOf(
+  tx: Tx,
+  members: readonly Member[],
+  tenantId: Caller['tenantId'],
+  period: { readonly from: CalendarDate; readonly to: CalendarDate },
+): Promise<(m: Member) => MemberAttendance> {
+  const ids = members.map((m) => m.personId);
+  // Two days either side: a shift that crosses midnight, in any zone.
+  const window = {
+    from: `${addDays(period.from, -2)}T00:00:00.000Z` as Instant,
+    to: `${addDays(period.to, 2)}T23:59:59.999Z` as Instant,
+  };
+  const [punches, schedules, standard, overtime] = await Promise.all([
+    tx.attendance.punchesOf(ids, window),
+    tx.attendance.schedulesOf(ids),
+    companySchedule(tx),
+    tx.attendance.overtimeOf(ids),
+  ]);
+  return (m) => ({
+    clock: AttendanceClock.of({
+      tenantId,
+      personId: m.personId,
+      timeZone: m.timeZone,
+      punches: punches.get(m.personId) ?? [],
+    }),
+    schedule: schedules.get(m.personId) ?? standard,
+    decided: overtime.get(m.personId) ?? [],
+  });
+}
 
 /** S16: HR switched this way of clocking in off. */
 export const clockInOff = (): Result<never> =>
@@ -454,20 +498,34 @@ export const decideOvertime =
 
 /* ------------------------------------------------- HR's view, TOF-095 -- */
 
-/** The holidays a member's work location observes between two dates, by name. */
-async function holidaysOf(
+/**
+ * The holidays each work location observes between two dates, by name: read
+ * once per location, since a company's thousands work in a handful of places.
+ */
+function holidaysFor(
   tx: Tx,
-  member: Member,
   from: CalendarDate,
   to: CalendarDate,
-): Promise<{ date: CalendarDate; name: string }[]> {
-  if (member.locationKey === null) return [];
-  const keys = await tx.holidays.assigned(member.locationKey);
-  const layers = (await tx.holidays.layers()).filter((l) => keys.includes(l.key));
-  const years = datesIn(from, to).map((d) => Number(d.slice(0, 4)));
-  return [...new Set(years)]
-    .flatMap((y) => resolveHolidays(layers, y))
-    .filter((h) => h.date >= from && h.date <= to);
+): (member: Member) => Promise<readonly { date: CalendarDate; name: string }[]> {
+  const layers = tx.holidays.layers();
+  const years = [...new Set(datesIn(from, to).map((d) => Number(d.slice(0, 4))))];
+  const byLocation = new Map<string, Promise<{ date: CalendarDate; name: string }[]>>();
+  return (member) => {
+    const location = member.locationKey;
+    if (location === null) return Promise.resolve([]);
+    let found = byLocation.get(location);
+    if (found === undefined) {
+      found = (async () => {
+        const keys = await tx.holidays.assigned(location);
+        const observed = (await layers).filter((l) => keys.includes(l.key));
+        return years
+          .flatMap((y) => resolveHolidays(observed, y))
+          .filter((h) => h.date >= from && h.date <= to);
+      })();
+      byLocation.set(location, found);
+    }
+    return found;
+  };
 }
 
 /** At most a year at once: the inspector asks for a period, not a career. */
@@ -512,16 +570,19 @@ export const attendanceExceptions =
     transact(deps, caller.tenantId, async (tx) => {
       const allowed = await hrPeriod(deps, caller, input.from, input.to);
       if (!allowed.ok) return allowed;
-      const rules = await tx.attendance.rules();
+      const members = (await tx.members.list()).filter((m) => m.status !== 'left');
+      const [rules, of] = await Promise.all([
+        tx.attendance.rules(),
+        attendanceOf(tx, members, caller.tenantId, input),
+      ]);
+      const holidays = holidaysFor(tx, input.from, input.to);
       const now = deps.clock.instant();
       const items: AttendanceExceptions['items'][number][] = [];
-      for (const m of await tx.members.list()) {
-        if (m.status === 'left') continue;
+      for (const m of members) {
         const today = deps.clock.date(m.timeZone);
         const to = input.to < today ? input.to : today;
         if (to < input.from) continue;
-        const clock = await clockOf(tx, m, caller.tenantId);
-        const schedule = await scheduleOf(tx, m);
+        const { clock, schedule, decided } = of(m);
         const days = datesIn(input.from, to).map((date) =>
           dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
         );
@@ -530,8 +591,9 @@ export const attendanceExceptions =
           restBreaches: restBreaches(clock.shifts, rules).filter(
             (r) => r.date >= input.from && r.date <= to,
           ),
-          holidays: await holidaysOf(tx, m, input.from, to),
-          decided: (await tx.attendance.overtime(m.personId)).map((o) => o.date),
+          // eslint-disable-next-line no-await-in-loop -- read once per location, then held
+          holidays: (await holidays(m)).filter((h) => h.date <= to),
+          decided: decided.map((o) => o.date),
         });
         for (const e of found) {
           items.push({
@@ -575,10 +637,12 @@ export const inspectorRecord =
       const allowed = await hrPeriod(deps, caller, input.from, input.to);
       if (!allowed.ok) return allowed;
       const people: InspectorRecord['people'][number][] = [];
-      for (const m of (await tx.members.list()).toSorted((a, b) =>
+      const members = (await tx.members.list()).toSorted((a, b) =>
         a.displayName.localeCompare(b.displayName),
-      )) {
-        const clock = await clockOf(tx, m, caller.tenantId);
+      );
+      const of = await attendanceOf(tx, members, caller.tenantId, input);
+      for (const m of members) {
+        const { clock } = of(m);
         const days = dailyRecord(clock.shifts, m.timeZone).filter(
           (r) => r.date >= input.from && r.date <= input.to,
         );
@@ -589,34 +653,60 @@ export const inspectorRecord =
     });
 
 /**
- * A member's unpaid days and how far below zero they are, for a period.
+ * Each member's unpaid days and how far below zero they are, for a period,
+ * read for all of them at once: the tracked types' policies and ledgers and
+ * the approved requests, a handful of queries however many members.
  *
  * ponytail: unpaid days count a whole unpaid request that starts in the
  * month; split it across months when an unpaid absence spanning a month end
  * matters to Payroll.
  */
-async function leaveFacts(
+async function leaveFactsOf(
   tx: Tx,
-  m: Member,
+  members: readonly Member[],
   period: { readonly from: CalendarDate; readonly to: CalendarDate },
   tracked: readonly LeaveType[],
-): Promise<{ unpaidDays: DayAmount; negativeBalanceDays: DayAmount }> {
-  let negative = dayCount('0.000');
-  for (const t of tracked) {
-    const left = dayCount((await balanceFor(tx, m, t.definition.key, period.to)).left);
-    if (left.lt(0)) negative = negative.plus(left.neg());
-  }
-  const unpaid = sum(
-    (await tx.requests.list({ personIds: [m.personId], statuses: ['approved', 'taken'] }))
-      .filter(
-        (r) =>
-          r.request.leaveType.paid === 'unpaid' &&
-          r.request.span.from >= period.from &&
-          r.request.span.from <= period.to,
-      )
-      .map((r) => dayCount(r.request.span.workingDays)),
-  );
-  return { unpaidDays: amount(unpaid), negativeBalanceDays: amount(negative) };
+): Promise<(m: Member) => { unpaidDays: DayAmount; negativeBalanceDays: DayAmount }> {
+  const ids = members.map((m) => m.personId);
+  const [policies, ledgers, requests] = await Promise.all([
+    Promise.all(tracked.map((t) => tx.policies.forLeaveType(t.definition.key))),
+    Promise.all(tracked.map((t) => tx.ledger.forMembers(ids, t.definition.key))),
+    tx.requests.list({ personIds: ids, statuses: ['approved', 'taken'] }),
+  ]);
+  const byPerson = <T>(rows: readonly T[], id: (r: T) => string): Map<string, T[]> => {
+    const out = new Map<string, T[]>();
+    for (const r of rows) {
+      const list = out.get(id(r)) ?? [];
+      list.push(r);
+      out.set(id(r), list);
+    }
+    return out;
+  };
+  const entriesOf = ledgers.map((l) => byPerson(l, (e) => e.personId));
+  const requestsOf = byPerson(requests, (r) => r.request.personId);
+  return (m) => {
+    let negative = dayCount('0.000');
+    tracked.forEach((_, i) => {
+      const policy = policyFrom(policies[i] ?? [], m, period.to);
+      const { start, end } = leaveYear(policy?.definition ?? null, period.to);
+      const entries = (entriesOf[i]?.get(m.personId) ?? []).filter(
+        (e) => e.effectiveOn >= start && e.effectiveOn <= end,
+      );
+      const left = dayCount(balanceOn(entries, period.to).left);
+      if (left.lt(0)) negative = negative.plus(left.neg());
+    });
+    const unpaid = sum(
+      (requestsOf.get(m.personId) ?? [])
+        .filter(
+          (r) =>
+            r.request.leaveType.paid === 'unpaid' &&
+            r.request.span.from >= period.from &&
+            r.request.span.from <= period.to,
+        )
+        .map((r) => dayCount(r.request.span.workingDays)),
+    );
+    return { unpaidDays: amount(unpaid), negativeBalanceDays: amount(negative) };
+  };
 }
 
 const trackedDays = async (tx: Tx): Promise<LeaveType[]> =>
@@ -673,12 +763,23 @@ export const closePayPeriod =
         PersonId,
         { unpaidDays: DayAmount; negativeBalanceDays: DayAmount }
       >();
+      const [of, factsOf] = await Promise.all([
+        attendanceOf(tx, members, caller.tenantId, period),
+        leaveFactsOf(tx, members, period, tracked),
+      ]);
+      // Read once and kept as lines are posted: asked per member and per day,
+      // a month of a large company read the whole table tens of thousands of times.
+      const periods = await tx.attendance.periods();
+      const lines = [...(await tx.attendance.lines())];
+      const postedOf = new Map<PersonId, Set<CalendarDate>>();
+      for (const l of lines) {
+        const held = postedOf.get(l.personId) ?? new Set<CalendarDate>();
+        held.add(l.date);
+        postedOf.set(l.personId, held);
+      }
       for (const m of members) {
-        const posted = new Set(
-          (await tx.attendance.lines()).filter((l) => l.personId === m.personId).map((l) => l.date),
-        );
-        const clock = await clockOf(tx, m, caller.tenantId);
-        const schedule = await scheduleOf(tx, m);
+        const posted = postedOf.get(m.personId) ?? new Set<CalendarDate>();
+        const { clock, schedule } = of(m);
         for (const date of datesIn(period.from, period.to)) {
           if (posted.has(date)) continue;
           const day = dayOf({
@@ -690,7 +791,7 @@ export const closePayPeriod =
             rules,
           });
           if (day.status !== 'complete' || day.workedMinutes === null) continue;
-          const line = postLine(await tx.attendance.periods(), await tx.attendance.lines(), {
+          const line = postLine(periods, lines, {
             id: deps.newId(),
             personId: m.personId,
             team: m.teamKey ?? NO_TEAM,
@@ -701,10 +802,12 @@ export const closePayPeriod =
             supersedes: null,
           });
           if (!line.ok) return line;
+          // eslint-disable-next-line no-await-in-loop -- appended in order, one statement each
           await tx.attendance.appendLine(line.value);
+          lines.push(line.value);
         }
 
-        const facts = await leaveFacts(tx, m, period, tracked);
+        const facts = factsOf(m);
         if (facts.unpaidDays !== '0.000' || facts.negativeBalanceDays !== '0.000') {
           balances.set(m.personId, facts);
         }
@@ -756,25 +859,25 @@ async function monthOf(
   from: CalendarDate,
   to: CalendarDate,
 ): Promise<Late[]> {
-  const rules = await tx.attendance.rules();
-  const tracked = await trackedDays(tx);
+  const members = (await tx.members.list()).filter((m) => m.status !== 'left');
+  const [rules, tracked] = await Promise.all([tx.attendance.rules(), trackedDays(tx)]);
+  const [of, factsOf] = await Promise.all([
+    attendanceOf(tx, members, tenantId, { from, to }),
+    leaveFactsOf(tx, members, { from, to }, tracked),
+  ]);
   const now = deps.clock.instant();
   const out: Late[] = [];
-  for (const m of await tx.members.list()) {
-    if (m.status === 'left') continue;
+  for (const m of members) {
     const today = deps.clock.date(m.timeZone);
     const last = to < today ? to : addDays(today, -1);
-    const clock = await clockOf(tx, m, tenantId);
-    const schedule = await scheduleOf(tx, m);
+    const { clock, schedule, decided: held } = of(m);
     const days =
       last < from
         ? []
         : datesIn(from, last).map((date) =>
             dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
           );
-    const decisions = (await tx.attendance.overtime(m.personId)).filter(
-      (o) => o.date >= from && o.date <= to,
-    );
+    const decisions = held.filter((o) => o.date >= from && o.date <= to);
     const decided = new Set(decisions.map((o) => o.date));
     const waiting = days.filter(
       (d) => d.status === 'complete' && d.overtimeMinutes > 0 && !decided.has(d.date),
@@ -794,7 +897,7 @@ async function monthOf(
       overtimeDates: waiting.map((d) => d.date),
       paidMinutes: minutesOf('paid'),
       compMinutes: minutesOf('comp'),
-      ...(await leaveFacts(tx, m, { from, to }, tracked)),
+      ...factsOf(m),
     });
   }
   return out;

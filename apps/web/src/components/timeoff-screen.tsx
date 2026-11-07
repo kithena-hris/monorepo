@@ -119,6 +119,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           load: loadable,
           onAdjust: actions.adjustBalance,
           onDecide: actions.decideBalanceAdjustment,
+          balanceOf: actions.availableBalance,
         };
       case 'Delegation':
         return {

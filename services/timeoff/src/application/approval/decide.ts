@@ -23,6 +23,7 @@ import {
   calendarOf,
   forbidden,
   isHrAdmin,
+  isSuperAdmin,
   notFound,
   relates,
   transact,
@@ -35,7 +36,8 @@ import {
  * **Authorization lives here**, not in a resolver: the step waiting decides
  * who may act — `approver` or `delegate` on the member for a manager step,
  * `hr_admin` for an HR step, and whoever it was escalated to once nobody
- * decided in time. Nobody decides their own request.
+ * decided in time. Nobody decides their own request but the company's super
+ * administrator (`super_admin`): not HR, not a manager, nobody else.
  */
 
 const WAITING: readonly LeaveRequest['status'][] = ['pending', 'change_pending'];
@@ -52,9 +54,10 @@ export async function mayDecide(
   record: RequestRecord,
 ): Promise<boolean> {
   const { request, routing } = record;
-  if (caller.personId === request.personId) return false;
   const role = waitingOn(record);
   if (role === null) return false;
+  // Their own: only the super administrator decides it, at whichever step it waits.
+  if (caller.personId === request.personId) return isSuperAdmin(deps, caller);
   if (routing.escalatedTo === 'hr' || role === 'hr') return isHrAdmin(deps, caller);
   if (routing.escalatedTo !== null && caller.personId === routing.escalatedTo) return true;
   return (

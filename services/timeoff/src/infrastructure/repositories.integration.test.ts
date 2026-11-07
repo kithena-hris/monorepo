@@ -662,6 +662,16 @@ describe('attendance', () => {
       const many = await tx.attendance.punchesOf([people.adam, people.omar]);
       expect(many.get(people.adam)?.map((p) => p.id)).toEqual(punches.map((p) => p.id));
       expect(many.get(people.omar)).toEqual([]);
+      // A window keeps only the punches inside it, as a period's report reads them.
+      const first = punches[0];
+      if (first === undefined) throw new Error('no punches');
+      const windowed = await tx.attendance.punchesOf([people.adam], {
+        from: first.at,
+        to: first.at,
+      });
+      expect(windowed.get(people.adam)?.map((p) => p.id)).toEqual(
+        punches.filter((p) => Date.parse(p.at) === Date.parse(first.at)).map((p) => p.id),
+      );
       expect([...(await tx.attendance.schedulesOf([people.adam, people.omar]))]).toEqual([
         [people.adam, schedule],
       ]);
@@ -670,6 +680,9 @@ describe('attendance', () => {
         { ...period, closedAt: '2026-10-01T09:00:00.000Z' },
       ]);
       expect(await tx.attendance.lines()).toEqual([line]);
+      expect([...(await tx.attendance.overtimeOf([people.adam, people.omar])).keys()]).toEqual([
+        people.adam,
+      ]);
       expect(await tx.attendance.overtime(people.adam)).toEqual([
         {
           personId: people.adam,

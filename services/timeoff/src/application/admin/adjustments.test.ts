@@ -88,4 +88,28 @@ describe('adjusting a balance by hand (PRD §7.1)', () => {
       error: { code: 'FORBIDDEN' },
     });
   });
+
+  it('only the super administrator adjusts and decides their own; HR’s own waits', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    const marco = caller(people.marco);
+    app.hrAccounts.add(marco.accountId);
+
+    const asked = await adjustBalance(app.deps)(marco, give(people.marco));
+    expect(asked).toMatchObject({ ok: true, value: { status: 'pending' } });
+    if (!asked.ok) throw new Error('not asked');
+    const decide = () =>
+      decideBalanceAdjustment(app.deps)(marco, {
+        adjustmentId: asked.value.adjustmentId,
+        approve: true,
+        note: null,
+      });
+    expect(await decide()).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+
+    app.superAccounts.add(marco.accountId);
+    expect(await decide()).toMatchObject({ ok: true, value: { status: 'approved' } });
+    expect(await adjustBalance(app.deps)(marco, give(people.marco))).toMatchObject({
+      ok: true,
+      value: { status: 'approved' },
+    });
+  });
 });

@@ -21,7 +21,7 @@ function boot() {
     approverId: PersonId;
     cover: { delegateId: PersonId; ranges: readonly DateRange[] } | null;
   }[] = [];
-  const fga: Pick<TimeOffFga, 'syncMember' | 'syncCover' | 'setHrAdmin'> = {
+  const fga: Pick<TimeOffFga, 'syncMember' | 'syncCover' | 'setHrAdmin' | 'setSuperAdmin'> = {
     syncMember: (tenantId, m) => {
       synced.push({ tenantId, personId: m.personId, managerPersonId: m.managerPersonId });
       return Promise.resolve('applied');
@@ -31,6 +31,7 @@ function boot() {
       return Promise.resolve('applied');
     },
     setHrAdmin: () => Promise.resolve(),
+    setSuperAdmin: () => Promise.resolve(),
   };
   const wrapped = syncingTuples(app.deps.uow, fga);
   return { app, synced, covers, deps: { ...app.deps, uow: wrapped.uow }, ...wrapped };
