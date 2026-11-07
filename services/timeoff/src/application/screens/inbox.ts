@@ -51,6 +51,7 @@ import { readerLocale, t } from '../reader-words.js';
 type InboxDeps = Pick<Deps, 'uow' | 'authz' | 'clock'>;
 
 const WAITING: readonly LeaveRequest['status'][] = ['pending', 'change_pending'];
+const DECIDED: readonly LeaveRequest['status'][] = ['approved', 'declined', 'taken'];
 /** How long a decision stays an update before it is only a receipt in Done. */
 const UPDATE_DAYS = 30;
 /** How far back Done reaches. */
@@ -518,15 +519,22 @@ async function decidedBy(
   accountId: string,
   since: CalendarDate,
 ): Promise<{ record: RequestRecord; decision: RequestDecision }[]> {
-  const recent = await tx.requests.list({
-    statuses: ['approved', 'declined', 'taken'],
-    from: since,
-  });
-  const decisions = await tx.requests.decisions(recent.map((r) => r.request.id));
-  const records = new Map(recent.map((r) => [r.request.id as string, r]));
+  // Their own decisions first, then only those requests: read the other way
+  // round, a company's year of requests was read to find a manager's few.
+  const decisions = await tx.requests.decisionsBy(accountId);
+  const records = new Map<string, RequestRecord | null>();
+  for (const id of new Set(decisions.map((d) => d.requestId))) {
+    // eslint-disable-next-line no-await-in-loop -- one transaction, one request each
+    records.set(id, await tx.requests.get(id));
+  }
   return decisions.flatMap((d) => {
     const record = records.get(d.requestId);
-    return d.decidedBy === accountId && record !== undefined ? [{ record, decision: d }] : [];
+    return record !== null &&
+      record !== undefined &&
+      DECIDED.includes(record.request.status) &&
+      record.request.span.to >= since
+      ? [{ record, decision: d }]
+      : [];
   });
 }
 

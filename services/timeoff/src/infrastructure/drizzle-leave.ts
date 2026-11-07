@@ -511,15 +511,26 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
         .from(requestDecision)
         .where(inArray(requestDecision.requestId, [...ids]))
         .orderBy(asc(requestDecision.decidedAt));
-      return rows.map((r) => ({
-        id: r.id,
-        requestId: r.requestId as LeaveRequestId,
-        outcome: r.outcome as RequestDecision['outcome'],
-        role: r.role as RequestDecision['role'],
-        decidedBy: r.decidedBy,
-        reason: r.reason,
-        decidedAt: instantOf(r.decidedAt),
-      }));
+      return rows.map(decisionOf);
+    },
+
+    async decisionsBy(accountId) {
+      const rows = await tx
+        .select()
+        .from(requestDecision)
+        .where(eq(requestDecision.decidedBy, accountId))
+        .orderBy(asc(requestDecision.decidedAt));
+      return rows.map(decisionOf);
     },
   };
 }
+
+const decisionOf = (r: typeof requestDecision.$inferSelect): RequestDecision => ({
+  id: r.id,
+  requestId: r.requestId as LeaveRequestId,
+  outcome: r.outcome as RequestDecision['outcome'],
+  role: r.role as RequestDecision['role'],
+  decidedBy: r.decidedBy,
+  reason: r.reason,
+  decidedAt: instantOf(r.decidedAt),
+});
