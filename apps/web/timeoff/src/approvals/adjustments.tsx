@@ -32,7 +32,7 @@ import {
   Textarea,
   icons,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { amount, shortDate } from '../words';
@@ -86,6 +86,12 @@ export interface AdjustmentsProps {
     approve: boolean,
     note: string | null,
   ) => Promise<Outcome>;
+  /**
+   * What somebody has left of a leave type now (`"12.500"`), so HR can set a
+   * balance to a number rather than work out the difference; null when Time
+   * Off does not answer. Without it the form only adds and takes away.
+   */
+  readonly balanceOf?: (personId: string, leaveTypeKey: string) => Promise<string | null>;
 }
 
 type Item = AdjustmentsData['items'][number];
@@ -155,6 +161,7 @@ function Ready({
   data,
   onAdjust,
   onDecide,
+  balanceOf,
 }: AdjustmentsProps & { readonly data: AdjustmentsData }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [declining, setDeclining] = useState<Item | null>(null);
@@ -284,6 +291,7 @@ function Ready({
         <Adjust
           data={data}
           onAdjust={onAdjust}
+          {...(balanceOf === undefined ? {} : { balanceOf })}
           onClose={() => {
             setAdding(false);
           }}
@@ -306,22 +314,45 @@ function Ready({
 function Adjust({
   data,
   onAdjust,
+  balanceOf,
   onClose,
 }: {
   readonly data: AdjustmentsData;
   readonly onAdjust: NonNullable<AdjustmentsProps['onAdjust']>;
+  readonly balanceOf?: AdjustmentsProps['balanceOf'];
   readonly onClose: () => void;
 }): JSX.Element {
   const [personId, setPersonId] = useState<string | null>(null);
   const [leaveTypeKey, setLeaveTypeKey] = useState<string>(data.leaveTypes[0]?.key ?? '');
-  const [direction, setDirection] = useState<'add' | 'take'>('add');
+  const [direction, setDirection] = useState<'add' | 'take' | 'set'>('add');
   const [size, setSize] = useState(1);
+  // What they have now, for the person and type chosen: asked again whenever either changes.
+  const [available, setAvailable] = useState<{ key: string; left: string | null } | null>(null);
+  const asked = personId === null ? null : `${personId}:${leaveTypeKey}`;
+  useEffect(() => {
+    if (asked === null || personId === null || balanceOf === undefined) return;
+    let current = true;
+    void balanceOf(personId, leaveTypeKey).then((left) => {
+      if (current) setAvailable({ key: asked, left });
+    });
+    return () => {
+      current = false;
+    };
+  }, [asked, personId, leaveTypeKey, balanceOf]);
+  const left = available !== null && available.key === asked ? available.left : null;
+  // Set to a number: the adjustment is the difference from what they have now.
+  const change = direction === 'set' ? (left === null ? null : size - Number(left)) : size;
   const [reason, setReason] = useState('');
   const [on, setOn] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
   const hours = data.leaveTypes.find((t) => t.key === leaveTypeKey)?.unit === 'hour';
-  const ready = personId !== null && leaveTypeKey !== '' && size > 0 && reason.trim() !== '';
+  const ready =
+    personId !== null &&
+    leaveTypeKey !== '' &&
+    change !== null &&
+    (direction === 'set' ? change !== 0 : size > 0) &&
+    reason.trim() !== '';
   const save = (): void => {
     if (personId === null) return;
     setBusy(true);
@@ -329,7 +360,7 @@ function Adjust({
     void onAdjust({
       personId,
       leaveTypeKey,
-      amount: (direction === 'add' ? size : -size).toFixed(3),
+      amount: (direction === 'take' ? -size : (change ?? 0)).toFixed(3),
       effectiveOn: on,
       reason: reason.trim(),
     }).then((outcome) => {
@@ -403,7 +434,7 @@ function Adjust({
               aria-label={tr('approvals.adjustments.add_or_take_away', 'Add or take away')}
               value={direction}
               onValueChange={(v) => {
-                if (v !== '') setDirection(v === 'take' ? 'take' : 'add');
+                if (v === 'take' || v === 'set' || v === 'add') setDirection(v);
               }}
             >
               <SegmentedControlItem value="add">
@@ -412,15 +443,24 @@ function Adjust({
               <SegmentedControlItem value="take">
                 {tr('approvals.adjustments.take_away', 'Take away')}
               </SegmentedControlItem>
+              {balanceOf === undefined ? null : (
+                <SegmentedControlItem value="set">
+                  {tr('approvals.adjustments.set_to', 'Set to')}
+                </SegmentedControlItem>
+              )}
             </SegmentedControl>
             <NumberField
               label={
-                hours
-                  ? tr('approvals.adjustments.hours', 'Hours')
-                  : tr('approvals.adjustments.days', 'Days')
+                direction === 'set'
+                  ? hours
+                    ? tr('approvals.adjustments.available_hours', 'Available hours')
+                    : tr('approvals.adjustments.available_days', 'Available days')
+                  : hours
+                    ? tr('approvals.adjustments.hours', 'Hours')
+                    : tr('approvals.adjustments.days', 'Days')
               }
               value={size}
-              min={0.5}
+              min={direction === 'set' ? 0 : 0.5}
               max={365}
               step={0.5}
               onChange={(n) => {
@@ -428,6 +468,24 @@ function Adjust({
               }}
             />
           </div>
+          {personId === null || balanceOf === undefined ? null : (
+            <p className="text-sm text-fg-muted" aria-live="polite">
+              {left === null
+                ? tr('approvals.adjustments.reading_the_balance', 'Reading what they have now')
+                : direction === 'set' && change !== null && change !== 0
+                  ? tr(
+                      'approvals.adjustments.available_now_change',
+                      'Available now: {{left}} · this {{change}}',
+                      {
+                        left: amount(left),
+                        change: sized(hours ? 'hour' : 'day', change.toFixed(3)),
+                      },
+                    )
+                  : tr('approvals.adjustments.available_now', 'Available now: {{left}}', {
+                      left: amount(left),
+                    })}
+            </p>
+          )}
           <Field required>
             <FieldLabel>{tr('approvals.adjustments.why', 'Why')}</FieldLabel>
             <FieldControl>

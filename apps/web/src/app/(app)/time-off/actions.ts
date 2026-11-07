@@ -177,6 +177,18 @@ export async function adjustBalance(input: {
 }
 
 /** HR approving or declining a manager's balance adjustment; never their own. */
+/** What somebody has left of one leave type now, for setting it by hand; null when not answered. */
+export async function availableBalance(
+  personId: string,
+  leaveTypeKey: string,
+): Promise<string | null> {
+  const a = await timeOff<{ balance: { left: string } }>('TimeOffBalance', {
+    leaveTypeKey,
+    personId,
+  });
+  return a.ok ? a.data.balance.left : null;
+}
+
 export async function decideBalanceAdjustment(
   adjustmentId: string,
   approve: boolean,

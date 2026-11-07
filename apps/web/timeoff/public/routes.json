@@ -181,7 +181,9 @@
       "on": [
         "/time-off/approvals/waiting",
         "/time-off/approvals/coming-up",
-        "/time-off/approvals/decided"
+        "/time-off/approvals/decided",
+        "/time-off/overview",
+        "/time-off/insights"
       ]
     },
     {

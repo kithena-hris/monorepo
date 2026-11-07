@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -63,5 +64,36 @@ describe('balance adjustments', () => {
       expect(screen.getByRole('dialog')).toBeTruthy();
     });
     expect(screen.getByRole('button', { name: 'Adjust' })).toBeDisabled();
+  });
+
+  it('sets what somebody has to a number, posting the difference', async () => {
+    const user = userEvent.setup();
+    const onAdjust = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const balanceOf = vi.fn(() => Promise.resolve('2.500'));
+    render(
+      <Adjustments load={ready(data({ items: [] }))} onAdjust={onAdjust} balanceOf={balanceOf} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Adjust a balance' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /^Who:/ }));
+    await user.click(await screen.findByRole('option', { name: /Adam Novak/ }));
+    expect(await within(dialog).findByText('Available now: 2.5')).toBeTruthy();
+    expect(balanceOf).toHaveBeenCalledWith('22222222-2222-7222-8222-222222222222', 'vacation');
+    await user.click(within(dialog).getByRole('radio', { name: 'Set to' }));
+    const days = within(dialog).getByRole('spinbutton', { name: 'Available days' });
+    await user.clear(days);
+    await user.type(days, '10');
+    await user.tab();
+    await user.type(within(dialog).getByRole('textbox', { name: /^Why/ }), 'Agreed at hiring');
+    await user.click(within(dialog).getByRole('button', { name: 'Adjust' }));
+    await waitFor(() => {
+      expect(onAdjust).toHaveBeenCalledWith({
+        personId: '22222222-2222-7222-8222-222222222222',
+        leaveTypeKey: 'vacation',
+        amount: '7.500',
+        effectiveOn: null,
+        reason: 'Agreed at hiring',
+      });
+    });
   });
 });
