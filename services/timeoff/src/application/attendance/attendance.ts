@@ -259,7 +259,7 @@ async function workedDaysOf(
     stale.set(m, [...(stale.get(m) ?? []), d.date]);
   }
   for (const [m, dates] of stale) {
-    // eslint-disable-next-line no-await-in-loop -- one transaction; only forgotten clock-outs
+    // oxlint-disable-next-line no-await-in-loop -- one transaction; only forgotten clock-outs
     await keepDays(tx, deps, m, dates[0] as CalendarDate, dates.at(-1) as CalendarDate);
   }
   return tx.attendance.workedDays(query);
@@ -277,7 +277,8 @@ export async function workedMonthsOf(
   await workedDaysOf(tx, deps, members, { from, to, statuses: ['live'] });
   const out = new Map<PersonId, Map<string, Omit<WorkedMonth, 'personId' | 'month'>>>();
   for (const w of await tx.attendance.workedMonths(from, to)) {
-    const held = out.get(w.personId) ?? new Map();
+    const held =
+      out.get(w.personId) ?? new Map<string, Omit<WorkedMonth, 'personId' | 'month'>>();
     held.set(w.month, { missedClockOuts: w.missedClockOuts, overtimeMinutes: w.overtimeMinutes });
     out.set(w.personId, held);
   }
@@ -711,7 +712,7 @@ export const attendanceExceptions =
           restBreaches: days.flatMap((d) =>
             d.restMinutes === null ? [] : [{ date: d.date, restMinutes: d.restMinutes }],
           ),
-          // eslint-disable-next-line no-await-in-loop -- read once per location, then held
+          // oxlint-disable-next-line no-await-in-loop -- read once per location, then held
           holidays: (await (observed.get(m.personId) ?? [])).filter((h) => h.date <= to),
           decided: (decidedOf.get(m.personId) ?? []).map((o) => o.date),
         });
