@@ -2457,7 +2457,23 @@ export async function orgChartView(
       refine: { conditions: [], match: 'all', sort: { key: 'name', direction: 'asc' } },
     });
     if (!listed.ok) return listed;
-    const page = listed.value.items.slice(0, ORG_CHART_MAX);
+    // Somebody not started yet sits where they will on their first day: their
+    // manager, title and team are dated from it, so today they have none.
+    // ponytail: one read per starter; a dated list read when starters number thousands.
+    const page: PersonView[] = [];
+    for (const p of listed.value.items.slice(0, ORG_CHART_MAX)) {
+      if (p.startsOn === undefined) {
+        page.push(p);
+        continue;
+      }
+      // eslint-disable-next-line no-await-in-loop -- one transaction, read in turn
+      const then = await deps.service.access.read(tx, {
+        ...asking,
+        personId: p.id,
+        asOf: p.startsOn,
+      });
+      page.push(then.ok ? { ...p, attributes: { ...p.attributes, ...then.value.attributes } } : p);
+    }
     const manager = columns.get('manager_id');
     const names = new Map(pickable(page).map((p) => [p.value, p.label]));
     if (manager !== undefined) {
