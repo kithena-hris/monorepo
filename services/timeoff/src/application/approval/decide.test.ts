@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DateSpan, LeaveTypeKey, type PersonId } from '@kithena/contracts';
 
 import type { LeaveRequestId } from '../../domain/request/leave-request.js';
@@ -140,8 +140,11 @@ describe('the queue and batch approval (TOF-038)', () => {
     const adam = await ask(people.adam, '2026-10-19', '2026-10-23');
     const ravi = await ask(people.ravi, '2026-11-16', '2026-11-17');
 
+    const check = vi.spyOn(app.deps.authz, 'check');
     const queue = await approvalQueue(app.deps)(caller(people.marco));
     if (!queue.ok) throw new Error(queue.error.message);
+    // Asked once per relation, never per waiting request.
+    expect(check.mock.calls.length).toBeLessThanOrEqual(2);
     expect(queue.value.clear.map((i) => i.requestId)).toEqual([ravi]);
     expect(queue.value.lookCloser.find((l) => l.item.requestId === adam)?.reason).toEqual({
       rule: 'below_minimum',

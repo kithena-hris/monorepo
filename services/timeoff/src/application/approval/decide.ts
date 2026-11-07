@@ -25,6 +25,7 @@ import {
   isHrAdmin,
   isSuperAdmin,
   notFound,
+  relatedIds,
   relates,
   transact,
 } from '../shared.js';
@@ -48,22 +49,59 @@ const waitingOn = (record: RequestRecord): ApproverRole | null =>
     ? (record.routing.chain[record.routing.step] ?? null)
     : null;
 
-export async function mayDecide(
-  deps: Pick<Deps, 'authz'>,
-  caller: Caller,
-  record: RequestRecord,
-): Promise<boolean> {
+/** What deciding asks of OpenFGA, so one request and a whole queue follow the same rule. */
+interface Asks {
+  readonly superAdmin: () => Promise<boolean>;
+  readonly hrAdmin: () => Promise<boolean>;
+  readonly approves: (personId: PersonId) => Promise<boolean>;
+}
+
+async function decides(caller: Caller, record: RequestRecord, ask: Asks): Promise<boolean> {
   const { request, routing } = record;
   const role = waitingOn(record);
   if (role === null) return false;
   // Their own: only the super administrator decides it, at whichever step it waits.
-  if (caller.personId === request.personId) return isSuperAdmin(deps, caller);
-  if (routing.escalatedTo === 'hr' || role === 'hr') return isHrAdmin(deps, caller);
+  if (caller.personId === request.personId) return ask.superAdmin();
+  if (routing.escalatedTo === 'hr' || role === 'hr') return ask.hrAdmin();
   if (routing.escalatedTo !== null && caller.personId === routing.escalatedTo) return true;
-  return (
-    (await relates(deps, caller, 'approver', request.personId)) ||
-    relates(deps, caller, 'delegate', request.personId)
-  );
+  return ask.approves(request.personId);
+}
+
+export function mayDecide(
+  deps: Pick<Deps, 'authz'>,
+  caller: Caller,
+  record: RequestRecord,
+): Promise<boolean> {
+  return decides(caller, record, {
+    superAdmin: () => isSuperAdmin(deps, caller),
+    hrAdmin: () => isHrAdmin(deps, caller),
+    approves: async (personId) =>
+      (await relates(deps, caller, 'approver', personId)) ||
+      relates(deps, caller, 'delegate', personId),
+  });
+}
+
+/**
+ * `mayDecide` for a whole queue: each relation asked of OpenFGA once
+ * (`ListObjects`), not twice per waiting request — a company's queue asked
+ * per request was a thousand checks on every page.
+ */
+async function decider(
+  deps: Pick<Deps, 'authz'>,
+  caller: Caller,
+): Promise<(record: RequestRecord) => Promise<boolean>> {
+  const [superAdmin, hrAdmin, approver, delegate] = await Promise.all([
+    isSuperAdmin(deps, caller),
+    isHrAdmin(deps, caller),
+    relatedIds(deps, caller, 'approver'),
+    relatedIds(deps, caller, 'delegate'),
+  ]);
+  const ask: Asks = {
+    superAdmin: () => Promise.resolve(superAdmin),
+    hrAdmin: () => Promise.resolve(hrAdmin),
+    approves: (personId) => Promise.resolve(approver.has(personId) || delegate.has(personId)),
+  };
+  return (record) => decides(caller, record, ask);
 }
 
 type DecideDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'newId' | 'timers'>;
@@ -337,9 +375,9 @@ export async function triageOf(
  * "Waiting for me" (§9.2), split into Clear to approve and Look closer by
  * the domain's rule, each in the order it was asked.
  *
- * ponytail: reads every waiting request in the tenant and asks about each;
- * a `waiting_on` column on the request table is the upgrade when a tenant's
- * queue is large.
+ * ponytail: reads every waiting request in the tenant and tests each against
+ * the caller's relations; a `waiting_on` column on the request table is the
+ * upgrade when a tenant's queue is large.
  */
 export const approvalQueue =
   (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
@@ -352,9 +390,10 @@ export const approvalQueue =
       const waiting = (await tx.requests.list({ statuses: WAITING })).toSorted((a, b) =>
         a.requestedAt.localeCompare(b.requestedAt),
       );
+      const may = await decider(deps, caller);
       const mine: { item: QueueItem; triage: Triage }[] = [];
       for (const record of waiting) {
-        if (!(await mayDecide(deps, caller, record))) continue;
+        if (!(await may(record))) continue;
         const member = await tx.members.get(record.request.personId);
         if (member === null) continue;
         const { request } = record;
