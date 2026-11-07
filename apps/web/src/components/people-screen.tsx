@@ -1073,7 +1073,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onAddSection: actions.addSection,
           onSaveField: actions.saveField,
           preview: actions.previewPublish,
-          onPublish: actions.publishDraft,
+          // Published, People is read again: the header's version and count are its, as they now stand.
+          onPublish: async (requiredFrom: string) => {
+            const published = await actions.publishDraft(requiredFrom);
+            if (published.ok) refresh();
+            return published;
+          },
           onSignup: actions.setFieldSignup,
           onAssistant: actions.setFieldAssistant,
           search: at('q') ?? '',

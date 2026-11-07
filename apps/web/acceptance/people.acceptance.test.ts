@@ -1042,6 +1042,8 @@ describe('Employee fields: a field from a template, explained, then published', 
          WHERE tenant_id = ${TENANT} AND document::text LIKE '%t_shirt_size%'`,
       ([row]) => (row?.n ?? 0) > 0,
     );
+    // The header follows without a reload: the new version, nothing left to publish.
+    await page.getByText(/· nothing to publish$/).waitFor({ timeout: 30_000 });
     await context.close();
   });
 });
