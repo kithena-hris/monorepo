@@ -2462,6 +2462,9 @@ export async function orgChartView(
     // ponytail: one read per starter; a dated list read when starters number thousands.
     const page: PersonView[] = [];
     for (const p of listed.value.items.slice(0, ORG_CHART_MAX)) {
+      // Never a person, or absorbed into one: nowhere on a reporting line,
+      // though HR's directory still lists them (PRD §6.3).
+      if (p.status === 'discarded' || p.status === 'merged') continue;
       if (p.startsOn === undefined) {
         page.push(p);
         continue;
