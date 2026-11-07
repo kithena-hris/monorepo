@@ -476,6 +476,43 @@ describe('the org chart', () => {
     expect(await mia(w.as(TIM_ACCOUNT))).toBeUndefined();
   });
 
+  it('places somebody starting under the manager dated from their first day', async () => {
+    const w = world();
+    // A manager kept as a history, as a company's is: a starter's is dated from their start.
+    const store = inMemoryPeople([
+      versionOf(
+        1,
+        attributes.map((a) => (a.key === 'manager_id' ? { ...a, effectiveDated: true } : a)),
+      ),
+    ]);
+    for (const [id, row] of w.store.rows) store.rows.set(id, row);
+    const MIA = '00000000-0000-4000-8000-0000000000d7';
+    store.seed(MIA, { ...person('Mia', 'Wong', null), status: 'pre_hire' });
+    const row = store.rows.get(MIA);
+    if (row) row.snapshot = { ...row.snapshot, hireDate: '2099-01-04' };
+    const access = personAccess(store.deps);
+    const hr = w.as(HR_ACCOUNT, 'hr');
+    const dated = await access.update({} as never, {
+      ...hr,
+      personId: MIA,
+      changes: { manager_id: ADA },
+      effectiveFrom: '2099-01-04',
+    });
+    if (!dated.ok) throw new Error(dated.error.message);
+    const service: PeopleService = {
+      access,
+      schemas: store.deps.schemas,
+      inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+    };
+    const read = await orgChartView({ ...w.deps, service }, hr);
+    if (!read.ok) throw new Error(read.error.message);
+    expect(read.value.people.find((p) => p.id === MIA)).toMatchObject({
+      managerId: ADA,
+      managerName: 'Ada Lovelace',
+      startsOn: '2099-01-04',
+    });
+  });
+
   it('draws what the directory shows, and for HR the status and the leavers', async () => {
     const w = world();
     const asking = w.as(HR_ACCOUNT, 'hr');
