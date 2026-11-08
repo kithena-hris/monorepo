@@ -45,6 +45,35 @@ describe('Time Off in the Inbox', () => {
     });
   });
 
+  it('shows who on the team is already out and the ask declined before', async () => {
+    const { app, ask, inbox } = setup();
+    const away = await ask(people.omar, '2026-10-20', '2026-10-20');
+    const approved = await decideRequest(app.deps)(caller(people.marco), {
+      requestId: away,
+      decision: 'approve',
+    });
+    expect(approved.ok).toBe(true);
+    const before = await ask(people.adam, '2026-10-12', '2026-10-13');
+    const declined = await decideRequest(app.deps)(caller(people.marco), {
+      requestId: before,
+      decision: 'decline',
+      reason: 'Release week',
+    });
+    expect(declined.ok).toBe(true);
+    const id = await ask(people.adam, '2026-10-19', '2026-10-21');
+
+    const task = (await inbox(people.marco)).find((i) => i.id === `timeoff:approval:${id}`);
+    expect(task?.detail).toMatchObject({
+      week: [
+        { date: '2026-10-19', out: [] },
+        { date: '2026-10-20', out: ['Omar Haddad'] },
+        { date: '2026-10-21', out: [] },
+      ],
+      alreadyOut: { out: 1 },
+      firstAsk: '12–13 Oct, which was declined',
+    });
+  });
+
   it('is a task for the approver and a request for the person asking, then an update and receipts', async () => {
     const { app, ask, inbox } = setup();
     const id = await ask(people.adam, '2026-10-19', '2026-10-21');

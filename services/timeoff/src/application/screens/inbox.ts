@@ -4,6 +4,7 @@ import type {
   InboxItem,
   InboxStep,
   LeaveTypeKey,
+  LedgerEntry,
   Instant,
   PersonId,
   TimeOffApprovalDetail,
@@ -11,13 +12,17 @@ import type {
   TimeOffExpiringDetail,
   TimeOffHolidaysDetail,
   TimeOffRequestDetail,
+  TeamKey,
 } from '@kithena/contracts';
 
 import { escalation } from '../../domain/approval/delegation.js';
+import { balanceOn, type Balance } from '../../domain/balance/ledger.js';
+import type { WorkCalendar } from '../../domain/calendar/working-days.js';
+import { coverage, type DayCoverage, type TeamMinimum } from '../../domain/coverage/coverage.js';
 import { addDays, amount, days } from '../../domain/days.js';
-import type { LeaveRequest } from '../../domain/request/leave-request.js';
+import type { LeaveRequest, Span } from '../../domain/request/leave-request.js';
 import { approvalQueue } from '../approval/decide.js';
-import { teamBelow } from '../request/assess.js';
+import { LIVE } from '../request/assess.js';
 import { NUDGE_AFTER_MS } from '../request/request.js';
 import {
   DEFAULT_ESCALATION,
@@ -28,7 +33,14 @@ import {
   type RequestRecord,
   type Tx,
 } from '../ports.js';
-import { balanceFor, leaveYear, policyFor, transact } from '../shared.js';
+import {
+  balanceFor,
+  calendarReader,
+  leaveYear,
+  policyFor,
+  policyFrom,
+  transact,
+} from '../shared.js';
 import { readerLocale, t } from '../reader-words.js';
 
 /**
@@ -126,12 +138,16 @@ export const timeOffInbox =
       const waiting = [...queue.value.clear, ...queue.value.lookCloser.map((l) => l.item)];
       const approvals = await transact(deps, caller.tenantId, async (tx) =>
         ok(
-          await Promise.all(
-            waiting.map((q) => approvalItem(tx, deps, q.requestId, byId, rule.afterWorkingDays)),
+          await approvalItems(
+            tx,
+            deps,
+            waiting.map((q) => q.requestId),
+            byId,
+            rule.afterWorkingDays,
           ),
         ),
       );
-      if (approvals.ok) items.push(...approvals.value.flatMap((a) => (a === null ? [] : [a])));
+      if (approvals.ok) items.push(...approvals.value);
     }
     return ok({ items: items.toSorted((a, b) => b.at.localeCompare(a.at)) });
   };
@@ -463,7 +479,8 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
 
   // Days that will not carry over, as the year end comes (C9).
   for (const type of types.values()) {
-    if (!type.definition.tracked || type.deleted || type.definition.category !== 'annual_leave') continue;
+    if (!type.definition.tracked || type.deleted || type.definition.category !== 'annual_leave')
+      continue;
     const policy = await policyFor(tx, me, type.definition.key, today);
     if (policy === null) continue;
     const { end } = leaveYear(policy.definition, today);
@@ -548,41 +565,197 @@ const formatWhen = (at: Instant): string =>
     timeZone: 'UTC',
   }).format(new Date(at));
 
-/** G1: one request waiting on the caller, with what they need to decide. */
-async function approvalItem(
+/** The statuses G1's strip shows a teammate out for. */
+const OUT: readonly LeaveRequest['status'][] = ['approved', 'taken', 'pending', 'change_pending'];
+
+/**
+ * G1 for every request waiting on the caller, read together: the requests,
+ * the types, the requesters' ledgers and declines, and each team's minimum,
+ * calendars and time off over the span its requests cover. Asked request by
+ * request, a company's queue for HR was thousands of queries on every page.
+ */
+async function approvalItems(
   tx: Tx,
   deps: InboxDeps,
-  requestId: string,
+  requestIds: readonly string[],
   byId: ReadonlyMap<PersonId, Member>,
   afterWorkingDays: number,
-): Promise<InboxItem | null> {
-  const record = await tx.requests.get(requestId as never);
-  if (record === null) return null;
-  const member = byId.get(record.request.personId);
-  if (member === undefined) return null;
-  const { request, routing } = record;
-  const span = request.pendingChange ?? request.span;
-  const today = deps.clock.date(member.timeZone);
-  const types = await tx.leaveTypes.get(request.leaveType.key);
-  const leaveTypeName = types?.definition.name.default ?? request.leaveType.key;
+): Promise<InboxItem[]> {
+  const wanted = new Set(requestIds);
+  if (wanted.size === 0) return [];
+  const waiting = (await tx.requests.list({ statuses: WAITING })).filter((r) =>
+    wanted.has(r.request.id),
+  );
+  const asked = waiting.flatMap((record) => {
+    const member = byId.get(record.request.personId);
+    if (member === undefined) return [];
+    const span = record.request.pendingChange ?? record.request.span;
+    return [{ record, member, span, today: deps.clock.date(member.timeZone) }];
+  });
+  if (asked.length === 0) return [];
+  const requesters = [...new Set(asked.map((a) => a.member.personId))];
+  const typeKeys = [...new Set(asked.map((a) => a.record.request.leaveType.key))];
 
-  // Who else on the team is out on each working day of the request (G1's strip).
-  const team =
-    member.teamKey === null
-      ? []
-      : [...byId.values()].filter(
-          (m) =>
-            m.teamKey === member.teamKey && m.status !== 'left' && m.personId !== member.personId,
-        );
-  const overlapping =
-    team.length === 0
-      ? []
-      : await tx.requests.list({
-          personIds: team.map((m) => m.personId),
-          statuses: ['approved', 'taken', 'pending', 'change_pending'],
-          from: span.from,
-          to: span.to,
-        });
+  const [types, policies, ledgers, declined] = await Promise.all([
+    tx.leaveTypes.list(),
+    Promise.all(typeKeys.map((k) => tx.policies.forLeaveType(k))),
+    Promise.all(typeKeys.map((k) => tx.ledger.forMembers(requesters, k))),
+    tx.requests.list({
+      personIds: requesters,
+      statuses: ['declined'],
+      from: addDays(asked.map((a) => a.today).toSorted()[0] as CalendarDate, -90),
+    }),
+  ]);
+  const typeOf = new Map(types.map((type) => [type.definition.key, type]));
+  const policiesOf = new Map(typeKeys.map((k, i) => [k, policies[i] ?? []]));
+  const entriesOf = new Map(
+    typeKeys.map((k, i) => {
+      const byPerson = new Map<string, LedgerEntry[]>();
+      for (const e of ledgers[i] ?? []) {
+        const held = byPerson.get(e.personId) ?? [];
+        held.push(e);
+        byPerson.set(e.personId, held);
+      }
+      return [k, byPerson] as const;
+    }),
+  );
+  const declinedOf = new Map<string, RequestRecord[]>();
+  for (const r of declined) {
+    const held = declinedOf.get(r.request.personId) ?? [];
+    held.push(r);
+    declinedOf.set(r.request.personId, held);
+  }
+
+  // Each team once: who is on it, its minimum, their calendars, and their
+  // time off over every day the team's requests ask for.
+  const calendar = calendarReader(tx);
+  const teams = new Map<TeamKey, Promise<TeamRead>>();
+  const teamOf = (teamKey: TeamKey): Promise<TeamRead> => {
+    const held = teams.get(teamKey);
+    if (held !== undefined) return held;
+    const spans = asked.filter((a) => a.member.teamKey === teamKey).map((a) => a.span);
+    const from = spans.map((x) => x.from).toSorted()[0] as CalendarDate;
+    const to = spans
+      .map((x) => x.to)
+      .toSorted()
+      .at(-1) as CalendarDate;
+    const members = [...byId.values()].filter((m) => m.teamKey === teamKey && m.status !== 'left');
+    const read = (async (): Promise<TeamRead> => {
+      const [minimum, calendars, records] = await Promise.all([
+        tx.approvals.teamMinimum(teamKey),
+        Promise.all(
+          members.map(async (m) => ({
+            personId: m.personId,
+            calendar: await calendar(m, from, to),
+          })),
+        ),
+        tx.requests.list({
+          personIds: members.map((m) => m.personId),
+          statuses: [...new Set([...OUT, ...LIVE])],
+          from,
+          to,
+        }),
+      ]);
+      return { members, minimum, calendars, records };
+    })();
+    teams.set(teamKey, read);
+    return read;
+  };
+
+  return Promise.all(
+    asked.map(async ({ record, member, span, today }) => {
+      const { request } = record;
+      const leaveTypeName =
+        typeOf.get(request.leaveType.key)?.definition.name.default ?? request.leaveType.key;
+      const team = member.teamKey === null ? null : await teamOf(member.teamKey);
+      const others = (team?.members ?? []).filter((m) => m.personId !== member.personId);
+      const overlapping = (team?.records ?? []).filter(
+        (r) =>
+          r.request.personId !== member.personId &&
+          OUT.includes(r.request.status) &&
+          r.request.span.from <= span.to &&
+          span.from <= r.request.span.to,
+      );
+      const short =
+        team === null || team.minimum === null
+          ? []
+          : coverage({
+              members: team.calendars,
+              absences: [
+                ...team.records
+                  .filter((r) => r.request.id !== request.id && LIVE.includes(r.request.status))
+                  .flatMap((r) =>
+                    r.request.spans.map((run) => ({
+                      personId: r.request.personId,
+                      span: {
+                        from: run.from,
+                        to: run.to,
+                        startsHalfDay: false,
+                        endsHalfDay: false,
+                      },
+                      status:
+                        r.request.status === 'pending'
+                          ? ('pending' as const)
+                          : ('approved' as const),
+                    })),
+                  ),
+                { personId: member.personId, span, status: 'pending' as const },
+              ],
+              minimum: team.minimum,
+              from: span.from,
+              to: span.to,
+            }).days.filter((d) => d.below);
+      const policy = policyFrom(policiesOf.get(request.leaveType.key) ?? [], member, today);
+      const { start, end } = leaveYear(policy?.definition ?? null, today);
+      const balance = balanceOn(
+        (entriesOf.get(request.leaveType.key)?.get(member.personId) ?? []).filter(
+          (e) => e.effectiveOn >= start && e.effectiveOn <= end && e.requestId !== request.id,
+        ),
+        today,
+      );
+      const earlier = (declinedOf.get(member.personId) ?? [])
+        .filter((r) => r.request.span.to >= addDays(today, -90))
+        .at(-1);
+      return approvalItem(record, member, span, {
+        leaveTypeName,
+        others,
+        overlapping,
+        short,
+        balance,
+        earlier,
+        byId,
+        afterWorkingDays,
+      });
+    }),
+  );
+}
+
+interface TeamRead {
+  readonly members: readonly Member[];
+  readonly minimum: TeamMinimum | null;
+  readonly calendars: readonly { personId: PersonId; calendar: WorkCalendar }[];
+  readonly records: readonly RequestRecord[];
+}
+
+/** G1: one request waiting on the caller, with what they need to decide, from what was read. */
+function approvalItem(
+  record: RequestRecord,
+  member: Member,
+  span: Span,
+  read: {
+    readonly leaveTypeName: string;
+    readonly others: readonly Member[];
+    readonly overlapping: readonly RequestRecord[];
+    readonly short: readonly DayCoverage[];
+    readonly balance: Balance;
+    readonly earlier: RequestRecord | undefined;
+    readonly byId: ReadonlyMap<PersonId, Member>;
+    readonly afterWorkingDays: number;
+  },
+): InboxItem {
+  const { request, routing } = record;
+  const { leaveTypeName, overlapping, balance, earlier, byId, afterWorkingDays } = read;
+  const team = read.others;
   const week: TimeOffApprovalDetail['week'] = [];
   for (let d = span.from; d <= span.to && week.length < 10; d = addDays(d, 1)) {
     if (!isWeekday(d)) continue;
@@ -595,15 +768,7 @@ async function approvalItem(
     week.push({ date: d, out });
   }
   const mostOut = Math.max(0, ...week.map((w) => w.out.length));
-  const balance = await balanceFor(tx, member, request.leaveType.key, today, request.id);
   const after = days(balance.left).minus(span.workingDays);
-  const earlier = (
-    await tx.requests.list({
-      personIds: [member.personId],
-      statuses: ['declined'],
-      from: addDays(today, -90),
-    })
-  ).at(-1);
   const due = escalation({
     pendingSince: routing.since,
     approverManagerId: null,
@@ -620,16 +785,7 @@ async function approvalItem(
     teamName: member.teamName,
     week,
     alreadyOut: team.length === 0 ? null : { out: mostOut, of: team.length + 1 },
-    short: (
-      await teamBelow(
-        tx,
-        member,
-        span.from,
-        span.to,
-        [{ personId: member.personId, span, status: 'pending' }],
-        request.id,
-      )
-    ).map((d) => ({ date: d.date, in: d.in, of: d.of, required: d.required })),
+    short: read.short.map((d) => ({ date: d.date, in: d.in, of: d.of, required: d.required })),
     balanceAfter: amount(after),
     allowance: balance.allowance,
     firstAsk:

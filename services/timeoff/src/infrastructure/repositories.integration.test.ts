@@ -5,7 +5,7 @@ import postgres from 'postgres';
 import { readdir, readFile } from 'node:fs/promises';
 import { fixedClock } from '@kithena/domain-kit';
 import {
-  type CalendarDate,
+  CalendarDate,
   DateSpan,
   DayAmount,
   LeaveApproved,
@@ -48,7 +48,7 @@ import { es } from '../country-packs/es.js';
 import type { WorkedDay } from '../domain/attendance/day.js';
 import { week } from '../domain/attendance/t20.fixture.js';
 import { decideAdjustment, proposeAdjustment } from '../domain/balance/adjustment.js';
-import { entry } from '../domain/balance/ledger.js';
+import { balanceOn, entry } from '../domain/balance/ledger.js';
 import type { EventContext } from '../domain/context.js';
 import { LeaveType } from '../domain/policy/leave-type.js';
 import { Policy, policyId } from '../domain/policy/policy.js';
@@ -327,6 +327,56 @@ describe('the ledger', () => {
       await run((tx) => tx.ledger.forMembers([people.omar, people.hana], vacationType().key)),
     ).toEqual(back);
     expect(await run((tx) => tx.ledger.forMembers([]))).toEqual([]);
+  });
+
+  it('folds what is left as balanceOn does: corrections, a borrow, last year and later rows', async () => {
+    const key = vacationType().key;
+    const row = (fields: Partial<Parameters<typeof entry>[0]>) =>
+      entry(
+        {
+          personId: people.ravi,
+          leaveTypeKey: key,
+          unit: 'day',
+          kind: 'grant',
+          amount: '0.000',
+          effectiveOn: '2026-01-01' as never,
+          ...fields,
+        },
+        ctx,
+      );
+    const lastYear = row({ amount: '20.000', effectiveOn: '2025-01-01' as never });
+    const grant = row({ amount: '25.000', policyVersion: 1 });
+    const corrected = row({ amount: '24.500', policyVersion: 1, supersedes: grant.entryId });
+    const booking = row({ kind: 'booking', amount: '-2.000', effectiveOn: '2026-03-02' as never });
+    const borrow = row({ kind: 'borrow', amount: '1.000', effectiveOn: '2026-03-02' as never });
+    const later = row({ kind: 'booking', amount: '-1.000', effectiveOn: '2026-11-20' as never });
+    // A correction that only counts from December leaves March's booking standing in November.
+    const laterFix = row({
+      kind: 'booking',
+      amount: '-1.000',
+      effectiveOn: '2026-12-01' as never,
+      supersedes: booking.entryId,
+    });
+    const rows = [lastYear, grant, corrected, booking, borrow, later, laterFix];
+    await run((tx) => tx.ledger.append(rows));
+
+    const start = CalendarDate.parse('2026-01-01');
+    const on = CalendarDate.parse('2026-11-08');
+    const left = await run((tx) =>
+      tx.ledger.leftOn(key, [
+        { personId: people.ravi, start, on },
+        { personId: people.hana, start, on },
+      ]),
+    );
+    expect(left.get(people.ravi)).toBe('22.500');
+    expect(left.get(people.ravi)).toBe(
+      balanceOn(
+        rows.filter((e) => e.effectiveOn >= start),
+        on,
+      ).left,
+    );
+    expect(left.get(people.hana)).toBe('0.000');
+    expect(await run((tx) => tx.ledger.leftOn(key, []))).toEqual(new Map());
   });
 });
 

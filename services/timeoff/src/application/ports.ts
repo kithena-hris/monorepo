@@ -7,6 +7,7 @@ import {
   PersonId,
   TeamKey,
   type Actor,
+  type DayAmount,
   type Instant,
   type LedgerEntry,
   type LeaveTypeKey,
@@ -150,7 +151,23 @@ export interface LedgerStore {
     personIds: readonly PersonId[],
     leaveTypeKey?: LeaveTypeKey,
   ): Promise<readonly LedgerEntry[]>;
+  /**
+   * What each member has left of a leave type on `on`, folded over the rows
+   * effective from `start` (their leave year's first day), corrections
+   * applied: `balanceOn(...).left`, summed by the store. A company's report
+   * asks it once instead of reading every row of every member's ledger.
+   */
+  leftOn(
+    leaveTypeKey: LeaveTypeKey,
+    asked: readonly LeftAsked[],
+  ): Promise<ReadonlyMap<PersonId, DayAmount>>;
   append(entries: readonly LedgerEntry[]): Promise<void>;
+}
+
+export interface LeftAsked {
+  readonly personId: PersonId;
+  readonly start: CalendarDate;
+  readonly on: CalendarDate;
 }
 
 /* --------------------------------------------------------------- request -- */
