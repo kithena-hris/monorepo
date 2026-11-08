@@ -84,11 +84,11 @@ import {
   moveToDone,
 } from '../../app/(app)/inbox/actions';
 import { Waking } from '../waking';
-import { InboxDetail } from './detail';
-import { forgetGaps, prefetchGaps } from './detail-people';
+import { forgetGaps, prefetchGaps } from './gaps-cache';
 import { forgetTaskScreens, prefetchTaskScreen } from './task-screen-cache';
 import { opensScreen } from '../../lib/inbox/opens-screen';
-import { BulkDecideDialog, type Candidate } from './dialogs';
+import type { InboxDetail as InboxDetailOf } from './detail';
+import type { Candidate } from './dialogs';
 import { InboxRow } from './rows';
 import { StackRow } from './stack';
 import { t } from '../../lib/t';
@@ -101,6 +101,16 @@ import { t } from '../../lib/t';
 const virtualList = (): Promise<{ default: typeof VirtualListOf }> =>
   import('@reach/ui/virtual-list').then((m) => ({ default: m.VirtualList }));
 const VirtualList = lazy(virtualList) as unknown as typeof VirtualListOf;
+
+// The open item, with every module's detail: its own chunk, asked for when
+// this screen first draws, so the route's prefetch on every page leaves it out.
+const detail = (): Promise<{ default: typeof InboxDetailOf }> =>
+  import('./detail').then((m) => ({ default: m.InboxDetail }));
+const InboxDetail = lazy(detail);
+
+const BulkDecideDialog = lazy(() =>
+  import('./dialogs').then((m) => ({ default: m.BulkDecideDialog })),
+);
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const HandOverDialog = lazy(() =>
@@ -320,6 +330,7 @@ function Screen({
       .slice(0, 3)
       .map((i) => i.id);
     const run = (): void => {
+      void detail();
       for (const id of first) ahead(id);
     };
     if (typeof window.requestIdleCallback === 'function') {
@@ -992,14 +1003,16 @@ function Screen({
           detail={
             selected === null ? null : (
               <div className="rounded-2xl bg-surface shadow-sm">
-                <InboxDetail
-                  key={selected.id}
-                  item={selected}
-                  now={now}
-                  zone={zone}
-                  onNext={next}
-                  {...(selected.id === item && screen !== undefined ? { screen } : {})}
-                />
+                <Suspense fallback={null}>
+                  <InboxDetail
+                    key={selected.id}
+                    item={selected}
+                    now={now}
+                    zone={zone}
+                    onNext={next}
+                    {...(selected.id === item && screen !== undefined ? { screen } : {})}
+                  />
+                </Suspense>
               </div>
             )
           }
@@ -1025,27 +1038,29 @@ function Screen({
         />
       </Waking>
       {dialog?.kind === 'bulk' ? (
-        <BulkDecideDialog
-          items={picked}
-          decision={dialog.decision}
-          warning={dialog.decision === 'approve' ? bulkWarning() : null}
-          onClose={() => {
-            setDialog(null);
-          }}
-          onConfirm={(note) => {
-            const ids = picked.flatMap((p) => {
-              const d = TimeOffApprovalDetail.safeParse(p.detail);
-              return d.success ? [d.data.requestId] : [];
-            });
-            setDialog(null);
-            setChecked(new Set());
-            setSelecting(false);
-            start(async () => {
-              await decideTimeOffMany(ids, dialog.decision, note);
-              router.refresh();
-            });
-          }}
-        />
+        <Suspense fallback={null}>
+          <BulkDecideDialog
+            items={picked}
+            decision={dialog.decision}
+            warning={dialog.decision === 'approve' ? bulkWarning() : null}
+            onClose={() => {
+              setDialog(null);
+            }}
+            onConfirm={(note) => {
+              const ids = picked.flatMap((p) => {
+                const d = TimeOffApprovalDetail.safeParse(p.detail);
+                return d.success ? [d.data.requestId] : [];
+              });
+              setDialog(null);
+              setChecked(new Set());
+              setSelecting(false);
+              start(async () => {
+                await decideTimeOffMany(ids, dialog.decision, note);
+                router.refresh();
+              });
+            }}
+          />
+        </Suspense>
       ) : null}
       {dialog?.kind === 'handover' ? (
         <Suspense fallback={null}>
