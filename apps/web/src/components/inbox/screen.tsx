@@ -43,10 +43,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   ToastProvider,
-  VirtualList,
+  type VirtualList as VirtualListOf,
   type VirtualRowProps,
 } from '@reach/ui';
 import { TimeOffApprovalDetail } from '@kithena/contracts';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   Suspense,
@@ -91,6 +92,12 @@ import { BulkDecideDialog, type Candidate } from './dialogs';
 import { InboxRow } from './rows';
 import { StackRow } from './stack';
 import { t } from '../../lib/t';
+
+// The list, virtualized: its own chunk, which only the Inbox fetches. In the
+// shell's shared chunk it was on every page (`acceptance/perf.acceptance.test.ts`).
+const VirtualList = dynamic(() =>
+  import('@reach/ui/virtual-list').then((m) => m.VirtualList),
+) as typeof VirtualListOf;
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const HandOverDialog = lazy(() =>
