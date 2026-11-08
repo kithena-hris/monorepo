@@ -312,10 +312,7 @@ export function drizzleLedger(tx: PostgresJsDatabase, tenantId: TenantId): Ledge
             and(
               eq(ledgerEntry.tenantId, tenantId),
               eq(ledgerEntry.leaveTypeKey, key),
-              inArray(
-                ledgerEntry.personId,
-                group.map((a) => a.personId),
-              ),
+              anyOf(ledgerEntry.personId, group.map((a) => a.personId)),
               gte(ledgerEntry.effectiveOn, start),
               lte(ledgerEntry.effectiveOn, on),
               // Live: not replaced by a correction that also falls in the year so far.
@@ -615,7 +612,7 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
         )
         .where(
           and(
-            inArray(request.personId, [...personIds]),
+            anyOf(request.personId, personIds),
             inArray(request.status, TAKEN),
             sql`${first} BETWEEN ${from}::date AND ${to}::date`,
           ),
@@ -652,7 +649,7 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
           )
           .where(
             and(
-              inArray(request.personId, personIds),
+              anyOf(request.personId, personIds),
               inArray(request.status, TAKEN),
               eq(leaveType.category, 'annual_leave'),
               sql`lower(range_merge(${request.days})) <= ${on}::date`,
@@ -668,6 +665,14 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
 
 /** What a report counts as taken: approved, or already taken. */
 const TAKEN = ['approved', 'taken'];
+
+/**
+ * `column = ANY(ids)` with the ids as one array parameter: a report asks for
+ * a company's members, and five thousand bind parameters cost more to send
+ * and plan than the query they filter.
+ */
+const anyOf = (column: AnyColumn, ids: readonly string[]): SQL =>
+  sql`${column} = ANY(${`{${ids.join(',')}}`}::uuid[])`;
 
 const decisionOf = (r: typeof requestDecision.$inferSelect): RequestDecision => ({
   id: r.id,
