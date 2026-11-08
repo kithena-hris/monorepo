@@ -23,6 +23,7 @@ import {
   EmptyState,
   formatList,
   icons,
+  List,
   ListDetail,
   PageHeader,
   SearchField,
@@ -47,7 +48,6 @@ import {
   type VirtualRowProps,
 } from '@reach/ui';
 import { TimeOffApprovalDetail } from '@kithena/contracts';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   Suspense,
@@ -93,11 +93,14 @@ import { InboxRow } from './rows';
 import { StackRow } from './stack';
 import { t } from '../../lib/t';
 
-// The list, virtualized: its own chunk, which only the Inbox fetches. In the
-// shell's shared chunk it was on every page (`acceptance/perf.acceptance.test.ts`).
-const VirtualList = dynamic(() =>
-  import('@reach/ui/virtual-list').then((m) => m.VirtualList),
-) as typeof VirtualListOf;
+// The list, virtualized: its own chunk, asked for when this screen first draws.
+// A route's prefetch fetches the route's chunks on every page with a link to
+// it, and `next/dynamic`'s are among them; this one is not
+// (`acceptance/perf.acceptance.test.ts`, the budgets). Until it lands the
+// first rows are drawn as a plain list, so nothing on screen changes.
+const virtualList = (): Promise<{ default: typeof VirtualListOf }> =>
+  import('@reach/ui/virtual-list').then((m) => ({ default: m.VirtualList }));
+const VirtualList = lazy(virtualList) as unknown as typeof VirtualListOf;
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const HandOverDialog = lazy(() =>
@@ -828,31 +831,45 @@ function Screen({
     lines.length === 0 ? (
       <div className="p-6">{empty}</div>
     ) : (
-      <VirtualList
-        label={viewLabel}
-        items={drawn}
-        itemKey={(line) => line.key}
-        scroll="page"
-        listItems
-        navigable
-        estimateItemHeight={ROW_HEIGHT}
-        {...(limit < lines.length
-          ? {
-              onEndReached: () => {
-                setPaged({ for: listFor, limit: limit + PAGE });
-              },
-            }
-          : {})}
-        total={shown.length}
-        // Items, not lines: a heading is none, and a stack is each item in it.
-        loaded={drawn.reduce(
-          (n, l) =>
-            n +
-            (l.kind === 'stack' ? l.entry.items.length : l.kind === 'item' && !l.nested ? 1 : 0),
-          0,
-        )}
-        renderItem={drawLine}
-      />
+      <Suspense
+        fallback={
+          <List navigable aria-label={viewLabel}>
+            {drawn.map((line, i) =>
+              drawLine(line, i, {
+                'data-index': i,
+                'aria-setsize': drawn.length,
+                'aria-posinset': i + 1,
+              }),
+            )}
+          </List>
+        }
+      >
+        <VirtualList
+          label={viewLabel}
+          items={drawn}
+          itemKey={(line) => line.key}
+          scroll="page"
+          listItems
+          navigable
+          estimateItemHeight={ROW_HEIGHT}
+          {...(limit < lines.length
+            ? {
+                onEndReached: () => {
+                  setPaged({ for: listFor, limit: limit + PAGE });
+                },
+              }
+            : {})}
+          total={shown.length}
+          // Items, not lines: a heading is none, and a stack is each item in it.
+          loaded={drawn.reduce(
+            (n, l) =>
+              n +
+              (l.kind === 'stack' ? l.entry.items.length : l.kind === 'item' && !l.nested ? 1 : 0),
+            0,
+          )}
+          renderItem={drawLine}
+        />
+      </Suspense>
     );
 
   const list = (
