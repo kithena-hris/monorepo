@@ -41,9 +41,9 @@ async function inboxOf(found: NonNullable<Awaited<ReturnType<typeof who>>>) {
   const { tenantId, sessionId, person } = found;
   const run: Run = (area, name, variables = {}) =>
     peopleFor(sessionId, tenantId, area, name, variables);
-  const state = stateOf(await readPreferenceFor(tenantId, person.accountId, 'inbox'));
+  const state = readPreferenceFor(tenantId, person.accountId, 'inbox').then(stateOf);
   const read = await readInbox(person.entitlements, run, state, new Date().toISOString());
-  return { state, read };
+  return { state: await state, read };
 }
 
 export async function GET(request: Request): Promise<Response> {
