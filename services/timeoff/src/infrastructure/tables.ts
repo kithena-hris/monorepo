@@ -381,6 +381,20 @@ export const attendanceDay = timeoff.table(
   (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.date] })],
 );
 
+/** `attendance_day` summed by member and month, for Insights: kept with the days. */
+export const attendanceMonth = timeoff.table(
+  'attendance_month',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    /** Its first day. */
+    month: calendarDate('month').notNull(),
+    missedClockOuts: integer('missed_clock_outs').notNull(),
+    overtimeMinutes: integer('overtime_minutes').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.month] })],
+);
+
 export const payPeriod = timeoff.table(
   'pay_period',
   {
