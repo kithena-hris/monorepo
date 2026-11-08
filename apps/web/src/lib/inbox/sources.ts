@@ -121,11 +121,15 @@ interface NamedFace {
   readonly avatarUrl: string | null;
 }
 
-/** Every module the company has, read at once, merged and shaped by the person's state. */
+/**
+ * Every module the company has, read at once, merged and shaped by the
+ * person's state. The state may still be on its way: the modules are asked
+ * without waiting for it, since identity's answer took as long as theirs.
+ */
 export async function readInbox(
   entitlements: readonly string[],
   run: Run,
-  state: InboxState,
+  state: InboxState | Promise<InboxState>,
   now: string,
 ): Promise<InboxRead & { readonly raw: readonly InboxItem[] }> {
   const sources = SOURCES.filter((s) => entitlements.includes(s.entitlement));
@@ -133,7 +137,7 @@ export async function readInbox(
   const unanswered = sources.filter((_, i) => answers[i]?.ok !== true).map((s) => s.module);
   const raw = itemsOf(answers.map((a, i) => (a.ok ? sources[i]?.answer(a.data) : null)));
   const photos = await photosOf(raw, entitlements, run);
-  const items = shape(raw, state, now).map((item) => {
+  const items = shape(raw, await state, now).map((item) => {
     const photo = item.from?.personId == null ? undefined : photos.get(item.from.personId);
     return photo === undefined ? item : { ...item, photo };
   });

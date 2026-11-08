@@ -34,8 +34,13 @@ export const inboxState = cache(async (): Promise<InboxState> =>
 );
 
 export const inboxNow = cache(async () => {
-  const [person, state] = await Promise.all([currentPerson(), inboxState()]);
-  const read = await readInbox(person?.entitlements ?? [], webRun, state, new Date().toISOString());
+  const person = await currentPerson();
+  const read = await readInbox(
+    person?.entitlements ?? [],
+    webRun,
+    inboxState(),
+    new Date().toISOString(),
+  );
   return { ...read, zone: person?.timeZone ?? 'UTC' };
 });
 

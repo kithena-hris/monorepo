@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const run: Run = (area, name, variables = {}) =>
     peopleFor(sessionId, tenantId, area, name, variables);
-  const state = stateOf(await readPreferenceFor(tenantId, person.accountId, 'inbox'));
+  const state = readPreferenceFor(tenantId, person.accountId, 'inbox').then(stateOf);
   const read = await readInbox(person.entitlements, run, state, new Date().toISOString());
   return NextResponse.json(
     {
