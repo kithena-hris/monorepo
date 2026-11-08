@@ -10,6 +10,7 @@ import {
   ne,
   notExists,
   sql,
+  type AnyColumn,
   type SQL,
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -312,7 +313,10 @@ export function drizzleLedger(tx: PostgresJsDatabase, tenantId: TenantId): Ledge
             and(
               eq(ledgerEntry.tenantId, tenantId),
               eq(ledgerEntry.leaveTypeKey, key),
-              anyOf(ledgerEntry.personId, group.map((a) => a.personId)),
+              anyOf(
+                ledgerEntry.personId,
+                group.map((a) => a.personId),
+              ),
               gte(ledgerEntry.effectiveOn, start),
               lte(ledgerEntry.effectiveOn, on),
               // Live: not replaced by a correction that also falls in the year so far.
