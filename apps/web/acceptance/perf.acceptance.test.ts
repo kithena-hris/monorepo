@@ -70,10 +70,14 @@ const BUDGET = {
 // on every page though both picker screens load lazily. A page varies by about
 // 0.5 KB between runs on the same code. Each page's largest scripts are printed
 // every run, to compare the next growth chunk by chunk.
+// From 8 Nov 2026, by the owner's choice: the Inbox's list became virtual, and
+// every page grew 1.1-1.5 KB in the shell's shared chunks though the list
+// itself loads lazily; Time Off's went from 560 to 562 rather than wait on a
+// split no one had found.
 const JS_BUDGET_KB: Readonly<Record<string, number>> = {
   people: 604,
   settings: 602,
-  timeoff: 560,
+  timeoff: 562,
 };
 
 /**
