@@ -108,7 +108,23 @@ describe('the directory filters', () => {
     await page.waitForLoadState('networkidle');
     problems.push(...seen('first load'));
 
-    await page.getByRole('button', { name: 'Add filter' }).click();
+    const add = page.getByRole('button', { name: 'Add filter' });
+    // A missing button says what the page held instead: it has gone missing in CI now and then.
+    await add.waitFor({ timeout: 30_000 }).catch(async (cause: unknown) => {
+      const held = await page.evaluate(() => ({
+        url: location.href,
+        remotes: [...document.querySelectorAll('[data-remote]')].map((r) => ({
+          remote: r.getAttribute('data-remote'),
+          hydrating: r.hasAttribute('data-hydrating'),
+        })),
+        filters: document.querySelector('[aria-label="Filters in force"]')?.outerHTML.slice(0, 600),
+        main: document.querySelector('main')?.innerText.slice(0, 600),
+      }));
+      throw new Error(
+        `${String(cause)}\n${JSON.stringify(held)}\nerrors: ${JSON.stringify(errors)}`,
+      );
+    });
+    await add.click();
     const dialog = page.getByRole('dialog', { name: 'Filter people' });
     await dialog.getByRole('combobox', { name: 'Condition 1 field' }).click();
     await page.getByRole('option', { name: 'Manager', exact: true }).click();
