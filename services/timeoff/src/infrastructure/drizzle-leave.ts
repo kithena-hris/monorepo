@@ -312,6 +312,16 @@ type RequestRow = {
   unit: string;
 };
 
+// Built once: a schema made per row is compiled per row, and a company's
+// year of requests made the pay period and Insights spend seconds in Zod.
+const RequestLeaveType = LeaveTypeDefinition.pick({
+  key: true,
+  category: true,
+  tracked: true,
+  paid: true,
+  unit: true,
+});
+
 function toRecord(tenantId: TenantId, { row: r, ...type }: RequestRow): RequestRecord {
   const runs = runsOf(r.days);
   const first = runs[0];
@@ -324,13 +334,7 @@ function toRecord(tenantId: TenantId, { row: r, ...type }: RequestRow): RequestR
     endsHalfDay: r.endsHalfDay,
     workingDays: r.workingDays as DayAmount,
   };
-  const leave = LeaveTypeDefinition.pick({
-    key: true,
-    category: true,
-    tracked: true,
-    paid: true,
-    unit: true,
-  }).parse({ key: r.leaveTypeKey, ...type });
+  const leave = RequestLeaveType.parse({ key: r.leaveTypeKey, ...type });
   return {
     request: LeaveRequest.rehydrate({
       id: r.id as LeaveRequestId,
