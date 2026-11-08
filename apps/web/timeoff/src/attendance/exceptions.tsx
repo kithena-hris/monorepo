@@ -280,7 +280,11 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
               )}
               {data.items.length < of(open).count ? (
                 <Button asChild size="sm" variant="ghost">
-                  <a href={at(`month=${data.month}&kind=${open}&shown=${data.items.length + 50}`)}>
+                  <a
+                    href={at(
+                      `month=${data.month}&kind=${open}&shown=${String(data.items.length + 50)}`,
+                    )}
+                  >
                     {t('attendance.exceptions.show_more', 'Show {{count}} more', {
                       count: Math.min(50, of(open).count - data.items.length),
                     })}
