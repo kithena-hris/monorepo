@@ -68,7 +68,7 @@ import { paintThemeColor, themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { Framed, useFramed } from './framed';
 import { InboxCount, InboxToasts, useInboxTodo } from './inbox/bell';
-import type { InboxPeek } from '../lib/inbox/peek';
+import { EMPTY_PEEK, type InboxPeek } from '../lib/inbox/peek';
 import { countOf, iconOf } from './people-nav';
 import {
   SidebarRail,
@@ -147,6 +147,8 @@ export interface AppShellProps {
   /**
    * The Inbox's counts and first rows (`inboxPeek`), still on its way: the
    * bell and the red number fill in when it lands, and nothing waits for it.
+   * Without one, the shell asks `/api/inbox/peek` once the page is in, and
+   * again whenever the layout is drawn anew after a write.
    */
   readonly inbox?: Promise<InboxPeek>;
   readonly children: ReactNode;
@@ -692,13 +694,29 @@ export function AppShell({
   shell = EMPTY_SHELL,
   shortcuts = DEFAULT_PREFS,
   slots = [],
-  inbox,
+  inbox: given,
   drawn = 0,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
   // Inside another page (the Inbox's pane): the screen alone, no chrome.
   const framed = useFramed();
+  const [asked, setAsked] = useState<Promise<InboxPeek>>();
+  useEffect(() => {
+    if (given !== undefined || framed) return;
+    let live = true;
+    // Handed on once it has landed, so nothing waits on it while it is asked.
+    void fetch('/api/inbox/peek', { cache: 'no-store' })
+      .then((r) => (r.ok ? (r.json() as Promise<InboxPeek>) : EMPTY_PEEK))
+      .catch(() => EMPTY_PEEK)
+      .then((peek) => {
+        if (live) setAsked(Promise.resolve(peek));
+      });
+    return () => {
+      live = false;
+    };
+  }, [given, framed, drawn]);
+  const inbox = given ?? asked;
   const shellView = useMemo(
     () => ({ shell, person, company: companyName }),
     [shell, person, companyName],
