@@ -4,6 +4,7 @@ import { Badge, ToastProvider, useToast } from '@reach/ui';
 import { Suspense, use, useEffect, useState, type JSX } from 'react';
 
 import type { InboxPeek } from '../../lib/inbox/peek';
+import { loadInboxScreen } from './screen-lazy';
 import { t as tr } from '../../lib/t';
 
 /**
@@ -38,6 +39,22 @@ export function InboxCount({
 }: {
   readonly inbox: Promise<InboxPeek> | undefined;
 }): JSX.Element | null {
+  // The Inbox's code, once the page's own is in: never part of a first load.
+  useEffect(() => {
+    if (performance.getEntriesByName('kithena:warm').length > 0) {
+      void loadInboxScreen();
+      return;
+    }
+    const watch = new PerformanceObserver((list) => {
+      if (list.getEntriesByName('kithena:warm').length === 0) return;
+      watch.disconnect();
+      void loadInboxScreen();
+    });
+    watch.observe({ type: 'mark', buffered: true });
+    return () => {
+      watch.disconnect();
+    };
+  }, []);
   if (inbox === undefined) return null;
   return (
     <Suspense fallback={null}>
