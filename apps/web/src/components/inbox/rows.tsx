@@ -1,6 +1,13 @@
 'use client';
 
-import { Avatar, Badge, Checkbox, ListItem, type SwipeAction } from '@reach/ui';
+import {
+  Avatar,
+  Badge,
+  Checkbox,
+  ListItem,
+  type SwipeAction,
+  type VirtualRowProps,
+} from '@reach/ui';
 import type { JSX, ReactNode } from 'react';
 
 import type { Shown } from '../../lib/inbox/model';
@@ -138,6 +145,7 @@ export function InboxRow({
   swipe,
   onOpen,
   fresh = false,
+  row,
 }: {
   readonly item: Shown;
   readonly now: string;
@@ -152,6 +160,8 @@ export function InboxRow({
   readonly onOpen?: () => void;
   /** In the feed's New section: no New badge, which the section already says. */
   readonly fresh?: boolean;
+  /** Its place in a virtual list. */
+  readonly row?: VirtualRowProps;
 }): JSX.Element {
   const age = item.count === null ? since(item.at, now) : String(item.count);
   const badges = <RowBadges item={item} now={now} zone={zone} fresh={fresh} />;
@@ -159,6 +169,7 @@ export function InboxRow({
   if (selecting) {
     return (
       <ListItem
+        {...row}
         leading={
           <Checkbox
             aria-label={t('components.inbox.rows.select', 'Select {{title}}', {
@@ -180,6 +191,7 @@ export function InboxRow({
   }
   return (
     <ListItem
+      {...row}
       asChild
       {...face(item)}
       description={item.summary}

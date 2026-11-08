@@ -69,10 +69,10 @@ import {
   saveOwnSection,
   savePersonSection,
 } from '../../app/(app)/people/actions';
-import { recordGaps } from '../../app/(app)/inbox/pane-actions';
 import { Actions, type BodyProps, Inline, OpenHere, useOpenHereClick } from './pane';
 import { ConfirmDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';
+import { forgetGap, type Gaps, prefetchGaps } from './gaps-cache';
 import { t } from '../../lib/t';
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
@@ -1575,24 +1575,6 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
  * fills in their manager, department and the rest, and sends the invitation
  * now or on a day. The task goes once it is sent or scheduled.
  */
-type Gaps = Awaited<ReturnType<typeof recordGaps>>;
-
-/** A hire's record gaps, asked for once per hire and kept for the visit: opened again, at once. */
-const gapsAsked = new Map<string, Promise<Gaps>>();
-/** The Inbox was read again (a write): every kept record may have changed. */
-export function forgetGaps(): void {
-  gapsAsked.clear();
-}
-
-export function prefetchGaps(personId: string): Promise<Gaps> {
-  let asked = gapsAsked.get(personId);
-  if (asked === undefined) {
-    asked = recordGaps(personId);
-    gapsAsked.set(personId, asked);
-  }
-  return asked;
-}
-
 /**
  * A hire to set up (the record filled in from their contract): what it still
  * needs, its required fields left empty, asked for here and saved to their
@@ -1662,7 +1644,7 @@ function SetUp({ item, act }: BodyProps): JSX.Element {
             act.run(() => savePersonSection(personId, '', changed), {
               title: t('components.inbox.detail-people.saved_to_the_record', 'Saved to the record'),
             });
-            gapsAsked.delete(personId);
+            forgetGap(personId);
           }}
         >
           {sections.map((s) => (

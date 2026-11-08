@@ -26,7 +26,6 @@ import {
   List,
   ListDetail,
   PageHeader,
-  ScrollPositionRail,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
@@ -45,6 +44,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   ToastProvider,
+  type VirtualList as VirtualListOf,
+  type VirtualRowProps,
 } from '@reach/ui';
 import { TimeOffApprovalDetail } from '@kithena/contracts';
 import { useRouter } from 'next/navigation';
@@ -83,14 +84,33 @@ import {
   moveToDone,
 } from '../../app/(app)/inbox/actions';
 import { Waking } from '../waking';
-import { InboxDetail } from './detail';
-import { forgetGaps, prefetchGaps } from './detail-people';
+import { forgetGaps, prefetchGaps } from './gaps-cache';
 import { forgetTaskScreens, prefetchTaskScreen } from './task-screen-cache';
 import { opensScreen } from '../../lib/inbox/opens-screen';
-import { BulkDecideDialog, type Candidate } from './dialogs';
+import type { InboxDetail as InboxDetailOf } from './detail';
+import type { Candidate } from './dialogs';
 import { InboxRow } from './rows';
 import { StackRow } from './stack';
 import { t } from '../../lib/t';
+
+// The list, virtualized: its own chunk, asked for when this screen first draws.
+// A route's prefetch fetches the route's chunks on every page with a link to
+// it, and `next/dynamic`'s are among them; this one is not
+// (`acceptance/perf.acceptance.test.ts`, the budgets). Until it lands the
+// first rows are drawn as a plain list, so nothing on screen changes.
+const virtualList = (): Promise<{ default: typeof VirtualListOf }> =>
+  import('@reach/ui/virtual-list').then((m) => ({ default: m.VirtualList }));
+const VirtualList = lazy(virtualList) as unknown as typeof VirtualListOf;
+
+// The open item, with every module's detail: its own chunk, asked for when
+// this screen first draws, so the route's prefetch on every page leaves it out.
+const detail = (): Promise<{ default: typeof InboxDetailOf }> =>
+  import('./detail').then((m) => ({ default: m.InboxDetail }));
+const InboxDetail = lazy(detail);
+
+const BulkDecideDialog = lazy(() =>
+  import('./dialogs').then((m) => ({ default: m.BulkDecideDialog })),
+);
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const HandOverDialog = lazy(() =>
@@ -138,6 +158,35 @@ const VIEW_LABEL: Readonly<Record<View, () => string>> = {
   snoozed: () => t('components.inbox.screen.view_snoozed', 'Snoozed'),
   done: () => t('components.inbox.screen.view_completed', 'Completed'),
 };
+
+/** Rows drawn at first, and added each time the reader nears the end. */
+const PAGE = 50;
+/** A row's height before it is measured: two lines of text and a badge. */
+const ROW_HEIGHT = 76;
+
+/** One row of the list: a heading, an item, or a stack's own line. */
+type Line =
+  | {
+      readonly kind: 'head';
+      readonly key: string;
+      /** A feed section, or `null` for a month's label. */
+      readonly section: SectionKey | null;
+      readonly label: string | null;
+      readonly count: number | null;
+    }
+  | {
+      readonly kind: 'item';
+      readonly key: string;
+      readonly item: Shown;
+      readonly inNew: boolean;
+      /** Under an open stack, whose own line already counts it. */
+      readonly nested: boolean;
+    }
+  | {
+      readonly kind: 'stack';
+      readonly key: string;
+      readonly entry: Exclude<Entry, { kind: 'item' }>;
+    };
 
 const SECTION_LABEL: Readonly<Record<SectionKey, () => string>> = {
   new: () => t('components.inbox.screen.section_new', 'New'),
@@ -231,7 +280,6 @@ function Screen({
     { source, q: search, outcome },
   );
   const sections = feed ? feedOf(shown) : [];
-  const listBox = useRef<HTMLDivElement | null>(null);
   // Completed, and All, by month, newest first.
   const dated =
     view === 'done'
@@ -282,6 +330,7 @@ function Screen({
       .slice(0, 3)
       .map((i) => i.id);
     const run = (): void => {
+      void detail();
       for (const id of first) ahead(id);
     };
     if (typeof window.requestIdleCallback === 'function') {
@@ -624,11 +673,12 @@ function Screen({
   );
 
   const current = new Map(items.map((i) => [i.id, i]));
-  const row = (placed: Shown, inNew = false): JSX.Element => {
+  const row = (placed: Shown, inNew: boolean, place: VirtualRowProps): JSX.Element => {
     const i = current.get(placed.id) ?? placed;
     return (
       <InboxRow
-        key={i.id}
+        key={`item:${i.id}`}
+        row={place}
         item={i}
         now={now}
         zone={zone}
@@ -678,31 +728,27 @@ function Screen({
     );
   };
 
-  const entry = (e: Entry, inNew: boolean): JSX.Element | JSX.Element[] =>
-    e.kind === 'item' ? (
-      row(e.item, inNew)
-    ) : (
-      <StackRow
-        key={e.key}
-        items={e.items}
-        open={open.has(e.key)}
-        onToggle={() => {
-          setOpen((was) => {
-            const n = new Set(was);
-            if (n.has(e.key)) n.delete(e.key);
-            else n.add(e.key);
-            return n;
-          });
-        }}
-      >
-        {e.items.map((i) => row(i))}
-      </StackRow>
-    );
+  const stack = (e: Exclude<Entry, { kind: 'item' }>, place: VirtualRowProps): JSX.Element => (
+    <StackRow
+      key={`stack:${e.key}`}
+      row={place}
+      items={e.items}
+      open={open.has(e.key)}
+      onToggle={() => {
+        setOpen((was) => {
+          const n = new Set(was);
+          if (n.has(e.key)) n.delete(e.key);
+          else n.add(e.key);
+          return n;
+        });
+      }}
+    />
+  );
 
-  const heading = (key: SectionKey, count: number): JSX.Element => (
+  const heading = (key: SectionKey, count: number, place: VirtualRowProps): JSX.Element => (
     // Not sticky: the list's toolbar already pins under the page's header, and
     // a third layer pinned under both slid over them as the window scrolled.
-    <div className="flex items-center gap-2 px-4.5 pt-4 pb-1.5">
+    <li key={`head:${key}`} {...place} className="flex items-center gap-2 px-4.5 pt-4 pb-1.5">
       <h2 className="text-sm font-semibold text-fg">{SECTION_LABEL[key]()}</h2>
       <Badge
         size="sm"
@@ -728,46 +774,119 @@ function Screen({
           {t('components.inbox.screen.mark_all_seen', 'Mark all seen')}
         </Button>
       ) : null}
-    </div>
+    </li>
   );
 
-  const body: ReactNode = feed ? (
-    sections.length === 0 ? (
+  // The list as one column of rows, headings and an open stack's items among
+  // them, so only what is on screen is drawn and the rest arrives a page at a time.
+  const itemLine = (item: Shown, inNew: boolean, nested: boolean): Line => ({
+    kind: 'item',
+    key: `item:${item.id}`,
+    item,
+    inNew,
+    nested,
+  });
+  const lines: readonly Line[] = feed
+    ? sections.flatMap((s): Line[] => [
+        {
+          kind: 'head',
+          key: `head:${s.key}`,
+          section: s.key,
+          label: null,
+          count: s.entries.reduce((n, e) => n + (e.kind === 'item' ? 1 : e.items.length), 0),
+        },
+        ...s.entries.flatMap((e): Line[] =>
+          e.kind === 'item'
+            ? [itemLine(e.item, s.key === 'new', false)]
+            : [
+                { kind: 'stack', key: `stack:${e.key}`, entry: e },
+                ...(open.has(e.key) ? e.items.map((i) => itemLine(i, false, true)) : []),
+              ],
+        ),
+      ])
+    : view === 'done' || view === 'all'
+      ? dated.flatMap((g): Line[] => [
+          ...(g.label === null
+            ? []
+            : [
+                {
+                  kind: 'head' as const,
+                  key: `head:${g.label}`,
+                  section: null,
+                  label: g.label,
+                  count: null,
+                },
+              ]),
+          ...g.items.map((i) => itemLine(i, false, false)),
+        ])
+      : snoozed.map((i) => itemLine(i, false, false));
+  const listFor = `${view}|${source ?? ''}|${search}|${outcome ?? ''}`;
+  const [paged, setPaged] = useState({ for: listFor, limit: PAGE });
+  if (paged.for !== listFor) setPaged({ for: listFor, limit: PAGE });
+  const limit = paged.for === listFor ? paged.limit : PAGE;
+  const drawn = lines.slice(0, limit);
+  const drawLine = (line: Line, _index: number, place: VirtualRowProps): ReactNode =>
+    line.kind === 'item' ? (
+      row(line.item, line.inNew, place)
+    ) : line.kind === 'stack' ? (
+      stack(line.entry, place)
+    ) : line.section === null ? (
+      <li key={line.key} {...place} className="px-4.5 pt-4 pb-1.5">
+        <h2 className="text-sm font-semibold text-fg">{line.label}</h2>
+      </li>
+    ) : (
+      heading(line.section, line.count ?? 0, place)
+    );
+
+  const body: ReactNode =
+    lines.length === 0 ? (
       <div className="p-6">{empty}</div>
     ) : (
-      sections.map((s) => (
-        <section key={s.key} aria-label={SECTION_LABEL[s.key]()}>
-          {heading(
-            s.key,
-            s.entries.reduce((n, e) => n + (e.kind === 'item' ? 1 : e.items.length), 0),
+      <Suspense
+        fallback={
+          <List navigable aria-label={viewLabel}>
+            {drawn.map((line, i) =>
+              drawLine(line, i, {
+                'data-index': i,
+                'aria-setsize': drawn.length,
+                'aria-posinset': i + 1,
+              }),
+            )}
+          </List>
+        }
+      >
+        <VirtualList
+          label={viewLabel}
+          items={drawn}
+          itemKey={(line) => line.key}
+          scroll="page"
+          listItems
+          navigable
+          estimateItemHeight={ROW_HEIGHT}
+          {...(limit < lines.length
+            ? {
+                onEndReached: () => {
+                  setPaged({ for: listFor, limit: limit + PAGE });
+                },
+              }
+            : {})}
+          total={shown.length}
+          // Items, not lines: a heading is none, and a stack is each item in it.
+          loaded={drawn.reduce(
+            (n, l) =>
+              n +
+              (l.kind === 'stack' ? l.entry.items.length : l.kind === 'item' && !l.nested ? 1 : 0),
+            0,
           )}
-          <List navigable>{s.entries.flatMap((e) => entry(e, s.key === 'new'))}</List>
-        </section>
-      ))
-    )
-  ) : view === 'done' || view === 'all' ? (
-    dated.length === 0 ? (
-      <div className="p-6">{empty}</div>
-    ) : (
-      dated.map((g) => (
-        <section key={g.label ?? 'all'} aria-label={g.label ?? viewLabel}>
-          {g.label === null ? null : (
-            <h2 className="px-4.5 pt-4 pb-1.5 text-sm font-semibold text-fg">{g.label}</h2>
-          )}
-          <List navigable>{g.items.map((i) => row(i))}</List>
-        </section>
-      ))
-    )
-  ) : snoozed.length === 0 ? (
-    <div className="p-6">{empty}</div>
-  ) : (
-    <List navigable>{snoozed.map((i) => row(i))}</List>
-  );
+          renderItem={drawLine}
+        />
+      </Suspense>
+    );
 
   const list = (
     // `clip`, not `hidden`: rounded without becoming a scroll box, so the
     // window scrolls the list and its toolbar sticks under the page's header.
-    <div ref={listBox} className="flex flex-col overflow-clip rounded-2xl bg-surface shadow-sm">
+    <div className="flex flex-col overflow-clip rounded-2xl bg-surface shadow-sm">
       <div data-list-head className="sticky top-(--reach-sticky-top,0px) z-10 bg-surface">
         {toolbar}
         {bulkBar}
@@ -809,13 +928,6 @@ function Screen({
       >
         {body}
       </div>
-      {/* How many, where the reader is among them, and back to the top. */}
-      <ScrollPositionRail
-        list={listBox}
-        loaded={shown.length}
-        total={shown.length}
-        className="pb-3"
-      />
     </div>
   );
 
@@ -891,14 +1003,16 @@ function Screen({
           detail={
             selected === null ? null : (
               <div className="rounded-2xl bg-surface shadow-sm">
-                <InboxDetail
-                  key={selected.id}
-                  item={selected}
-                  now={now}
-                  zone={zone}
-                  onNext={next}
-                  {...(selected.id === item && screen !== undefined ? { screen } : {})}
-                />
+                <Suspense fallback={null}>
+                  <InboxDetail
+                    key={selected.id}
+                    item={selected}
+                    now={now}
+                    zone={zone}
+                    onNext={next}
+                    {...(selected.id === item && screen !== undefined ? { screen } : {})}
+                  />
+                </Suspense>
               </div>
             )
           }
@@ -924,27 +1038,29 @@ function Screen({
         />
       </Waking>
       {dialog?.kind === 'bulk' ? (
-        <BulkDecideDialog
-          items={picked}
-          decision={dialog.decision}
-          warning={dialog.decision === 'approve' ? bulkWarning() : null}
-          onClose={() => {
-            setDialog(null);
-          }}
-          onConfirm={(note) => {
-            const ids = picked.flatMap((p) => {
-              const d = TimeOffApprovalDetail.safeParse(p.detail);
-              return d.success ? [d.data.requestId] : [];
-            });
-            setDialog(null);
-            setChecked(new Set());
-            setSelecting(false);
-            start(async () => {
-              await decideTimeOffMany(ids, dialog.decision, note);
-              router.refresh();
-            });
-          }}
-        />
+        <Suspense fallback={null}>
+          <BulkDecideDialog
+            items={picked}
+            decision={dialog.decision}
+            warning={dialog.decision === 'approve' ? bulkWarning() : null}
+            onClose={() => {
+              setDialog(null);
+            }}
+            onConfirm={(note) => {
+              const ids = picked.flatMap((p) => {
+                const d = TimeOffApprovalDetail.safeParse(p.detail);
+                return d.success ? [d.data.requestId] : [];
+              });
+              setDialog(null);
+              setChecked(new Set());
+              setSelecting(false);
+              start(async () => {
+                await decideTimeOffMany(ids, dialog.decision, note);
+                router.refresh();
+              });
+            }}
+          />
+        </Suspense>
       ) : null}
       {dialog?.kind === 'handover' ? (
         <Suspense fallback={null}>
