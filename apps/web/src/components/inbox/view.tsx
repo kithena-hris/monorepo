@@ -1,7 +1,7 @@
 import 'server-only';
 import type { JSX } from 'react';
 
-import { InboxScreen } from './screen-lazy';
+import { InboxScreen } from './screen';
 import type { View } from '../../lib/inbox/model';
 import { opensScreen } from '../../lib/inbox/opens-screen';
 import { inboxNow } from '../../lib/inbox/server';
