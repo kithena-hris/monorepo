@@ -33,7 +33,14 @@ import {
   type RequestRecord,
   type Tx,
 } from '../ports.js';
-import { balanceFor, calendarReader, leaveYear, policyFor, policyFrom, transact } from '../shared.js';
+import {
+  balanceFor,
+  calendarReader,
+  leaveYear,
+  policyFor,
+  policyFrom,
+  transact,
+} from '../shared.js';
 import { readerLocale, t } from '../reader-words.js';
 
 /**
@@ -472,7 +479,8 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
 
   // Days that will not carry over, as the year end comes (C9).
   for (const type of types.values()) {
-    if (!type.definition.tracked || type.deleted || type.definition.category !== 'annual_leave') continue;
+    if (!type.definition.tracked || type.deleted || type.definition.category !== 'annual_leave')
+      continue;
     const policy = await policyFor(tx, me, type.definition.key, today);
     if (policy === null) continue;
     const { end } = leaveYear(policy.definition, today);
@@ -627,13 +635,19 @@ async function approvalItems(
     if (held !== undefined) return held;
     const spans = asked.filter((a) => a.member.teamKey === teamKey).map((a) => a.span);
     const from = spans.map((x) => x.from).toSorted()[0] as CalendarDate;
-    const to = spans.map((x) => x.to).toSorted().at(-1) as CalendarDate;
+    const to = spans
+      .map((x) => x.to)
+      .toSorted()
+      .at(-1) as CalendarDate;
     const members = [...byId.values()].filter((m) => m.teamKey === teamKey && m.status !== 'left');
     const read = (async (): Promise<TeamRead> => {
       const [minimum, calendars, records] = await Promise.all([
         tx.approvals.teamMinimum(teamKey),
         Promise.all(
-          members.map(async (m) => ({ personId: m.personId, calendar: await calendar(m, from, to) })),
+          members.map(async (m) => ({
+            personId: m.personId,
+            calendar: await calendar(m, from, to),
+          })),
         ),
         tx.requests.list({
           personIds: members.map((m) => m.personId),
@@ -673,9 +687,16 @@ async function approvalItems(
                   .flatMap((r) =>
                     r.request.spans.map((run) => ({
                       personId: r.request.personId,
-                      span: { from: run.from, to: run.to, startsHalfDay: false, endsHalfDay: false },
+                      span: {
+                        from: run.from,
+                        to: run.to,
+                        startsHalfDay: false,
+                        endsHalfDay: false,
+                      },
                       status:
-                        r.request.status === 'pending' ? ('pending' as const) : ('approved' as const),
+                        r.request.status === 'pending'
+                          ? ('pending' as const)
+                          : ('approved' as const),
                     })),
                   ),
                 { personId: member.personId, span, status: 'pending' as const },

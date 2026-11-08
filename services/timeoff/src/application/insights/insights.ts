@@ -1,11 +1,5 @@
 import { ok, type Result } from '@kithena/domain-kit';
-import type {
-  CalendarDate,
-  DayAmount,
-  PersonId,
-  TeamKey,
-  TenantId,
-} from '@kithena/contracts';
+import type { CalendarDate, DayAmount, PersonId, TeamKey, TenantId } from '@kithena/contracts';
 
 import { addDays, addMonths, amount, days, Decimal, sum } from '../../domain/days.js';
 import {
@@ -275,13 +269,14 @@ export async function annualFactsOf(
     requestsOf.set(r.request.personId, held);
   }
   // Each member's leave year of each annual type, and what is left at its end.
-  const yearsOf = annual.map((_, i) =>
-    new Map(
-      members.map((m) => {
-        const policy = policyFrom(policies[i] ?? [], m, todayOf(m));
-        return [m.personId, { policy, ...leaveYear(policy?.definition ?? null, todayOf(m)) }];
-      }),
-    ),
+  const yearsOf = annual.map(
+    (_, i) =>
+      new Map(
+        members.map((m) => {
+          const policy = policyFrom(policies[i] ?? [], m, todayOf(m));
+          return [m.personId, { policy, ...leaveYear(policy?.definition ?? null, todayOf(m)) }];
+        }),
+      ),
   );
   const lefts = await Promise.all(
     annual.map((t, i) =>

@@ -277,8 +277,7 @@ export async function workedMonthsOf(
   await workedDaysOf(tx, deps, members, { from, to, statuses: ['live'] });
   const out = new Map<PersonId, Map<string, Omit<WorkedMonth, 'personId' | 'month'>>>();
   for (const w of await tx.attendance.workedMonths(from, to)) {
-    const held =
-      out.get(w.personId) ?? new Map<string, Omit<WorkedMonth, 'personId' | 'month'>>();
+    const held = out.get(w.personId) ?? new Map<string, Omit<WorkedMonth, 'personId' | 'month'>>();
     held.set(w.month, { missedClockOuts: w.missedClockOuts, overtimeMinutes: w.overtimeMinutes });
     out.set(w.personId, held);
   }

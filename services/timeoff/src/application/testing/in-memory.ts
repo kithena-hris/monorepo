@@ -424,7 +424,8 @@ function stores(tenantId: TenantId, s: State): Tx {
           months.set(key, {
             ...was,
             missedClockOuts: was.missedClockOuts + (d.status === 'open' ? 1 : 0),
-            overtimeMinutes: was.overtimeMinutes + (d.status === 'complete' ? d.overtimeMinutes : 0),
+            overtimeMinutes:
+              was.overtimeMinutes + (d.status === 'complete' ? d.overtimeMinutes : 0),
           });
         }
         return [...months.values()];
