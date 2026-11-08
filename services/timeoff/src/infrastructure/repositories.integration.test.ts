@@ -402,7 +402,7 @@ describe('requests', () => {
           {
             id: leaveRequestId(ids()),
             tenantId: TENANT,
-            personId: people.leo,
+            personId: people.yuki,
             leaveType: {
               key: def.key,
               category: def.category,
@@ -437,15 +437,15 @@ describe('requests', () => {
 
     const taken = await run((tx) =>
       tx.requests.takenByMonth({
-        personIds: [people.leo],
+        personIds: [people.yuki],
         from: CalendarDate.parse('2026-06-01'),
         to: CalendarDate.parse('2026-11-30'),
       }),
     );
     expect(taken.toSorted((a, b) => a.month.localeCompare(b.month))).toEqual([
-      { personId: people.leo, month: '2026-07', category: 'annual_leave', workingDays: '8.000' },
-      { personId: people.leo, month: '2026-08', category: 'sick_leave', workingDays: '1.000' },
-      { personId: people.leo, month: '2026-11', category: 'annual_leave', workingDays: '10.000' },
+      { personId: people.yuki, month: '2026-07', category: 'annual_leave', workingDays: '8.000' },
+      { personId: people.yuki, month: '2026-08', category: 'sick_leave', workingDays: '1.000' },
+      { personId: people.yuki, month: '2026-11', category: 'annual_leave', workingDays: '10.000' },
     ]);
     expect(
       await run((tx) =>
@@ -459,17 +459,17 @@ describe('requests', () => {
 
     const last = await run((tx) =>
       tx.requests.lastDayOff([
-        { personId: people.leo, on: CalendarDate.parse('2026-11-08') },
+        { personId: people.yuki, on: CalendarDate.parse('2026-11-08') },
         { personId: people.hana, on: CalendarDate.parse('2026-11-08') },
       ]),
     );
     // Cut at the day asked about: still away on the 8th.
-    expect(last).toEqual(new Map([[people.leo, '2026-11-08']]));
+    expect(last).toEqual(new Map([[people.yuki, '2026-11-08']]));
     const before = await run((tx) =>
-      tx.requests.lastDayOff([{ personId: people.leo, on: CalendarDate.parse('2026-10-01') }]),
+      tx.requests.lastDayOff([{ personId: people.yuki, on: CalendarDate.parse('2026-10-01') }]),
     );
     // Sick days and a request still waiting are not days off on annual leave.
-    expect(before.get(people.leo)).toBe('2026-07-31');
+    expect(before.get(people.yuki)).toBe('2026-07-31');
   });
 
   it('round-trips a request, its routing and a swap with a gap, with every event in the outbox', async () => {
