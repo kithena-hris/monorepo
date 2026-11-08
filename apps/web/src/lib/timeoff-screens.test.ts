@@ -203,9 +203,80 @@ describe('HR’s attendance pages (TOF-095 onwards)', () => {
     });
   });
 
+  it('counts every kind of exception, and sends a page of the open kind’s people', async () => {
+    const item = (kind: string, personId: string, minutes: number | null = null) => ({
+      kind,
+      personId,
+      minutes,
+    });
+    const many = Array.from({ length: 60 }, (_, i) => item('short_rest', `p${String(i)}`, 600));
+    answering({
+      TimeOffAttendanceExceptions: () => ({
+        ok: true,
+        data: {
+          items: [...many, item('overtime_waiting', 'p1', 30), item('overtime_waiting', 'p1', 45)],
+        },
+      }),
+    });
+    const first = await loadScreen('Exceptions', { params: {}, search: {} });
+    expect(first).toMatchObject({
+      status: 'ready',
+      data: {
+        kind: 'short_rest',
+        kinds: [
+          { kind: 'missed_clock_out', count: 0, people: 0, minutes: 0 },
+          { kind: 'short_rest', count: 60, people: 60, minutes: 36000 },
+          { kind: 'overtime_waiting', count: 2, people: 1, minutes: 75 },
+          { kind: 'worked_on_holiday', count: 0, people: 0, minutes: 0 },
+        ],
+      },
+    });
+    expect((first as { data: { items: unknown[] } }).data.items).toHaveLength(50);
+    const more = await loadScreen('Exceptions', { params: {}, search: { shown: '100' } });
+    expect((more as { data: { items: unknown[] } }).data.items).toHaveLength(60);
+    const asked = await loadScreen('Exceptions', {
+      params: {},
+      search: { kind: 'overtime_waiting' },
+    });
+    expect(asked).toMatchObject({ data: { kind: 'overtime_waiting', items: [{}, {}] } });
+  });
+
+  it('sends the insights’ people counted, and a page of those who would lose days', async () => {
+    const person = (n: number, loses: string) => ({
+      personId: `p${String(n)}`,
+      left: '2.000',
+      losesAtYearEnd: loses,
+    });
+    answering({
+      TimeOffInsights: () => ({
+        ok: true,
+        data: {
+          points: [{ kind: 'no_break', personIds: ['p1', 'p2'] }],
+          people: [
+            person(1, '1.000'),
+            person(2, '0.000'),
+            ...Array.from({ length: 60 }, (_, i) => person(i + 3, '3.000')),
+          ],
+        },
+      }),
+    });
+    const load = await loadScreen('Insights', { params: {}, search: { point: 'no_break' } });
+    const data = (load as { data: Record<string, unknown> }).data;
+    expect(data).toMatchObject({
+      headcount: 62,
+      unbooked: '124.000',
+      losingCount: 61,
+      points: [{ kind: 'no_break', people: 2 }],
+      behind: [{ personId: 'p1' }, { personId: 'p2' }],
+    });
+    expect(data['people']).toBeUndefined();
+    expect(data['losing']).toHaveLength(50);
+    expect((data['losing'] as { personId: string }[]).at(-1)?.personId).toBe('p52');
+  });
+
   it('reads the insights and the point from the address, and the nudge only when open', async () => {
     answering({
-      TimeOffInsights: () => ({ ok: true, data: { points: [] } }),
+      TimeOffInsights: () => ({ ok: true, data: { points: [], people: [] } }),
       TimeOffNudge: () => ({ ok: true, data: { recipients: [] } }),
     });
     const load = await loadScreen(

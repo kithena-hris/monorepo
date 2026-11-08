@@ -827,6 +827,10 @@
     "text": "{{date}} · {{duration}} rest before it",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"line\" value. Filled in: {{date}}, {{duration}}."
   },
+  "attendance.exceptions.show_more": {
+    "text": "Show {{count}} more",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <a>. Filled in: {{count}}."
+  },
   "attendance.exceptions.text": {
     "text": "{{date}} · {{value}}",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx: a \"line\" value. Filled in: {{date}}, {{value}}."
@@ -2398,6 +2402,10 @@
   "insights.insights.see_the_2": {
     "text": "See the {{length}}",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, WhatChanged: text inside <a>. Filled in: {{length}}."
+  },
+  "insights.insights.show_more": {
+    "text": "Show {{count}} more",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, ShowMore: text inside <a>. Filled in: {{count}}."
   },
   "insights.insights.sick": {
     "text": "Sick",

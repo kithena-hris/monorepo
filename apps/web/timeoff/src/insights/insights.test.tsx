@@ -86,6 +86,14 @@ describe('insights', () => {
     ]);
   });
 
+  it('lists a page of who would lose days, and asks for more in the address', () => {
+    const [most] = adaInsights().losing;
+    render(<Insights load={ready({ losing: most === undefined ? [] : [most] })} />);
+    expect(screen.getByRole('link', { name: 'Show 2 more' }).getAttribute('href')).toBe(
+      '/time-off/insights?shown=51',
+    );
+  });
+
   it('nudges the people without a break, each with only their own numbers (T28)', async () => {
     const onAsk = vi.fn();
     const onSend = vi.fn(() =>

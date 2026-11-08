@@ -32,7 +32,7 @@ describe('exceptions for HR', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('opens the first kind with anyone in it, and the one the address names', () => {
+  it('lists the people of the kind open beside the list, each linked by its address', () => {
     const { unmount } = render(<Exceptions load={ready()} />);
     const missed = within(screen.getByRole('list', { name: 'Missed clock-outs, by person' }));
     expect(missed.getAllByRole('listitem').map((r) => r.textContent)).toEqual([
@@ -42,7 +42,7 @@ describe('exceptions for HR', () => {
     expect(missed.getByText('Wed 30 Sept · no clock-out')).toBeTruthy();
     unmount();
 
-    render(<Exceptions load={ready({ kind: 'short_rest' })} />);
+    render(<Exceptions load={{ status: 'ready', data: adaExceptions('short_rest') }} />);
     const rest = within(
       screen.getByRole('list', { name: 'Less than 12h rest between days, by person' }),
     );
@@ -50,6 +50,14 @@ describe('exceptions for HR', () => {
     expect(
       screen.getByRole('link', { name: /^Less than 12h rest between days/ }).getAttribute('href'),
     ).toBe('/time-off/attendance/exceptions?month=2026-09&kind=short_rest');
+  });
+
+  it('lists a page of the open kind’s people, and asks for more in the address', () => {
+    const [first] = adaExceptions().items;
+    render(<Exceptions load={ready({ items: first === undefined ? [] : [first] })} />);
+    expect(screen.getByRole('link', { name: 'Show 1 more' }).getAttribute('href')).toBe(
+      '/time-off/attendance/exceptions?month=2026-09&kind=missed_clock_out&shown=51',
+    );
   });
 
   it('downloads the inspector’s record for the month, as CSV or PDF, and moves a month', async () => {
@@ -71,7 +79,7 @@ describe('exceptions for HR', () => {
   });
 
   it('says when nothing needs HR', () => {
-    render(<Exceptions load={ready({ items: [] })} />);
+    render(<Exceptions load={ready({ kind: null, kinds: [], items: [] })} />);
     expect(screen.getByText('Nothing needs you in September 2026.')).toBeTruthy();
   });
 

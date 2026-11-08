@@ -43,8 +43,16 @@ export interface ExceptionsData {
   /** `YYYY-MM`, the month on show. */
   readonly month: string;
   readonly restMinutes: number;
-  /** The kind open beside the list; the first with anyone in it when absent. */
-  readonly kind: string | null;
+  /** The kind open beside the list: the address's, else the first with anyone in it. */
+  readonly kind: ExceptionKind | null;
+  /** Every kind, counted: how many, how many people, and the minutes among them. */
+  readonly kinds: readonly {
+    readonly kind: ExceptionKind;
+    readonly count: number;
+    readonly people: number;
+    readonly minutes: number;
+  }[];
+  /** The open kind's, a page of them (`?shown=`). */
   readonly items: readonly {
     readonly kind: ExceptionKind;
     readonly date: string;
@@ -167,8 +175,9 @@ const body =
   'flex flex-col gap-6 @min-[60rem]/exceptions:grid @min-[60rem]/exceptions:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] @min-[60rem]/exceptions:items-start';
 
 function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
-  const of = (kind: ExceptionKind): Item[] => data.items.filter((i) => i.kind === kind);
-  const open = KINDS.find((k) => k === data.kind) ?? KINDS.find((k) => of(k).length > 0) ?? null;
+  const of = (kind: ExceptionKind) =>
+    data.kinds.find((k) => k.kind === kind) ?? { count: 0, people: 0, minutes: 0 };
+  const open = data.kind;
   const at = (patch: string): string => `/time-off/attendance/exceptions?${patch}`;
   const file = (format: 'csv' | 'pdf'): string =>
     `/time-off/downloads/inspector?from=${data.from}&to=${data.to}&format=${format}`;
@@ -205,7 +214,7 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {data.items.length === 0 ? (
+      {data.kinds.every((k) => k.count === 0) ? (
         <p className="text-sm text-fg-muted">
           {t('attendance.exceptions.nothing_needs_you_in', 'Nothing needs you in {{monthLabel}}.', {
             monthLabel: monthLabel(data.month),
@@ -218,12 +227,9 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
             aria-label={t('attendance.exceptions.what_needs_action', 'What needs action')}
           >
             {KINDS.map((kind) => {
-              const items = of(kind);
               const w = words(kind, data.restMinutes);
               const value =
-                kind === 'overtime_waiting'
-                  ? duration(items.reduce((n, i) => n + (i.minutes ?? 0), 0))
-                  : String(items.length);
+                kind === 'overtime_waiting' ? duration(of(kind).minutes) : String(of(kind).count);
               return (
                 <ListItem
                   key={kind}
@@ -247,10 +253,10 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
           {open === null ? null : (
             <PageSection
               title={words(open, data.restMinutes).title}
-              description={people(new Set(of(open).map((i) => i.personId)).size)}
+              description={people(of(open).people)}
               surface
             >
-              {of(open).length === 0 ? (
+              {of(open).count === 0 ? (
                 <p className="text-sm text-fg-muted">
                   {t('attendance.exceptions.nobody_this_month', 'Nobody this month.')}
                 </p>
@@ -260,7 +266,7 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
                     title: words(open, data.restMinutes).title,
                   })}
                 >
-                  {of(open).map((i) => (
+                  {data.items.map((i) => (
                     <ListItem
                       key={`${i.personId} ${i.date}`}
                       leading={<Avatar name={i.displayName} />}
@@ -272,6 +278,19 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
                   ))}
                 </List>
               )}
+              {data.items.length < of(open).count ? (
+                <Button asChild size="sm" variant="ghost">
+                  <a
+                    href={at(
+                      `month=${data.month}&kind=${open}&shown=${String(data.items.length + 50)}`,
+                    )}
+                  >
+                    {t('attendance.exceptions.show_more', 'Show {{count}} more', {
+                      count: Math.min(50, of(open).count - data.items.length),
+                    })}
+                  </a>
+                </Button>
+              ) : null}
             </PageSection>
           )}
         </div>
