@@ -42,10 +42,15 @@ export async function namesView(
     for (const personId of ids.personIds.slice(0, NAMES_LIMIT)) {
       if (!wanted.has(personId)) wanted.set(personId, null);
     }
+    // One read for all of them: person by person, a page of a hundred took a second.
+    const read = await deps.service.access.readMany(tx, {
+      ...asking,
+      personIds: [...wanted.keys()],
+    });
     const named: { accountId: string | null; personId: string; name: string }[] = [];
     for (const [personId, accountId] of wanted) {
-      const read = await deps.service.access.read(tx, { ...asking, personId });
-      const name = read.ok ? nameOf(read.value.attributes) : null;
+      const view = read.ok ? read.value.get(personId) : undefined;
+      const name = view === undefined ? null : nameOf(view.attributes);
       if (name !== null) named.push({ accountId, personId, name });
     }
     const avatars = await avatarsOf(
