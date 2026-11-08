@@ -10,6 +10,7 @@ import {
   ne,
   notExists,
   sql,
+  type AnyColumn,
   type SQL,
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -312,7 +313,7 @@ export function drizzleLedger(tx: PostgresJsDatabase, tenantId: TenantId): Ledge
             and(
               eq(ledgerEntry.tenantId, tenantId),
               eq(ledgerEntry.leaveTypeKey, key),
-              inArray(
+              anyOf(
                 ledgerEntry.personId,
                 group.map((a) => a.personId),
               ),
@@ -596,8 +597,86 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
         .orderBy(asc(requestDecision.decidedAt));
       return rows.map(decisionOf);
     },
+
+    async takenByMonth({ personIds, from, to }) {
+      if (personIds.length === 0) return [];
+      const first = sql`lower(range_merge(${request.days}))`;
+      const month = sql<string>`to_char(${first}, 'YYYY-MM')`;
+      const rows = await tx
+        .select({
+          personId: request.personId,
+          month,
+          category: leaveType.category,
+          workingDays: sql<string>`sum(${request.workingDays})::numeric(9,3)::text`,
+        })
+        .from(request)
+        .innerJoin(
+          leaveType,
+          and(eq(leaveType.tenantId, request.tenantId), eq(leaveType.key, request.leaveTypeKey)),
+        )
+        .where(
+          and(
+            anyOf(request.personId, personIds),
+            inArray(request.status, TAKEN),
+            sql`${first} BETWEEN ${from}::date AND ${to}::date`,
+          ),
+        )
+        .groupBy(request.personId, month, leaveType.category);
+      return rows.map((r) => ({
+        ...r,
+        personId: r.personId as PersonId,
+        workingDays: r.workingDays as DayAmount,
+      }));
+    },
+
+    async lastDayOff(asked) {
+      const out = new Map<PersonId, CalendarDate>();
+      // One query per day asked about; a company mostly shares one or two.
+      const byDay = new Map<CalendarDate, PersonId[]>();
+      for (const a of asked) {
+        const held = byDay.get(a.on) ?? [];
+        held.push(a.personId);
+        byDay.set(a.on, held);
+      }
+      for (const [on, personIds] of byDay) {
+        // oxlint-disable-next-line no-await-in-loop -- one transaction; a query per day asked about
+        const rows = await tx
+          .select({
+            personId: request.personId,
+            // A request's last day is the day before its range's exclusive end.
+            day: sql<string>`max(least(upper(range_merge(${request.days})) - 1, ${on}::date))::text`,
+          })
+          .from(request)
+          .innerJoin(
+            leaveType,
+            and(eq(leaveType.tenantId, request.tenantId), eq(leaveType.key, request.leaveTypeKey)),
+          )
+          .where(
+            and(
+              anyOf(request.personId, personIds),
+              inArray(request.status, TAKEN),
+              eq(leaveType.category, 'annual_leave'),
+              sql`lower(range_merge(${request.days})) <= ${on}::date`,
+            ),
+          )
+          .groupBy(request.personId);
+        for (const r of rows) out.set(r.personId as PersonId, r.day as CalendarDate);
+      }
+      return out;
+    },
   };
 }
+
+/** What a report counts as taken: approved, or already taken. */
+const TAKEN = ['approved', 'taken'];
+
+/**
+ * `column = ANY(ids)` with the ids as one array parameter: a report asks for
+ * a company's members, and five thousand bind parameters cost more to send
+ * and plan than the query they filter.
+ */
+const anyOf = (column: AnyColumn, ids: readonly string[]): SQL =>
+  sql`${column} = ANY(${`{${ids.join(',')}}`}::uuid[])`;
 
 const decisionOf = (r: typeof requestDecision.$inferSelect): RequestDecision => ({
   id: r.id,
