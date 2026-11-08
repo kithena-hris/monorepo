@@ -792,7 +792,13 @@ async function leaveFactsOf(
   const [policies, ledgers, requests] = await Promise.all([
     Promise.all(tracked.map((t) => tx.policies.forLeaveType(t.definition.key))),
     Promise.all(tracked.map((t) => tx.ledger.forMembers(ids, t.definition.key))),
-    tx.requests.list({ personIds: ids, statuses: ['approved', 'taken'] }),
+    // Only what overlaps the period: unpaid days count a request starting in it.
+    tx.requests.list({
+      personIds: ids,
+      statuses: ['approved', 'taken'],
+      from: period.from,
+      to: period.to,
+    }),
   ]);
   const byPerson = <T>(rows: readonly T[], id: (r: T) => string): Map<string, T[]> => {
     const out = new Map<string, T[]>();
