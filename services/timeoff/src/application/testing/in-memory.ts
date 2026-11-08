@@ -8,6 +8,7 @@ import {
 } from '../../domain/approval/approval-rule.js';
 import { routeTo, type Delegation } from '../../domain/approval/delegation.js';
 import { balanceOn } from '../../domain/balance/ledger.js';
+import { amount, days } from '../../domain/days.js';
 import type { Punch } from '../../domain/attendance/clock.js';
 import { DEFAULT_RULES, type AttendanceRules } from '../../domain/attendance/day.js';
 import type { PayPeriod, TimeLine } from '../../domain/attendance/pay-period.js';
@@ -52,6 +53,7 @@ import type {
   PolicyStore,
   RequestRecord,
   RequestStore,
+  TakenMonth,
   Settings,
   StoredKey,
   StoredPlan,
@@ -105,6 +107,9 @@ interface State {
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
+
+/** What a report counts as taken: approved, or already taken. */
+const TAKEN: readonly string[] = ['approved', 'taken'];
 
 const empty = (): State => ({
   members: new Map(),
@@ -297,6 +302,36 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.decisions
           .filter((d) => ids.includes(d.requestId))
           .toSorted((a, b) => a.decidedAt.localeCompare(b.decidedAt)),
+      takenByMonth: ({ personIds, from, to }) => {
+        const sums = new Map<string, TakenMonth>();
+        for (const { request: r } of s.requests.values()) {
+          if (!personIds.includes(r.personId) || !TAKEN.includes(r.status)) continue;
+          if (r.span.from < from || r.span.from > to) continue;
+          const month = r.span.from.slice(0, 7);
+          const key = `${r.personId}/${month}/${r.leaveType.category}`;
+          const held = sums.get(key);
+          sums.set(key, {
+            personId: r.personId,
+            month,
+            category: r.leaveType.category,
+            workingDays: amount(days(held?.workingDays ?? '0').plus(r.span.workingDays)),
+          });
+        }
+        return [...sums.values()];
+      },
+      lastDayOff: (asked) => {
+        const out = new Map<PersonId, CalendarDate>();
+        for (const a of asked) {
+          for (const { request: r } of s.requests.values()) {
+            if (r.personId !== a.personId || !TAKEN.includes(r.status)) continue;
+            if (r.leaveType.category !== 'annual_leave' || r.span.from > a.on) continue;
+            const day = r.span.to < a.on ? r.span.to : a.on;
+            const held = out.get(a.personId);
+            if (held === undefined || day > held) out.set(a.personId, day);
+          }
+        }
+        return out;
+      },
       decisionsBy: (accountId) =>
         s.decisions
           .filter((d) => d.decidedBy === accountId)

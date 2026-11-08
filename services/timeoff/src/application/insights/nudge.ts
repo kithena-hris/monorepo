@@ -246,7 +246,9 @@ async function recipients(
         bridge: nextBridge(
           holidays,
           deps.clock.date(m.timeZone),
-          own.requests.map((r) => r.request.span),
+          (
+            await tx.requests.list({ personIds: [m.personId], statuses: ['approved', 'taken'] })
+          ).map((r) => r.request.span),
           own.yearEnd,
         ),
       },

@@ -121,7 +121,10 @@ describe('insights (TOF-097)', () => {
     // Adam clocks in on 9 September and never out.
     const app = world('2026-09-09T07:00:00.000Z', { withGrant: true });
     const adam = caller(people.adam);
-    await punchIn(app.deps)(adam, PunchInput.parse({ kind: 'in', source: 'web', workModel: 'office' }));
+    await punchIn(app.deps)(
+      adam,
+      PunchInput.parse({ kind: 'in', source: 'web', workModel: 'office' }),
+    );
     const later = { ...app.deps, clock: fixedClock('2026-10-01T07:00:00.000Z') };
     const september = async () => {
       const read = await insights(later)(hr);

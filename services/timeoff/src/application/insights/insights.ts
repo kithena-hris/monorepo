@@ -12,7 +12,7 @@ import {
 import type { Writer } from '../assist/ports.js';
 import { written, type Line } from '../assist/written.js';
 import { workedMonthsOf } from '../attendance/attendance.js';
-import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
+import type { Caller, Deps, Member, Tx } from '../ports.js';
 import { forbidden, isHrAdmin, leaveYear, policyFrom, relatedIds, transact } from '../shared.js';
 
 /**
@@ -236,17 +236,16 @@ export interface AnnualFacts {
   readonly losesAtYearEnd: DayAmount;
   readonly yearEnd: CalendarDate;
   readonly lastDayOff: CalendarDate | null;
-  readonly requests: readonly RequestRecord[];
 }
 
 /**
  * Each member's annual leave this leave year: what is left, what the year
- * end would take above the carry-over, when it ends, their last day off up to
- * today, and the approved requests that say so.
+ * end would take above the carry-over, when it ends, and their last day off
+ * up to today.
  *
- * Read for all of them at once: the leave types, each annual type's policies
- * and ledger, and the requests, a handful of queries however many members,
- * where asking member by member was seven each.
+ * Read for all of them at once, and summed where the rows are: the leave
+ * types, each annual type's policies, what is left and the last day off, a
+ * handful of queries however many members.
  */
 export async function annualFactsOf(
   tx: Tx,
@@ -254,20 +253,13 @@ export async function annualFactsOf(
   todayOf: (m: Member) => CalendarDate,
 ): Promise<ReadonlyMap<PersonId, AnnualFacts>> {
   if (members.length === 0) return new Map();
-  const ids = members.map((m) => m.personId);
   const annual = (await tx.leaveTypes.list()).filter(
     (t) => t.definition.category === 'annual_leave' && t.definition.tracked && !t.deleted,
   );
-  const [policies, requests] = await Promise.all([
+  const [policies, lastDaysOff] = await Promise.all([
     Promise.all(annual.map((t) => tx.policies.forLeaveType(t.definition.key))),
-    tx.requests.list({ personIds: ids, statuses: ['approved', 'taken'] }),
+    tx.requests.lastDayOff(members.map((m) => ({ personId: m.personId, on: todayOf(m) }))),
   ]);
-  const requestsOf = new Map<string, RequestRecord[]>();
-  for (const r of requests) {
-    const held = requestsOf.get(r.request.personId) ?? [];
-    held.push(r);
-    requestsOf.set(r.request.personId, held);
-  }
   // Each member's leave year of each annual type, and what is left at its end.
   const yearsOf = annual.map(
     (_, i) =>
@@ -306,18 +298,14 @@ export async function annualFactsOf(
         const cap = policy?.definition.carryOver?.maxDays;
         loses = loses.plus(Decimal.max(0, cap === undefined ? mine : mine.minus(cap)));
       });
-      const own = requestsOf.get(m.personId) ?? [];
-      const lastDayOff =
-        own
-          .filter(
-            (r) => r.request.leaveType.category === 'annual_leave' && r.request.span.from <= today,
-          )
-          .map((r) => (r.request.span.to < today ? r.request.span.to : today))
-          .toSorted()
-          .at(-1) ?? null;
       return [
         m.personId,
-        { left: amount(left), losesAtYearEnd: amount(loses), yearEnd, lastDayOff, requests: own },
+        {
+          left: amount(left),
+          losesAtYearEnd: amount(loses),
+          yearEnd,
+          lastDayOff: lastDaysOff.get(m.personId) ?? null,
+        },
       ];
     }),
   );
@@ -329,33 +317,22 @@ function factsOf(
   months: readonly string[],
   read: {
     readonly annual: AnnualFacts | undefined;
+    /** Working days taken by `YYYY-MM` the request starts in, then leave category. */
+    readonly taken: ReadonlyMap<string, ReadonlyMap<string, DayAmount>>;
     /** Open days and overtime by `YYYY-MM`, summed where the days are kept. */
     readonly attendance: ReadonlyMap<string, { missedClockOuts: number; overtimeMinutes: number }>;
   },
 ): MemberYear {
-  const { left, losesAtYearEnd, lastDayOff, requests } = read.annual ?? {
+  const { left, losesAtYearEnd, lastDayOff } = read.annual ?? {
     left: amount('0'),
     losesAtYearEnd: amount('0'),
     lastDayOff: null,
-    requests: [],
   };
   const byMonth = new Map<string, Omit<Monthly, 'month'>>();
   for (const month of months) {
-    const from = `${month}-01` as CalendarDate;
-    const to = addDays(addMonths(from, 1), -1);
+    const inMonth = [...(read.taken.get(month) ?? [])];
     const taken = (category: (c: string) => boolean) =>
-      amount(
-        sum(
-          requests
-            .filter(
-              (r) =>
-                category(r.request.leaveType.category) &&
-                r.request.span.from >= from &&
-                r.request.span.from <= to,
-            )
-            .map((r) => days(r.request.span.workingDays)),
-        ),
-      );
+      amount(sum(inMonth.filter(([c]) => category(c)).map(([, n]) => days(n))));
     byMonth.set(month, {
       vacation: taken((c) => c === 'annual_leave'),
       personal: taken((c) => c !== 'annual_leave' && c !== 'sick_leave'),
@@ -401,14 +378,30 @@ export const insights =
           (await tx.settings.get('cohort_minimum'))?.value ?? DEFAULT_COHORT_MINIMUM;
         // What every member's year is built from, read for all of them at
         // once: a handful of queries, not several per member.
-        const [annual, attendance] = await Promise.all([
+        const shownFrom = addMonths(first, 1 - MONTHS);
+        const [annual, attendance, taken] = await Promise.all([
           annualFactsOf(tx, scope.members, (m) => deps.clock.date(m.timeZone)),
           // The six months on show, to yesterday: each member's kept days, summed.
-          workedMonthsOf(tx, deps, scope.members, addMonths(first, 1 - MONTHS), addDays(today, -1)),
+          workedMonthsOf(tx, deps, scope.members, shownFrom, addDays(today, -1)),
+          // And their time off over the six months, summed by month and category.
+          tx.requests.takenByMonth({
+            personIds: scope.members.map((m) => m.personId),
+            from: shownFrom,
+            to: addDays(addMonths(first, 1), -1),
+          }),
         ]);
+        const takenOf = new Map<PersonId, Map<string, Map<string, DayAmount>>>();
+        for (const t of taken) {
+          const mine = takenOf.get(t.personId) ?? new Map<string, Map<string, DayAmount>>();
+          const month = mine.get(t.month) ?? new Map<string, DayAmount>();
+          month.set(t.category, t.workingDays);
+          mine.set(t.month, month);
+          takenOf.set(t.personId, mine);
+        }
         const years: MemberYear[] = scope.members.map((m) =>
           factsOf(m, months, {
             annual: annual.get(m.personId),
+            taken: takenOf.get(m.personId) ?? new Map(),
             attendance: attendance.get(m.personId) ?? new Map(),
           }),
         );

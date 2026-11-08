@@ -236,6 +236,33 @@ export interface RequestStore {
   decisions(requestIds: readonly LeaveRequestId[]): Promise<readonly RequestDecision[]>;
   /** Every decision one account made, oldest first: their receipts in Done. */
   decisionsBy(accountId: string): Promise<readonly RequestDecision[]>;
+  /**
+   * Working days of approved and taken requests, summed per member, per month
+   * a request starts in (`YYYY-MM`) and per leave category, for requests
+   * starting `from`–`to`: what a report counts, without reading the requests.
+   */
+  takenByMonth(filter: {
+    readonly personIds: readonly PersonId[];
+    readonly from: CalendarDate;
+    readonly to: CalendarDate;
+  }): Promise<readonly TakenMonth[]>;
+  /**
+   * Each member's last day off on annual leave up to `on`: the latest end of
+   * an approved or taken request begun by then, cut at `on`. None, no entry.
+   */
+  lastDayOff(asked: readonly DayAsked[]): Promise<ReadonlyMap<PersonId, CalendarDate>>;
+}
+
+export interface TakenMonth {
+  readonly personId: PersonId;
+  readonly month: string;
+  readonly category: string;
+  readonly workingDays: DayAmount;
+}
+
+export interface DayAsked {
+  readonly personId: PersonId;
+  readonly on: CalendarDate;
 }
 
 /**

@@ -389,6 +389,89 @@ describe('requests', () => {
     workingDays: DayAmount.parse(workingDays),
   });
 
+  it('sums days taken by month and category, and finds the last day off', async () => {
+    const ask = async (
+      def: ReturnType<typeof vacationType>,
+      from: string,
+      to: string,
+      workingDays: string,
+      approve = true,
+    ) => {
+      const { request } = must(
+        LeaveRequest.request(
+          {
+            id: leaveRequestId(ids()),
+            tenantId: TENANT,
+            personId: people.leo,
+            leaveType: {
+              key: def.key,
+              category: def.category,
+              tracked: def.tracked,
+              paid: def.paid,
+              unit: def.unit,
+            },
+            span: span(from, to, workingDays),
+            verdict: { kind: 'fits' },
+          },
+          ctx,
+        ),
+      );
+      if (approve) must(request.approve({ by: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx));
+      await run((tx) =>
+        tx.requests.save({
+          request,
+          routing: { chain: ['manager'], step: 0, since: '2026-06-01' as never, escalatedTo: null },
+          note: null,
+          requestedAt: '2026-06-01T09:00:00.000Z' as never,
+          proposedBy: null,
+          proposalMessage: null,
+        }),
+      );
+    };
+    await ask(vacationType(), '2026-07-06', '2026-07-08', '3.000');
+    await ask(vacationType(), '2026-07-27', '2026-07-31', '5.000');
+    await ask(sickType(), '2026-08-03', '2026-08-03', '1.000');
+    await ask(vacationType(), '2026-09-14', '2026-09-15', '2.000', false);
+    await ask(vacationType(), '2026-11-02', '2026-11-13', '10.000');
+    await ask(vacationType(), '2026-12-21', '2026-12-23', '3.000');
+
+    const taken = await run((tx) =>
+      tx.requests.takenByMonth({
+        personIds: [people.leo],
+        from: CalendarDate.parse('2026-06-01'),
+        to: CalendarDate.parse('2026-11-30'),
+      }),
+    );
+    expect(taken.toSorted((a, b) => a.month.localeCompare(b.month))).toEqual([
+      { personId: people.leo, month: '2026-07', category: 'annual_leave', workingDays: '8.000' },
+      { personId: people.leo, month: '2026-08', category: 'sick_leave', workingDays: '1.000' },
+      { personId: people.leo, month: '2026-11', category: 'annual_leave', workingDays: '10.000' },
+    ]);
+    expect(
+      await run((tx) =>
+        tx.requests.takenByMonth({
+          personIds: [],
+          from: CalendarDate.parse('2026-06-01'),
+          to: CalendarDate.parse('2026-11-30'),
+        }),
+      ),
+    ).toEqual([]);
+
+    const last = await run((tx) =>
+      tx.requests.lastDayOff([
+        { personId: people.leo, on: CalendarDate.parse('2026-11-08') },
+        { personId: people.hana, on: CalendarDate.parse('2026-11-08') },
+      ]),
+    );
+    // Cut at the day asked about: still away on the 8th.
+    expect(last).toEqual(new Map([[people.leo, '2026-11-08']]));
+    const before = await run((tx) =>
+      tx.requests.lastDayOff([{ personId: people.leo, on: CalendarDate.parse('2026-10-01') }]),
+    );
+    // Sick days and a request still waiting are not days off on annual leave.
+    expect(before.get(people.leo)).toBe('2026-07-31');
+  });
+
   it('round-trips a request, its routing and a swap with a gap, with every event in the outbox', async () => {
     const id = leaveRequestId(ids());
     const { request, entries } = must(
