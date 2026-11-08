@@ -57,7 +57,8 @@ export interface InsightsData {
     /** A model wrote `text` (TOF-097 on the assistant's writer). */
     readonly ai?: boolean;
     readonly sources: readonly string[];
-    readonly personIds: readonly string[];
+    /** How many people are behind it. */
+    readonly people: number;
   }[];
   readonly months: readonly {
     readonly month: string;
@@ -76,16 +77,26 @@ export interface InsightsData {
     readonly left: string;
   }[];
   readonly hiddenTeams: number;
-  readonly people: readonly {
-    readonly personId: string;
-    readonly displayName: string;
-    readonly teamName: string | null;
-    readonly left: string;
-    readonly losesAtYearEnd: string;
-    readonly lastDayOff: string | null;
-  }[];
+  /** Everyone the insights are over. */
+  readonly headcount: number;
+  /** Days left to book, everyone's together. */
+  readonly unbooked: string;
+  /** Who would lose days at the year end, most first: a page of them (`?shown=`). */
+  readonly losing: readonly InsightPerson[];
+  readonly losingCount: number;
+  /** The people behind the open point, a page of them. */
+  readonly behind: readonly InsightPerson[];
   /** T28's dialog, open (`?nudge=no_break`) with who it reaches and one message. */
   readonly nudge?: NudgeData | null;
+}
+
+interface InsightPerson {
+  readonly personId: string;
+  readonly displayName: string;
+  readonly teamName: string | null;
+  readonly left: string;
+  readonly losesAtYearEnd: string;
+  readonly lastDayOff: string | null;
 }
 
 export interface InsightsProps {
@@ -157,12 +168,12 @@ export function Insights({ load, onAsk, onSendNudges }: InsightsProps): JSX.Elem
                 ? tr(
                     'insights.insights.across_the_company_as_of',
                     'Across the company · {{people}} · as of {{longDate}}',
-                    { people: people(data.people.length), longDate: longDate(data.asOf) },
+                    { people: people(data.headcount), longDate: longDate(data.asOf) },
                   )
                 : tr(
                     'insights.insights.for_your_team_as_of',
                     'Your team · {{people}} · as of {{longDate}}',
-                    { people: people(data.people.length), longDate: longDate(data.asOf) },
+                    { people: people(data.headcount), longDate: longDate(data.asOf) },
                   )}
             </p>
             {/* One page, read top to bottom: what changed first, then the detail behind it. */}
@@ -206,7 +217,7 @@ export function Insights({ load, onAsk, onSendNudges }: InsightsProps): JSX.Elem
 
 function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
   const month = data.asOf.slice(0, 7);
-  const open = data.points.find((p) => p.kind === data.point && p.personIds.length > 0);
+  const open = data.points.find((p) => p.kind === data.point && p.people > 0);
   return (
     // The people behind a point open beside it; until then the points have the width.
     <div className={open === undefined ? undefined : body}>
@@ -256,18 +267,18 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
                           {s}
                         </Badge>
                       ))}
-                      {p.personIds.length === 0 || BEHIND[p.kind] === '' ? null : (
+                      {p.people === 0 || BEHIND[p.kind] === '' ? null : (
                         <Button asChild size="xs" variant="ghost">
                           <a
                             href={`/time-off/insights?point=${p.kind}`}
                             aria-label={tr(
                               'insights.insights.see_the',
                               'See the {{length}}: {{BEHIND}}',
-                              { length: String(p.personIds.length), BEHIND: BEHIND[p.kind] },
+                              { length: String(p.people), BEHIND: BEHIND[p.kind] },
                             )}
                           >
                             {tr('insights.insights.see_the_2', 'See the {{length}}', {
-                              length: String(p.personIds.length),
+                              length: String(p.people),
                             })}
                           </a>
                         </Button>
@@ -293,8 +304,7 @@ function Behind({
   readonly data: InsightsData;
   readonly point: InsightsData['points'][number];
 }): JSX.Element {
-  const ids = new Set(point.personIds);
-  const who = data.people.filter((p) => ids.has(p.personId));
+  const who = data.behind;
   return (
     <PageSection
       title={
@@ -302,13 +312,13 @@ function Behind({
           ? tr('insights.insights.who_would_lose_days_2', 'Who would lose days')
           : tr('insights.insights.no_day_off_since', 'No day off since')
       }
-      description={people(who.length)}
+      description={people(point.people)}
       actions={
         point.kind === 'no_break' ? (
           <Button asChild size="sm" variant="primary">
             <a href={`/time-off/insights?point=no_break&nudge=no_break`}>
               {tr('insights.insights.nudge_the', 'Nudge the {{length}}', {
-                length: String(who.length),
+                length: String(point.people),
               })}
             </a>
           </Button>
@@ -340,7 +350,31 @@ function Behind({
           </ListItem>
         ))}
       </List>
+      <ShowMore data={data} shown={who.length} of={point.people} />
     </PageSection>
+  );
+}
+
+/** More of a list of people than the page was sent, asked for in the address. */
+function ShowMore({
+  data,
+  shown,
+  of,
+}: {
+  readonly data: InsightsData;
+  readonly shown: number;
+  readonly of: number;
+}): JSX.Element | null {
+  if (shown >= of) return null;
+  const point = data.point === null ? '' : `point=${data.point}&`;
+  return (
+    <Button asChild size="sm" variant="ghost">
+      <a href={`/time-off/insights?${point}shown=${String(shown + 50)}`}>
+        {tr('insights.insights.show_more', 'Show {{count}} more', {
+          count: Math.min(50, of - shown),
+        })}
+      </a>
+    </Button>
   );
 }
 
@@ -525,10 +559,7 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
 }
 
 function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
-  const losing = data.people
-    .filter((p) => n(p.losesAtYearEnd) > 0)
-    .toSorted((a, b) => n(b.losesAtYearEnd) - n(a.losesAtYearEnd));
-  const unbooked = data.people.reduce((t, p) => t + Math.max(0, n(p.left)), 0);
+  const losing = data.losing;
   return (
     <div className={body}>
       <PageSection
@@ -539,7 +570,7 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
         )}
         surface
       >
-        {losing.length === 0 ? (
+        {data.losingCount === 0 ? (
           <p className="text-sm text-fg-muted">
             {tr(
               'insights.insights.nobody_would_lose_days_at_the',
@@ -563,17 +594,18 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
             ))}
           </List>
         )}
+        <ShowMore data={data} shown={losing.length} of={data.losingCount} />
       </PageSection>
       <div className="flex min-w-0 flex-col gap-6">
         <div className="grid grid-cols-2 gap-3">
           <Stat
             label={tr('insights.insights.unbooked_days', 'Unbooked days')}
             href="/time-off/calendar/year"
-            value={amount(unbooked.toFixed(3))}
+            value={amount(data.unbooked)}
           />
           <Stat
             label={tr('insights.insights.would_lose_some', 'Would lose some')}
-            value={String(losing.length)}
+            value={String(data.losingCount)}
           />
         </div>
         <PageSection title={tr('insights.insights.days_left_by_team', 'Days left by team')} surface>

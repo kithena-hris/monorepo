@@ -17657,7 +17657,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34940,7 +34942,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -52223,7 +52227,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -69506,7 +69512,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -87166,7 +87174,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -104826,7 +104836,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -122109,7 +122121,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -139769,7 +139783,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -157052,7 +157068,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -175089,7 +175107,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -192749,7 +192769,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -210786,7 +210808,9 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -228069,6 +228093,8 @@
     "timeoff:approvals.adjustments.available_now": "74a3beef14bc",
     "timeoff:approvals.adjustments.available_now_change": "fa5761be576e",
     "timeoff:approvals.adjustments.reading_the_balance": "8aa5c0cd5d8d",
-    "timeoff:approvals.adjustments.set_to": "d604a6875b5b"
+    "timeoff:approvals.adjustments.set_to": "d604a6875b5b",
+    "timeoff:attendance.exceptions.show_more": "d94a0e3b18cc",
+    "timeoff:insights.insights.show_more": "d94a0e3b18cc"
   }
 }

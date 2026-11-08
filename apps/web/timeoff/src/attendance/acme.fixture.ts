@@ -1,5 +1,5 @@
 import type { ClockData } from '../clock/clock';
-import type { ExceptionsData } from './exceptions';
+import type { ExceptionKind, ExceptionsData } from './exceptions';
 import type { PayPeriodData } from './pay-period';
 import type { AttendanceRequestsData } from './requests';
 import type { TeamNowData } from './team-now';
@@ -291,69 +291,83 @@ export const marcoRequests = (): AttendanceRequestsData => ({
  * overtime waiting, and Diego on the 15 August holiday — kept to the month
  * on show, so Diego's is in August's.
  */
-export const adaExceptions = (): ExceptionsData => ({
-  from: '2026-09-01',
-  to: '2026-09-30',
-  month: '2026-09',
-  restMinutes: 720,
-  kind: null,
-  items: [
-    {
-      kind: 'missed_clock_out',
-      date: '2026-09-25',
-      minutes: null,
-      holiday: null,
-      personId: 'p-leo',
-      displayName: 'Leo Rossi',
-      teamName: 'Platform',
-    },
-    {
-      kind: 'overtime_waiting',
-      date: '2026-09-29',
-      minutes: 90,
-      holiday: null,
-      personId: 'p-omar',
-      displayName: 'Omar Haddad',
-      teamName: 'Platform',
-    },
-    {
-      kind: 'overtime_waiting',
-      date: '2026-09-29',
-      minutes: 65,
-      holiday: null,
-      personId: ADAM,
-      displayName: 'Adam Novak',
-      teamName: 'Platform',
-    },
-    {
-      kind: 'short_rest',
-      date: '2026-09-30',
-      minutes: 610,
-      holiday: null,
-      personId: 'p-omar',
-      displayName: 'Omar Haddad',
-      teamName: 'Platform',
-    },
-    {
-      kind: 'short_rest',
-      date: '2026-09-30',
-      minutes: 655,
-      holiday: null,
-      personId: 'p-yuki',
-      displayName: 'Yuki Sato',
-      teamName: 'Platform',
-    },
-    {
-      kind: 'missed_clock_out',
-      date: '2026-09-30',
-      minutes: null,
-      holiday: null,
-      personId: ADAM,
-      displayName: 'Adam Novak',
-      teamName: 'Platform',
-    },
-  ],
-});
+const september: ExceptionsData['items'] = [
+  {
+    kind: 'missed_clock_out',
+    date: '2026-09-25',
+    minutes: null,
+    holiday: null,
+    personId: 'p-leo',
+    displayName: 'Leo Rossi',
+    teamName: 'Platform',
+  },
+  {
+    kind: 'overtime_waiting',
+    date: '2026-09-29',
+    minutes: 90,
+    holiday: null,
+    personId: 'p-omar',
+    displayName: 'Omar Haddad',
+    teamName: 'Platform',
+  },
+  {
+    kind: 'overtime_waiting',
+    date: '2026-09-29',
+    minutes: 65,
+    holiday: null,
+    personId: ADAM,
+    displayName: 'Adam Novak',
+    teamName: 'Platform',
+  },
+  {
+    kind: 'short_rest',
+    date: '2026-09-30',
+    minutes: 610,
+    holiday: null,
+    personId: 'p-omar',
+    displayName: 'Omar Haddad',
+    teamName: 'Platform',
+  },
+  {
+    kind: 'short_rest',
+    date: '2026-09-30',
+    minutes: 655,
+    holiday: null,
+    personId: 'p-yuki',
+    displayName: 'Yuki Sato',
+    teamName: 'Platform',
+  },
+  {
+    kind: 'missed_clock_out',
+    date: '2026-09-30',
+    minutes: null,
+    holiday: null,
+    personId: ADAM,
+    displayName: 'Adam Novak',
+    teamName: 'Platform',
+  },
+];
+
+/** The month as the page has it: every kind counted, the open kind's people listed. */
+export const adaExceptions = (kind: ExceptionKind = 'missed_clock_out'): ExceptionsData => {
+  const of = (k: ExceptionKind) => september.filter((i) => i.kind === k);
+  return {
+    from: '2026-09-01',
+    to: '2026-09-30',
+    month: '2026-09',
+    restMinutes: 720,
+    kind,
+    kinds: (
+      ['missed_clock_out', 'short_rest', 'overtime_waiting', 'worked_on_holiday'] as const
+    ).map((k) => ({
+      kind: k,
+      count: of(k).length,
+      people: new Set(of(k).map((i) => i.personId)).size,
+      minutes: of(k).reduce((n, i) => n + (i.minutes ?? 0), 0),
+    })),
+    items: of(kind),
+  };
+};
 
 /**
  * T24 for Ada on 1 October: September, over and not yet sent. Support has

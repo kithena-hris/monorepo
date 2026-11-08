@@ -347,16 +347,58 @@ function monthIn(search: Readonly<Record<string, string>>): {
 }
 
 /**
- * T23: what needs HR in attendance over a month (`?month=`), and the kind
- * open beside the list (`?kind=`), the screen's to apply.
+ * How many people a list of the company shows before "Show more", which asks
+ * for more in the address (`?shown=`). A company of thousands sent whole made
+ * pages of megabytes, every row drawn though nobody reads past the first.
+ */
+const PAGE = 50;
+const shownIn = (search: Readonly<Record<string, string>>): number => {
+  const n = Number(search['shown']);
+  return Number.isInteger(n) && n > PAGE ? n : PAGE;
+};
+
+const EXCEPTION_KINDS = [
+  'missed_clock_out',
+  'short_rest',
+  'overtime_waiting',
+  'worked_on_holiday',
+] as const;
+
+interface ExceptionItem {
+  readonly kind: string;
+  readonly personId: string;
+  readonly minutes: number | null;
+}
+
+/**
+ * T23: what needs HR in attendance over a month (`?month=`): each kind as a
+ * count, and the people in the one open beside it (`?kind=`, else the first
+ * with anyone in it), a page of them.
  */
 async function exceptions(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
   const { month, from, to, refused } = monthIn(search);
   const answer = await read('TimeOffAttendanceExceptions', { from, to });
   if (answer.status !== 'ready') return answer;
+  const { items, ...rest } = answer.data as { items: readonly ExceptionItem[] };
+  const of = (kind: string) => items.filter((i) => i.kind === kind);
+  const kind =
+    EXCEPTION_KINDS.find((k) => k === search['kind']) ??
+    EXCEPTION_KINDS.find((k) => of(k).length > 0) ??
+    null;
   return {
     status: 'ready',
-    data: { ...(answer.data as object), month, kind: search['kind'] ?? null },
+    data: {
+      ...rest,
+      month,
+      kind,
+      kinds: EXCEPTION_KINDS.map((k) => ({
+        kind: k,
+        count: of(k).length,
+        people: new Set(of(k).map((i) => i.personId)).size,
+        minutes: of(k).reduce((n, i) => n + (i.minutes ?? 0), 0),
+      })),
+      items: kind === null ? [] : of(kind).slice(0, shownIn(search)),
+    },
     ...(refused
       ? {
           notice: t('lib.timeoff-screens.not_a_month', '“{{asked}}” is not a month', {
@@ -407,14 +449,37 @@ async function insights(search: Readonly<Record<string, string>>): Promise<Scree
     nudging ? timeOff<unknown>('TimeOffNudge', include) : null,
   ]);
   if (answer.status !== 'ready') return answer;
+  const { people, points, ...rest } = answer.data as {
+    people: readonly InsightPerson[];
+    points: readonly { kind: string; personIds: readonly string[] }[];
+  };
+  const point = search['point'] ?? null;
+  const behind = new Set(points.find((p) => p.kind === point)?.personIds);
+  const losing = people
+    .filter((p) => Number(p.losesAtYearEnd) > 0)
+    .toSorted((a, b) => Number(b.losesAtYearEnd) - Number(a.losesAtYearEnd));
+  const shown = shownIn(search);
   return {
     status: 'ready',
     data: {
-      ...(answer.data as object),
-      point: search['point'] ?? null,
+      ...rest,
+      point,
+      // A point's people are only ever counted on the page, or listed when it is open.
+      points: points.map(({ personIds, ...p }) => ({ ...p, people: personIds.length })),
+      headcount: people.length,
+      unbooked: people.reduce((t, p) => t + Math.max(0, Number(p.left)), 0).toFixed(3),
+      losing: losing.slice(0, shown),
+      losingCount: losing.length,
+      behind: people.filter((p) => behind.has(p.personId)).slice(0, shown),
       nudge: nudge?.ok === true ? { ...(nudge.data as object), include } : null,
     },
   };
+}
+
+interface InsightPerson {
+  readonly personId: string;
+  readonly left: string;
+  readonly losesAtYearEnd: string;
 }
 
 /* ------------------------------------------- the manager's, TOF-068 to TOF-073 -- */

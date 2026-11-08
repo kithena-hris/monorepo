@@ -9,8 +9,30 @@ import type { InsightsData } from './insights';
 
 const P = (n: number): string => `7ac0e000-0000-7000-8000-${String(n).padStart(12, '0')}`;
 
-export const adaInsights = (over: Partial<InsightsData> = {}): InsightsData => ({
-  point: null,
+const BEHIND: Readonly<Record<string, readonly string[]>> = {
+  unbooked: [P(2), P(3), P(4)],
+  no_break: [P(3), P(5), P(6), P(7)],
+};
+
+/** Insights as the page has them: people counted, the lists cut to a page (`?shown=`). */
+export const adaInsights = (over: Partial<InsightsData> = {}): InsightsData => {
+  const point = over.point ?? null;
+  const behind = new Set(BEHIND[point ?? ''] ?? []);
+  return {
+    point,
+    headcount: people.length,
+    unbooked: people.reduce((t, p) => t + Math.max(0, Number(p.left)), 0).toFixed(3),
+    losing: people
+      .filter((p) => Number(p.losesAtYearEnd) > 0)
+      .toSorted((a, b) => Number(b.losesAtYearEnd) - Number(a.losesAtYearEnd)),
+    losingCount: 3,
+    behind: people.filter((p) => behind.has(p.personId)),
+    ...insights,
+    ...over,
+  };
+};
+
+const insights = {
   asOf: '2026-10-01',
   scope: 'company',
   cohortMinimum: 10,
@@ -20,21 +42,21 @@ export const adaInsights = (over: Partial<InsightsData> = {}): InsightsData => (
       figure: '1240',
       text: '1240 days of vacation are still unbooked this year. At this pace 3 people will lose some at the year end.',
       sources: ['Balances', 'Carry-over'],
-      personIds: [P(2), P(3), P(4)],
+      people: 3,
     },
     {
       kind: 'no_break',
       figure: '4',
       text: '4 people haven’t taken a day off since June.',
       sources: ['Time off'],
-      personIds: [P(3), P(5), P(6), P(7)],
+      people: 4,
     },
     {
       kind: 'missed_clock_outs',
       figure: '6',
       text: 'Missed clock-outs went from 19 last month to 6 this month.',
       sources: ['Attendance'],
-      personIds: [],
+      people: 0,
     },
   ],
   months: [
@@ -106,58 +128,61 @@ export const adaInsights = (over: Partial<InsightsData> = {}): InsightsData => (
     },
   ],
   hiddenTeams: 3,
-  people: [
-    {
-      personId: P(2),
-      displayName: 'Adam Novak',
-      teamName: 'Platform',
-      left: '14.500',
-      losesAtYearEnd: '9.500',
-      lastDayOff: '2026-08-14',
-    },
-    {
-      personId: P(3),
-      displayName: 'Omar Haddad',
-      teamName: 'Platform',
-      left: '20.000',
-      losesAtYearEnd: '15.000',
-      lastDayOff: null,
-    },
-    {
-      personId: P(4),
-      displayName: 'Hana Kim',
-      teamName: 'Platform',
-      left: '8.000',
-      losesAtYearEnd: '3.000',
-      lastDayOff: '2026-09-02',
-    },
-    {
-      personId: P(5),
-      displayName: 'Ravi Patel',
-      teamName: 'Platform',
-      left: '4.000',
-      losesAtYearEnd: '0.000',
-      lastDayOff: '2026-04-30',
-    },
-    {
-      personId: P(6),
-      displayName: 'Leo Rossi',
-      teamName: 'Platform',
-      left: '2.000',
-      losesAtYearEnd: '0.000',
-      lastDayOff: '2026-05-08',
-    },
-    {
-      personId: P(7),
-      displayName: 'Yuki Sato',
-      teamName: 'Platform',
-      left: '5.000',
-      losesAtYearEnd: '0.000',
-      lastDayOff: null,
-    },
-  ],
-  ...over,
-});
+} satisfies Omit<
+  InsightsData,
+  'point' | 'headcount' | 'unbooked' | 'losing' | 'losingCount' | 'behind'
+>;
+
+const people: InsightsData['behind'] = [
+  {
+    personId: P(2),
+    displayName: 'Adam Novak',
+    teamName: 'Platform',
+    left: '14.500',
+    losesAtYearEnd: '9.500',
+    lastDayOff: '2026-08-14',
+  },
+  {
+    personId: P(3),
+    displayName: 'Omar Haddad',
+    teamName: 'Platform',
+    left: '20.000',
+    losesAtYearEnd: '15.000',
+    lastDayOff: null,
+  },
+  {
+    personId: P(4),
+    displayName: 'Hana Kim',
+    teamName: 'Platform',
+    left: '8.000',
+    losesAtYearEnd: '3.000',
+    lastDayOff: '2026-09-02',
+  },
+  {
+    personId: P(5),
+    displayName: 'Ravi Patel',
+    teamName: 'Platform',
+    left: '4.000',
+    losesAtYearEnd: '0.000',
+    lastDayOff: '2026-04-30',
+  },
+  {
+    personId: P(6),
+    displayName: 'Leo Rossi',
+    teamName: 'Platform',
+    left: '2.000',
+    losesAtYearEnd: '0.000',
+    lastDayOff: '2026-05-08',
+  },
+  {
+    personId: P(7),
+    displayName: 'Yuki Sato',
+    teamName: 'Platform',
+    left: '5.000',
+    losesAtYearEnd: '0.000',
+    lastDayOff: null,
+  },
+];
 
 /** T28 open over What changed: the four without a break, Yuki without a work email. */
 export const adaNudging = (): InsightsData =>
