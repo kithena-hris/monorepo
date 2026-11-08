@@ -20,7 +20,7 @@ import {
 } from '@kithena/contracts';
 
 import { append, balanceOn, type Balance } from '../domain/balance/ledger.js';
-import { holidayDates } from '../domain/calendar/holiday-calendar.js';
+import { holidayDates, type HolidayLayer } from '../domain/calendar/holiday-calendar.js';
 import { MONDAY_TO_FRIDAY, type WorkCalendar } from '../domain/calendar/working-days.js';
 import { envelope, type EventContext } from '../domain/context.js';
 import { addDays, addMonths } from '../domain/days.js';
@@ -156,23 +156,44 @@ const yearOf = (date: CalendarDate): number => Number(date.slice(0, 4));
  * from the one before `from` to the one after `to`: days away reaches past a
  * request's own dates, and across New Year.
  */
-export async function calendarOf(
+export function calendarOf(
   tx: Tx,
   member: Member,
   from: CalendarDate,
   to: CalendarDate,
 ): Promise<WorkCalendar> {
-  const keys = member.locationKey === null ? [] : await tx.holidays.assigned(member.locationKey);
-  const layers = (await tx.holidays.layers())
-    .filter((l) => keys.includes(l.key))
-    .toSorted((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
-  const holidays = new Set<CalendarDate>();
-  for (let y = yearOf(from) - 1; y <= yearOf(to) + 1; y++) {
-    for (const day of holidayDates(layers, y)) holidays.add(day);
-  }
-  return {
-    pattern: member.workPattern === null ? MONDAY_TO_FRIDAY : new Set(member.workPattern),
-    holidays,
+  return calendarReader(tx)(member, from, to);
+}
+
+/**
+ * `calendarOf` for many members at once: the holiday layers read once and
+ * each location's assignment once, however many members ask.
+ */
+export function calendarReader(
+  tx: Tx,
+): (member: Member, from: CalendarDate, to: CalendarDate) => Promise<WorkCalendar> {
+  let layers: Promise<readonly HolidayLayer[]> | undefined;
+  const assigned = new Map<string, Promise<readonly string[]>>();
+  return async (member, from, to) => {
+    const location = member.locationKey;
+    let keys: readonly string[] = [];
+    if (location !== null) {
+      const held = assigned.get(location) ?? tx.holidays.assigned(location);
+      assigned.set(location, held);
+      keys = await held;
+    }
+    layers ??= tx.holidays.layers();
+    const ordered = (await layers)
+      .filter((l) => keys.includes(l.key))
+      .toSorted((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
+    const holidays = new Set<CalendarDate>();
+    for (let y = yearOf(from) - 1; y <= yearOf(to) + 1; y++) {
+      for (const day of holidayDates(ordered, y)) holidays.add(day);
+    }
+    return {
+      pattern: member.workPattern === null ? MONDAY_TO_FRIDAY : new Set(member.workPattern),
+      holidays,
+    };
   };
 }
 

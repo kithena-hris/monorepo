@@ -42,7 +42,7 @@ import {
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { hm, weekdays, type Schedule } from '../../domain/attendance/schedule.js';
-import { balanceOn, entry } from '../../domain/balance/ledger.js';
+import { entry } from '../../domain/balance/ledger.js';
 import { datesIn, weekday } from '../../domain/calendar/working-days.js';
 import { addDays, addMonths, amount, days as dayCount, sum } from '../../domain/days.js';
 import {
@@ -789,9 +789,8 @@ async function leaveFactsOf(
   tracked: readonly LeaveType[],
 ): Promise<(m: Member) => { unpaidDays: DayAmount; negativeBalanceDays: DayAmount }> {
   const ids = members.map((m) => m.personId);
-  const [policies, ledgers, requests] = await Promise.all([
+  const [policies, requests] = await Promise.all([
     Promise.all(tracked.map((t) => tx.policies.forLeaveType(t.definition.key))),
-    Promise.all(tracked.map((t) => tx.ledger.forMembers(ids, t.definition.key))),
     // Only what overlaps the period: unpaid days count a request starting in it.
     tx.requests.list({
       personIds: ids,
@@ -809,17 +808,27 @@ async function leaveFactsOf(
     }
     return out;
   };
-  const entriesOf = ledgers.map((l) => byPerson(l, (e) => e.personId));
+  // What each member has left of each type at the period's end, over their leave year.
+  const lefts = await Promise.all(
+    tracked.map((t, i) =>
+      tx.ledger.leftOn(
+        t.definition.key,
+        members.map((m) => {
+          const policy = policyFrom(policies[i] ?? [], m, period.to);
+          return {
+            personId: m.personId,
+            start: leaveYear(policy?.definition ?? null, period.to).start,
+            on: period.to,
+          };
+        }),
+      ),
+    ),
+  );
   const requestsOf = byPerson(requests, (r) => r.request.personId);
   return (m) => {
     let negative = dayCount('0.000');
     tracked.forEach((_, i) => {
-      const policy = policyFrom(policies[i] ?? [], m, period.to);
-      const { start, end } = leaveYear(policy?.definition ?? null, period.to);
-      const entries = (entriesOf[i]?.get(m.personId) ?? []).filter(
-        (e) => e.effectiveOn >= start && e.effectiveOn <= end,
-      );
-      const left = dayCount(balanceOn(entries, period.to).left);
+      const left = dayCount(lefts[i]?.get(m.personId) ?? '0.000');
       if (left.lt(0)) negative = negative.plus(left.neg());
     });
     const unpaid = sum(

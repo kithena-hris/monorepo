@@ -7,6 +7,7 @@ import {
   type AutoApproval,
 } from '../../domain/approval/approval-rule.js';
 import { routeTo, type Delegation } from '../../domain/approval/delegation.js';
+import { balanceOn } from '../../domain/balance/ledger.js';
 import type { Punch } from '../../domain/attendance/clock.js';
 import { DEFAULT_RULES, type AttendanceRules } from '../../domain/attendance/day.js';
 import type { PayPeriod, TimeLine } from '../../domain/attendance/pay-period.js';
@@ -225,6 +226,19 @@ function stores(tenantId: TenantId, s: State): Tx {
       forMembers: (personIds, key) =>
         s.ledger.filter(
           (e) => personIds.includes(e.personId) && (key === undefined || e.leaveTypeKey === key),
+        ),
+      leftOn: (key, asked) =>
+        new Map(
+          asked.map((a) => [
+            a.personId,
+            balanceOn(
+              s.ledger.filter(
+                (e) =>
+                  e.personId === a.personId && e.leaveTypeKey === key && e.effectiveOn >= a.start,
+              ),
+              a.on,
+            ).left,
+          ]),
         ),
       append: (entries) => {
         s.ledger.push(...entries);

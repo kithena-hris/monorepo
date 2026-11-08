@@ -7,7 +7,6 @@ import type {
   TenantId,
 } from '@kithena/contracts';
 
-import { balanceOn } from '../../domain/balance/ledger.js';
 import { addDays, addMonths, amount, days, Decimal, sum } from '../../domain/days.js';
 import {
   describable,
@@ -265,18 +264,37 @@ export async function annualFactsOf(
   const annual = (await tx.leaveTypes.list()).filter(
     (t) => t.definition.category === 'annual_leave' && t.definition.tracked && !t.deleted,
   );
-  const [policies, ledgers, requests] = await Promise.all([
+  const [policies, requests] = await Promise.all([
     Promise.all(annual.map((t) => tx.policies.forLeaveType(t.definition.key))),
-    Promise.all(annual.map((t) => tx.ledger.forMembers(ids, t.definition.key))),
     tx.requests.list({ personIds: ids, statuses: ['approved', 'taken'] }),
   ]);
-  const byPerson = <T extends { personId: string }>(rows: readonly T[]) => {
-    const out = new Map<string, T[]>();
-    for (const r of rows) out.set(r.personId, [...(out.get(r.personId) ?? []), r]);
-    return out;
-  };
-  const entriesOf = ledgers.map(byPerson);
-  const requestsOf = byPerson(requests.map((r) => ({ personId: r.request.personId, r })));
+  const requestsOf = new Map<string, RequestRecord[]>();
+  for (const r of requests) {
+    const held = requestsOf.get(r.request.personId) ?? [];
+    held.push(r);
+    requestsOf.set(r.request.personId, held);
+  }
+  // Each member's leave year of each annual type, and what is left at its end.
+  const yearsOf = annual.map((_, i) =>
+    new Map(
+      members.map((m) => {
+        const policy = policyFrom(policies[i] ?? [], m, todayOf(m));
+        return [m.personId, { policy, ...leaveYear(policy?.definition ?? null, todayOf(m)) }];
+      }),
+    ),
+  );
+  const lefts = await Promise.all(
+    annual.map((t, i) =>
+      tx.ledger.leftOn(
+        t.definition.key,
+        members.map((m) => {
+          const year = yearsOf[i]?.get(m.personId);
+          const { start, end } = year ?? leaveYear(null, todayOf(m));
+          return { personId: m.personId, start, on: end };
+        }),
+      ),
+    ),
+  );
 
   return new Map(
     members.map((m): [PersonId, AnnualFacts] => {
@@ -285,18 +303,15 @@ export async function annualFactsOf(
       let loses = new Decimal(0);
       let yearEnd = leaveYear(null, today).end;
       annual.forEach((_, i) => {
-        const policy = policyFrom(policies[i] ?? [], m, today);
-        const { start, end } = leaveYear(policy?.definition ?? null, today);
-        yearEnd = end;
-        const entries = (entriesOf[i]?.get(m.personId) ?? []).filter(
-          (e) => e.effectiveOn >= start && e.effectiveOn <= end,
-        );
-        const mine = days(balanceOn(entries, end).left);
+        const year = yearsOf[i]?.get(m.personId);
+        const policy = year?.policy ?? null;
+        yearEnd = year?.end ?? yearEnd;
+        const mine = days(lefts[i]?.get(m.personId) ?? '0.000');
         left = left.plus(mine);
         const cap = policy?.definition.carryOver?.maxDays;
         loses = loses.plus(Decimal.max(0, cap === undefined ? mine : mine.minus(cap)));
       });
-      const own = (requestsOf.get(m.personId) ?? []).map((x) => x.r);
+      const own = requestsOf.get(m.personId) ?? [];
       const lastDayOff =
         own
           .filter(

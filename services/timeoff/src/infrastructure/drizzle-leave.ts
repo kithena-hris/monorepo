@@ -1,4 +1,5 @@
-import { and, asc, count, desc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lte, ne, notExists, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import {
   CalendarDate,
@@ -26,6 +27,7 @@ import {
 import type {
   LeaveTypeStore,
   LedgerStore,
+  LeftAsked,
   PolicyStore,
   RequestRecord,
   RequestStore,
@@ -271,6 +273,61 @@ export function drizzleLedger(tx: PostgresJsDatabase, tenantId: TenantId): Ledge
   return {
     forMember: (personId, key) => forMembers([personId], key),
     forMembers,
+    async leftOn(key, asked) {
+      const out = new Map<PersonId, DayAmount>();
+      // One query per leave year asked about; a company mostly shares one.
+      const years = new Map<string, LeftAsked[]>();
+      for (const a of asked) {
+        out.set(a.personId, '0.000' as DayAmount);
+        const year = `${a.start}/${a.on}`;
+        const held = years.get(year) ?? [];
+        held.push(a);
+        years.set(year, held);
+      }
+      for (const group of years.values()) {
+        const { start, on } = group[0] as LeftAsked;
+        const correction = alias(ledgerEntry, 'correction');
+        // oxlint-disable-next-line no-await-in-loop -- one transaction; a query per leave year
+        const rows = await tx
+          .select({
+            personId: ledgerEntry.personId,
+            // `balanceOn`'s left: every live row but a borrow, which marks and never counts.
+            left: sql<string>`coalesce(sum(${ledgerEntry.amount}) filter (where ${ledgerEntry.kind} <> 'borrow'), 0)::numeric(9,3)::text`,
+          })
+          .from(ledgerEntry)
+          .where(
+            and(
+              eq(ledgerEntry.tenantId, tenantId),
+              eq(ledgerEntry.leaveTypeKey, key),
+              inArray(
+                ledgerEntry.personId,
+                group.map((a) => a.personId),
+              ),
+              gte(ledgerEntry.effectiveOn, start),
+              lte(ledgerEntry.effectiveOn, on),
+              // Live: not replaced by a correction that also falls in the year so far.
+              notExists(
+                tx
+                  .select({ id: correction.id })
+                  .from(correction)
+                  .where(
+                    and(
+                      eq(correction.tenantId, ledgerEntry.tenantId),
+                      eq(correction.supersedes, ledgerEntry.id),
+                      eq(correction.personId, ledgerEntry.personId),
+                      eq(correction.leaveTypeKey, ledgerEntry.leaveTypeKey),
+                      gte(correction.effectiveOn, start),
+                      lte(correction.effectiveOn, on),
+                    ),
+                  ),
+              ),
+            ),
+          )
+          .groupBy(ledgerEntry.personId);
+        for (const r of rows) out.set(r.personId as PersonId, r.left as DayAmount);
+      }
+      return out;
+    },
     async append(entries) {
       if (entries.length === 0) return;
       await tx.insert(ledgerEntry).values(
