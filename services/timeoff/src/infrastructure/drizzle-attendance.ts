@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type {
   AttendanceWorkModel,
@@ -22,10 +22,12 @@ import type {
   MemberDay,
   OvertimeDecision,
 } from '../application/ports.js';
+import { addDays, addMonths } from '../domain/days.js';
 import { instantOf } from './drizzle-leave.js';
 import { readSetting, writeSetting } from './drizzle-settings.js';
 import {
   attendanceDay,
+  attendanceMonth,
   kioskCredential,
   kioskDevice,
   memberSchedule,
@@ -35,6 +37,12 @@ import {
   punch,
   schedule,
 } from './tables.js';
+
+/** A date's month, as its first day. */
+const firstOf = (date: CalendarDate): CalendarDate => `${date.slice(0, 7)}-01` as CalendarDate;
+/** A month's days, summed: the clock-outs nobody made, and the overtime of finished days. */
+const missedOf = sql<number>`count(*) filter (where ${attendanceDay.status} = 'open')::int`;
+const overtimeOf = sql<number>`coalesce(sum(${attendanceDay.overtimeMinutes}) filter (where ${attendanceDay.status} = 'complete'), 0)::int`;
 
 /**
  * Punches, schedules, pay periods and overtime decisions (TOF-033), bound to
@@ -271,7 +279,9 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
             eq(attendanceDay.tenantId, tenantId),
             gte(attendanceDay.date, q.from),
             lte(attendanceDay.date, q.to),
-            q.personIds === undefined ? undefined : inArray(attendanceDay.personId, [...q.personIds]),
+            q.personIds === undefined
+              ? undefined
+              : inArray(attendanceDay.personId, [...q.personIds]),
             q.statuses === undefined ? undefined : inArray(attendanceDay.status, [...q.statuses]),
             q.notable === undefined
               ? undefined
@@ -286,16 +296,14 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
           ),
         )
         .orderBy(asc(attendanceDay.date));
-      return rows.map(
-        (r): MemberDay => ({
-          personId: r.personId as PersonId,
-          date: r.date as CalendarDate,
-          status: r.status as WorkedDay['status'],
-          workedMinutes: r.workedMinutes,
-          overtimeMinutes: r.overtimeMinutes,
-          restMinutes: r.restMinutes,
-        }),
-      );
+      return rows.map((r): MemberDay => ({
+        personId: r.personId as PersonId,
+        date: r.date as CalendarDate,
+        status: r.status as WorkedDay['status'],
+        workedMinutes: r.workedMinutes,
+        overtimeMinutes: r.overtimeMinutes,
+        restMinutes: r.restMinutes,
+      }));
     },
 
     async keepWorkedDays(personId, from, to, days) {
@@ -309,18 +317,76 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
             lte(attendanceDay.date, to),
           ),
         );
-      if (days.length === 0) return;
-      await tx.insert(attendanceDay).values(days.map((d) => ({ tenantId, personId, ...d })));
+      if (days.length > 0) {
+        await tx.insert(attendanceDay).values(days.map((d) => ({ tenantId, personId, ...d })));
+      }
+      // The months these days fall in, summed again (`attendance_month`).
+      const first = firstOf(from);
+      const last = firstOf(to);
+      await tx
+        .delete(attendanceMonth)
+        .where(
+          and(
+            eq(attendanceMonth.tenantId, tenantId),
+            eq(attendanceMonth.personId, personId),
+            gte(attendanceMonth.month, first),
+            lte(attendanceMonth.month, last),
+          ),
+        );
+      const month = sql<CalendarDate>`date_trunc('month', ${attendanceDay.date})::date`;
+      await tx.insert(attendanceMonth).select(
+        tx
+          .select({
+            tenantId: attendanceDay.tenantId,
+            personId: attendanceDay.personId,
+            month: month.as('month'),
+            missedClockOuts: missedOf.as('missed_clock_outs'),
+            overtimeMinutes: overtimeOf.as('overtime_minutes'),
+          })
+          .from(attendanceDay)
+          .where(
+            and(
+              eq(attendanceDay.tenantId, tenantId),
+              eq(attendanceDay.personId, personId),
+              gte(attendanceDay.date, first),
+              lte(attendanceDay.date, addDays(addMonths(last, 1), -1)),
+            ),
+          )
+          .groupBy(attendanceDay.tenantId, attendanceDay.personId, month),
+      );
     },
 
     async workedMonths(from, to) {
+      // Whole months from their sums; the days of a month only partly asked
+      // for (this one, still under way) from the days themselves.
+      const start = from === firstOf(from) ? from : addMonths(firstOf(from), 1);
+      const after = addDays(to, 1);
+      const end = after === firstOf(after) ? after : firstOf(to);
+      const whole = start < end;
+      const summed = whole
+        ? await tx
+            .select({
+              personId: attendanceMonth.personId,
+              month: sql<string>`to_char(${attendanceMonth.month}, 'YYYY-MM')`,
+              missedClockOuts: attendanceMonth.missedClockOuts,
+              overtimeMinutes: attendanceMonth.overtimeMinutes,
+            })
+            .from(attendanceMonth)
+            .where(
+              and(
+                eq(attendanceMonth.tenantId, tenantId),
+                gte(attendanceMonth.month, start),
+                lt(attendanceMonth.month, end),
+              ),
+            )
+        : [];
       const month = sql<string>`to_char(${attendanceDay.date}, 'YYYY-MM')`;
-      const rows = await tx
+      const partly = await tx
         .select({
           personId: attendanceDay.personId,
           month,
-          missedClockOuts: sql<number>`count(*) filter (where ${attendanceDay.status} = 'open')::int`,
-          overtimeMinutes: sql<number>`coalesce(sum(${attendanceDay.overtimeMinutes}) filter (where ${attendanceDay.status} = 'complete'), 0)::int`,
+          missedClockOuts: missedOf,
+          overtimeMinutes: overtimeOf,
         })
         .from(attendanceDay)
         .where(
@@ -328,10 +394,11 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
             eq(attendanceDay.tenantId, tenantId),
             gte(attendanceDay.date, from),
             lte(attendanceDay.date, to),
+            whole ? or(lt(attendanceDay.date, start), gte(attendanceDay.date, end)) : undefined,
           ),
         )
         .groupBy(attendanceDay.personId, month);
-      return rows.map((r) => ({ ...r, personId: r.personId as PersonId }));
+      return [...summed, ...partly].map((r) => ({ ...r, personId: r.personId as PersonId }));
     },
   };
 }

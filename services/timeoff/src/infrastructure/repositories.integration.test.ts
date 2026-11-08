@@ -878,6 +878,13 @@ describe('worked days', () => {
       expect(await tx.attendance.workedMonths(august.from, august.to)).toEqual([
         { personId: people.adam, month: '2026-08', missedClockOuts: 1, overtimeMinutes: 45 },
       ]);
+      // A month only partly asked for is summed from its days, not its month's sums.
+      expect(await tx.attendance.workedMonths(d('2026-08-05'), d('2026-08-31'))).toEqual([
+        { personId: people.adam, month: '2026-08', missedClockOuts: 1, overtimeMinutes: 0 },
+      ]);
+      expect(await tx.attendance.workedMonths(d('2026-07-01'), d('2026-08-04'))).toEqual([
+        { personId: people.adam, month: '2026-08', missedClockOuts: 0, overtimeMinutes: 45 },
+      ]);
     });
   });
 });
