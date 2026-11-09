@@ -380,24 +380,37 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
               ),
             )
         : [];
+      // Each as a plain range of dates, which the period index answers: as one
+      // range less the whole months, Postgres read every day of the range.
+      const ranges: (readonly [CalendarDate, CalendarDate])[] = whole
+        ? [
+            ...(from < start ? [[from, addDays(start, -1)] as const] : []),
+            ...(end <= to ? [[end, to] as const] : []),
+          ]
+        : [[from, to]];
       const month = sql<string>`to_char(${attendanceDay.date}, 'YYYY-MM')`;
-      const partly = await tx
-        .select({
-          personId: attendanceDay.personId,
-          month,
-          missedClockOuts: missedOf,
-          overtimeMinutes: overtimeOf,
-        })
-        .from(attendanceDay)
-        .where(
-          and(
-            eq(attendanceDay.tenantId, tenantId),
-            gte(attendanceDay.date, from),
-            lte(attendanceDay.date, to),
-            whole ? or(lt(attendanceDay.date, start), gte(attendanceDay.date, end)) : undefined,
+      const partly = (
+        await Promise.all(
+          ranges.map(([first, last]) =>
+            tx
+              .select({
+                personId: attendanceDay.personId,
+                month,
+                missedClockOuts: missedOf,
+                overtimeMinutes: overtimeOf,
+              })
+              .from(attendanceDay)
+              .where(
+                and(
+                  eq(attendanceDay.tenantId, tenantId),
+                  gte(attendanceDay.date, first),
+                  lte(attendanceDay.date, last),
+                ),
+              )
+              .groupBy(attendanceDay.personId, month),
           ),
         )
-        .groupBy(attendanceDay.personId, month);
+      ).flat();
       return [...summed, ...partly].map((r) => ({ ...r, personId: r.personId as PersonId }));
     },
   };
