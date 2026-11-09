@@ -109,7 +109,8 @@ describe('the directory filters', () => {
     problems.push(...seen('first load'));
 
     const add = page.getByRole('button', { name: 'Add filter' });
-    // A missing button says what the page held instead: it has gone missing in CI now and then.
+    // A missing button says what the page held instead. It went missing when a
+    // module preload ahead of the import map left People unavailable.
     await add.waitFor({ timeout: 30_000 }).catch(async (cause: unknown) => {
       const held = await page.evaluate(() => ({
         url: location.href,

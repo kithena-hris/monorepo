@@ -17,7 +17,7 @@ import {
   type JSX,
   type ReactNode,
 } from 'react';
-import { preloadModule } from 'react-dom';
+import { preload, preloadModule } from 'react-dom';
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 
@@ -681,7 +681,13 @@ export function RemoteScreen({
   if (route === null) return slot === undefined ? <Unavailable area={area} /> : null;
   const stage = slot === undefined ? name : `${name}-${slot}`;
   // Fetched beside the shell's own bundle rather than after it has hydrated.
-  preloadModule(route.entry);
+  // On the server only fetched: React writes it at the top of <head>, ahead of
+  // the import map when the screen is ready before the head is sent, and a
+  // module preload there resolves `@module-federation/runtime` with no map yet.
+  // The failure is kept, and the screen said its area was unavailable.
+  if (typeof window === 'undefined')
+    preload(route.entry, { as: 'script', crossOrigin: 'anonymous' });
+  else preloadModule(route.entry);
   const screen = (
     <Suspense
       fallback={
