@@ -4413,7 +4413,7 @@
   },
   "reviews.asked_by": {
     "text": "Asked by",
-    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx: a \"header\" value."
   },
   "reviews.at_least_10_characters_hr_gets": {
     "text": "At least 10 characters. HR gets an Inbox task; until they decide, the review stays submitted.",
@@ -4529,7 +4529,7 @@
   },
   "reviews.decision": {
     "text": "Decision",
-    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: text inside <span>."
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx: a \"header\" value."
   },
   "reviews.decline": {
     "text": "Decline",
@@ -4869,7 +4869,7 @@
   },
   "reviews.reason": {
     "text": "Reason",
-    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx: a \"header\" value."
   },
   "reviews.release_to": {
     "text": "Release to {{value}}",
@@ -5121,7 +5121,7 @@
   },
   "reviews.unlock": {
     "text": "Unlock",
-    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: text inside <Button>."
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: the rowActions of <DataTable>."
   },
   "reviews.unlock_requests": {
     "text": "unlock requests",
@@ -5133,7 +5133,7 @@
   },
   "reviews.unlocked": {
     "text": "Unlocked",
-    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: the onClick of <Button>."
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: the rowActions of <DataTable>."
   },
   "reviews.upward_and_peer_reviews_are_confidential": {
     "text": "Upward and peer reviews are confidential",
@@ -5153,7 +5153,7 @@
   },
   "reviews.when": {
     "text": "When",
-    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx: a \"header\" value."
   },
   "reviews.when_a_cycle_asks_you_for": {
     "text": "When a cycle asks you for a review, it shows here and in your Inbox.",
