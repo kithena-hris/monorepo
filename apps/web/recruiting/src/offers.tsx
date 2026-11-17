@@ -125,14 +125,14 @@ function offerColumns(open: (r: OfferRow) => void): readonly DataColumn<OfferRow
       id: 'start',
       header: tr('offers.start', 'Start'),
       hideOnCard: true,
-      sortBy: (r) => r.startDate ?? '',
+      sortBy: (r) => r.startDate,
       cell: (r) => day(r.startDate),
     },
     {
       id: 'expires',
       header: tr('offers.expires', 'Expires'),
       hideOnCard: true,
-      sortBy: (r) => r.expiresOn ?? '',
+      sortBy: (r) => r.expiresOn,
       cell: (r) => day(r.expiresOn),
     },
     {
