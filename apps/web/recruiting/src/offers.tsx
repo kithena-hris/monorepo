@@ -51,6 +51,8 @@ import {
   Textarea,
   icons,
   type UploadItem,
+  type DataColumn,
+  DataTable,
 } from '@reach/ui';
 import {
   useCallback,
@@ -89,7 +91,74 @@ import { t as tr } from './i18n';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD', 'INR'] as const;
 
+type OfferRow = OffersData['rows'][number];
+const offerRowId = (r: OfferRow): string => r.id;
+const offerName = (r: OfferRow): string => r.candidate;
+
+function offerColumns(open: (r: OfferRow) => void): readonly DataColumn<OfferRow>[] {
+  return [
+    {
+      id: 'candidate',
+      header: tr('offers.candidate', 'Candidate'),
+      sortBy: (r) => r.candidate,
+      cell: (r) => (
+        <To
+          href={
+            r.needsMe ? `/recruiting/offers/${r.id}/approve` : `/recruiting/offers?offer=${r.id}`
+          }
+          onNavigate={() => {
+            open(r);
+          }}
+        >
+          {r.candidate}
+        </To>
+      ),
+    },
+    { id: 'job', header: tr('offers.job', 'Job'), sortBy: (r) => r.job, cell: (r) => r.job },
+    {
+      id: 'base',
+      header: tr('offers.base', 'Base'),
+      hideOnCard: true,
+      cell: (r) => money(r.baseMinor, r.currency),
+    },
+    {
+      id: 'start',
+      header: tr('offers.start', 'Start'),
+      hideOnCard: true,
+      sortBy: (r) => r.startDate,
+      cell: (r) => day(r.startDate),
+    },
+    {
+      id: 'expires',
+      header: tr('offers.expires', 'Expires'),
+      hideOnCard: true,
+      sortBy: (r) => r.expiresOn,
+      cell: (r) => day(r.expiresOn),
+    },
+    {
+      id: 'state',
+      header: tr('offers.state', 'State'),
+      cardTrailing: true,
+      sortBy: (r) => r.state,
+      cell: (r) => (
+        <span className="flex flex-wrap gap-1">
+          <StateBadge state={r.state} />
+          {r.needsMe ? (
+            <Badge size="sm" tone="warning">
+              {tr('offers.needs_you', 'Needs you')}
+            </Badge>
+          ) : null}
+        </span>
+      ),
+    },
+  ];
+}
+
 export function Offers(props: ScreenProps<OffersData>): JSX.Element {
+  const open = (r: OfferRow): void => {
+    if (r.needsMe) props.onNavigate?.(`/recruiting/offers/${r.id}/approve`);
+    else props.onFilter?.({ offer: r.id });
+  };
   return (
     <Loaded load={props.load} what="offers">
       {(data) => (
@@ -113,62 +182,16 @@ export function Offers(props: ScreenProps<OffersData>): JSX.Element {
                   )}
                 />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{tr('offers.candidate', 'Candidate')}</TableHead>
-                      <TableHead>{tr('offers.job', 'Job')}</TableHead>
-                      <TableHead>{tr('offers.base', 'Base')}</TableHead>
-                      <TableHead>{tr('offers.start', 'Start')}</TableHead>
-                      <TableHead>{tr('offers.expires', 'Expires')}</TableHead>
-                      <TableHead>{tr('offers.state', 'State')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rows.map((r) => (
-                      <TableRow
-                        key={r.id}
-                        // The whole row opens the offer over the list; an approver's opens their decision.
-                        className="cursor-pointer"
-                        onClick={(event) => {
-                          if ((event.target as HTMLElement).closest('a') !== null) return;
-                          if (r.needsMe) props.onNavigate?.(`/recruiting/offers/${r.id}/approve`);
-                          else props.onFilter?.({ offer: r.id });
-                        }}
-                      >
-                        <TableCell>
-                          <To
-                            href={
-                              r.needsMe
-                                ? `/recruiting/offers/${r.id}/approve`
-                                : `/recruiting/offers?offer=${r.id}`
-                            }
-                            onNavigate={(to) => {
-                              if (r.needsMe) props.onNavigate?.(to);
-                              else props.onFilter?.({ offer: r.id });
-                            }}
-                          >
-                            {r.candidate}
-                          </To>
-                        </TableCell>
-                        <TableCell>{r.job}</TableCell>
-                        <TableCell>{money(r.baseMinor, r.currency)}</TableCell>
-                        <TableCell>{day(r.startDate)}</TableCell>
-                        <TableCell>{day(r.expiresOn)}</TableCell>
-                        <TableCell>
-                          <span className="flex flex-wrap gap-1">
-                            <StateBadge state={r.state} />
-                            {r.needsMe ? (
-                              <Badge size="sm" tone="warning">
-                                {tr('offers.needs_you', 'Needs you')}
-                              </Badge>
-                            ) : null}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable<OfferRow>
+                  label={tr('offers.offers', 'Offers')}
+                  rows={data.rows}
+                  rowId={offerRowId}
+                  describeRow={offerName}
+                  fill
+                  columns={offerColumns(open)}
+                  // The whole row opens the offer over the list; an approver's opens their decision.
+                  onRowClick={open}
+                />
               )}
             </CardContent>
           </Card>

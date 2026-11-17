@@ -297,7 +297,7 @@
   },
   "board.active": {
     "text": "Active",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <Badge>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: text inside <Badge>."
   },
   "board.add_agency": {
     "text": "Add agency",
@@ -309,7 +309,7 @@
   },
   "board.agency": {
     "text": "Agency",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.an_agency_submits_through_its_own": {
     "text": "An agency submits through its own portal to the jobs you open to it. A candidate belongs to the first agency that submits them, for the ownership period.",
@@ -329,7 +329,7 @@
   },
   "board.days": {
     "text": "{{guaranteeDays}} days",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <TableCell>. Filled in: {{guaranteeDays}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"cell\" value. Filled in: {{guaranteeDays}}."
   },
   "board.email": {
     "text": "Email",
@@ -337,7 +337,7 @@
   },
   "board.fee": {
     "text": "Fee",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.fee_of_first_year_base": {
     "text": "Fee, % of first-year base",
@@ -349,7 +349,7 @@
   },
   "board.guarantee": {
     "text": "Guarantee",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.guarantee_days": {
     "text": "Guarantee, days",
@@ -357,11 +357,11 @@
   },
   "board.job": {
     "text": "Job",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Board: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.jobs": {
     "text": "Jobs",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.jobs_it_may_submit_to": {
     "text": "Jobs it may submit to",
@@ -389,7 +389,7 @@
   },
   "board.of_first_year_base": {
     "text": "{{value}}% of first-year base",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <TableCell>. Filled in: {{value}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"cell\" value. Filled in: {{value}}."
   },
   "board.open_jobs": {
     "text": "Open jobs",
@@ -401,7 +401,7 @@
   },
   "board.paused": {
     "text": "Paused",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <Badge>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: text inside <Badge>."
   },
   "board.percent": {
     "text": "Percent",
@@ -409,7 +409,7 @@
   },
   "board.person": {
     "text": "Person",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Board: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.refer_someone": {
     "text": "Refer someone",
@@ -429,7 +429,7 @@
   },
   "board.referred": {
     "text": "Referred",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Board: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.save": {
     "text": "Save",
@@ -441,7 +441,7 @@
   },
   "board.state": {
     "text": "State",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Agencies: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.the_job_board": {
     "text": "the job board",
@@ -453,7 +453,7 @@
   },
   "board.where_it_stands": {
     "text": "Where it stands",
-    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx, Board: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. board.tsx: a \"header\" value."
   },
   "board.why_theyd_be_good": {
     "text": "Why they’d be good",
@@ -1889,7 +1889,7 @@
   },
   "interviews.candidate": {
     "text": "Candidate",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Interviews: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx: a \"header\" value."
   },
   "interviews.candidate_asks_to_move_the": {
     "text": "Candidate asks to move the {{label}}",
@@ -2041,7 +2041,7 @@
   },
   "interviews.interview": {
     "text": "Interview",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Interviews: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx: a \"header\" value."
   },
   "interviews.interview_times": {
     "text": "Interview times",
@@ -2317,7 +2317,7 @@
   },
   "interviews.state": {
     "text": "State",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Interviews: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx: a \"header\" value."
   },
   "interviews.strong_no": {
     "text": "Strong no",
@@ -2449,7 +2449,7 @@
   },
   "interviews.when": {
     "text": "When",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Interviews: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx: a \"header\" value."
   },
   "interviews.where": {
     "text": "Where",
@@ -4981,7 +4981,7 @@
   },
   "offers.base": {
     "text": "Base",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: a \"header\" value."
   },
   "offers.base_pay": {
     "text": "Base pay",
@@ -5001,7 +5001,7 @@
   },
   "offers.candidate": {
     "text": "Candidate",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: a \"header\" value."
   },
   "offers.change_anything_for_a_new_version": {
     "text": "Change anything below for a new version, which goes through approval and to {{name}} again. The declined one is kept.",
@@ -5189,7 +5189,7 @@
   },
   "offers.expires": {
     "text": "Expires",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: a \"header\" value."
   },
   "offers.facts_to_check": {
     "text": "Facts to check",
@@ -5257,7 +5257,7 @@
   },
   "offers.job": {
     "text": "Job",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: a \"header\" value."
   },
   "offers.kept_on_paper": {
     "text": "Kept on paper",
@@ -5289,7 +5289,7 @@
   },
   "offers.needs_you": {
     "text": "Needs you",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <Badge>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: text inside <Badge>."
   },
   "offers.new_offer": {
     "text": "New offer",
@@ -5733,7 +5733,7 @@
   },
   "offers.start": {
     "text": "Start",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: a \"header\" value."
   },
   "offers.start_date": {
     "text": "Start date",
@@ -5745,7 +5745,7 @@
   },
   "offers.state": {
     "text": "State",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: a \"header\" value."
   },
   "offers.summary": {
     "text": "Summary",

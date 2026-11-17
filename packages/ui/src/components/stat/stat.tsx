@@ -163,13 +163,16 @@ export function Stat({
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <p
           className={cn(
-            'font-display leading-[1.15] font-bold tracking-[-0.03em] tabular-nums text-fg',
+            'font-display font-bold tracking-[-0.03em] tabular-nums text-fg',
             // Sized by the tile, not by a step. A figure like "€9,834,500" in a
             // two-across phone grid is wider than a fixed 24px can hold, and a
             // number that runs out of its card is worse than a smaller one. At
             // 14% of the tile's width a ten-character figure still fits;
             // `anywhere` is the last resort for a longer one, never overflow.
-            'text-[clamp(1.125rem,14cqi,2.125rem)] [overflow-wrap:anywhere]',
+            // The leading comes after the size: a size class merged in after a
+            // leading drops it (`cn`), and the figure then sat in the body's
+            // line box, lower beside a chart than in the tile next to it.
+            'text-[clamp(1.125rem,14cqi,2.125rem)] leading-[1.15] [overflow-wrap:anywhere]',
           )}
         >
           {from === undefined ? null : (

@@ -505,7 +505,7 @@
   },
   "templates.hr": {
     "text": "HR",
-    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <TableHead>."
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the columns of <DataTable>."
   },
   "templates.in_use": {
     "text": "In use",
@@ -521,7 +521,7 @@
   },
   "templates.it": {
     "text": "IT",
-    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <TableHead>."
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the columns of <DataTable>."
   },
   "templates.kind": {
     "text": "Kind",
@@ -597,7 +597,7 @@
   },
   "templates.person": {
     "text": "Person",
-    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <TableHead>."
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the columns of <DataTable>."
   },
   "templates.phase": {
     "text": "Phase",

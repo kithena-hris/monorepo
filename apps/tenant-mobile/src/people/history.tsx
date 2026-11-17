@@ -56,6 +56,21 @@ interface HistoryData {
 }
 
 const ALL = 'all';
+
+/**
+ * A field's own changes, looked up by its key: what stood before a change, and
+ * what corrects it, are always changes to the same field, so each row searches
+ * those few and not the person's whole history.
+ */
+function byField(changes: readonly HistoryChange[]): (key: string) => readonly HistoryChange[] {
+  const held = new Map<string, HistoryChange[]>();
+  for (const c of changes) {
+    const list = held.get(c.key);
+    if (list === undefined) held.set(c.key, [c]);
+    else list.push(c);
+  }
+  return (key) => held.get(key) ?? [];
+}
 const time = dateFormat({ hour: '2-digit', minute: '2-digit' });
 
 /** The day an instant fell on, here: what changes are grouped under. */
@@ -94,12 +109,17 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
   const fields = new Map(data.sections.flatMap((s) => s.fields.map((f) => [f.key, f] as const)));
   const dated = new Set(data.dated);
   const changes = data.changes.map((c) => ({ ...c, value: valueOf(c.value) }));
+  const ofField = byField(changes);
   const shown = changes
     .filter((c) => fields.has(c.key) && (only === ALL || c.key === only))
     .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
   const days = new Map<string, HistoryChange[]>();
-  for (const c of shown)
-    days.set(dayOf(c.recordedAt), [...(days.get(dayOf(c.recordedAt)) ?? []), c]);
+  for (const c of shown) {
+    const day = dayOf(c.recordedAt);
+    const list = days.get(day);
+    if (list === undefined) days.set(day, [c]);
+    else list.push(c);
+  }
   const today = dayOf(new Date().toISOString());
   const yesterday = dayOf(new Date(Date.now() - 86_400_000).toISOString());
   const dayTitle = (day: string): string =>
@@ -198,15 +218,15 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
               >
                 {items.map((change, i) => {
                   const field = fields.get(change.key) as RecordField;
-                  const previous = previousOf(change, changes);
+                  const previous = previousOf(change, ofField(change.key));
                   const corrected =
                     change.supersedes === null
                       ? undefined
-                      : changes.find((c) => c.id === change.supersedes);
+                      : ofField(change.key).find((c) => c.id === change.supersedes);
                   const replacement =
                     change.supersededBy === null
                       ? undefined
-                      : changes.find((c) => c.id === change.supersededBy);
+                      : ofField(change.key).find((c) => c.id === change.supersededBy);
                   const kind = change.actor?.kind ?? 'person';
                   const sealed =
                     typeof change.value === 'object' &&
@@ -353,6 +373,7 @@ export function HistoryDialog({
       data.sections.flatMap((sec) => sec.fields.map((f) => [f.key, f] as const)),
     );
     const changes = data.changes.map((c) => ({ ...c, value: valueOf(c.value) }));
+    const ofField = byField(changes);
     const shown = changes
       .filter((c) => fields.has(c.key) && (only === ALL || sectionOf.get(c.key) === only))
       .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
@@ -385,7 +406,7 @@ export function HistoryDialog({
           ) : (
             shown.map((change, i) => {
               const field = fields.get(change.key) as RecordField;
-              const previous = previousOf(change, changes);
+              const previous = previousOf(change, ofField(change.key));
               return (
                 <View
                   key={change.id}

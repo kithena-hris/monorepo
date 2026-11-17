@@ -474,10 +474,11 @@ async function hrQueues(ctx: Ctx, types: Types, dir: Directory, live: readonly D
     }),
   );
   const openEnvelopes = await ctx.tx.envelopes.open();
+  const liveById = new Map(live.map((d) => [d.id, d]));
   rows.set(
     'to_sign',
     openEnvelopes.map((env) => {
-      const doc = live.find((d) => d.id === env.documentId);
+      const doc = liveById.get(env.documentId);
       const waiting = env.signers.find(
         (s) => !['waiting', 'signed', 'declined'].includes(s.status),
       );

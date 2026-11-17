@@ -34,12 +34,6 @@ import {
   SheetTitle,
   Slider,
   Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   TertiaryNav,
   Textarea,
   Tooltip,
@@ -2580,6 +2574,57 @@ export interface UnlocksData {
   }[];
 }
 
+type UnlockRow = UnlocksData['rows'][number];
+const unlockId = (u: UnlockRow): string => u.reviewId;
+const unlockName = (u: UnlockRow): string => `${u.by}, ${u.review}`;
+
+function unlockColumns(): readonly DataColumn<UnlockRow>[] {
+  return [
+    {
+      id: 'by',
+      header: t('reviews.asked_by', 'Asked by'),
+      sortBy: (u) => u.by,
+      cell: (u) => <Person name={u.by} />,
+    },
+    {
+      id: 'review',
+      header: t('reviews.review', 'Review'),
+      sortBy: (u) => u.review,
+      cell: (u) => (
+        <span className="text-sm">{`${u.review}${u.cycle === null ? '' : ` · ${u.cycle}`}`}</span>
+      ),
+    },
+    {
+      id: 'reason',
+      header: t('reviews.reason', 'Reason'),
+      hideOnCard: true,
+      cell: (u) => <span className="text-sm text-fg-muted">{`“${u.reason}”`}</span>,
+    },
+    {
+      id: 'when',
+      header: t('reviews.when', 'When'),
+      sortBy: (u) => u.at,
+      cell: (u) => <span className="text-sm text-fg-muted">{u.at === '' ? '—' : when(u.at)}</span>,
+    },
+    {
+      id: 'decision',
+      header: t('reviews.decision', 'Decision'),
+      cardTrailing: true,
+      sortBy: (u) => u.decided ?? '',
+      cell: (u) =>
+        u.decided === null ? (
+          <Badge size="sm" tone="warning">
+            {t('reviews.open', 'Open')}
+          </Badge>
+        ) : (
+          <Badge size="sm" tone={u.decided === 'Unlocked' ? 'info' : 'neutral'}>
+            {u.decided}
+          </Badge>
+        ),
+    },
+  ];
+}
+
 /** PF20: every unlock request, decided only by HR. */
 export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
   const act = useAct(props);
@@ -2605,67 +2650,37 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
                   title={t('reviews.no_unlock_requests', 'No unlock requests')}
                 />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('reviews.asked_by', 'Asked by')}</TableHead>
-                      <TableHead>{t('reviews.review', 'Review')}</TableHead>
-                      <TableHead>{t('reviews.reason', 'Reason')}</TableHead>
-                      <TableHead>{t('reviews.when', 'When')}</TableHead>
-                      <TableHead>
-                        <span className="sr-only">{t('reviews.decision', 'Decision')}</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rows.map((u) => (
-                      <TableRow key={u.reviewId}>
-                        <TableCell>
-                          <Person name={u.by} />
-                        </TableCell>
-                        <TableCell className="text-sm">{`${u.review}${u.cycle === null ? '' : ` · ${u.cycle}`}`}</TableCell>
-                        <TableCell className="text-sm text-fg-muted">{`“${u.reason}”`}</TableCell>
-                        <TableCell className="text-sm text-fg-muted">
-                          {u.at === '' ? '—' : when(u.at)}
-                        </TableCell>
-                        <TableCell>
-                          {u.decided === null ? (
-                            <span className="flex gap-1.5">
-                              <Button
-                                size="xs"
-                                variant="secondary"
-                                onClick={() => {
-                                  setDeclining(u.reviewId);
-                                }}
-                              >
-                                {t('reviews.decline', 'Decline')}
-                              </Button>
-                              <Button
-                                size="xs"
-                                loading={act.pending}
-                                onClick={() => {
-                                  act.run('DecidePerformanceUnlock', {
-                                    id: u.reviewId,
-                                    input: {
-                                      approve: true,
-                                      note: t('reviews.unlocked', 'Unlocked'),
-                                    },
-                                  });
-                                }}
-                              >
-                                {t('reviews.unlock', 'Unlock')}
-                              </Button>
-                            </span>
-                          ) : (
-                            <Badge size="sm" tone={u.decided === 'Unlocked' ? 'info' : 'neutral'}>
-                              {u.decided}
-                            </Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable<UnlockRow>
+                  label={t('reviews.unlock_requests_2', 'Unlock requests')}
+                  rows={data.rows}
+                  rowId={unlockId}
+                  describeRow={unlockName}
+                  fill
+                  columns={unlockColumns()}
+                  rowActions={(u) =>
+                    u.decided === null
+                      ? [
+                          {
+                            id: 'unlock',
+                            label: t('reviews.unlock', 'Unlock'),
+                            onSelect: () => {
+                              act.run('DecidePerformanceUnlock', {
+                                id: u.reviewId,
+                                input: { approve: true, note: t('reviews.unlocked', 'Unlocked') },
+                              });
+                            },
+                          },
+                          {
+                            id: 'decline',
+                            label: t('reviews.decline', 'Decline'),
+                            onSelect: () => {
+                              setDeclining(u.reviewId);
+                            },
+                          },
+                        ]
+                      : []
+                  }
+                />
               )}
             </CardContent>
           </Card>

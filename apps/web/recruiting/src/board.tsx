@@ -5,6 +5,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  type DataColumn,
+  DataTable,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,12 +23,6 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Textarea,
   icons,
   WidgetGrid,
@@ -37,6 +33,88 @@ import { Loaded } from './load';
 import { Refusal, StateBadge, day, money, newId, useAct, words } from './shared';
 import type { Agency, BoardData, ScreenProps, SettingsData } from './types';
 import { t } from './i18n';
+
+type Referral = BoardData['referrals'][number];
+const referralId = (r: Referral): string => r.id;
+const referralName = (r: Referral): string => r.name;
+
+function referralColumns(): DataColumn<Referral>[] {
+  return [
+    { id: 'person', header: t('board.person', 'Person'), sortBy: referralName, cell: referralName },
+    { id: 'job', header: t('board.job', 'Job'), sortBy: (r) => r.job, cell: (r) => r.job },
+    {
+      id: 'referred',
+      header: t('board.referred', 'Referred'),
+      hideOnCard: true,
+      sortBy: (r) => r.at,
+      cell: (r) => day(r.at),
+    },
+    {
+      id: 'outcome',
+      header: t('board.where_it_stands', 'Where it stands'),
+      cardTrailing: true,
+      sortBy: (r) => r.outcome,
+      cell: (r) => <StateBadge state={r.outcome} />,
+    },
+  ];
+}
+
+const agencyId = (a: Agency): string => a.id;
+const agencyName = (a: Agency): string => a.name;
+
+function agencyColumns(): DataColumn<Agency>[] {
+  return [
+    {
+      id: 'agency',
+      header: t('board.agency', 'Agency'),
+      sortBy: agencyName,
+      cell: (a) => (
+        <>
+          {a.name}
+          <span className="block text-sm text-fg-muted">{a.contactEmail}</span>
+        </>
+      ),
+    },
+    {
+      id: 'fee',
+      header: t('board.fee', 'Fee'),
+      cell: (a) =>
+        a.fee.kind === 'percent'
+          ? t('board.of_first_year_base', '{{value}}% of first-year base', {
+              value: String(a.fee.basisPoints / 100),
+            })
+          : money(a.fee.amountMinor, 'EUR'),
+    },
+    {
+      id: 'guarantee',
+      header: t('board.guarantee', 'Guarantee'),
+      hideOnCard: true,
+      numeric: true,
+      sortBy: (a) => a.guaranteeDays,
+      cell: (a) =>
+        t('board.days', '{{guaranteeDays}} days', { guaranteeDays: String(a.guaranteeDays) }),
+    },
+    {
+      id: 'jobs',
+      header: t('board.jobs', 'Jobs'),
+      hideOnCard: true,
+      numeric: true,
+      sortBy: (a) => a.jobIds.length,
+      cell: (a) => String(a.jobIds.length),
+    },
+    {
+      id: 'state',
+      header: t('board.state', 'State'),
+      cardTrailing: true,
+      sortBy: (a) => (a.active ? 0 : 1),
+      cell: (a) => (
+        <Badge size="sm" tone={a.active ? 'success' : 'neutral'}>
+          {a.active ? t('board.active', 'Active') : t('board.paused', 'Paused')}
+        </Badge>
+      ),
+    },
+  ];
+}
 
 /** R8: the internal job board, with refer and apply, and my referrals. */
 export function Board(props: ScreenProps<BoardData>): JSX.Element {
@@ -123,28 +201,14 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
               {data.referrals.length === 0 ? (
                 <p className="text-sm text-fg-muted">{t('board.nobody_yet', 'Nobody yet.')}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('board.person', 'Person')}</TableHead>
-                      <TableHead>{t('board.job', 'Job')}</TableHead>
-                      <TableHead>{t('board.referred', 'Referred')}</TableHead>
-                      <TableHead>{t('board.where_it_stands', 'Where it stands')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.referrals.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>{r.name}</TableCell>
-                        <TableCell>{r.job}</TableCell>
-                        <TableCell>{day(r.at)}</TableCell>
-                        <TableCell>
-                          <StateBadge state={r.outcome} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable<Referral>
+                  label={t('board.my_referrals', 'My referrals')}
+                  rows={data.referrals}
+                  rowId={referralId}
+                  describeRow={referralName}
+                  fill
+                  columns={referralColumns()}
+                />
               )}
             </CardContent>
           </Card>
@@ -281,57 +345,15 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
                   title={t('board.no_agencies', 'No agencies')}
                 />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('board.agency', 'Agency')}</TableHead>
-                      <TableHead>{t('board.fee', 'Fee')}</TableHead>
-                      <TableHead>{t('board.guarantee', 'Guarantee')}</TableHead>
-                      <TableHead>{t('board.jobs', 'Jobs')}</TableHead>
-                      <TableHead>{t('board.state', 'State')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.agencies.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell>
-                          {data.admin ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditing(a);
-                              }}
-                            >
-                              {a.name}
-                            </Button>
-                          ) : (
-                            a.name
-                          )}
-                          <span className="block text-sm text-fg-muted">{a.contactEmail}</span>
-                        </TableCell>
-                        <TableCell>
-                          {a.fee.kind === 'percent'
-                            ? t('board.of_first_year_base', '{{value}}% of first-year base', {
-                                value: String(a.fee.basisPoints / 100),
-                              })
-                            : money(a.fee.amountMinor, 'EUR')}
-                        </TableCell>
-                        <TableCell>
-                          {t('board.days', '{{guaranteeDays}} days', {
-                            guaranteeDays: String(a.guaranteeDays),
-                          })}
-                        </TableCell>
-                        <TableCell>{String(a.jobIds.length)}</TableCell>
-                        <TableCell>
-                          <Badge size="sm" tone={a.active ? 'success' : 'neutral'}>
-                            {a.active ? t('board.active', 'Active') : t('board.paused', 'Paused')}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable<Agency>
+                  label={t('board.agencies', 'Agencies')}
+                  rows={data.agencies}
+                  rowId={agencyId}
+                  describeRow={agencyName}
+                  fill
+                  columns={agencyColumns()}
+                  {...(data.admin ? { onRowClick: setEditing } : {})}
+                />
               )}
             </CardContent>
           </Card>

@@ -24,12 +24,6 @@ import {
   SegmentedControlItem,
   DataTable,
   type DataColumn,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Textarea,
   icons,
   TimePicker,
@@ -228,6 +222,74 @@ function catalogueColumns(
   ];
 }
 
+type AssignedRow = LearningData['assigned'][number];
+const assignedId = (a: AssignedRow): string => a.id;
+const assignedName = (a: AssignedRow): string => a.title;
+
+function assignedColumns(
+  onNavigate: ScreenProps<LearningData>['onNavigate'],
+): readonly DataColumn<AssignedRow>[] {
+  return [
+    {
+      id: 'item',
+      header: tr('learning.item', 'Item'),
+      sortBy: (a) => a.title,
+      cell: (a) => (
+        <span>
+          <To href={`/performance/learning/items/${a.itemId}`} onNavigate={onNavigate}>
+            {a.title}
+          </To>
+          <span className="block text-xs text-fg-muted">
+            {[a.kind, a.recurs].filter(Boolean).join(' · ')}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: 'why',
+      header: tr('learning.why', 'Why'),
+      hideOnCard: true,
+      cell: (a) => <span className="text-sm">{a.why}</span>,
+    },
+    {
+      id: 'due',
+      header: tr('learning.due', 'Due'),
+      sortBy: (a) => a.due ?? '',
+      cell: (a) => <span className="text-sm">{day(a.due)}</span>,
+    },
+    {
+      id: 'progress',
+      header: tr('learning.progress', 'Progress'),
+      hideOnCard: true,
+      cell: (a) => (
+        <span className="text-sm">
+          {a.state === 'done'
+            ? a.expires === null
+              ? tr('learning.completed_2', 'Completed {{completedAt}}', {
+                  completedAt: day(a.completedAt),
+                })
+              : tr(
+                  'learning.completed_expires',
+                  'Completed {{completedAt}} · expires {{expires}}',
+                  {
+                    completedAt: day(a.completedAt),
+                    expires: day(a.expires),
+                  },
+                )
+            : (a.progress ?? '—')}
+        </span>
+      ),
+    },
+    {
+      id: 'state',
+      header: tr('learning.state', 'State'),
+      cardTrailing: true,
+      sortBy: (a) => a.state,
+      cell: (a) => <StateBadge state={a.state} due={a.due} />,
+    },
+  ];
+}
+
 export function Learning(props: ScreenProps<LearningData>): JSX.Element {
   const act = useAct(props);
   const [assigning, setAssigning] = useState<string | null>(null);
@@ -282,55 +344,14 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                     )}
                   />
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{tr('learning.item', 'Item')}</TableHead>
-                        <TableHead>{tr('learning.why', 'Why')}</TableHead>
-                        <TableHead>{tr('learning.due', 'Due')}</TableHead>
-                        <TableHead>{tr('learning.progress', 'Progress')}</TableHead>
-                        <TableHead>{tr('learning.state', 'State')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.assigned.map((a) => (
-                        <TableRow key={a.id}>
-                          <TableCell>
-                            <To
-                              href={`/performance/learning/items/${a.itemId}`}
-                              onNavigate={props.onNavigate}
-                            >
-                              {a.title}
-                            </To>
-                            <span className="block text-xs text-fg-muted">
-                              {[a.kind, a.recurs].filter(Boolean).join(' · ')}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm">{a.why}</TableCell>
-                          <TableCell className="text-sm">{day(a.due)}</TableCell>
-                          <TableCell className="text-sm">
-                            {a.state === 'done'
-                              ? a.expires === null
-                                ? tr('learning.completed_2', 'Completed {{completedAt}}', {
-                                    completedAt: day(a.completedAt),
-                                  })
-                                : tr(
-                                    'learning.completed_expires',
-                                    'Completed {{completedAt}} · expires {{expires}}',
-                                    {
-                                      completedAt: day(a.completedAt),
-                                      expires: day(a.expires),
-                                    },
-                                  )
-                              : (a.progress ?? '—')}
-                          </TableCell>
-                          <TableCell>
-                            <StateBadge state={a.state} due={a.due} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <DataTable<AssignedRow>
+                    label={tr('learning.assigned', 'Assigned')}
+                    rows={data.assigned}
+                    rowId={assignedId}
+                    describeRow={assignedName}
+                    fill
+                    columns={assignedColumns(props.onNavigate)}
+                  />
                 )}
               </CardContent>
             </Card>
@@ -1142,6 +1163,62 @@ function DoorQr({ code }: { readonly code: string }): JSX.Element {
 }
 
 /** PF15d: who was invited, who came, and the door's code; attendance by hand. */
+type AttendeeRow = SessionData['rows'][number];
+const attendeeId = (r: AttendeeRow): string => r.assignmentId;
+const attendeeName = (r: AttendeeRow): string => r.name;
+
+function attendeeColumns(act: Act, sessionId: string): readonly DataColumn<AttendeeRow>[] {
+  return [
+    {
+      id: 'person',
+      header: tr('learning.person', 'Person'),
+      sortBy: (r) => r.name,
+      cell: (r) => r.name,
+    },
+    {
+      id: 'invitation',
+      header: tr('learning.invitation', 'Invitation'),
+      sortBy: (r) => r.invitation,
+      hideOnCard: true,
+      cell: (r) => (
+        <span className="text-sm">
+          {r.invitation.charAt(0).toUpperCase() + r.invitation.slice(1)}
+        </span>
+      ),
+    },
+    {
+      id: 'attended',
+      header: tr('learning.attended', 'Attended'),
+      cardTrailing: true,
+      sortBy: (r) => (r.attended === null ? 0 : 1),
+      cell: (r) => (
+        <Field orientation="horizontal">
+          <FieldControl>
+            <Checkbox
+              checked={r.attended !== null}
+              onCheckedChange={(on) => {
+                act.run('MarkPerformanceAttendance', {
+                  id: r.assignmentId,
+                  input: { sessionId, attended: on === true },
+                });
+              }}
+            />
+          </FieldControl>
+          <FieldLabel>
+            {r.attended === null
+              ? tr('learning.no', 'No')
+              : r.attended.how === 'qr'
+                ? tr('learning.yes_by_the_code', 'Yes, by the code')
+                : r.attended.how === 'hand'
+                  ? tr('learning.yes_by_hand', 'Yes, by hand')
+                  : tr('learning.yes_from_the_meeting', 'Yes, from the meeting')}
+          </FieldLabel>
+        </Field>
+      ),
+    },
+  ];
+}
+
 export function Session(props: ScreenProps<SessionData>): JSX.Element {
   const act = useAct(props);
   return (
@@ -1180,49 +1257,14 @@ export function Session(props: ScreenProps<SessionData>): JSX.Element {
           </Card>
           <Card>
             <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{tr('learning.person', 'Person')}</TableHead>
-                    <TableHead>{tr('learning.invitation', 'Invitation')}</TableHead>
-                    <TableHead>{tr('learning.attended', 'Attended')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.rows.map((r) => (
-                    <TableRow key={r.assignmentId}>
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell className="text-sm">
-                        {r.invitation.charAt(0).toUpperCase() + r.invitation.slice(1)}
-                      </TableCell>
-                      <TableCell>
-                        <Field orientation="horizontal">
-                          <FieldControl>
-                            <Checkbox
-                              checked={r.attended !== null}
-                              onCheckedChange={(on) => {
-                                act.run('MarkPerformanceAttendance', {
-                                  id: r.assignmentId,
-                                  input: { sessionId: data.session.id, attended: on === true },
-                                });
-                              }}
-                            />
-                          </FieldControl>
-                          <FieldLabel>
-                            {r.attended === null
-                              ? tr('learning.no', 'No')
-                              : r.attended.how === 'qr'
-                                ? tr('learning.yes_by_the_code', 'Yes, by the code')
-                                : r.attended.how === 'hand'
-                                  ? tr('learning.yes_by_hand', 'Yes, by hand')
-                                  : tr('learning.yes_from_the_meeting', 'Yes, from the meeting')}
-                          </FieldLabel>
-                        </Field>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable<AttendeeRow>
+                label={tr('learning.attendance', 'Attendance')}
+                rows={data.rows}
+                rowId={attendeeId}
+                describeRow={attendeeName}
+                fill
+                columns={attendeeColumns(act, data.session.id)}
+              />
             </CardContent>
           </Card>
         </div>

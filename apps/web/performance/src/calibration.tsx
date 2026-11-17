@@ -21,12 +21,6 @@ import {
   ListItem,
   NumberField,
   PageHeader,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Textarea,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -356,6 +350,62 @@ interface Row {
   readonly state: string | null;
 }
 
+const rowPerson = (r: Row): string => r.personId;
+const rowName = (r: Row): string => r.name;
+
+/** A session's people: who, under whom, the score before and now, and why it moved. */
+function rowColumns(): readonly DataColumn<Row>[] {
+  return [
+    {
+      id: 'person',
+      header: t('calibration.person', 'Person'),
+      sortBy: (r) => r.name,
+      cell: (r) => <span className="font-medium">{r.name}</span>,
+    },
+    {
+      id: 'manager',
+      header: t('calibration.manager', 'Manager'),
+      sortBy: (r) => r.manager,
+      hideOnCard: true,
+      cell: (r) => <span className="text-sm">{r.manager}</span>,
+    },
+    {
+      id: 'was',
+      header: t('calibration.was', 'Was'),
+      numeric: true,
+      sortBy: (r) => r.was ?? -1,
+      cell: (r) => <span className="text-sm">{score(r.was)}</span>,
+    },
+    {
+      id: 'now',
+      header: t('calibration.now', 'Now'),
+      cardTrailing: true,
+      sortBy: (r) => r.now ?? -1,
+      cell: (r) => (
+        <span className="text-sm">
+          {r.now === null
+            ? t('calibration.not_submitted', 'Not submitted')
+            : t('calibration.text_3', '{{score}} · {{value}}', {
+                score: score(r.now),
+                value: r.label ?? '',
+              })}
+          {r.now !== r.was && r.now !== null ? (
+            <Badge size="sm" tone="accent" className="ml-2">
+              {t('calibration.changed', 'Changed')}
+            </Badge>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      id: 'reason',
+      header: t('calibration.reason', 'Reason'),
+      hideOnCard: true,
+      cell: (r) => <span className="text-sm text-fg-muted">{r.reason ?? '—'}</span>,
+    },
+  ];
+}
+
 export interface CalibrationData {
   readonly session: {
     readonly id: string;
@@ -574,74 +624,41 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
             </div>
             <Card>
               <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('calibration.person', 'Person')}</TableHead>
-                      <TableHead>{t('calibration.manager', 'Manager')}</TableHead>
-                      <TableHead>{t('calibration.was', 'Was')}</TableHead>
-                      <TableHead>{t('calibration.now', 'Now')}</TableHead>
-                      <TableHead>{t('calibration.reason', 'Reason')}</TableHead>
-                      {data.may.change ? (
-                        <TableHead>
-                          <span className="sr-only">{t('calibration.change', 'Change')}</span>
-                        </TableHead>
-                      ) : null}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rows.map((r) => (
-                      <TableRow key={r.personId}>
-                        <TableCell className="font-medium">{r.name}</TableCell>
-                        <TableCell className="text-sm">{r.manager}</TableCell>
-                        <TableCell className="text-sm">{score(r.was)}</TableCell>
-                        <TableCell className="text-sm">
-                          {r.now === null
-                            ? t('calibration.not_submitted', 'Not submitted')
-                            : t('calibration.text_3', '{{score}} · {{value}}', {
-                                score: score(r.now),
-                                value: r.label ?? '',
-                              })}
-                          {r.now !== r.was && r.now !== null ? (
-                            <Badge size="sm" tone="accent" className="ml-2">
-                              {t('calibration.changed', 'Changed')}
-                            </Badge>
-                          ) : null}
-                        </TableCell>
-                        <TableCell className="text-sm text-fg-muted">{r.reason ?? '—'}</TableCell>
-                        {data.may.change ? (
-                          <TableCell>
-                            <span className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                disabled={r.now === null}
-                                onClick={() => {
-                                  setChanging(r);
-                                }}
-                              >
-                                {t('calibration.change', 'Change')}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                loading={act.pending}
-                                onClick={() => {
-                                  act.run('RemovePerformanceCalibrationSubject', {
-                                    id: data.session.id,
-                                    input: { personId: r.personId },
-                                  });
-                                }}
-                              >
-                                {t('calibration.take_out', 'Take out')}
-                              </Button>
-                            </span>
-                          </TableCell>
-                        ) : null}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable<Row>
+                  label={t('calibration.people', 'People')}
+                  rows={data.rows}
+                  rowId={rowPerson}
+                  describeRow={rowName}
+                  fill
+                  columns={rowColumns()}
+                  {...(data.may.change
+                    ? {
+                        rowActions: (r: Row) => [
+                          ...(r.now === null
+                            ? []
+                            : [
+                                {
+                                  id: 'change',
+                                  label: t('calibration.change', 'Change'),
+                                  onSelect: () => {
+                                    setChanging(r);
+                                  },
+                                },
+                              ]),
+                          {
+                            id: 'take-out',
+                            label: t('calibration.take_out', 'Take out'),
+                            onSelect: () => {
+                              act.run('RemovePerformanceCalibrationSubject', {
+                                id: data.session.id,
+                                input: { personId: r.personId },
+                              });
+                            },
+                          },
+                        ],
+                      }
+                    : {})}
+                />
               </CardContent>
             </Card>
             {changing === null ? null : (

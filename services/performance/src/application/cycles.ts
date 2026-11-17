@@ -1208,6 +1208,7 @@ export async function overviewScreen(
   const asked = overviewFilter(opts.filter);
   const match = opts.match ?? 'all';
   const bySubject = Map.groupBy(reviews, (r) => r.subjectId);
+  const nominationOf = new Map(nominations.map((n) => [n.subjectId, n]));
   const stateOf = (p: Person, field: string): string => {
     const about = bySubject.get(p.personId) ?? [];
     const kind = field === 'self' ? 'self' : 'manager';
@@ -1274,7 +1275,7 @@ export async function overviewScreen(
     const peers = about.filter(
       (r) => r.kind === 'peer' && r.detached === null && r.status !== 'cancelled',
     );
-    const nom = nominations.find((n) => n.subjectId === p.personId);
+    const nom = nominationOf.get(p.personId);
     const mgr = managerReviewOf(about, p.managerId);
     // Written by someone they no longer report to (§8.8): kept, and said so.
     const former = about.filter(

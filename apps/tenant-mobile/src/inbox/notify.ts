@@ -154,8 +154,9 @@ async function check(signed: Signed, pushed: boolean): Promise<void> {
 }
 
 /**
- * Notifications while signed in: checked now, when the app comes to the
- * front, and every five minutes it stays there. A press opens the item; its
+ * Notifications while signed in: checked now and when the app comes to the
+ * front. Where the device has no push yet, also every five minutes it stays
+ * there; with push, what arrives in between is pushed. A press opens the item; its
  * Remind me tomorrow snoozes it to nine the next morning.
  */
 export function useInboxNotifications(signed: Signed, openItem: (id: string) => void): void {
@@ -168,7 +169,9 @@ export function useInboxNotifications(signed: Signed, openItem: (id: string) => 
       void check(signed, ok);
     });
     const timer = setInterval(() => {
-      if (AppState.currentState === 'active') void check(signed, pushed.current);
+      // ponytail: a timer only where push is not registered; drop it once
+      // every build ships with push.
+      if (!pushed.current && AppState.currentState === 'active') void check(signed, false);
     }, 5 * 60_000);
     const state = AppState.addEventListener('change', (s) => {
       if (s === 'active') void check(signed, pushed.current);

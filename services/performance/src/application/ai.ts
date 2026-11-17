@@ -710,6 +710,7 @@ export async function participantsInWords(
   if (c === null) return err(notFound('cycle'));
   const departments = [...new Set((await ctx.tx.orgUnits.find()).map((u) => u.name))];
   const members = await people(ctx);
+  const nameOf = new Map(members.map((m) => [m.personId, m.name]));
   const got = await ask(
     ctx,
     'setupByChat',
@@ -731,7 +732,7 @@ export async function participantsInWords(
       ],
       managers: [
         ...new Set(members.flatMap((m) => (m.managerId === null ? [] : [m.managerId]))),
-      ].map((id) => ({ id, name: members.find((m) => m.personId === id)?.name ?? null })),
+      ].map((id) => ({ id, name: nameOf.get(id) ?? null })),
     },
     { on: c.name },
   );
@@ -782,6 +783,7 @@ export async function overviewInWords(
   if (c === null) return err(notFound('cycle'));
   if (!ctx.viewer.hr && !(await involved(ctx, c))) return err(notFound('cycle'));
   const members = await people(ctx);
+  const nameOf = new Map(members.map((m) => [m.personId, m.name]));
   const got = await ask(
     ctx,
     'setupByChat',
@@ -813,7 +815,7 @@ export async function overviewInWords(
       entities: input.places.entities,
       managers: [
         ...new Set(members.flatMap((m) => (m.managerId === null ? [] : [m.managerId]))),
-      ].map((id) => ({ id, name: members.find((m) => m.personId === id)?.name ?? null })),
+      ].map((id) => ({ id, name: nameOf.get(id) ?? null })),
     },
     { on: c.name },
   );

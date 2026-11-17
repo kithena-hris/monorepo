@@ -151,7 +151,7 @@ describe('the directory filters', () => {
 });
 
 describe('what the browser already holds', () => {
-  it('prefetches no page for being on screen, and reads a profile’s documents once', async () => {
+  it('prefetches only what a press on the rail leads to, and reads a profile’s documents once', async () => {
     const { page } = await admin();
     const asked: string[] = [];
     page.on('request', (r) => {
@@ -161,9 +161,10 @@ describe('what the browser already holds', () => {
     });
     await page.goto(`${stack.shell}/people/directory/list`);
     await page.waitForLoadState('networkidle');
-    // The directory's other views are fetched whole on purpose (`useWarmPages`);
-    // the sidebar's sections, merely visible, are not.
-    for (const section of ['/', '/inbox/todo', '/time-off/overview', '/settings']) {
+    // The directory's other views are fetched whole on purpose (`useWarmPages`),
+    // and so is the page each area of the rail leads to, once this one has
+    // settled (`SidebarRail`). An area's other sections, not out yet, are not.
+    for (const section of ['/time-off/calendar/month', '/time-off/requests']) {
       expect(asked, section).not.toContain(`page ${section}`);
     }
 
