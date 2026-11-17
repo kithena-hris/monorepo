@@ -99,7 +99,8 @@ export function useWarmSidebar(
     const now = Date.now();
     for (const link of nav.querySelectorAll<HTMLAnchorElement>('a[href^="/"]')) {
       const href = link.getAttribute('href');
-      if (href === null) continue;
+      // The page being read is here already.
+      if (href === null || href.split(/[?#]/u)[0] === window.location.pathname) continue;
       const last = warmed.current.get(href);
       if (last !== undefined && now - last < 30_000) continue;
       warmed.current.set(href, now);
