@@ -2,6 +2,7 @@
 
 import { Nav, NavItem, NavList, Separator, icons } from '@reach/ui';
 import type { Route } from 'next';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, type JSX, type ReactNode } from 'react';
 
 import { Link } from '../lib/link';
@@ -60,6 +61,10 @@ export interface Presses {
  * is never made to wait for the ones you might go to; and once per page per
  * half minute, the time a fetched page is kept. On movement rather than on
  * entering: a sidebar drawn under a resting pointer is not a hand reaching for it.
+ *
+ * The rail's own pages are also fetched a moment after each page settles
+ * (`SidebarRail`), with no hand near it: a quick aim and press beat the fetch
+ * its movement had started, and waited on the server.
  */
 export function useWarmSidebar(
   warm: (href: string) => void,
@@ -107,6 +112,9 @@ export function useWarmSidebar(
   };
 }
 
+/** How long after a page arrives the rail's other pages are fetched. */
+const WARM_AFTER_MS = 1000;
+
 /** The rail: search, the areas, then settings and you, pinned to the foot. */
 export function SidebarRail({
   areas,
@@ -123,8 +131,26 @@ export function SidebarRail({
   readonly presses: Presses;
   readonly onIntent: (event: { currentTarget: Element }) => void;
 }): JSX.Element {
+  const rail = useRef<HTMLDivElement>(null);
+  const intent = useRef(onIntent);
+  intent.current = onIntent;
+  const pathname = usePathname();
+  useEffect(() => {
+    // After the page that was asked for, never beside it.
+    const settled = window.setTimeout(() => {
+      if (rail.current !== null) intent.current({ currentTarget: rail.current });
+    }, WARM_AFTER_MS);
+    return () => {
+      window.clearTimeout(settled);
+    };
+  }, [pathname]);
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1" onPointerMove={onIntent} onFocus={onIntent}>
+    <div
+      ref={rail}
+      className="flex min-h-0 flex-1 flex-col gap-1"
+      onPointerMove={onIntent}
+      onFocus={onIntent}
+    >
       <Nav label={tr('components.shell-sidebar.search', 'Search')}>
         <NavList>
           <NavItem asChild icon={<icons.search aria-hidden />} shortcut={search.shortcut}>

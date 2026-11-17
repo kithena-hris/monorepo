@@ -796,7 +796,9 @@ export function AppShell({
   const warmSidebar = useWarmSidebar(
     useCallback(
       (href: string) => {
-        if (!isPage(new URL(href, window.location.origin).pathname)) return;
+        const path = new URL(href, window.location.origin).pathname;
+        // The page being read is here already.
+        if (path === window.location.pathname || !isPage(path)) return;
         prefetchPage(router, href);
         warmRemotes();
       },
