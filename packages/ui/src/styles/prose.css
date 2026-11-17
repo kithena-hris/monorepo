@@ -21,8 +21,21 @@
     padding: 0.75rem;
   }
 
-  .reach-prose > * + * {
+  /*
+   * Space between blocks: every child, and then not the first. Not
+   * `> * + *`: a universal selector after a sibling combinator makes the
+   * browser restyle every later sibling, and all inside them, whenever an
+   * element is added or removed anywhere on the page. A table drawing one
+   * row as it scrolled spent 200 ms on it, on screens with no prose at all.
+   * `:where` keeps the reset at the first rule's weight, so a heading's own
+   * margin still wins.
+   */
+  .reach-prose > * {
     margin-top: 0.75em;
+  }
+
+  .reach-prose > :where(:first-child) {
+    margin-top: 0;
   }
 
   .reach-prose h2 {

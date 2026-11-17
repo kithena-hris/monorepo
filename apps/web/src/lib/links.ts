@@ -91,10 +91,11 @@ export function useInAppLinks(isPage: (path: string) => boolean): void {
       const href = inAppLink(event.target, window.location.origin);
       if (href === null || href === warmed) return;
       warmed = href;
-      if (!isPage(new URL(href, window.location.origin).pathname)) return;
+      const path = new URL(href, window.location.origin).pathname;
+      if (!isPage(path)) return;
       prefetchPage(router, href);
-      // The screen's code too, when its remote splits screens into chunks.
-      warmRemotes();
+      // The screen's code too: its remote, and the chunk it puts the screen in.
+      warmRemotes(path);
     };
     document.addEventListener('click', follow);
     for (const type of ['pointerover', 'focusin', 'touchstart'] as const) {

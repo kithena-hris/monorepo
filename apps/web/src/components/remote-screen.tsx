@@ -25,6 +25,7 @@ import { WAITING, chosenFiles, handFilesOver, releaseEarlyPresses } from '../lib
 import { ensureNamespace, useLanguage } from '../lib/i18n';
 import { NAMESPACES, type Namespace } from '../lib/languages';
 import { MF_RUNTIME_URL } from '../lib/mf-runtime';
+import { areaOf, remotePath } from '../lib/remotes';
 import { t } from '../lib/t';
 
 /*
@@ -198,8 +199,16 @@ function warmWhenIdle(exports: Record<string, unknown>): void {
   }
 }
 
-/** Every loaded remote's screens, fetched now: something on the page is about to open one. */
-export function warmRemotes(): void {
+/**
+ * Every loaded remote's screens, fetched now: something on the page is about
+ * to open one. And the remote that answers `path`, when it is not loaded yet:
+ * a page prefetched whole still waited a second on the first press into an
+ * area, for that area's code, fetched one file after another.
+ */
+export function warmRemotes(path?: string): void {
+  const area = path === undefined ? undefined : areaOf(path);
+  if (area !== undefined)
+    browserModuleOf(area.name, `${remotePath(area)}/remoteEntry.js`).catch(() => undefined);
   for (const exports of loaded.values()) warm(exports);
 }
 

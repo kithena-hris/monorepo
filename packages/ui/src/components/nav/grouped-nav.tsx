@@ -276,6 +276,11 @@ export function GroupedNav({
       item.disabled && 'pointer-events-none text-fg-disabled',
       // A settings screen: full-width rows in an inset list.
       'touch:min-h-13 touch:gap-3 touch:rounded-none touch:border-b touch:border-border touch:px-4 touch:text-base',
+      // The group's last row has no hairline. Said from the row, by its class:
+      // said from the list (`> li:last-child > *`) the selector ends in a
+      // universal, and the browser then restyles far more than this list on
+      // every element added to the page.
+      'touch:[[data-nav-group]>li:last-child>&]:border-b-0',
     );
 
     const inside = (chevron: 'disclosure' | 'push' | null): JSX.Element => (
@@ -475,10 +480,10 @@ export function GroupedNav({
             <ul
               id={listId}
               hidden={!isOpen}
+              data-nav-group
               className={cn(
                 'flex flex-col gap-px',
                 'touch:gap-0 touch:overflow-hidden touch:rounded-xl touch:bg-surface touch:shadow-sm',
-                'touch:[&>li:last-child>*]:border-b-0',
               )}
             >
               {group.items.map((item) => renderItem(item, 0))}
