@@ -374,6 +374,8 @@ export async function recordImport(
   ]);
 
   const blocked = report(input, outcomes, plan.blockedItems);
+  // By sheet row: a lookup per reference left empty, not a pass over every outcome.
+  const personOfRow = new Map(outcomes.map((o) => [o.row.row, o.personId ?? null]));
   const storedAt = deps.clock.instant();
   const expiresAt = new Date(Date.parse(storedAt) + REPORT_LIFETIME_MS).toISOString();
   await deps.reports.store.put(reportKey(input.tenantId, input.file.checksum), blocked, 'text/csv');
@@ -388,7 +390,7 @@ export async function recordImport(
             .map((o) => o.row.personId),
           ...plan.blockedItems.map((i) => i.personId),
           // Named in what a run did, by the references left empty for them.
-          ...leftEmpty.map((l) => outcomes.find((o) => o.row.row === l.row)?.personId ?? null),
+          ...leftEmpty.map((l) => personOfRow.get(l.row) ?? null),
         ].filter((id): id is string => id !== null),
       ),
     ],

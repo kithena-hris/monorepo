@@ -355,15 +355,20 @@ export async function attachScreen(ctx: Ctx, cycleId: string): Promise<Result<un
   const subjects = (c.snapshot?.subjects ?? []).filter(
     (s) => ctx.viewer.hr || ctx.viewer.reports.has(s),
   );
+  const byId = new Map(all.map((x) => [x.personId, x]));
+  const active = Map.groupBy(
+    goals.filter((g) => g.status === 'active'),
+    (g) => g.ownerId,
+  );
   return ok({
     cycle: { id: c.id, name: c.name, goals: c.goals },
     rows: subjects.map((s) => {
-      const p = all.find((x) => x.personId === s);
+      const p = byId.get(s);
       return {
         personId: s,
         name: p?.name ?? 'Someone',
         title: subtitle(p),
-        goals: goals.filter((g) => g.ownerId === s && g.status === 'active').length,
+        goals: active.get(s)?.length ?? 0,
       };
     }),
   });
