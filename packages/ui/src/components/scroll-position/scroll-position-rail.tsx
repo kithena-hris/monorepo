@@ -133,8 +133,16 @@ export function ScrollPositionRail({
   const toTop = (): void => {
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const behavior = smooth ? 'smooth' : 'auto';
-    if (at.own) list.current?.scrollTo({ top: 0, behavior });
-    else window.scrollTo({ top: 0, behavior });
+    const box = at.own ? list.current : window;
+    if (box === null) return;
+    // From far down, land a screen from the top at once and glide only the
+    // rest: a glide over thousands of rows drew every one of them on the way,
+    // and lagged or showed their spacers. The landing is a jump, drawn in its
+    // own scroll event (`useCatchUp`), so the top rows are there to glide over.
+    const y = at.own ? (list.current?.scrollTop ?? 0) : window.scrollY;
+    const near = window.innerHeight;
+    if (y > near) box.scrollTo({ top: near, behavior: 'instant' });
+    box.scrollTo({ top: 0, behavior });
   };
   return (
     <div

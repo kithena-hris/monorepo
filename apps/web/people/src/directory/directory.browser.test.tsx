@@ -415,6 +415,33 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     expect(window.innerHeight - pill.bottom).toBeLessThan(80);
   });
 
+  it(
+    'goes back to the top over drawn rows, never their spacers',
+    { timeout: slow ? 90_000 : 20_000 },
+    async () => {
+      const { onLoadMore } = pages();
+      directory({ onLoadMore });
+      const box = screen.getByRole('region', { name: 'People' });
+      await vi.waitFor(() => {
+        expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+      });
+      window.scrollTo(0, tableTop(box) + box.scrollHeight);
+      await userEvent.click(await screen.findByRole('button', { name: 'Back to top' }));
+      // Landed a screen from the top at once: no glide over every row between.
+      expect(window.scrollY).toBeLessThanOrEqual(window.innerHeight);
+      // Each frame of the glide: the row under the middle of the window is drawn.
+      for (let i = 0; i < 120 && window.scrollY > 0; i += 1) {
+        await frame();
+        const list = box.getBoundingClientRect();
+        const y = Math.max(list.top + 2 * ROW, window.innerHeight / 2);
+        const under = document.elementFromPoint(list.left + list.width / 2, y);
+        expect(under?.closest('tr[data-spacer]') ?? null, `frame ${String(i)}`).toBeNull();
+      }
+      expect(window.scrollY).toBe(0);
+      expect(screen.getByRole('button', { name: 'Person 0' })).toBeVisible();
+    },
+  );
+
   it('jumps instead under reduced motion', { timeout: slow ? 60_000 : 15_000 }, async () => {
     const real = window.matchMedia.bind(window);
     // Reduced motion asked for: answered by a query that always matches.
