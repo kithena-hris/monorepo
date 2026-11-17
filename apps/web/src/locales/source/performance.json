@@ -3693,7 +3693,7 @@
   },
   "learning.attended": {
     "text": "Attended",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Session: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: a \"header\" value."
   },
   "learning.cancel": {
     "text": "Cancel",
@@ -3713,11 +3713,11 @@
   },
   "learning.completed_2": {
     "text": "Completed {{completedAt}}",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: text inside <TableCell>. Filled in: {{completedAt}}."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: text inside <span>. Filled in: {{completedAt}}."
   },
   "learning.completed_expires": {
     "text": "Completed {{completedAt}} · expires {{expires}}",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: text inside <TableCell>. Filled in: {{completedAt}}, {{expires}}."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: text inside <span>. Filled in: {{completedAt}}, {{expires}}."
   },
   "learning.completions": {
     "text": "Completions",
@@ -3749,7 +3749,7 @@
   },
   "learning.due": {
     "text": "Due",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: a \"header\" value."
   },
   "learning.due_and_repeat": {
     "text": "Due and repeat",
@@ -3801,7 +3801,7 @@
   },
   "learning.invitation": {
     "text": "Invitation",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Session: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: a \"header\" value."
   },
   "learning.item": {
     "text": "Item",
@@ -3861,7 +3861,7 @@
   },
   "learning.no": {
     "text": "No",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Session: text inside <FieldLabel>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: text inside <FieldLabel>."
   },
   "learning.no_sessions_planned": {
     "text": "No sessions planned",
@@ -3929,11 +3929,11 @@
   },
   "learning.person": {
     "text": "Person",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Session: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: a \"header\" value."
   },
   "learning.progress": {
     "text": "Progress",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: a \"header\" value."
   },
   "learning.provider": {
     "text": "Provider",
@@ -3965,7 +3965,7 @@
   },
   "learning.state": {
     "text": "State",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: a \"header\" value."
   },
   "learning.submit_the_quiz": {
     "text": "Submit the quiz",
@@ -4021,7 +4021,7 @@
   },
   "learning.why": {
     "text": "Why",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: a \"header\" value."
   },
   "learning.why_as_the_learner_reads_it": {
     "text": "Why, as the learner reads it",
@@ -4029,15 +4029,15 @@
   },
   "learning.yes_by_hand": {
     "text": "Yes, by hand",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Session: text inside <FieldLabel>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: text inside <FieldLabel>."
   },
   "learning.yes_by_the_code": {
     "text": "Yes, by the code",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Session: text inside <FieldLabel>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: text inside <FieldLabel>."
   },
   "learning.yes_from_the_meeting": {
     "text": "Yes, from the meeting",
-    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Session: text inside <FieldLabel>."
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx: text inside <FieldLabel>."
   },
   "learning.you_can_still_open_it": {
     "text": "You can still open it.",
