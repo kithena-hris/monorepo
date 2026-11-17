@@ -565,7 +565,7 @@
   },
   "calibration.change": {
     "text": "Change",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <span>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <DataTable>."
   },
   "calibration.change_s_score": {
     "text": "Change {{name}}’s score",
@@ -573,7 +573,7 @@
   },
   "calibration.changed": {
     "text": "Changed",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <Badge>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: text inside <Badge>."
   },
   "calibration.changed_2": {
     "text": "{{length}}, {{changed}} changed.",
@@ -677,7 +677,7 @@
   },
   "calibration.manager": {
     "text": "Manager",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: a \"header\" value."
   },
   "calibration.meets": {
     "text": "Meets",
@@ -709,7 +709,7 @@
   },
   "calibration.not_submitted": {
     "text": "Not submitted",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableCell>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: text inside <span>."
   },
   "calibration.nothing_stands_out": {
     "text": "Nothing stands out",
@@ -717,7 +717,7 @@
   },
   "calibration.now": {
     "text": "Now",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: a \"header\" value."
   },
   "calibration.open_the_session": {
     "text": "Open the session",
@@ -741,7 +741,7 @@
   },
   "calibration.person": {
     "text": "Person",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: a \"header\" value."
   },
   "calibration.potential": {
     "text": "Potential",
@@ -749,7 +749,7 @@
   },
   "calibration.reason": {
     "text": "Reason",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: a \"header\" value."
   },
   "calibration.score": {
     "text": "Score",
@@ -785,7 +785,7 @@
   },
   "calibration.take_out": {
     "text": "Take out",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <Button>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <DataTable>."
   },
   "calibration.text": {
     "text": "{{cycle}} · {{value}} · {{value2}}",
@@ -797,7 +797,7 @@
   },
   "calibration.text_3": {
     "text": "{{score}} · {{value}}",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableCell>. Filled in: {{score}}, {{value}}."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: text inside <span>. Filled in: {{score}}, {{value}}."
   },
   "calibration.the_scores_become_final_the_reviews": {
     "text": "The scores become final, the reviews held for this session are released to the cycle's release rules, and the session can no longer change.",
@@ -809,7 +809,7 @@
   },
   "calibration.was": {
     "text": "Was",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx: a \"header\" value."
   },
   "cycle-plan.due": {
     "text": "{{label}} due",
