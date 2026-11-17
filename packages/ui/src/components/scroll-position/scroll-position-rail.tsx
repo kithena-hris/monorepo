@@ -57,7 +57,8 @@ function Place({
  * (`BulkBar`), led by the same map and count: one thing at the window's foot,
  * which changes what it offers, the way a phone's toolbar becomes the
  * selection's, and the reader never loses their place to it. `DataTable` and `VirtualList` place it
- * themselves; a list of its own places it last inside its box.
+ * themselves; a list of its own places it last inside its box. A list that
+ * is all loaded and all on screen has no pill at all.
  *
  * Which rows are on screen is read from the list's box: the window's scroll
  * when the page scrolls the list, the box's own when it scrolls itself. Its
@@ -76,8 +77,10 @@ export function ScrollPositionRail({
   readonly total: number | null;
   readonly selection?: RailSelection;
   readonly className?: string;
-}): JSX.Element {
-  const [at, setAt] = useState({ from: 1, to: 1, own: false, floating: false });
+}): JSX.Element | null {
+  // Until it is measured, a list is taken to be all on screen: one that is
+  // says nothing, and the pill of one that is not comes in, never goes out.
+  const [at, setAt] = useState({ from: 1, to: loaded, own: false, floating: false });
   useEffect(() => {
     const el = list.current;
     if (el === null) return;
@@ -144,6 +147,12 @@ export function ScrollPositionRail({
     if (y > near) box.scrollTo({ top: near, behavior: 'instant' });
     box.scrollTo({ top: 0, behavior });
   };
+  const picking = selection !== undefined && selection.count > 0;
+  // Every row loaded and every row on screen: there is no place to tell and
+  // nothing to go back to, so a list of five says nothing under itself.
+  const fits =
+    total !== null && loaded >= total && !at.own && !at.floating && at.from <= 1 && at.to >= loaded;
+  if (fits && !picking) return null;
   return (
     <div
       className={cn(
@@ -153,7 +162,7 @@ export function ScrollPositionRail({
         className,
       )}
     >
-      {selection !== undefined && selection.count > 0 ? (
+      {picking ? (
         <BulkBar
           count={selection.count}
           onClear={selection.onClear}
