@@ -42,7 +42,7 @@ import { Inbox } from './inbox/inbox';
 import { InboxItem } from './inbox/item';
 import { NotificationSettings } from './inbox/notifications';
 import { LanguageSettings } from './language';
-import { readInbox } from './inbox/api';
+import { useInboxCount } from './inbox/api';
 import { useInboxNotifications } from './inbox/notify';
 import { Onboarding } from './people/onboarding';
 import { PeopleTab } from './people/people-tab';
@@ -283,31 +283,6 @@ export function SignedIn({
   const [timeOffStack] = useState(() => createNavigationContainerRef<PeopleRoutes>());
   // The Inbox tab's stack, so a notification opens its item there (M:A2).
   const [inboxStack] = useState(() => createNavigationContainerRef<PeopleRoutes>());
-  // The Inbox tab's count: tasks only, as the web's bell counts them (M:A1).
-  // Read ahead at sign-in, so the tab opens on it, and again every minute.
-  const [waiting, setWaiting] = useState(0);
-  useEffect(() => {
-    let live = true;
-    const signedNow: Signed = {
-      company,
-      sessionId,
-      person,
-      signOut: onSignOut,
-      signedOut: onSignedOut,
-      viewAs: onViewAs,
-    };
-    const count = (): void => {
-      void readInbox(signedNow, 30_000).then((answer) => {
-        if (live && answer.ok) setWaiting(answer.data.counts.todo);
-      });
-    };
-    count();
-    const timer = setInterval(count, 60_000);
-    return () => {
-      live = false;
-      clearInterval(timer);
-    };
-  }, [company, sessionId, person, onSignOut, onSignedOut, onViewAs]);
   // How many screens up now want the tab bar gone.
   const [hiding, setHiding] = useState(0);
   const hide = useCallback((hidden: boolean) => {
@@ -324,6 +299,8 @@ export function SignedIn({
     }),
     [company, sessionId, person, onSignOut, onSignedOut, onViewAs],
   );
+  // The Inbox tab's count: tasks only, as the web's bell counts them (M:A1).
+  const waiting = useInboxCount(signed);
   // The Time off tab, for a company that has Time Off: its viewer read answers.
   // Asked again every 30 seconds until it does, since the first ask can land
   // while the server is still waking, and then the tab would never come. Once

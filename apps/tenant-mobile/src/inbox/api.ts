@@ -128,6 +128,15 @@ export function useInbox(): {
   return { inbox: query.data ?? null, error: query.error?.message ?? null, reload };
 }
 
+/**
+ * How many tasks wait, for the Inbox tab: the same kept answer every Inbox
+ * screen reads, so it moves with each read and write and when the app comes
+ * to the front, with no timer of its own.
+ */
+export function useInboxCount(signed: Signed): number {
+  return useQuery({ ...inboxQuery(signed), select: (inbox) => inbox.counts.todo }).data ?? 0;
+}
+
 /** Notification settings (M:I1): read and kept with the account, as the web keeps them. */
 export async function readNotifications<T>(signed: Signed): Promise<Answer<T>> {
   return call<T>(signed, '/api/mobile/notifications');
