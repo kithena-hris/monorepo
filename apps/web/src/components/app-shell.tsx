@@ -796,9 +796,10 @@ export function AppShell({
   const warmSidebar = useWarmSidebar(
     useCallback(
       (href: string) => {
-        if (!isPage(new URL(href, window.location.origin).pathname)) return;
+        const path = new URL(href, window.location.origin).pathname;
+        if (!isPage(path)) return;
         prefetchPage(router, href);
-        warmRemotes();
+        warmRemotes(path);
       },
       [isPage, router],
     ),
