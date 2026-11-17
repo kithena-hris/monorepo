@@ -9,11 +9,9 @@ import {
   Checkbox,
   Combobox,
   CopyField,
+  type DataColumn,
+  DataTable,
   DatePicker,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   EmptyState,
   Field,
   FieldControl,
@@ -33,12 +31,6 @@ import {
   SegmentedControlItem,
   Slider,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   TagsInput,
   icons,
 } from '@reach/ui';
@@ -1646,6 +1638,53 @@ export interface AiLogData {
   }[];
 }
 
+type AiRow = AiLogData['rows'][number];
+const aiId = (r: AiRow): string => r.id;
+const aiWhat = (r: AiRow): string => `${words(r.feature)}, ${r.for}`;
+
+function aiColumns(): DataColumn<AiRow>[] {
+  return [
+    {
+      id: 'when',
+      header: tr('settings.when', 'When'),
+      sortBy: (r) => r.at,
+      cell: (r) => <span className="text-sm whitespace-nowrap">{when(r.at)}</span>,
+    },
+    {
+      id: 'feature',
+      header: tr('settings.feature', 'Feature'),
+      sortBy: (r) => r.feature,
+      cell: (r) => <span className="text-sm">{words(r.feature)}</span>,
+    },
+    {
+      id: 'for',
+      header: tr('settings.for', 'For'),
+      sortBy: (r) => r.for,
+      cell: (r) => <span className="text-sm">{r.for}</span>,
+    },
+    {
+      id: 'on',
+      header: tr('settings.on', 'On'),
+      hideOnCard: true,
+      sortBy: (r) => r.on,
+      cell: (r) => <span className="text-sm">{r.on}</span>,
+    },
+    {
+      id: 'prompt',
+      header: tr('settings.prompt', 'Prompt'),
+      hideOnCard: true,
+      cell: (r) => <span className="text-sm text-fg-muted">{`v${r.prompt} · ${r.model}`}</span>,
+    },
+    {
+      id: 'outcome',
+      header: tr('settings.outcome', 'Outcome'),
+      cardTrailing: true,
+      sortBy: (r) => r.outcome,
+      cell: (r) => <span className="text-sm">{words(r.outcome)}</span>,
+    },
+  ];
+}
+
 /** S7b: every AI output, for whom, on what and with which prompt version. */
 export function AiLog(props: ScreenProps<AiLogData>): JSX.Element {
   return (
@@ -1671,30 +1710,14 @@ export function AiLog(props: ScreenProps<AiLogData>): JSX.Element {
                   )}
                 />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{tr('settings.when', 'When')}</TableHead>
-                      <TableHead>{tr('settings.feature', 'Feature')}</TableHead>
-                      <TableHead>{tr('settings.for', 'For')}</TableHead>
-                      <TableHead>{tr('settings.on', 'On')}</TableHead>
-                      <TableHead>{tr('settings.prompt', 'Prompt')}</TableHead>
-                      <TableHead>{tr('settings.outcome', 'Outcome')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rows.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="whitespace-nowrap text-sm">{when(r.at)}</TableCell>
-                        <TableCell className="text-sm">{words(r.feature)}</TableCell>
-                        <TableCell className="text-sm">{r.for}</TableCell>
-                        <TableCell className="text-sm">{r.on}</TableCell>
-                        <TableCell className="text-sm text-fg-muted">{`v${r.prompt} · ${r.model}`}</TableCell>
-                        <TableCell className="text-sm">{words(r.outcome)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable<AiRow>
+                  label={tr('settings.ai_log', 'AI log')}
+                  rows={data.rows}
+                  rowId={aiId}
+                  describeRow={aiWhat}
+                  fill
+                  columns={aiColumns()}
+                />
               )}
             </CardContent>
           </Card>
@@ -1932,6 +1955,90 @@ export interface RetentionData {
   }[];
 }
 
+type Due = RetentionData['due'][number];
+type Hold = RetentionData['holds'][number];
+type Upcoming = RetentionData['upcoming'][number];
+const personOf = (r: { readonly personId: string }): string => r.personId;
+const nameOf = (r: { readonly name: string }): string => r.name;
+
+function dueColumns(): DataColumn<Due>[] {
+  return [
+    {
+      id: 'person',
+      header: tr('settings.person', 'Person'),
+      sortBy: nameOf,
+      cell: nameOf,
+    },
+    {
+      id: 'left',
+      header: tr('settings.left', 'Left'),
+      sortBy: (d) => d.leftOn,
+      cell: (d) => day(d.leftOn),
+    },
+    {
+      id: 'what',
+      header: tr('settings.what_goes', 'What goes'),
+      cell: (d) => (
+        <span className="text-sm">
+          {d.what
+            .map((w) =>
+              tr('settings.text', '{{label}}: {{count}}', {
+                label: w.label,
+                count: String(w.count),
+              }),
+            )
+            .join(' · ')}
+        </span>
+      ),
+    },
+  ];
+}
+
+function holdColumns(): DataColumn<Hold>[] {
+  return [
+    {
+      id: 'person',
+      header: tr('settings.person', 'Person'),
+      sortBy: nameOf,
+      cell: nameOf,
+    },
+    {
+      id: 'why',
+      header: tr('settings.why', 'Why'),
+      cell: (h) => <span className="text-sm">{h.reason}</span>,
+    },
+    {
+      id: 'since',
+      header: tr('settings.since_2', 'Since'),
+      sortBy: (h) => h.at,
+      cell: (h) => day(h.at),
+    },
+  ];
+}
+
+function upcomingColumns(): DataColumn<Upcoming>[] {
+  return [
+    {
+      id: 'person',
+      header: tr('settings.person', 'Person'),
+      sortBy: nameOf,
+      cell: nameOf,
+    },
+    {
+      id: 'left',
+      header: tr('settings.left', 'Left'),
+      sortBy: (u) => u.leftOn,
+      cell: (u) => day(u.leftOn),
+    },
+    {
+      id: 'next',
+      header: tr('settings.next_due', 'Next due'),
+      sortBy: (u) => u.next,
+      cell: (u) => day(u.next),
+    },
+  ];
+}
+
 const YEARS_OF: Readonly<Record<string, string>> = {
   reviews: 'reviewsYears',
   feedback: 'feedbackYears',
@@ -2042,73 +2149,33 @@ function RetentionPage({
               )}
             />
           ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <span className="sr-only">{tr('settings.choose', 'Choose')}</span>
-                    </TableHead>
-                    <TableHead>{tr('settings.person', 'Person')}</TableHead>
-                    <TableHead>{tr('settings.left', 'Left')}</TableHead>
-                    <TableHead>{tr('settings.what_goes', 'What goes')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.due.map((d) => (
-                    <TableRow key={d.personId}>
-                      <TableCell>
-                        <Checkbox
-                          aria-label={tr(
-                            'settings.delete_s_due_records',
-                            'Delete {{name}}’s due records',
-                            { name: d.name },
-                          )}
-                          checked={chosen.includes(d.personId)}
-                          onCheckedChange={(on) => {
-                            setChosen(
-                              on === true
-                                ? [...chosen, d.personId]
-                                : chosen.filter((x) => x !== d.personId),
-                            );
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>{d.name}</TableCell>
-                      <TableCell>{day(d.leftOn)}</TableCell>
-                      <TableCell className="text-sm">
-                        {d.what
-                          .map((w) =>
-                            tr('settings.text', '{{label}}: {{count}}', {
-                              label: w.label,
-                              count: String(w.count),
-                            }),
-                          )
-                          .join(' · ')}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Button
-                className="self-start"
-                variant="destructive"
-                disabled={chosen.length === 0}
-                onClick={() => {
-                  setConfirming(true);
-                }}
-              >
-                {chosen.length === 0
-                  ? tr('settings.delete', 'Delete')
-                  : tr('settings.delete_records', 'Delete {{length}} records', {
-                      length: tr(
-                        'settings.count_peoples',
-                        { one: '{{count}} person’s', other: '{{count}} people’s' },
-                        { count: chosen.length },
-                      ),
-                    })}
-              </Button>
-            </>
+            <DataTable<Due>
+              label={tr('settings.due_to_go', 'Due to go')}
+              rows={data.due}
+              rowId={personOf}
+              describeRow={nameOf}
+              fill
+              columns={dueColumns()}
+              selectable
+              selected={chosen}
+              onSelectedChange={setChosen}
+              bulkActions={() => (
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setConfirming(true);
+                  }}
+                >
+                  {tr('settings.delete_records', 'Delete {{length}} records', {
+                    length: tr(
+                      'settings.count_peoples',
+                      { one: '{{count}} person’s', other: '{{count}} people’s' },
+                      { count: chosen.length },
+                    ),
+                  })}
+                </Button>
+              )}
+            />
           )}
         </CardContent>
       </Card>
@@ -2123,42 +2190,23 @@ function RetentionPage({
               {tr('settings.no_ones_records_are_held', 'No one’s records are held.')}
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{tr('settings.person', 'Person')}</TableHead>
-                  <TableHead>{tr('settings.why', 'Why')}</TableHead>
-                  <TableHead>{tr('settings.since_2', 'Since')}</TableHead>
-                  <TableHead>
-                    <span className="sr-only">{tr('settings.lift', 'Lift')}</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.holds.map((h) => (
-                  <TableRow key={h.personId}>
-                    <TableCell>{h.name}</TableCell>
-                    <TableCell className="text-sm">{h.reason}</TableCell>
-                    <TableCell>{day(h.at)}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        loading={act.pending}
-                        onClick={() => {
-                          act.run('LiftPerformanceHold', {
-                            id: h.personId,
-                            input: { reason: null },
-                          });
-                        }}
-                      >
-                        {tr('settings.lift', 'Lift')}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable<Hold>
+              label={tr('settings.legal_holds', 'Legal holds')}
+              rows={data.holds}
+              rowId={personOf}
+              describeRow={nameOf}
+              fill
+              columns={holdColumns()}
+              rowActions={(h) => [
+                {
+                  id: 'lift',
+                  label: tr('settings.lift', 'Lift'),
+                  onSelect: () => {
+                    act.run('LiftPerformanceHold', { id: h.personId, input: { reason: null } });
+                  },
+                },
+              ]}
+            />
           )}
           <Button
             className="self-start"
@@ -2179,24 +2227,14 @@ function RetentionPage({
             <CardTitle level={2}>{tr('settings.coming_up', 'Coming up')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{tr('settings.person', 'Person')}</TableHead>
-                  <TableHead>{tr('settings.left', 'Left')}</TableHead>
-                  <TableHead>{tr('settings.next_due', 'Next due')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.upcoming.map((u) => (
-                  <TableRow key={u.personId}>
-                    <TableCell>{u.name}</TableCell>
-                    <TableCell>{day(u.leftOn)}</TableCell>
-                    <TableCell>{day(u.next)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable<Upcoming>
+              label={tr('settings.coming_up', 'Coming up')}
+              rows={data.upcoming}
+              rowId={personOf}
+              describeRow={nameOf}
+              fill
+              columns={upcomingColumns()}
+            />
           </CardContent>
         </Card>
       )}
@@ -2362,6 +2400,75 @@ export interface WebhooksData {
 /** `performance.review.released` → "Review released". */
 const eventWords = (name: string): string => words(name.split('.').slice(1).join(' '));
 
+type Hook = WebhooksData['rows'][number];
+const hookId = (r: Hook): string => r.id;
+const hookUrl = (r: Hook): string => r.url;
+
+function hookColumns(): DataColumn<Hook>[] {
+  return [
+    {
+      id: 'endpoint',
+      header: tr('settings.endpoint', 'Endpoint'),
+      sortBy: hookUrl,
+      cell: (r) => <span className="font-mono text-sm">{r.url}</span>,
+    },
+    {
+      id: 'events',
+      header: tr('settings.events', 'Events'),
+      hideOnCard: true,
+      cell: (r) => (
+        <span className="text-sm">
+          {r.events.includes('*')
+            ? tr('settings.every_event', 'Every event')
+            : r.events.map(eventWords).join(', ')}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: tr('settings.status', 'Status'),
+      cardTrailing: true,
+      cell: (r) =>
+        r.disabled !== null ? (
+          <span className="flex flex-col gap-0.5">
+            <Badge size="sm" tone="danger">
+              {tr('settings.off', 'Off')}
+            </Badge>
+            <span className="text-xs text-fg-muted">{r.disabled.why}</span>
+          </span>
+        ) : r.failing !== null ? (
+          <Badge size="sm" tone="warning">
+            {tr('settings.failing_since', 'Failing since {{since}}', {
+              since: when(r.failing.since),
+            })}
+          </Badge>
+        ) : (
+          <Badge size="sm" tone="success">
+            {tr('settings.on', 'On')}
+          </Badge>
+        ),
+    },
+    {
+      id: 'last',
+      header: tr('settings.last_delivery', 'Last delivery'),
+      sortBy: (r) => r.last?.at ?? '',
+      cell: (r) => (
+        <span className="text-sm text-fg-muted">
+          {r.last === null
+            ? tr('settings.none_yet', 'None yet')
+            : tr('settings.text_2', '{{at}} · {{value}}', {
+                at: when(r.last.at),
+                value:
+                  r.last.status === 0
+                    ? tr('settings.no_answer', 'no answer')
+                    : String(r.last.status),
+              })}
+        </span>
+      ),
+    },
+  ];
+}
+
 /**
  * S8b (PRD §31, PRF-058): signed webhooks for Performance's events. Each
  * endpoint's secret is shown once, when it is added or rotated; every
@@ -2417,142 +2524,77 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                   )}
                 />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{tr('settings.endpoint', 'Endpoint')}</TableHead>
-                      <TableHead>{tr('settings.events', 'Events')}</TableHead>
-                      <TableHead>{tr('settings.status', 'Status')}</TableHead>
-                      <TableHead>{tr('settings.last_delivery', 'Last delivery')}</TableHead>
-                      <TableHead>
-                        <span className="sr-only">{tr('settings.actions', 'Actions')}</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rows.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-mono text-sm">{r.url}</TableCell>
-                        <TableCell className="text-sm">
-                          {r.events.includes('*')
-                            ? tr('settings.every_event', 'Every event')
-                            : r.events.map(eventWords).join(', ')}
-                        </TableCell>
-                        <TableCell>
-                          {r.disabled !== null ? (
-                            <span className="flex flex-col gap-0.5">
-                              <Badge size="sm" tone="danger">
-                                {tr('settings.off', 'Off')}
-                              </Badge>
-                              <span className="text-xs text-fg-muted">{r.disabled.why}</span>
-                            </span>
-                          ) : r.failing !== null ? (
-                            <Badge size="sm" tone="warning">
-                              {tr('settings.failing_since', 'Failing since {{since}}', {
-                                since: when(r.failing.since),
-                              })}
-                            </Badge>
-                          ) : (
-                            <Badge size="sm" tone="success">
-                              {tr('settings.on', 'On')}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm text-fg-muted">
-                          {r.last === null
-                            ? tr('settings.none_yet', 'None yet')
-                            : tr('settings.text_2', '{{at}} · {{value}}', {
-                                at: when(r.last.at),
-                                value:
-                                  r.last.status === 0
-                                    ? tr('settings.no_answer', 'no answer')
-                                    : String(r.last.status),
-                              })}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label={tr('settings.actions_for', 'Actions for {{url}}', {
-                                  url: r.url,
-                                })}
-                                startIcon={<icons.more aria-hidden />}
-                              />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  act.run(
-                                    'TestPerformanceWebhook',
-                                    { id: r.id, input: {} },
-                                    (d) => {
-                                      const status = (d as { status: number }).status;
-                                      setTested(
-                                        status >= 200 && status < 300
-                                          ? tr(
-                                              'settings.the_test_reached',
-                                              'The test reached {{url}} ({{status}}).',
-                                              { url: r.url, status: String(status) },
-                                            )
-                                          : status === 0
-                                            ? tr(
-                                                'settings.the_test_did_not_reach_no_answer',
-                                                'The test did not reach {{url}}: no answer.',
-                                                { url: r.url },
-                                              )
-                                            : tr(
-                                                'settings.the_test_did_not_reach_answered',
-                                                'The test did not reach {{url}}: it answered {{status}}.',
-                                                { url: r.url, status: String(status) },
-                                              ),
-                                      );
-                                    },
-                                  );
-                                }}
-                              >
-                                {tr('settings.send_a_test', 'Send a test')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  act.run(
-                                    'RotatePerformanceWebhook',
-                                    { id: r.id, input: {} },
-                                    (d) => {
-                                      setSecret((d as { secret: string }).secret);
-                                    },
-                                  );
-                                }}
-                              >
-                                {tr('settings.new_secret', 'New secret')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  act.run('ChangePerformanceWebhook', {
-                                    id: r.id,
-                                    input: { on: r.disabled !== null },
-                                  });
-                                }}
-                              >
-                                {r.disabled === null
-                                  ? tr('settings.turn_off', 'Turn off')
-                                  : tr('settings.turn_on', 'Turn on')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  act.run('RemovePerformanceWebhook', { id: r.id });
-                                }}
-                              >
-                                {tr('settings.remove_3', 'Remove')}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable<Hook>
+                  label={tr('settings.webhooks', 'Webhooks')}
+                  rows={data.rows}
+                  rowId={hookId}
+                  describeRow={hookUrl}
+                  fill
+                  columns={hookColumns()}
+                  rowActions={(r) => [
+                    {
+                      id: 'test',
+                      label: tr('settings.send_a_test', 'Send a test'),
+                      onSelect: () => {
+                        act.run('TestPerformanceWebhook', { id: r.id, input: {} }, (d) => {
+                          const status = (d as { status: number }).status;
+                          setTested(
+                            status >= 200 && status < 300
+                              ? tr(
+                                  'settings.the_test_reached',
+                                  'The test reached {{url}} ({{status}}).',
+                                  {
+                                    url: r.url,
+                                    status: String(status),
+                                  },
+                                )
+                              : status === 0
+                                ? tr(
+                                    'settings.the_test_did_not_reach_no_answer',
+                                    'The test did not reach {{url}}: no answer.',
+                                    { url: r.url },
+                                  )
+                                : tr(
+                                    'settings.the_test_did_not_reach_answered',
+                                    'The test did not reach {{url}}: it answered {{status}}.',
+                                    { url: r.url, status: String(status) },
+                                  ),
+                          );
+                        });
+                      },
+                    },
+                    {
+                      id: 'rotate',
+                      label: tr('settings.new_secret', 'New secret'),
+                      onSelect: () => {
+                        act.run('RotatePerformanceWebhook', { id: r.id, input: {} }, (d) => {
+                          setSecret((d as { secret: string }).secret);
+                        });
+                      },
+                    },
+                    {
+                      id: 'switch',
+                      label:
+                        r.disabled === null
+                          ? tr('settings.turn_off', 'Turn off')
+                          : tr('settings.turn_on', 'Turn on'),
+                      onSelect: () => {
+                        act.run('ChangePerformanceWebhook', {
+                          id: r.id,
+                          input: { on: r.disabled !== null },
+                        });
+                      },
+                    },
+                    {
+                      id: 'remove',
+                      label: tr('settings.remove_3', 'Remove'),
+                      destructive: true,
+                      onSelect: () => {
+                        act.run('RemovePerformanceWebhook', { id: r.id });
+                      },
+                    },
+                  ]}
+                />
               )}
             </CardContent>
           </Card>

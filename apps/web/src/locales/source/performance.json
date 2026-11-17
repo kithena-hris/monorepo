@@ -5251,14 +5251,6 @@
     "text": "Access",
     "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"access\" value."
   },
-  "settings.actions": {
-    "text": "Actions",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <span>."
-  },
-  "settings.actions_for": {
-    "text": "Actions for {{url}}",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the aria-label of <Button>. Filled in: {{url}}."
-  },
   "settings.add": {
     "text": "Add",
     "context": "Performance: reviews, goals, feedback, learning. settings.tsx, GoalsSettings: the footer of <Button>."
@@ -5407,10 +5399,6 @@
     "text": "Check the tone before sending",
     "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Body: the items of <Switches>."
   },
-  "settings.choose": {
-    "text": "Choose",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <span>."
-  },
   "settings.coming_up": {
     "text": "Coming up",
     "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <CardTitle>."
@@ -5469,11 +5457,11 @@
   },
   "settings.count_peoples_one": {
     "text": "{{count}} person’s",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <Button>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: the bulkActions of <Button>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
   "settings.count_peoples_other": {
     "text": "{{count}} people’s",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <Button>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: the bulkActions of <Button>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "settings.courses_sessions_and_attendance": {
     "text": "Courses, sessions and attendance.",
@@ -5497,15 +5485,11 @@
   },
   "settings.delete": {
     "text": "Delete",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <Button>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: the footer of <Button>."
   },
   "settings.delete_records": {
     "text": "Delete {{length}} records",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <Button>. Filled in: {{length}}."
-  },
-  "settings.delete_s_due_records": {
-    "text": "Delete {{name}}’s due records",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: the aria-label of <Checkbox>. Filled in: {{name}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: the bulkActions of <Button>. Filled in: {{length}}."
   },
   "settings.delete_these_records": {
     "text": "Delete these records?",
@@ -5557,7 +5541,7 @@
   },
   "settings.endpoint": {
     "text": "Endpoint",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.enter_or_a_comma_adds_one": {
     "text": "Enter or a comma adds one.",
@@ -5565,7 +5549,7 @@
   },
   "settings.events": {
     "text": "Events",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.every_ai_feature_is_unavailable_until": {
     "text": "Every AI feature is unavailable until one is, whatever these say.",
@@ -5573,7 +5557,7 @@
   },
   "settings.every_event": {
     "text": "Every event",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableCell>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: text inside <span>."
   },
   "settings.every_performance_score_is_computed_on": {
     "text": "Every performance score is computed on it. Changing it changes no score already submitted.",
@@ -5593,11 +5577,11 @@
   },
   "settings.failing_since": {
     "text": "Failing since {{since}}",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <Badge>. Filled in: {{since}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: text inside <Badge>. Filled in: {{since}}."
   },
   "settings.feature": {
     "text": "Feature",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, AiLog: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.features": {
     "text": "Features",
@@ -5625,7 +5609,7 @@
   },
   "settings.for": {
     "text": "For",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, AiLog: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.for_a_request_to_see_or": {
     "text": "For a request to see or take their data: everything about them in Performance, without the private questions about them or the names of anyone who wrote in confidence.",
@@ -5745,7 +5729,7 @@
   },
   "settings.last_delivery": {
     "text": "Last delivery",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.learning": {
     "text": "Learning",
@@ -5765,7 +5749,7 @@
   },
   "settings.left": {
     "text": "Left",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.legal_entities": {
     "text": "Legal entities",
@@ -5781,7 +5765,7 @@
   },
   "settings.lift": {
     "text": "Lift",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <span>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: the rowActions of <DataTable>."
   },
   "settings.linear": {
     "text": "Linear",
@@ -5853,11 +5837,11 @@
   },
   "settings.new_secret": {
     "text": "New secret",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <DropdownMenuItem>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>."
   },
   "settings.next_due": {
     "text": "Next due",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.nine_box_guide": {
     "text": "Nine-box guide",
@@ -5869,7 +5853,7 @@
   },
   "settings.no_answer": {
     "text": "no answer",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableCell>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: text inside <span>."
   },
   "settings.no_check_ins": {
     "text": "No check-ins",
@@ -5893,7 +5877,7 @@
   },
   "settings.none_yet": {
     "text": "None yet",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableCell>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: text inside <span>."
   },
   "settings.not_available_yet": {
     "text": "Not available yet",
@@ -5937,7 +5921,7 @@
   },
   "settings.on": {
     "text": "On",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, AiLog: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.on_a_date": {
     "text": "On a date",
@@ -5977,7 +5961,7 @@
   },
   "settings.outcome": {
     "text": "Outcome",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, AiLog: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.parent_goals_take_their_childrens_progress": {
     "text": "Parent goals take their children’s progress",
@@ -6013,7 +5997,7 @@
   },
   "settings.person": {
     "text": "Person",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.place_a_hold": {
     "text": "Place a hold",
@@ -6045,7 +6029,7 @@
   },
   "settings.prompt": {
     "text": "Prompt",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, AiLog: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.proposes_moves_in_a_session_each": {
     "text": "Proposes moves in a session, each for a person to accept.",
@@ -6097,7 +6081,7 @@
   },
   "settings.remove_3": {
     "text": "Remove",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <DropdownMenuItem>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>."
   },
   "settings.remove_this_level": {
     "text": "Remove this level",
@@ -6137,7 +6121,7 @@
   },
   "settings.send_a_test": {
     "text": "Send a test",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <DropdownMenuItem>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>."
   },
   "settings.sentiment": {
     "text": "Sentiment",
@@ -6173,7 +6157,7 @@
   },
   "settings.since_2": {
     "text": "Since",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.skip_level_reviews": {
     "text": "Skip-level reviews",
@@ -6193,7 +6177,7 @@
   },
   "settings.status": {
     "text": "Status",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.suggests_a_first_draft_of_a": {
     "text": "Suggests a first draft of a review from the year’s evidence.",
@@ -6217,11 +6201,11 @@
   },
   "settings.text": {
     "text": "{{label}}: {{count}}",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <TableCell>. Filled in: {{label}}, {{count}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: text inside <span>. Filled in: {{label}}, {{count}}."
   },
   "settings.text_2": {
     "text": "{{at}} · {{value}}",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <TableCell>. Filled in: {{at}}, {{value}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: text inside <span>. Filled in: {{at}}, {{value}}."
   },
   "settings.thanks_in_public_tagged_with_a": {
     "text": "Thanks in public, tagged with a company value.",
@@ -6281,15 +6265,15 @@
   },
   "settings.the_test_did_not_reach_answered": {
     "text": "The test did not reach {{url}}: it answered {{status}}.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the onSelect of <DropdownMenuItem>. Filled in: {{url}}, {{status}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>. Filled in: {{url}}, {{status}}."
   },
   "settings.the_test_did_not_reach_no_answer": {
     "text": "The test did not reach {{url}}: no answer.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the onSelect of <DropdownMenuItem>. Filled in: {{url}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>. Filled in: {{url}}."
   },
   "settings.the_test_reached": {
     "text": "The test reached {{url}} ({{status}}).",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the onSelect of <DropdownMenuItem>. Filled in: {{url}}, {{status}}."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>. Filled in: {{url}}, {{status}}."
   },
   "settings.the_writer_chooses": {
     "text": "The writer chooses",
@@ -6333,11 +6317,11 @@
   },
   "settings.turn_off": {
     "text": "Turn off",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <DropdownMenuItem>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>."
   },
   "settings.turn_on": {
     "text": "Turn on",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: text inside <DropdownMenuItem>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Webhooks: the rowActions of <DataTable>."
   },
   "settings.turning_it_on_asks_you_to": {
     "text": "Turning it on asks you to approve it there",
@@ -6401,7 +6385,7 @@
   },
   "settings.what_goes": {
     "text": "What goes",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.what_it_means": {
     "text": "What it means",
@@ -6417,7 +6401,7 @@
   },
   "settings.when": {
     "text": "When",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, AiLog: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.when_people_see_their_reviews": {
     "text": "When people see their reviews",
@@ -6469,7 +6453,7 @@
   },
   "settings.why": {
     "text": "Why",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, RetentionPage: text inside <TableHead>."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx: a \"header\" value."
   },
   "settings.within_their_team": {
     "text": "Within their team",
