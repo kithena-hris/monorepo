@@ -270,8 +270,10 @@ export function DonutChart({
               <span>
                 <span
                   className={cn(
-                    'block font-display leading-none font-bold tracking-[-0.03em] tabular-nums',
+                    'block font-display font-bold tracking-[-0.03em] tabular-nums',
                     ringed ? 'text-[14cqi]' : 'text-[17cqi]',
+                    // After the size, or the merge drops it (`cn`).
+                    'leading-none',
                   )}
                 >
                   {center}
