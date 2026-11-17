@@ -34,6 +34,7 @@ import {
   regionName,
   WidgetGrid,
   widgetSpan,
+  DataTable,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -440,6 +441,10 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
 }
 
 /** O7: who holds HR and IT, the holidays plans skip, the company's own country. */
+type Member = SettingsData['members'][number];
+const memberId = (m: Member): string => m.personId;
+const memberName = (m: Member): string => m.name;
+
 export function Settings(props: ScreenProps<SettingsData>): JSX.Element {
   return (
     <Loaded load={props.load} what={tr('templates.onboardings_settings', 'Onboarding’s settings')}>
@@ -464,6 +469,8 @@ function SettingsBody({
       .map(([c, days]) => tr('templates.text', '{{c}}: {{join}}', { c, join: days.join(', ') }))
       .join('\n'),
   );
+  const isHr = new Set(hr);
+  const isIt = new Set(it);
   const toggle = (list: readonly string[], id: string, on: boolean) =>
     on ? [...list, id] : list.filter((x) => x !== id);
   const save = () => {
@@ -500,40 +507,47 @@ function SettingsBody({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{tr('templates.person', 'Person')}</TableHead>
-                <TableHead>{tr('templates.hr', 'HR')}</TableHead>
-                <TableHead>{tr('templates.it', 'IT')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.members.map((m) => (
-                <TableRow key={m.personId}>
-                  <TableCell>{m.name}</TableCell>
-                  <TableCell>
-                    <Switch
-                      aria-label={tr('templates.is_hr', '{{name}} is HR', { name: m.name })}
-                      checked={hr.includes(m.personId)}
-                      onCheckedChange={(on) => {
-                        setHr(toggle(hr, m.personId, on));
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      aria-label={tr('templates.is_it', '{{name}} is IT', { name: m.name })}
-                      checked={it.includes(m.personId)}
-                      onCheckedChange={(on) => {
-                        setIt(toggle(it, m.personId, on));
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable<Member>
+            label={tr('templates.who_does_hrs_and_its_tasks', 'Who does HR’s and IT’s tasks')}
+            rows={data.members}
+            rowId={memberId}
+            describeRow={memberName}
+            fill
+            columns={[
+              {
+                id: 'person',
+                header: tr('templates.person', 'Person'),
+                sortBy: memberName,
+                cell: memberName,
+              },
+              {
+                id: 'hr',
+                header: tr('templates.hr', 'HR'),
+                cell: (m) => (
+                  <Switch
+                    aria-label={tr('templates.is_hr', '{{name}} is HR', { name: m.name })}
+                    checked={isHr.has(m.personId)}
+                    onCheckedChange={(on) => {
+                      setHr(toggle(hr, m.personId, on));
+                    }}
+                  />
+                ),
+              },
+              {
+                id: 'it',
+                header: tr('templates.it', 'IT'),
+                cell: (m) => (
+                  <Switch
+                    aria-label={tr('templates.is_it', '{{name}} is IT', { name: m.name })}
+                    checked={isIt.has(m.personId)}
+                    onCheckedChange={(on) => {
+                      setIt(toggle(it, m.personId, on));
+                    }}
+                  />
+                ),
+              },
+            ]}
+          />
         </CardContent>
       </Card>
       <Card>
