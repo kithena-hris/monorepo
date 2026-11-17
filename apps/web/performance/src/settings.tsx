@@ -2161,7 +2161,8 @@ function RetentionPage({
               onSelectedChange={setChosen}
               bulkActions={() => (
                 <Button
-                  variant="destructive"
+                  size="sm"
+                  variant="secondary"
                   onClick={() => {
                     setConfirming(true);
                   }}
