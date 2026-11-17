@@ -8,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
   Combobox,
+  type DataColumn,
+  DataTable,
   EmptyState,
   Field,
   FieldControl,
@@ -48,6 +50,48 @@ import type {
   ScreenProps,
 } from './types';
 import { t as tr } from './i18n';
+
+type Listed = InterviewsData['upcoming'][number];
+const listedId = (i: Listed): string => i.id;
+const listedName = (i: Listed): string => `${i.candidate}, ${i.title}`;
+
+function listedColumns(onNavigate: ScreenProps<unknown>['onNavigate']): DataColumn<Listed>[] {
+  return [
+    {
+      id: 'candidate',
+      header: tr('interviews.candidate', 'Candidate'),
+      sortBy: (i) => i.candidate,
+      cell: (i) => (
+        <>
+          <To href={`/recruiting/interviews/${i.id}`} onNavigate={onNavigate}>
+            {i.candidate}
+          </To>
+          <span className="block text-sm text-fg-muted">{i.job}</span>
+        </>
+      ),
+    },
+    {
+      id: 'interview',
+      header: tr('interviews.interview', 'Interview'),
+      hideOnCard: true,
+      sortBy: (i) => i.title,
+      cell: (i) => i.title,
+    },
+    {
+      id: 'when',
+      header: tr('interviews.when', 'When'),
+      sortBy: (i) => i.startsAt,
+      cell: (i) => when(i.startsAt),
+    },
+    {
+      id: 'state',
+      header: tr('interviews.state', 'State'),
+      cardTrailing: true,
+      sortBy: (i) => i.state,
+      cell: (i) => <StateBadge state={i.state} />,
+    },
+  ];
+}
 
 /**
  * R14–R17: my interviews, the kit and scorecard, scheduling and the debrief.
@@ -107,36 +151,14 @@ export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
                     title={tr('interviews.nothing_here', 'Nothing here')}
                   />
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{tr('interviews.candidate', 'Candidate')}</TableHead>
-                        <TableHead>{tr('interviews.interview', 'Interview')}</TableHead>
-                        <TableHead>{tr('interviews.when', 'When')}</TableHead>
-                        <TableHead>{tr('interviews.state', 'State')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {group.rows.map((i) => (
-                        <TableRow key={i.id}>
-                          <TableCell>
-                            <To
-                              href={`/recruiting/interviews/${i.id}`}
-                              onNavigate={props.onNavigate}
-                            >
-                              {i.candidate}
-                            </To>
-                            <span className="block text-sm text-fg-muted">{i.job}</span>
-                          </TableCell>
-                          <TableCell>{i.title}</TableCell>
-                          <TableCell>{when(i.startsAt)}</TableCell>
-                          <TableCell>
-                            <StateBadge state={i.state} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <DataTable<Listed>
+                    label={group.title}
+                    rows={group.rows}
+                    rowId={listedId}
+                    describeRow={listedName}
+                    fill
+                    columns={listedColumns(props.onNavigate)}
+                  />
                 )}
               </CardContent>
             </Card>
