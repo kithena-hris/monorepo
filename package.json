@@ -64,7 +64,8 @@
         "GHSA-vfj7-8cjw-p6xm",
         "GHSA-mrhx-c7xc-m3w5",
         "GHSA-gcqx-w48m-w2h4",
-        "GHSA-g3hv-75wg-m249"
+        "GHSA-g3hv-75wg-m249",
+        "GHSA-fc5q-39xc-vjpf"
       ]
     },
     "patchedDependencies": {

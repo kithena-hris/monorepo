@@ -207,22 +207,35 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         applicationId: id,
         planKey: or(s['plan']),
         from: s['week'] === undefined ? null : `${s['week']}T00:00:00.000Z`,
-        away: JSON.stringify(off.away),
         holidays: JSON.stringify(off.holidays),
         // The interviewers chosen on the screen, kept in the address.
         interviewers: or(s['with']),
       };
       const first = await read('RecruitingSlots', variables);
-      // The interviewers are known only once Recruiting has answered; their weeks then come
-      // from Time Off and the slots are drawn again inside them.
+      // The interviewers are known only once Recruiting has answered; their leave and their
+      // weeks then come from Time Off and the slots are drawn again inside them. Their leave
+      // alone: the whole company's, sent with the first read, was refused as too long once a
+      // company had thousands of people, and the screen did not open at all.
       // ponytail: two reads of Recruiting; one when Recruiting learns the weeks by event.
       if (first.status !== 'ready') return first;
       const data = first.data as { organiser: string | null; interviewers: string[] };
       const ids = [...data.interviewers, ...(data.organiser === null ? [] : [data.organiser])];
+      const away = Object.fromEntries(
+        ids.flatMap((person) => {
+          const days = off.away[person];
+          return days === undefined ? [] : [[person, days] as const];
+        }),
+      );
       const weeks = await workingWeeks(ids);
-      return Object.keys(weeks).length === 0
+      const leave = Object.keys(away).length > 0;
+      const worked = Object.keys(weeks).length > 0;
+      return !leave && !worked
         ? first
-        : read('RecruitingSlots', { ...variables, weeks: JSON.stringify(weeks) });
+        : read('RecruitingSlots', {
+            ...variables,
+            ...(leave ? { away: JSON.stringify(away) } : {}),
+            ...(worked ? { weeks: JSON.stringify(weeks) } : {}),
+          });
     }
     case 'Offers':
       return withOffer(await read('RecruitingOffers'), s['offer']);
