@@ -164,6 +164,9 @@ export async function sections(page: Page): Promise<Locator> {
   await peopleItem(page).hover();
   const list = page.getByRole('navigation', { name: 'People sections' });
   await list.waitFor();
+  // And its links: a caller that reads them all at once (`evaluateAll`) does
+  // not wait for the first, and found none in a flyout still being drawn.
+  await list.getByRole('link').first().waitFor();
   return list;
 }
 
