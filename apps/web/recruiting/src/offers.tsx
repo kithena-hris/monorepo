@@ -4,6 +4,13 @@ import {
   AccordionItem,
   AccordionTrigger,
   Alert,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
   Badge,
   Button,
   Card,
@@ -820,6 +827,7 @@ function OfferEditor({
   const setPay = (patch: Partial<Draft['pay']>, typing = false): void => {
     change(withPay(draft, { ...draft.pay, ...patch }), typing);
   };
+  const [sending, setSending] = useState(false);
   /** An action on the offer as saved: what is waiting goes first. */
   const afterSave = (operation: string): void => {
     void autosave.flush().then(() => {
@@ -883,12 +891,43 @@ function OfferEditor({
             loading={act.pending}
             startIcon={<icons.send aria-hidden />}
             onClick={() => {
-              afterSave('SendOffer');
+              setSending(true);
             }}
           >
             {tr('offers.send_to_the_candidate', 'Send to the candidate')}
           </Button>
         ) : null}
+        {/* An email that cannot be taken back: asked once before it goes. */}
+        <AlertDialog open={sending} onOpenChange={setSending}>
+          <AlertDialogContent>
+            <AlertDialogTitle>
+              {tr('offers.send_this_offer_to', 'Send this offer to {{name}}?', {
+                name: data.candidate.name,
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {tr(
+                'offers.they_are_emailed_now_and_can',
+                'They are emailed now, and can accept or decline it on their page.',
+              )}
+            </AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel asChild>
+                <Button variant="secondary">{tr('offers.cancel', 'Cancel')}</Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    afterSave('SendOffer');
+                  }}
+                >
+                  {tr('offers.send_the_offer', 'Send the offer')}
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         {s === 'accepted' ? (
           <Button
             variant="primary"
@@ -2055,9 +2094,18 @@ function ContractDraft({
                   value: (
                     <span className="flex flex-col gap-0.5">
                       {p.value === null ? (
-                        <Badge size="sm" tone="warning">
-                          {tr('offers.to_fill_in', 'To fill in')}
-                        </Badge>
+                        // Kithena does not hold it. While the contract still asks for
+                        // something, it is to fill in; once nothing is asked for, it was
+                        // written there by hand, and the panel no longer says otherwise.
+                        open.length > 0 ? (
+                          <Badge size="sm" tone="warning">
+                            {tr('offers.to_fill_in', 'To fill in')}
+                          </Badge>
+                        ) : (
+                          <Badge size="sm" tone="neutral">
+                            {tr('offers.written_in_the_contract', 'Written in the contract')}
+                          </Badge>
+                        )
                       ) : (
                         <span>{p.value}</span>
                       )}

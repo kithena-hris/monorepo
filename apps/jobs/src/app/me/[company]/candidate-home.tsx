@@ -185,6 +185,27 @@ export function CandidateHome({
                     }}
                   />
                 )}
+                {/* An offer waiting to be read comes first: it sat under an optional
+                    survey, behind a small button among the others. */}
+                {a.offer?.state === 'sent' ? (
+                  <Alert
+                    tone="info"
+                    title={tr(
+                      'app.me.[company].candidate-home.you_have_an_offer_to_read',
+                      'You have an offer to read',
+                    )}
+                    actions={
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          setOffer(a.offer?.offerId ?? null);
+                        }}
+                      >
+                        {tr('app.me.[company].candidate-home.read_your_offer', 'Read your offer')}
+                      </Button>
+                    }
+                  />
+                ) : null}
                 {a.contract === null ? null : a.contract.signedOn !== null ? (
                   <Alert
                     tone="success"

@@ -219,6 +219,7 @@ export function OfferPage({
   const [read, setRead] = useState<OfferRead | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [declining, setDeclining] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   const [reason, setReason] = useState('');
   const [said, setSaid] = useState<readonly Said[]>([]);
   const [asking, ask] = useTransition();
@@ -692,6 +693,28 @@ export function OfferPage({
                   {tr('app.me.[company].offer-page.decline_the_offer', 'Decline the offer')}
                 </Button>
               </>
+            ) : accepting ? (
+              // Asked once, as declining is: accepting is told to the company at once.
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setAccepting(false);
+                  }}
+                >
+                  {tr('app.me.[company].offer-page.back', 'Back')}
+                </Button>
+                <Button
+                  variant="primary"
+                  loading={pending}
+                  startIcon={<icons.success aria-hidden />}
+                  onClick={() => {
+                    if (read !== null) act('/accept', { hash: read.hash });
+                  }}
+                >
+                  {tr('app.me.[company].offer-page.yes_accept', 'Yes, accept this offer')}
+                </Button>
+              </>
             ) : (
               <>
                 <Button
@@ -703,10 +726,10 @@ export function OfferPage({
                   {tr('app.me.[company].offer-page.decline', 'Decline')}
                 </Button>
                 <Button
-                  loading={pending}
+                  variant="primary"
                   startIcon={<icons.success aria-hidden />}
                   onClick={() => {
-                    if (read !== null) act('/accept', { hash: read.hash });
+                    setAccepting(true);
                   }}
                 >
                   {tr('app.me.[company].offer-page.accept_offer', 'Accept the offer')}
