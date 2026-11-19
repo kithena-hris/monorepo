@@ -440,12 +440,15 @@ function OfferCard({
  */
 function ContractCard({
   name,
+  out,
   details,
   asking,
   onAsk,
   onOpen,
 }: {
   readonly name: string;
+  /** The contract is out for signature: nothing to prepare, only to follow. */
+  readonly out: boolean;
   /** Their details: never asked (null), waiting on them, or what they gave. */
   readonly details:
     | { readonly state: 'open' }
@@ -466,19 +469,29 @@ function ContractCard({
           </IconTile>
           <div className="min-w-0">
             <p className="font-semibold">
-              {tr('candidate.prepare_the_contract_title', 'Prepare the contract')}
+              {out
+                ? tr('candidate.contract_out_title', 'The contract is out for signature')
+                : tr('candidate.prepare_the_contract_title', 'Prepare the contract')}
             </p>
             <p className="text-sm text-fg-muted">
-              {tr(
-                'candidate.prepare_the_contract_hint',
-                '{{name}} accepted the offer. Kithena drafts the contract from it and the law of the employing entity; you check every fact and send it to {{name}} to sign.',
-                { name },
-              )}
+              {out
+                ? tr(
+                    'candidate.contract_out_hint',
+                    '{{name}} and the company each sign it. {{name}} is hired the moment the last signature lands.',
+                    { name },
+                  )
+                : tr(
+                    'candidate.prepare_the_contract_hint',
+                    '{{name}} accepted the offer. Kithena drafts the contract from it and the law of the employing entity; you check every fact and send it to {{name}} to sign.',
+                    { name },
+                  )}
             </p>
           </div>
         </div>
         <Button onClick={onOpen} startIcon={<icons.document aria-hidden />}>
-          {tr('candidate.prepare_the_contract', 'Prepare the contract')}
+          {out
+            ? tr('candidate.open_the_contract', 'Open the contract')
+            : tr('candidate.prepare_the_contract', 'Prepare the contract')}
         </Button>
       </div>
       {/* What only they know, asked before the contract: it states them for them to check, and People takes them. */}
@@ -1628,6 +1641,19 @@ export function Spotlight({
       group: 'do',
     },
     {
+      id: 'offer',
+      label:
+        offer === undefined
+          ? tr('candidate.create_offer', 'Create offer')
+          : tr('candidate.open_offer', 'Open offer'),
+      icon: <icons.agreement aria-hidden />,
+      // Before the offer step too: a decision made early does not wait for
+      // every step between to be clicked through. Sending it moves them there.
+      hidden: !mayOffer || !active || offerAt === -1 || at >= offerAt,
+      onSelect: openOffer,
+      group: 'do',
+    },
+    {
       id: 'debrief',
       label: tr('candidate.debrief', 'Debrief'),
       icon: <icons.review aria-hidden />,
@@ -1848,6 +1874,7 @@ export function Spotlight({
           {mayOffer && stage?.category === 'contract' && accepted !== undefined ? (
             <ContractCard
               name={name}
+              out={accepted.contract === 'out_for_signature'}
               details={(() => {
                 const asked = chosen.asks.filter((x) => x.kind === 'details');
                 const answered = asked.findLast((x) => x.state === 'answered');

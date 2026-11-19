@@ -528,14 +528,19 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
               })),
               competencies: Object.fromEntries(competencies),
             },
-      offers: offers.map((o) => ({
-        id: o.id,
-        state: o.state,
-        version: latest(o).version,
-        startDate: latest(o).startDate,
-        baseMinor: latest(o).pay.baseMinor,
-        currency: latest(o).pay.currency,
-      })),
+      offers: await Promise.all(
+        offers.map(async (o) => ({
+          id: o.id,
+          state: o.state,
+          version: latest(o).version,
+          startDate: latest(o).startDate,
+          baseMinor: latest(o).pay.baseMinor,
+          currency: latest(o).pay.currency,
+          // How far its contract has come, so the page stops offering to
+          // prepare one that is already out for signature.
+          contract: (await ctx.tx.contracts.forOffer(o.id))?.state ?? null,
+        })),
+      ),
       prehire: await ctx.tx.prehires.get(app.id),
       // The hiring team reads the answers; the token's hash never leaves Recruiting.
       matrix: may(ctx.viewer, facts, 'candidate.profile') ? await latestMatrix(ctx, app.id) : null,

@@ -403,7 +403,7 @@ function Editor({
               </FieldControl>
             </Field>
             {r.reason === 'backfill' ? (
-              <Field required>
+              <Field required className="md:col-span-2">
                 <FieldLabel>
                   {t('requisitions.replacing_person_id', 'Replacing (person id)')}
                 </FieldLabel>
@@ -420,7 +420,20 @@ function Editor({
                 </FieldControl>
               </Field>
             ) : null}
-            <Field>
+            <NumberField
+              label={t('requisitions.budget_from_yearly', 'Budget from (yearly)')}
+              value={from}
+              min={0}
+              onChange={setFrom}
+            />
+            <NumberField
+              label={t('requisitions.budget_to_yearly', 'Budget to (yearly)')}
+              value={to}
+              min={0}
+              onChange={setTo}
+            />
+            {/* Under the two it prices, across the row: the budget's ends stay side by side. */}
+            <Field className="md:col-span-2">
               <FieldLabel>{t('requisitions.currency', 'Currency')}</FieldLabel>
               <FieldControl>
                 <Input
@@ -435,18 +448,6 @@ function Editor({
                 {t('requisitions.the_legal_entitys_currency', 'The legal entity’s currency.')}
               </FieldDescription>
             </Field>
-            <NumberField
-              label={t('requisitions.budget_from_yearly', 'Budget from (yearly)')}
-              value={from}
-              min={0}
-              onChange={setFrom}
-            />
-            <NumberField
-              label={t('requisitions.budget_to_yearly', 'Budget to (yearly)')}
-              value={to}
-              min={0}
-              onChange={setTo}
-            />
             <Field className="md:col-span-2">
               <FieldLabel>{t('requisitions.justification', 'Justification')}</FieldLabel>
               <FieldControl>
