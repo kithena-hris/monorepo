@@ -156,6 +156,8 @@
   "candidate.condition_waive": "Dispensa",
   "candidate.consent": "Consentiment",
   "candidate.consent_until": "{{purpose}} fins al {{day}}",
+  "candidate.contract_out_hint": "{{name}} i l'empresa signen-lo. {{name}} és contractat en el moment que arriba l'última signatura.",
+  "candidate.contract_out_title": "El contracte està pendent de signatura",
   "candidate.create_offer": "Crear oferta",
   "candidate.criterion": "Criteri",
   "candidate.dates_to_check": "Dates per revisar",

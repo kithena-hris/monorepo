@@ -157,6 +157,8 @@
   "candidate.condition_waive": "Отменить требование",
   "candidate.consent": "Согласие",
   "candidate.consent_until": "{{purpose}} до {{day}}",
+  "candidate.contract_out_hint": "{{name}} и компания подписывают его. {{name}} считается нанятым в тот момент, когда поступит последняя подпись.",
+  "candidate.contract_out_title": "Договор отправлен на подпись",
   "candidate.create_offer": "Создать оффер",
   "candidate.criterion": "Критерий",
   "candidate.dates_to_check": "Даты для проверки",

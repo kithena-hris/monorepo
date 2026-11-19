@@ -155,6 +155,8 @@
   "candidate.condition_waive": "Lever",
   "candidate.consent": "Consentement",
   "candidate.consent_until": "{{purpose}} jusqu’au {{day}}",
+  "candidate.contract_out_hint": "{{name}} et l’entreprise le signent chacune. {{name}} est embauché(e) dès que la dernière signature est apposée.",
+  "candidate.contract_out_title": "Le contrat est en attente de signature",
   "candidate.create_offer": "Créer une offre",
   "candidate.criterion": "Critère",
   "candidate.dates_to_check": "Dates à vérifier",

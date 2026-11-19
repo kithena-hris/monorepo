@@ -152,6 +152,8 @@
   "candidate.condition_waive": "Laten vervallen",
   "candidate.consent": "Toestemming",
   "candidate.consent_until": "{{purpose}} tot {{day}}",
+  "candidate.contract_out_hint": "{{name}} en het bedrijf ondertekenen elk. {{name}} wordt aangenomen op het moment dat de laatste handtekening binnenkomt.",
+  "candidate.contract_out_title": "Het contract wacht op ondertekening",
   "candidate.create_offer": "Aanbod maken",
   "candidate.criterion": "Criterium",
   "candidate.dates_to_check": "Te controleren data",

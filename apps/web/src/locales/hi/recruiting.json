@@ -156,6 +156,8 @@
   "candidate.condition_waive": "छोड़ें",
   "candidate.consent": "सहमति",
   "candidate.consent_until": "{{day}} तक {{purpose}}",
+  "candidate.contract_out_hint": "{{name}} और कंपनी दोनों इसे साइन करेंगे। अंतिम हस्ताक्षर मिलने के साथ ही {{name}} को नियुक्त किया जाता है।",
+  "candidate.contract_out_title": "कॉन्ट्रैक्ट हस्ताक्षर के लिए भेजा गया है",
   "candidate.create_offer": "ऑफ़र बनाएँ",
   "candidate.criterion": "मानदंड",
   "candidate.dates_to_check": "जाँचने की तारीख़ें",

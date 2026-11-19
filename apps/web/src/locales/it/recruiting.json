@@ -154,6 +154,8 @@
   "candidate.condition_waive": "Rinuncia",
   "candidate.consent": "Consenso",
   "candidate.consent_until": "{{purpose}} fino al {{day}}",
+  "candidate.contract_out_hint": "{{name}} e l'azienda lo firmano entrambi. {{name}} è assunto nel momento in cui arriva l'ultima firma.",
+  "candidate.contract_out_title": "Il contratto è in attesa di firma",
   "candidate.create_offer": "Crea offerta",
   "candidate.criterion": "Criterio",
   "candidate.dates_to_check": "Date da verificare",

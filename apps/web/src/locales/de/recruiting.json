@@ -150,6 +150,8 @@
   "candidate.condition_waive": "Verzichten",
   "candidate.consent": "Einwilligung",
   "candidate.consent_until": "{{purpose}} bis {{day}}",
+  "candidate.contract_out_hint": "{{name}} und das Unternehmen unterschreiben ihn. {{name}} wird eingestellt, sobald die letzte Unterschrift vorliegt.",
+  "candidate.contract_out_title": "Der Vertrag liegt zur Unterschrift bereit",
   "candidate.create_offer": "Angebot erstellen",
   "candidate.criterion": "Kriterium",
   "candidate.dates_to_check": "Zu prüfende Daten",

@@ -156,6 +156,8 @@
   "candidate.condition_waive": "Pomiń",
   "candidate.consent": "Zgoda",
   "candidate.consent_until": "{{purpose}} do {{day}}",
+  "candidate.contract_out_hint": "{{name}} i firma podpisują to. {{name}} zostaje zatrudniony w momencie, gdy pojawi się ostatni podpis.",
+  "candidate.contract_out_title": "Umowa jest gotowa do podpisu",
   "candidate.create_offer": "Utwórz ofertę",
   "candidate.criterion": "Kryterium",
   "candidate.dates_to_check": "Daty do sprawdzenia",

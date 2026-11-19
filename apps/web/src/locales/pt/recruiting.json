@@ -156,6 +156,8 @@
   "candidate.condition_waive": "Dispensar",
   "candidate.consent": "Consentimento",
   "candidate.consent_until": "{{purpose}} até {{day}}",
+  "candidate.contract_out_hint": "{{name}} e a empresa assinam. {{name}} é contratado no momento em que a última assinatura chega.",
+  "candidate.contract_out_title": "O contrato está pendente de assinatura",
   "candidate.create_offer": "Criar proposta",
   "candidate.criterion": "Critério",
   "candidate.dates_to_check": "Datas a verificar",

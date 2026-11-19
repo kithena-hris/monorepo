@@ -156,6 +156,8 @@
   "candidate.condition_waive": "தள்ளுபடி செய்",
   "candidate.consent": "ஒப்புதல்",
   "candidate.consent_until": "{{day}} வரை {{purpose}}",
+  "candidate.contract_out_hint": "{{name}} மற்றும் நிறுவனம் இருவரும் இதை கையொப்பமிடுகிறார்கள். கடைசி கையொப்பம் வந்தவுடன் {{name}} பணியில் சேர்க்கப்படுகிறார்.",
+  "candidate.contract_out_title": "ஒப்பந்தம் கையொப்பத்திற்கு அனுப்பப்பட்டுள்ளது.",
   "candidate.create_offer": "வாய்ப்பை உருவாக்கவும்",
   "candidate.criterion": "அளவுகோல்",
   "candidate.dates_to_check": "சரிபார்க்க வேண்டிய தேதிகள்",
