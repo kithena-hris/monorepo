@@ -627,6 +627,14 @@
     "text": "{{purpose}} until {{day}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>. Filled in: {{purpose}}, {{day}}."
   },
+  "candidate.contract_out_hint": {
+    "text": "{{name}} and the company each sign it. {{name}} is hired the moment the last signature lands.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>. Filled in: {{name}}."
+  },
+  "candidate.contract_out_title": {
+    "text": "The contract is out for signature",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>."
+  },
   "candidate.create_offer": {
     "text": "Create offer",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
@@ -949,7 +957,7 @@
   },
   "candidate.open_the_contract": {
     "text": "Open the contract",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <Button>."
   },
   "candidate.open_the_debrief": {
     "text": "Open the debrief",
