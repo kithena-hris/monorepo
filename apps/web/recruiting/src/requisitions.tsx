@@ -222,6 +222,10 @@ export function RequisitionEditor(props: ScreenProps<RequisitionForm>): JSX.Elem
     <Loaded load={props.load} what={t('requisitions.the_requisition', 'the requisition')}>
       {(data) => (
         <Editor
+          // The form keeps what is typed in its own state, so a change of state
+          // made by a button here (sent) or elsewhere (approved) starts it again
+          // from what is held: without this it went on saying "Draft" once sent.
+          key={data.requisitions.find((r) => r.id === id)?.state ?? 'new'}
           initial={data.requisitions.find((r) => r.id === id) ?? blank(id === 'new' ? newId() : id)}
           members={data.members}
           isNew={id === 'new'}
