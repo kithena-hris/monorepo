@@ -394,7 +394,10 @@ export async function deleteJob(ctx: Ctx, jobId: string): Promise<Result<{ id: s
   if (!held.ok) return held;
   if ((await ctx.tx.applications.forJob(jobId)).length > 0)
     return err(
-      failure('HAS_APPLICATIONS', 'Someone has applied to this job, so it is archived, not deleted'),
+      failure(
+        'HAS_APPLICATIONS',
+        'Someone has applied to this job, so it is archived, not deleted',
+      ),
     );
   await takeDown(ctx, held.value);
   await ctx.tx.public.removeListing(jobId);
@@ -455,6 +458,10 @@ export async function publishTo(
   if (!loaded.ok) return loaded;
   if (!jobPermissions(ctx.viewer, loaded.value.facts).has('job.publish')) return err(forbidden());
   const job = loaded.value.job;
+  // Somebody decides who is hired before anybody can apply: an ad went out
+  // with nobody to interview its candidates or to approve its offer.
+  if (!loaded.value.facts.team.some((t) => t.role === 'hiring_manager'))
+    return err(failure('NO_HIRING_MANAGER', 'Choose the hiring manager first'));
   const ads = await ctx.tx.jobs.ads(jobId);
   if (ads.length === 0 && target !== 'internal_board')
     return err(failure('NO_AD', 'Write the ad first'));
