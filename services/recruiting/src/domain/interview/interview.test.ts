@@ -47,6 +47,19 @@ describe('interviews and scorecards (PRD §16)', () => {
     expect(moveInterview(done.value, 'scheduled').ok).toBe(false);
   });
 
+  it('is not completed, nor missed, before it has begun', () => {
+    // `interview` starts at 08:00 on 15 October; a minute before, it has not happened.
+    const early = '2026-10-15T07:59:00Z';
+    expect(moveInterview(interview, 'completed', early)).toMatchObject({
+      ok: false,
+      error: { code: 'INTERVIEW_NOT_STARTED' },
+    });
+    expect(moveInterview(interview, 'no_show', early).ok).toBe(false);
+    // Calling it off or moving it is for before it starts.
+    expect(moveInterview(interview, 'cancelled', early).ok).toBe(true);
+    expect(moveInterview(interview, 'completed', '2026-10-15T08:00:00Z').ok).toBe(true);
+  });
+
   it('submits only a complete scorecard', () => {
     const after = '2026-10-15T10:00:00Z';
     const starts = '2026-10-15T09:00:00Z';
