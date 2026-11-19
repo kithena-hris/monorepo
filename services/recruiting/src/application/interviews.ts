@@ -1,3 +1,4 @@
+import { toPick } from '../domain/people/pick.js';
 import { randomBytes } from 'node:crypto';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { Instant, Rating, Recommendation } from '@kithena/contracts';
@@ -268,10 +269,9 @@ export async function scheduleScreen(
     away: Object.fromEntries(people.map((p) => [p, away[p] ?? []])),
     organiser: ctx.caller.personId,
     interviewers: panel,
-    members: (await ctx.tx.members.list())
-      .filter((m) => m.status !== 'left')
-      .map((m) => ({ personId: m.personId, name: m.displayName }))
-      .toSorted((a, b) => a.name.localeCompare(b.name)),
+    members: toPick((await ctx.tx.members.list()).filter((m) => m.status !== 'left')).toSorted(
+      (a, b) => a.name.localeCompare(b.name),
+    ),
     agenda:
       chosen === null
         ? null

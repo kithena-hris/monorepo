@@ -39,7 +39,18 @@ import {
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { MoreMenu, Refusal, StateBadge, To, byDay, day, useAct, when, words } from './shared';
+import {
+  MoreMenu,
+  Refusal,
+  StateBadge,
+  To,
+  byDay,
+  day,
+  useAct,
+  when,
+  words,
+  peopleOptions,
+} from './shared';
 import type {
   Ask,
   DebriefData,
@@ -1372,7 +1383,7 @@ function ScheduleBody({
                       chips
                       placeholder={tr('interviews.choose_who_runs_it', 'Choose who runs it')}
                       searchPlaceholder={tr('interviews.search_people', 'Search people')}
-                      options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
+                      options={peopleOptions(data.members)}
                       value={data.interviewers}
                       onChange={(v) => {
                         const ids = typeof v === 'string' || v === null ? [] : v;

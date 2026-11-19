@@ -38,7 +38,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { EmailFields, PURPOSE_LABEL } from './composer';
 import { CategoryIcon } from './benefits';
-import { Refusal, money as amount, newId, useAct, words } from './shared';
+import { Refusal, money as amount, newId, useAct, words, peopleOptions } from './shared';
 import type {
   Knockout,
   ApprovalChain,
@@ -1258,7 +1258,7 @@ export function ChainEditor({
                   className="min-w-48 flex-1"
                   placeholder={tr('settings-editors.pick_a_person', 'Pick a person')}
                   aria-invalid={checks.invalid('person') && s.approver.personId === ''}
-                  options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
+                  options={peopleOptions(data.members)}
                   value={s.approver.personId === '' ? null : s.approver.personId}
                   onChange={(v) => {
                     if (typeof v === 'string') setStep(s.id, { kind: 'person', personId: v });

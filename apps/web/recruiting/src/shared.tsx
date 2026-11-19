@@ -14,7 +14,7 @@ import {
 } from '@reach/ui';
 import { useState, useTransition, type JSX, type MouseEvent, type ReactNode } from 'react';
 
-import type { Category, Done, ScreenProps } from './types';
+import type { Category, Done, Pickable, ScreenProps } from './types';
 import { t } from './i18n';
 
 /**
@@ -354,3 +354,17 @@ export function Search({
     />
   );
 }
+
+/**
+ * People as a picker's options. A name two people share carries what tells
+ * them apart (their department, else their email) on a second line; a name
+ * that is one person's alone carries nothing.
+ */
+export const peopleOptions = (
+  members: readonly Pickable[],
+): { value: string; label: string; description?: string }[] =>
+  members.map((m) => ({
+    value: m.personId,
+    label: m.name,
+    ...(m.hint === undefined ? {} : { description: m.hint }),
+  }));
