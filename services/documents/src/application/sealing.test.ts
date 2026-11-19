@@ -134,8 +134,10 @@ describe('sealing (K9)', () => {
     expect(smaller.size).toBeLessThan(5.5);
     expect(widthAt(lines[0], smaller.size)).toBeLessThanOrEqual(130);
     // A box of initials: no size that can be read fits the sentence, so the ID's start alone.
-    const narrow = traceFit(lines, 60, widthAt);
+    const narrow = traceFit(lines, 60, widthAt, true);
     expect(narrow.lines).toEqual(['ID 01a13c68']);
     expect(widthAt('ID 01a13c68', narrow.size)).toBeLessThanOrEqual(60);
+    // A signature that narrow keeps both lines, whole, at the smallest size: the ID is the record.
+    expect(traceFit(lines, 60, widthAt)).toEqual({ lines, size: 4 });
   });
 });

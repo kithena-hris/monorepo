@@ -78,19 +78,22 @@ const TRACE_FLOOR = 4;
 
 /**
  * The print as it fits under a box of `width`: both lines at their size when
- * there is room, smaller down to a floor when there is not, and under a box
- * too narrow for that (initials) the start of the Signature ID alone, which
- * the signature beside it and the certificate give in full. Never wider than
- * the box: under a row of initials the full sentence ran across the page.
+ * there is room, and smaller, down to a floor, when there is not. Under a
+ * signature it is always both lines, the Signature ID whole: that is the
+ * record, and on a very small page it may run a little past the box rather
+ * than lose a character. Under initials (`brief`), which are narrow and sit
+ * beside a signature that says it all, the start of the ID alone when the
+ * sentence does not fit: under a row of initials it ran across the page.
  */
 export function traceFit(
   lines: readonly [string, string],
   width: number,
   widthAt: (text: string, size: number) => number,
+  brief = false,
 ): { readonly lines: readonly string[]; readonly size: number } {
   const widest = Math.max(...lines.map((l) => widthAt(l, 1)));
   const size = Math.min(TRACE_SIZE, widest === 0 ? TRACE_SIZE : width / widest);
-  if (size >= TRACE_FLOOR) return { lines, size };
+  if (size >= TRACE_FLOOR || !brief) return { lines, size: Math.max(size, TRACE_FLOOR) };
   const short = `ID ${lines[1].replace(/^.*:\s*/u, '').slice(0, 8)}`;
   const one = widthAt(short, 1);
   return {
@@ -183,8 +186,11 @@ async function stampFields(
       // TRACE_GAP under the box: tight, as e-signature services print it, and
       // never wider than the box it is under.
       const [said, id] = traceLines(trace);
-      const fitted = traceFit([drawable(said), drawable(id)], box.w, (text, size) =>
-        body.widthOfTextAtSize(text, size),
+      const fitted = traceFit(
+        [drawable(said), drawable(id)],
+        box.w,
+        (text, size) => body.widthOfTextAtSize(text, size),
+        field.kind === 'initials',
       );
       const cap = body.heightAtSize(fitted.size, { descender: false });
       const lead = fitted.size * 1.3;

@@ -233,12 +233,22 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // Every section is reachable from the keyboard and stays inside the shell:
     // focus in People's sections, Tab on to the one wanted, Enter — a
     // client-side move, the sidebar still there, never another origin.
-    const hrefs = await (
-      await sections(page)
-    )
-      .getByRole('link')
-      .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
-    expect(hrefs).toContain('/people/import-export');
+    // Read again until they are there: the flyout closes when the page under
+    // it redraws, and a list read in that moment is empty, not wrong.
+    let hrefs: string[] = [];
+    await expect
+      .poll(
+        async () => {
+          hrefs = await (
+            await sections(page)
+          )
+            .getByRole('link')
+            .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+          return hrefs;
+        },
+        { timeout: 30_000 },
+      )
+      .toContain('/people/import-export');
     for (const href of hrefs) {
       await (await sections(page)).getByRole('link').first().focus();
       for (let tabs = 0; tabs < hrefs.length; tabs += 1) {
