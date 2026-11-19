@@ -87217,7 +87217,8 @@
     "recruiting:pipeline.count_active_candidates_one": "8ebb6ee42d43",
     "recruiting:pipeline.count_active_candidates_many": "965457eabcbd",
     "recruiting:pipeline.count_active_candidates_other": "965457eabcbd",
-    "recruiting:requisitions.open_a_job_from_it": "c6f0198e6e06"
+    "recruiting:requisitions.open_a_job_from_it": "c6f0198e6e06",
+    "email-recruiting:inbox.screens.approve_the_offer_for": "54a9001c771d"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -104877,7 +104878,18 @@
     "timeoff:insights.insights.show_more": "d94a0e3b18cc",
     "jobs:app.me.[company].candidate-home.you_have_an_offer_to_read": "cec8f1da000b",
     "jobs:app.me.[company].offer-page.yes_accept": "ea247649cc51",
-    "email-recruiting:inbox.screens.approve_the_offer_for": "54a9001c771d"
+    "email-recruiting:inbox.screens.approve_the_offer_for": "54a9001c771d",
+    "recruiting:interviews.add_the_interviews": "fe4383f9b852",
+    "recruiting:job.choose_the_hiring_manager_to_publish": "389ba9b6388a",
+    "recruiting:offers.cancel": "19766ed6ccb2",
+    "recruiting:offers.send_the_offer": "e4612dde3f37",
+    "recruiting:offers.send_this_offer_to": "8d5889acc640",
+    "recruiting:offers.they_are_emailed_now_and_can": "4ef5d3dc2339",
+    "recruiting:offers.written_in_the_contract": "89aa9e829c63",
+    "recruiting:pipeline.count_active_candidates_one": "8ebb6ee42d43",
+    "recruiting:pipeline.count_active_candidates_many": "965457eabcbd",
+    "recruiting:pipeline.count_active_candidates_other": "965457eabcbd",
+    "recruiting:requisitions.open_a_job_from_it": "c6f0198e6e06"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
