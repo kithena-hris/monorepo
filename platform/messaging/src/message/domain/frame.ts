@@ -173,7 +173,7 @@ function code(view: FrameView): string {
                         <tr>
                           <td align="center" style="padding:18px 20px 20px 20px;">
                             <div class="k-muted" style="font-size:${scale.small.size};line-height:20px;color:${light['fg-muted']};">${view.code.label}</div>
-                            <div class="k-fg" style="padding-top:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;line-height:42px;font-weight:700;letter-spacing:8px;color:${light.fg};-webkit-user-select:all;user-select:all;">${view.code.value}</div>
+                            <div class="k-fg" style="padding-top:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;line-height:42px;font-weight:700;letter-spacing:8px;padding-left:8px;color:${light.fg};-webkit-user-select:all;user-select:all;">${view.code.value}</div>
                           </td>
                         </tr>
                       </table>
