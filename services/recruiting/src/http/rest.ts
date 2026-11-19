@@ -358,7 +358,9 @@ const Weeks = z.record(
   text(80),
   z.object({
     timeZone: text(80),
-    week: z.record(
+    // The days they work, not all seven: a record keyed by an enum asks for
+    // every key, and a Monday to Friday week was refused for having no weekend.
+    week: z.partialRecord(
       z.enum(['1', '2', '3', '4', '5', '6', '7']),
       z.array(z.tuple([z.int().min(0).max(2880), z.int().min(0).max(2880)])).max(4),
     ),
