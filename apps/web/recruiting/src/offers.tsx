@@ -1016,6 +1016,28 @@ function OfferEditor({
             value: String(data.approval.state.step + 1),
             length: String(data.approval.steps.length),
           })}
+          // When it waits on whoever is reading it, they approve it here: sent
+          // for approval and approved by the same person took a trip to the Inbox.
+          action={
+            data.approval.mine ? (
+              <Button
+                size="sm"
+                disabled={act.pending}
+                loading={act.busy('approved')}
+                onClick={() => {
+                  act.run(
+                    'DecideOffer',
+                    { offerId: data.offer.id, input: { decision: 'approved', comment: null } },
+                    undefined,
+                    undefined,
+                    'approved',
+                  );
+                }}
+              >
+                {tr('offers.approve', 'Approve')}
+              </Button>
+            ) : undefined
+          }
         >
           {data.offer.approvalReasons.map(words).join(', ')}
         </Alert>

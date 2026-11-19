@@ -1329,17 +1329,50 @@ export async function setInterviewState(
     await ctx.deps.interviewEnds?.drop(ctx.caller.tenantId, interviewId).catch(() => undefined);
     await askForScorecards(ctx, next);
   }
-  if (to === 'cancelled') {
-    await ctx.deps.interviewEnds?.drop(ctx.caller.tenantId, interviewId).catch(() => undefined);
-    await publish(
-      ctx,
-      event(ctx, 'recruiting.interview.cancelled', { type: 'Interview', id: interviewId }, payload),
-    );
-    await takeOffCalendar(ctx, interviewId);
-    await invite(ctx, next, true);
-    await inviteTeam(ctx, next, loaded.value.candidate.name, true);
-  }
+  if (to === 'cancelled') await called(ctx, next, loaded.value.candidate.name);
   return ok(next);
+}
+
+/** What follows a cancelled interview: its timer, its event, the calendars and both sides told. */
+async function called(ctx: Ctx, interview: InterviewRecord, candidate: string): Promise<void> {
+  await ctx.deps.interviewEnds?.drop(ctx.caller.tenantId, interview.id).catch(() => undefined);
+  await publish(
+    ctx,
+    event(
+      ctx,
+      'recruiting.interview.cancelled',
+      { type: 'Interview', id: interview.id },
+      {
+        interviewId: interview.id,
+        applicationId: interview.applicationId,
+        interviewerIds: interview.interviewerIds,
+        startsAt: interview.startsAt,
+      },
+    ),
+  );
+  await takeOffCalendar(ctx, interview.id);
+  await invite(ctx, interview, true);
+  await inviteTeam(ctx, interview, candidate, true);
+}
+
+/**
+ * The interviews still to come for an application that is settled (hired):
+ * each is cancelled, off every calendar, and both sides told. Nobody should
+ * turn up to interview somebody who has already signed.
+ */
+export async function cancelUpcoming(
+  ctx: Ctx,
+  applicationId: string,
+  candidate: string,
+): Promise<void> {
+  for (const interview of await ctx.tx.interviews.forApplication(applicationId)) {
+    if (interview.state !== 'scheduled' || interview.startsAt <= ctx.at) continue;
+    const moved = moveInterview(interview, 'cancelled', ctx.at);
+    if (!moved.ok) continue;
+    const next = { ...interview, ...moved.value };
+    await ctx.tx.interviews.save(next);
+    await called(ctx, next, candidate);
+  }
 }
 
 /** When an interview ends, by its booked start and length. */

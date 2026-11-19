@@ -129,6 +129,12 @@ export interface TermsOptions {
 }
 
 const key = (jobId: string): string => `job-terms:${jobId}`;
+/**
+ * The region last chosen for a job at a workplace that names none of its own:
+ * asked once for the workplace, not again for every job there. Kept here and
+ * not on the workplace, which may be People's to write.
+ */
+const regionKey = (locationId: string): string => `workplace-region:${locationId}`;
 
 const EMPTY: JobTerms = {
   entityId: null,
@@ -199,7 +205,13 @@ export async function termsOptions(ctx: Ctx, terms: JobTerms): Promise<TermsOpti
   const pack = entity === null ? null : packFor(entity.country);
   const facts = entity === null ? null : factsOf(entity);
   const weekly = weeklyMinutesOf(terms);
-  const region = regionOf(pack?.regions ?? [], terms.region, location);
+  const remembered =
+    terms.locationId === null ? null : await ctx.tx.settings.get(regionKey(terms.locationId));
+  const region =
+    regionOf(pack?.regions ?? [], terms.region, location) ??
+    // Only while the pack still names it.
+    (pack?.regions ?? []).find((r) => r.key === remembered)?.key ??
+    null;
   const answers: TermsAnswers = {
     region,
     ...(terms.relationship === null
@@ -357,6 +369,8 @@ export async function saveJobTerms(
       return refused('REGION', 'Choose one of the regions the country’s law names');
     terms = { ...terms, region: null };
   }
+  if (patch.region != null && terms.region !== null && terms.locationId !== null)
+    await ctx.tx.settings.set(regionKey(terms.locationId), terms.region);
   const agreement = terms.agreement;
   if (agreement !== null) {
     const known = options.agreements.find((a) => a.key === agreement.key);
