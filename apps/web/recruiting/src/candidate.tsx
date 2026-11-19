@@ -1563,6 +1563,12 @@ export function Spotlight({
     setMoving({ to, name: target.name });
   };
 
+  // An interview step whose interview is booked or held asks for nothing more
+  // to be scheduled: one interview a step, counted up to the step they are at.
+  const arranged =
+    chosen.interviews.filter((i) => i.state === 'scheduled' || i.state === 'completed').length >=
+    chosen.stages.slice(0, at + 1).filter((s) => s.category === 'interview').length;
+  const toSchedule = stage?.category === 'interview' && maySchedule && interviewing && !arranged;
   /** The one button in view: what this stage asks for next. */
   const primary = ((): { label: string; icon: JSX.Element; run: () => void } | null => {
     if (!active) return null;
@@ -1583,7 +1589,7 @@ export function Spotlight({
         icon: <icons.agreement aria-hidden />,
         run: openOffer,
       };
-    if (stage?.category === 'interview' && maySchedule && interviewing)
+    if (toSchedule)
       return {
         label: tr('candidate.schedule_interview', 'Schedule interview'),
         icon: <icons.meeting aria-hidden />,
@@ -1605,8 +1611,20 @@ export function Spotlight({
       id: 'schedule',
       label: tr('candidate.schedule_interview', 'Schedule interview'),
       icon: <icons.meeting aria-hidden />,
-      hidden: !maySchedule || !interviewing || stage?.category === 'interview',
+      // Offered here whenever it is not the button itself.
+      hidden: !maySchedule || !interviewing || toSchedule,
       onSelect: schedule,
+      group: 'do',
+    },
+    {
+      id: 'move',
+      label: tr('candidate.move_to', 'Move to {{name}}', { name: next?.name ?? '' }),
+      icon: <icons.next aria-hidden />,
+      // Always a way on: while the button asked for an interview, there was none.
+      hidden: !mayMove || next === undefined || !toSchedule,
+      onSelect: () => {
+        if (next !== undefined) askMove(next.id);
+      },
       group: 'do',
     },
     {
@@ -1993,7 +2011,11 @@ export function Spotlight({
                   value:
                     typeof v === 'object' && v !== null && 'name' in v
                       ? (v as { name: string }).name
-                      : String(v),
+                      : typeof v === 'boolean'
+                        ? v
+                          ? tr('candidate.yes', 'Yes')
+                          : tr('candidate.no', 'No')
+                        : String(v),
                 }))}
               />
             )}
@@ -2056,13 +2078,15 @@ export function Spotlight({
                 {
                   label: tr('candidate.files', 'Files'),
                   value:
-                    data.files.map((f) => `${f.fileName} (${words(f.kind)})`).join(', ') || '—',
+                    // Once each: the same CV sent with four applications is one file to name.
+                    [...new Set(data.files.map((f) => `${f.fileName} (${words(f.kind)})`))].join(
+                      ', ',
+                    ) || '—',
                 },
                 {
                   label: tr('candidate.consent', 'Consent'),
                   value:
-                    data.consents
-                      .filter((c) => c.withdrawnAt === null)
+                    liveConsents(data.consents)
                       .map((c) =>
                         c.expiresOn === null
                           ? words(c.purpose)
@@ -2126,6 +2150,7 @@ export function Spotlight({
             <EmailComposer
               applicationId={chosen.applicationId}
               purpose="selection"
+              stageId={moving?.to}
               templates={data.templates}
               act={act}
               enabled={moveEmailing}
@@ -2572,6 +2597,24 @@ function SearchBox({
       </Button>
     </form>
   );
+}
+
+/**
+ * The consent in force, one line a purpose: given again with each application,
+ * it read "Application · Application · Application". The one that runs longest
+ * stands for the purpose; one with no end outlasts them all.
+ */
+function liveConsents(
+  consents: CandidateData['consents'],
+): readonly { readonly purpose: string; readonly expiresOn: string | null }[] {
+  const longest = new Map<string, string | null>();
+  for (const c of consents) {
+    if (c.withdrawnAt !== null) continue;
+    const held = longest.get(c.purpose);
+    if (held === undefined || (held !== null && (c.expiresOn === null || c.expiresOn > held)))
+      longest.set(c.purpose, c.expiresOn);
+  }
+  return [...longest].map(([purpose, expiresOn]) => ({ purpose, expiresOn }));
 }
 
 /** R13, talent pools: who is in each, why, and until when their consent runs. */

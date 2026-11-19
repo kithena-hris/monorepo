@@ -423,9 +423,11 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                     <StateBadge state={data.job.state} />
                   )}
                   <span className="text-sm text-fg-muted tabular-nums">
-                    {t('pipeline.active_candidates', '{{length}} active candidates', {
-                      length: String(active.length),
-                    })}
+                    {t(
+                      'pipeline.count_active_candidates',
+                      { one: '{{count}} active candidate', other: '{{count}} active candidates' },
+                      { count: active.length },
+                    )}
                   </span>
                 </span>
               }

@@ -246,7 +246,12 @@ export function byDay(
 }
 
 /** "Senior Backend Engineer", "no_show" → "No show". */
+/** Keys that are names, written as the name is: a capital on the first letter alone gets them wrong. */
+const AS_WRITTEN: Readonly<Record<string, string>> = { cv: 'CV', linkedin: 'LinkedIn' };
+
 export const words = (key: string): string => {
+  const known = AS_WRITTEN[key.toLowerCase()];
+  if (known !== undefined) return known;
   const spaced = key.replaceAll('_', ' ');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 };
