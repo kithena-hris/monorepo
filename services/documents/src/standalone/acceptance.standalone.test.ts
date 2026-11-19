@@ -482,8 +482,8 @@ describe('signatures (K1–K9)', () => {
       view.body.fields
         .filter((f: { signerId: string }) => f.signerId === view.body.me.signerId)
         .map((f: { kind: string }) => f.kind),
-      // Kithena's start: one dated signature, the signature with the day under it.
-    ).toEqual(['date']);
+      // Kithena's start: one signature; the day is in the print under it.
+    ).toEqual(['signature']);
     const signed = await call('adam', 'POST', `/v1/documents/envelopes/${envelope}/sign`, {
       signature: { kind: 'typed', text: 'Adam Novak' },
       // The Signature ID his screen showed under each box as he filled it.
