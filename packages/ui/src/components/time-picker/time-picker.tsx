@@ -9,6 +9,7 @@ import { useCoarsePointer } from '../../lib/use-media-query';
 import { fieldShell, fieldShellHas, floatShell, floatValue } from '../field/field-styles';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
 import { t } from '../../lib/i18n';
+import { locale as pageLocale } from '../../lib/intl';
 
 /**
  * A time of day, stored as 24-hour `HH:MM` whatever the locale shows.
@@ -74,7 +75,10 @@ export function parseTime(text: string): string | null {
 }
 
 /** `HH:MM` as the locale writes it: `09:30` in Berlin, `9:30 AM` in Boston. */
-export function formatTime(value: string, locale?: string): string {
+export function formatTime(value: string, locale: string = pageLocale()): string {
+  // With no locale given, the page's language, as every other date and time
+  // on it is written (`dateFormat`): the browser's own put "4:00 PM" in a
+  // picker beside a list that said "16:00".
   const minutes = toMinutes(value);
   const options = { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' } as const;
   // A 24-hour clock pads the hour ("09:30"); a 12-hour one does not ("9:30 AM").
