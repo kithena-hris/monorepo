@@ -915,15 +915,22 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     detail: null,
   } as const;
   for (const a of await ctx.tx.approvals.waitingOn(person)) {
+    const detail = await approvalDetail(ctx, a);
     const title =
       a.subject.kind === 'requisition'
         ? t('inbox.screens.approve_the_requisition', 'Approve the requisition: {{title}}', {
             title: (await ctx.tx.requisitions.get(a.subject.id))?.title ?? '',
           })
-        : t('inbox.screens.approve_an_offer', 'Approve an offer');
+        : detail?.kind === 'offer'
+          ? // Whose offer: several wait at once, and "Approve an offer" told none apart.
+            t('inbox.screens.approve_the_offer_for', 'Approve the offer: {{name}}, {{job}}', {
+              name: detail.candidate,
+              job: detail.job,
+            })
+          : t('inbox.screens.approve_an_offer', 'Approve an offer');
     items.push({
       ...base,
-      detail: await approvalDetail(ctx, a),
+      detail,
       id: `recruiting:${a.subject.kind === 'requisition' ? 'requisition-approval' : 'offer-approval'}:${a.id}`,
       lane: 'task',
       kind:

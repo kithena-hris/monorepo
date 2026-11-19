@@ -323,7 +323,19 @@ function Editor({
       />
       <Refusal error={act.error} />
       {r.state === 'approved' ? (
-        <Alert tone="info" title={t('requisitions.approved', 'Approved')}>
+        <Alert
+          tone="info"
+          title={t('requisitions.approved', 'Approved')}
+          // What an approval is for: the job it opens, with this requisition behind it.
+          actions={
+            <Button
+              variant="primary"
+              onClick={() => props.onNavigate?.(`/recruiting/jobs/new/setup?requisition=${r.id}`)}
+            >
+              {t('requisitions.open_a_job_from_it', 'Open a job from it')}
+            </Button>
+          }
+        >
           {t(
             'requisitions.changing_the_openings_or_the_budget',
             'Changing the openings or the budget sends it back for approval, with the difference.',

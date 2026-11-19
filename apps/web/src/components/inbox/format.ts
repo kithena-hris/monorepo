@@ -142,7 +142,7 @@ export function homeToDo(peek: InboxPeek): {
   const row = (i: Shown, lane: string): HomeTask => {
     const due = i.due === null ? null : dueOf(i.due, i.dueVerb, peek.now, peek.zone);
     const where =
-      i.area === null
+      i.area === null || i.area === moduleName(i.module)
         ? moduleName(i.module)
         : t('components.inbox.format.text_5', '{{moduleName}} › {{area}}', {
             moduleName: moduleName(i.module),
