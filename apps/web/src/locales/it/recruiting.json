@@ -1398,7 +1398,7 @@
   "offers.signed_on_paper_record_it": "Firmato su carta da entrambi: registra il giorno della seconda firma e la copia firmata se è tra i file della persona. Conserva la carta; con Documents attivo, i contratti si firmano e si conservano in Kithena.",
   "offers.signer_candidate": "{{name}}, con un codice inviato alla sua email",
   "offers.signer_company": "{{name}}, per l’azienda",
-  "offers.signers_initial_hint": "Ciascuno sigla ogni pagina e firma e data l’ultima.",
+  "offers.signers_initial_sign": "Ogni iniziale su ogni pagina e firma l'ultima. La data è stampata sotto ogni firma.",
   "offers.signing": "Firma",
   "offers.start": "Inizia",
   "offers.start_date": "Data di inizio",

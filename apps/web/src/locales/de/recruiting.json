@@ -1372,7 +1372,7 @@
   "offers.signed_on_paper_record_it": "Von beiden auf Papier unterschrieben: Tragen Sie den Tag der zweiten Unterschrift ein und die unterschriebene Kopie, falls sie unter den Dateien der Person ist. Bewahren Sie das Papier auf; mit Documents werden Verträge in Kithena unterschrieben und aufbewahrt.",
   "offers.signer_candidate": "{{name}}, mit einem Code an die eigene E-Mail",
   "offers.signer_company": "{{name}}, für das Unternehmen",
-  "offers.signers_initial_hint": "Alle paraphieren jede Seite und unterschreiben und datieren die letzte.",
+  "offers.signers_initial_sign": "Jede Initiale auf jeder Seite und die letzte Unterschrift. Das Datum wird unter jeder Unterschrift gedruckt.",
   "offers.signing": "Unterschrift",
   "offers.start": "Starten",
   "offers.start_date": "Startdatum",

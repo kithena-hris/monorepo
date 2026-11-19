@@ -1422,7 +1422,7 @@
   "offers.signed_on_paper_record_it": "Podpisana na papierze przez obie strony: zapisz dzień drugiego podpisu i podpisaną kopię, jeśli jest wśród plików kandydata. Zachowaj papier; z włączonym Documents umowy są podpisywane i przechowywane w Kithena.",
   "offers.signer_candidate": "{{name}}, z kodem wysłanym na e-mail",
   "offers.signer_company": "{{name}}, w imieniu firmy",
-  "offers.signers_initial_hint": "Każdy parafuje każdą stronę, a ostatnią podpisuje i datuje.",
+  "offers.signers_initial_sign": "Każda inicjała na każdej stronie i podpisuje ostatnią. Data jest wydrukowana pod każdym podpisem.",
   "offers.signing": "Podpisywanie",
   "offers.start": "Rozpocznij",
   "offers.start_date": "Data rozpoczęcia",

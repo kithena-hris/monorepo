@@ -1383,7 +1383,7 @@
   "offers.signed_on_paper_record_it": "Signé sur papier par les deux : indiquez le jour de la seconde signature, et la copie signée si elle figure parmi les fichiers de la personne. Conservez le papier ; avec Documents, les contrats sont signés et conservés dans Kithena.",
   "offers.signer_candidate": "{{name}}, avec un code envoyé par e-mail",
   "offers.signer_company": "{{name}}, pour l’entreprise",
-  "offers.signers_initial_hint": "Chacun paraphe chaque page et signe et date la dernière.",
+  "offers.signers_initial_sign": "Chaque initiale apparaît sur chaque page et signe la dernière. La date est imprimée sous chaque signature.",
   "offers.signing": "Signature",
   "offers.start": "Commencer",
   "offers.start_date": "Date de début",

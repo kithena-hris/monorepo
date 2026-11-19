@@ -16550,7 +16550,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -17674,7 +17673,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -33863,7 +33863,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -34973,7 +34972,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -51162,7 +51162,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -52272,7 +52271,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -68461,7 +68461,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -69571,7 +69570,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -86124,7 +86124,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -87248,7 +87247,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -103801,7 +103801,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -104925,7 +104924,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -121114,7 +121114,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -122224,7 +122223,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -138777,7 +138777,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -139901,7 +139900,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -156090,7 +156090,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -157200,7 +157199,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -174117,7 +174117,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -175255,7 +175254,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -191808,7 +191808,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -192932,7 +192931,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -209849,7 +209849,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -210987,7 +210986,8 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -227176,7 +227176,6 @@
     "recruiting:offers.preview": "324b134f57c7",
     "recruiting:offers.signer_candidate": "209bdb212152",
     "recruiting:offers.signer_company": "a63d9259192f",
-    "recruiting:offers.signers_initial_hint": "38c88a207d60",
     "recruiting:offers.to_fill_in": "4fe5c12945b4",
     "recruiting:offers.who_signs": "c07456c38335",
     "shell:app.app.recruiting.actions.fill_in_every_fact_first": "967dca743a0d",
@@ -228286,6 +228285,7 @@
     "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
     "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
     "recruiting:requisitions.replacing": "a1670258ef34",
-    "recruiting:requisitions.search_people": "8a7e7f1bc563"
+    "recruiting:requisitions.search_people": "8a7e7f1bc563",
+    "recruiting:offers.signers_initial_sign": "53b365fcd170"
   }
 }

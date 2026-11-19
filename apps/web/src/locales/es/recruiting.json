@@ -1407,7 +1407,7 @@
   "offers.signed_on_paper_record_it": "Firmado en papel por ambas partes: anota el día de la segunda firma y la copia firmada si está entre los archivos de la persona. Guarda el papel; con Documents activado, los contratos se firman y se guardan en Kithena.",
   "offers.signer_candidate": "{{name}}, con un código enviado a su correo",
   "offers.signer_company": "{{name}}, por la empresa",
-  "offers.signers_initial_hint": "Cada uno rubrica cada página y firma y fecha la última.",
+  "offers.signers_initial_sign": "Cada inicial en cada página y firma la última. La fecha se imprime bajo cada firma.",
   "offers.signing": "Firma",
   "offers.start": "Empezar",
   "offers.start_date": "Fecha de inicio",

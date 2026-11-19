@@ -1362,7 +1362,7 @@
   "offers.signed_on_paper_record_it": "Door beide op papier ondertekend: leg de dag van de tweede handtekening vast, en het ondertekende exemplaar als het bij de bestanden van de kandidaat staat. Bewaar het papier; met Documents aan worden contracten in Kithena ondertekend en bewaard.",
   "offers.signer_candidate": "{{name}}, met een code naar het eigen e-mailadres",
   "offers.signer_company": "{{name}}, namens het bedrijf",
-  "offers.signers_initial_hint": "Ieder parafeert elke pagina en tekent en dateert de laatste.",
+  "offers.signers_initial_sign": "Elke initiaal ondertekent elke pagina en ondertekent de laatste. De datum staat onder elke handtekening.",
   "offers.signing": "Ondertekening",
   "offers.start": "Starten",
   "offers.start_date": "Startdatum",
