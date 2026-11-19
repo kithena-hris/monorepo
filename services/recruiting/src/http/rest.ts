@@ -446,6 +446,15 @@ export const ROUTES: readonly Route[] = [
     run: async (ctx) => ok(await requisitionsScreen(ctx)),
   }),
   route({
+    name: 'recruitingMembers',
+    method: 'GET',
+    path: `${V1}/members`,
+    summary:
+      'Who works here, by name: for a field that picks a person, as a requisition’s backfill does',
+    run: async (ctx) =>
+      ok((await ctx.tx.members.list()).map((m) => ({ personId: m.personId, name: m.displayName }))),
+  }),
+  route({
     name: 'recruitingTermsCatalogue',
     method: 'GET',
     path: `${V1}/terms/{country}`,

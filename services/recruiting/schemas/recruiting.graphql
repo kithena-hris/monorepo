@@ -732,6 +732,10 @@ type Query {
   recruitingJobs: JSON
   """R15: an interview kit and my scorecard"""
   recruitingKit(interviewId: String!): JSON
+  """
+  Who works here, by name: for a field that picks a person, as a requisition’s backfill does
+  """
+  recruitingMembers: JSON
   """Whether I am emailed when a candidate acts"""
   recruitingMyNotifications: JSON
   """R4: a new job’s first page, before the job exists"""

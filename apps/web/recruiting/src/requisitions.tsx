@@ -1,4 +1,5 @@
 import {
+  Combobox,
   Alert,
   Badge,
   Button,
@@ -204,14 +205,15 @@ const blank = (id: string): Requisition => ({
 });
 
 /** R2b: draft or edit; sending asks the approval chain the company's rules choose. */
-export function RequisitionEditor(props: ScreenProps<readonly Requisition[]>): JSX.Element {
+export function RequisitionEditor(props: ScreenProps<RequisitionForm>): JSX.Element {
   const id = props.params?.['id'] ?? 'new';
   const act = useAct(props);
   return (
     <Loaded load={props.load} what={t('requisitions.the_requisition', 'the requisition')}>
-      {(all) => (
+      {(data) => (
         <Editor
-          initial={all.find((r) => r.id === id) ?? blank(id === 'new' ? newId() : id)}
+          initial={data.requisitions.find((r) => r.id === id) ?? blank(id === 'new' ? newId() : id)}
+          members={data.members}
           isNew={id === 'new'}
           act={act}
           props={props}
@@ -221,16 +223,24 @@ export function RequisitionEditor(props: ScreenProps<readonly Requisition[]>): J
   );
 }
 
+/** The form's page: the requisitions, and the names a backfill picks who it replaces from. */
+interface RequisitionForm {
+  readonly requisitions: readonly Requisition[];
+  readonly members: readonly { readonly personId: string; readonly name: string }[];
+}
+
 function Editor({
   initial,
+  members,
   isNew,
   act,
   props,
 }: {
   readonly initial: Requisition;
+  readonly members: RequisitionForm['members'];
   readonly isNew: boolean;
   readonly act: ReturnType<typeof useAct>;
-  readonly props: ScreenProps<readonly Requisition[]>;
+  readonly props: ScreenProps<RequisitionForm>;
 }): JSX.Element {
   const [r, setR] = useState(initial);
   const [currency, setCurrency] = useState(initial.budget?.to.currency ?? 'EUR');
@@ -404,17 +414,20 @@ function Editor({
             </Field>
             {r.reason === 'backfill' ? (
               <Field required className="md:col-span-2">
-                <FieldLabel>
-                  {t('requisitions.replacing_person_id', 'Replacing (person id)')}
-                </FieldLabel>
+                <FieldLabel>{t('requisitions.replacing', 'Replacing')}</FieldLabel>
                 <FieldControl>
-                  <Input
-                    value={r.replacesPersonId ?? ''}
-                    onChange={(e) => {
-                      setR({
-                        ...r,
-                        replacesPersonId: e.target.value === '' ? null : e.target.value,
-                      });
+                  <Combobox
+                    label={t('requisitions.replacing', 'Replacing')}
+                    placeholder={t('requisitions.choose_who_leaves', 'Choose who this replaces')}
+                    searchPlaceholder={t('requisitions.search_people', 'Search people')}
+                    emptyMessage={t(
+                      'requisitions.nobody_by_that_name',
+                      'Nobody by that name works here.',
+                    )}
+                    options={members.map((m) => ({ value: m.personId, label: m.name }))}
+                    value={r.replacesPersonId}
+                    onChange={(v) => {
+                      setR({ ...r, replacesPersonId: typeof v === 'string' ? v : null });
                     }}
                   />
                 </FieldControl>
