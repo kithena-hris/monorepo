@@ -1402,7 +1402,7 @@
   "offers.signed_on_paper_record_it": "Signat en paper per totes dues parts: anota el dia de la segona signatura i la còpia signada si és entre els fitxers de la persona. Guarda el paper; amb Documents activat, els contractes se signen i es guarden a Kithena.",
   "offers.signer_candidate": "{{name}}, amb un codi enviat al seu correu",
   "offers.signer_company": "{{name}}, per l’empresa",
-  "offers.signers_initial_hint": "Cadascú rubrica cada pàgina i signa i data l’última.",
+  "offers.signers_initial_sign": "Cada inicial signa cada pàgina i signa l'última. El dia s'imprimeix sota cada signatura.",
   "offers.signing": "Signatura",
   "offers.start": "Comença",
   "offers.start_date": "Data d’inici",

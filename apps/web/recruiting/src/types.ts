@@ -301,7 +301,7 @@ export interface JobData {
     readonly statutory: boolean;
     readonly names: Readonly<Record<string, string>>;
   }[];
-  readonly members: readonly { readonly personId: string; readonly name: string }[];
+  readonly members: readonly Pickable[];
   /** The terms, set in order: workplace, work type, contract, hours, leave, benefits. */
   readonly terms: JobTerms;
   /** What each step may offer, from the choices before it. */
@@ -822,7 +822,7 @@ export interface ScheduleData {
   /** Who runs this interview: chosen, else the plan's, else the hiring team. They are invited. */
   readonly interviewers: readonly string[];
   /** Everyone who could be chosen. */
-  readonly members: readonly { readonly personId: string; readonly name: string }[];
+  readonly members: readonly Pickable[];
   /** The agenda kept for this interview of this job; null until one is written. */
   readonly agenda: { readonly html: string; readonly text: string } | null;
 }
@@ -1278,7 +1278,7 @@ export interface SettingsData {
   /** The departments: People's where present, Recruiting's own otherwise or beside them. */
   readonly orgUnits: readonly OrgUnit[];
   /** Names to pick for an approval chain's "person" step. */
-  readonly members: readonly { readonly personId: string; readonly name: string }[];
+  readonly members: readonly Pickable[];
   readonly pipelines: readonly {
     readonly id: string;
     readonly name: string;
@@ -1364,4 +1364,11 @@ export interface BoardData {
     readonly outcome: string;
   }[];
   readonly bonus: GeneralSettings['referralBonus'];
+}
+
+/** A person to pick by name; `hint` only for a name two people share, to tell them apart. */
+export interface Pickable {
+  readonly personId: string;
+  readonly name: string;
+  readonly hint?: string;
 }

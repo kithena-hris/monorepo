@@ -66,7 +66,18 @@ import {
 import { use, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
-import { MoreMenu, Refusal, StateBadge, day, newId, range, useAct, when, words } from './shared';
+import {
+  MoreMenu,
+  Refusal,
+  StateBadge,
+  day,
+  newId,
+  range,
+  useAct,
+  when,
+  words,
+  peopleOptions,
+} from './shared';
 import { BenefitList } from './benefits';
 import { SaveQueue, hoursOf, useAnswered, useCommit, type Commit } from './job-terms';
 import { JobWizard, NewJobWizard, isSetupPart } from './job-wizard';
@@ -475,7 +486,7 @@ function Team({
               // Everybody is offered: somebody holding another role here moves to
               // this one when chosen. Left out, the recruiter who made the job
               // could not be found to be its hiring manager.
-              options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
+              options={peopleOptions(data.members)}
               value={team.filter((t) => t.role === role).map((t) => t.personId)}
               onChange={(v) => {
                 const ids = typeof v === 'string' || v === null ? [] : [...v];

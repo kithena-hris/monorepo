@@ -171,8 +171,36 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
             },
           };
     }
-    case 'JobSetup':
-      return id === 'new' ? read('RecruitingNewJob') : read('RecruitingJob', { jobId: id });
+    case 'JobSetup': {
+      if (id !== 'new') return read('RecruitingJob', { jobId: id });
+      const from = or(s['requisition']);
+      if (from === null) return read('RecruitingNewJob');
+      // Opened from a requisition: its title, openings and start come with the
+      // page, so what was asked for and approved is not typed a second time.
+      const [page, list] = await Promise.all([
+        read('RecruitingNewJob'),
+        read('RecruitingRequisitions'),
+      ]);
+      if (page.status !== 'ready' || list.status !== 'ready') return page;
+      const asked = (
+        list.data as readonly {
+          id: string;
+          title: string;
+          openings: number;
+          targetStart: string | null;
+        }[]
+      ).find((r) => r.id === from);
+      return {
+        status: 'ready',
+        data: {
+          ...(page.data as object),
+          from:
+            asked === undefined
+              ? null
+              : { title: asked.title, openings: asked.openings, targetStart: asked.targetStart },
+        },
+      };
+    }
     case 'Pipeline': {
       // The application open over the board is read beside it, so the overlay arrives with the page.
       const [board, spotlight] = await Promise.all([

@@ -1,3 +1,4 @@
+import { cancelUpcoming } from './interviews.js';
 import { everyCatalogue, keepChosen } from './catalogue.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
@@ -1319,6 +1320,11 @@ async function placeHire(
     'hired',
     [hired.value.move],
     startDate,
+  );
+  await cancelUpcoming(
+    ctx,
+    app.id,
+    (await ctx.tx.candidates.get(app.candidateId))?.name ?? 'a candidate',
   );
   const filled = hireInto(job);
   if (filled.ok) {

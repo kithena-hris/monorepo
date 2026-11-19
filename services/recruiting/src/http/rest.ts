@@ -1,3 +1,4 @@
+import { toPick } from '../domain/people/pick.js';
 import { createHash } from 'node:crypto';
 import { presentsInternalToken } from '@kithena/auth-kit';
 import * as z from 'zod';
@@ -451,8 +452,7 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/members`,
     summary:
       'Who works here, by name: for a field that picks a person, as a requisition’s backfill does',
-    run: async (ctx) =>
-      ok((await ctx.tx.members.list()).map((m) => ({ personId: m.personId, name: m.displayName }))),
+    run: async (ctx) => ok(toPick(await ctx.tx.members.list())),
   }),
   route({
     name: 'recruitingTermsCatalogue',

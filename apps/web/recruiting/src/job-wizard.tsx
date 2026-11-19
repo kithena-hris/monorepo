@@ -1845,6 +1845,8 @@ export function NewJobWizard({
       ? (props.load.data as unknown as {
           orgUnits?: JobData['orgUnits'];
           entities?: readonly { country: string }[];
+          /** The requisition it is opened from: what was asked for is not typed again. */
+          from?: { title: string; openings: number; targetStart: string | null } | null;
         })
       : null;
   const orgUnits = loaded?.orgUnits ?? [];
@@ -1854,11 +1856,11 @@ export function NewJobWizard({
     for (const country of new Set((loaded?.entities ?? []).map((e) => e.country)))
       prefetchCatalogue((n, v) => call.current(n, v), country);
   }, [loaded]);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(loaded?.from?.title ?? '');
   const [team, setTeam] = useState<string | null>(null);
   const [level, setLevel] = useState<string | null>(null);
-  const [openings, setOpenings] = useState<number | null>(1);
-  const [start, setStart] = useState<string | null>(null);
+  const [openings, setOpenings] = useState<number | null>(loaded?.from?.openings ?? 1);
+  const [start, setStart] = useState<string | null>(loaded?.from?.targetStart ?? null);
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requisition = props.search?.['requisition'] ?? null;

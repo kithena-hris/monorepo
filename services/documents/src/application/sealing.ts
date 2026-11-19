@@ -131,12 +131,39 @@ async function stampFields(
     const mark = signer?.signature ?? null;
     // Each draw says where its ink ends, so the print goes under what was
     // drawn rather than under the box, however much of the box it fills.
+    // The whole of `b` is the signature's: `b` is already the frame less its
+    // padding, so the ink is fitted to all of it.
     const stamp = async (b: Box, initialsOnly: boolean): Promise<number> => {
       if (mark === null) return b.y + b.h / 2;
-      if (mark.kind === 'drawn') return drawCentred(page, mark.path, b, ink);
+      if (mark.kind === 'drawn') return drawCentred(page, mark.path, b, ink, 1);
       const text = initialsOnly ? initials(mark.text) : mark.text;
       const font = (await scriptFor(pdf, mark.style ?? 'flowing', text)) ?? body;
-      return writeCentred(page, font === body ? drawable(text) : text, font, b, ink, 0.95);
+      return writeCentred(
+        page,
+        font === body ? drawable(text) : text,
+        font,
+        b,
+        ink,
+        1,
+        Infinity,
+        1,
+      );
+    };
+    /** How tall the signature's ink is when fitted to `w` by `h`: what its frame is sized to. */
+    const inkHeight = async (w: number, h: number, initialsOnly: boolean): Promise<number> => {
+      if (mark === null) return h;
+      if (mark.kind === 'drawn') {
+        const drawn = inkBounds(mark.path);
+        if (drawn === null) return h;
+        return drawn.height * Math.min(w / Math.max(drawn.width, 1), h / Math.max(drawn.height, 1));
+      }
+      const text = initialsOnly ? initials(mark.text) : mark.text;
+      const font = (await scriptFor(pdf, mark.style ?? 'flowing', text)) ?? body;
+      const written = font === body ? drawable(text) : text;
+      const tall = inkOf(font, written);
+      const unit = tall === null ? font.widthOfTextAtSize(written, 1) : tall.right - tall.left;
+      const high = tall === null ? font.heightAtSize(1) : tall.high - tall.low;
+      return high * Math.max(6, Math.min(h / high, unit === 0 ? Infinity : w / unit));
     };
     let bottom: number;
     if (SIGNED.has(field.kind) && mark !== null) {
@@ -145,13 +172,26 @@ async function stampFields(
       // top, the ink below, so a printed page shows at a glance that this is
       // an electronic signature and whose.
       const head = STAMP_HEAD + 2;
+      // The frame is the signature's and nothing else's: the ink fills it to
+      // STAMP_PAD of its edges, and where a name is too wide to reach the
+      // foot of the box the frame ends under the ink, not under the box. The
+      // print then stands directly under the signature, never under a gap.
+      const wide = box.w - STAMP_BAR - 2 * STAMP_PAD;
+      const tall = await inkHeight(wide, box.h - head - 2 * STAMP_PAD, field.kind === 'initials');
+      const frame = {
+        x: box.x,
+        w: box.w,
+        h: Math.min(box.h, head + tall + 2 * STAMP_PAD),
+        y: 0,
+      };
+      frame.y = box.y + box.h - frame.h;
       // A wash of the ink's own blue behind it, a hairline around, and a bar
       // of ink down the leading edge: the mark of a signing, not a text box.
       page.drawRectangle({
-        x: box.x,
-        y: box.y,
-        width: box.w,
-        height: box.h,
+        x: frame.x,
+        y: frame.y,
+        width: frame.w,
+        height: frame.h,
         color: rgb(0.955, 0.965, 0.995),
         opacity: 0.7,
         borderColor: rgb(0.7, 0.74, 0.88),
@@ -159,13 +199,22 @@ async function stampFields(
         borderOpacity: 1,
       });
       page.drawRectangle({
-        x: box.x,
-        y: box.y,
+        x: frame.x,
+        y: frame.y,
         width: STAMP_BAR,
-        height: box.h,
+        height: frame.h,
         color: ink,
       });
-      page.drawText(drawable(`Signed by ${signer?.name ?? ''}`.slice(0, 60)), {
+      // Cut to the box, as the screen cuts it: under initials the whole
+      // sentence ran out of the frame and over what stood beside it.
+      let headed = drawable(`Signed by ${signer?.name ?? ''}`.slice(0, 60));
+      const fits = (t: string): boolean =>
+        body.widthOfTextAtSize(t, STAMP_HEAD) <= box.w - STAMP_BAR - 6;
+      if (!fits(headed)) {
+        while (headed.length > 1 && !fits(`${headed}...`)) headed = headed.slice(0, -1);
+        headed = `${headed.trimEnd()}...`;
+      }
+      page.drawText(headed, {
         x: box.x + STAMP_BAR + 3,
         y: box.y + box.h - head + 1.5,
         size: STAMP_HEAD,
@@ -174,9 +223,17 @@ async function stampFields(
       });
       // The day is not in the box, on a dated signature of an earlier
       // envelope either: it is in the print under every signature.
-      const inkBox = { ...box, x: box.x + STAMP_BAR, w: box.w - STAMP_BAR, h: box.h - head };
-      bottom = await stamp(inkBox, field.kind === 'initials');
-      bottom = Math.min(bottom, box.y);
+      await stamp(
+        {
+          x: box.x + STAMP_BAR + STAMP_PAD,
+          y: frame.y + STAMP_PAD,
+          w: wide,
+          h: frame.h - head - 2 * STAMP_PAD,
+        },
+        field.kind === 'initials',
+      );
+      // Under the frame, which is where the signature ends.
+      bottom = frame.y;
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
       bottom = writeCentred(page, drawable(text), body, box, ink, 0.8, 12);
@@ -294,6 +351,8 @@ const SIGNED: ReadonlySet<string> = new Set(['signature', 'initials', 'date']);
 const STAMP_HEAD = 5;
 /** The bar of ink down a signature's leading edge. */
 const STAMP_BAR = 1.5;
+/** Between a signature's ink and its frame: 3pt, the 4px a screen shows, and no more. */
+const STAMP_PAD = 3;
 /** The print under a signed field: its size, and the gap above it (2.5pt, 3px on screen). */
 const TRACE_SIZE = 5.5;
 const TRACE_GAP = 2.5;
@@ -311,21 +370,31 @@ function writeCentred(
   color: RGB,
   fill: number,
   most = Infinity,
+  across = 0.84,
 ): number {
   if (text === '') return box.y + box.h / 2;
-  const unit = font.widthOfTextAtSize(text, 1);
-  // By the face's whole height, tails and capitals included: a handwriting
-  // face runs far above and below its size.
-  const tall = font.heightAtSize(1);
+  // By where these glyphs' ink really is, when the face can say. A
+  // handwriting face is sized for its deepest swash and tallest flourish, so
+  // by the face's own height a name was drawn small and high in its box, over
+  // the "Signed by" above it; by its ink it fills the box and sits in the
+  // middle of it.
+  const ink = inkOf(font, text);
+  const tall = ink === null ? font.heightAtSize(1) : ink.high - ink.low;
+  // Across too: a swash runs past where the face says its letters end, and
+  // by that measure a bold name ran out of its frame.
+  const unit = ink === null ? font.widthOfTextAtSize(text, 1) : ink.right - ink.left;
   const size = Math.max(
     6,
-    Math.min(most, (box.h * fill) / tall, unit === 0 ? Infinity : (box.w * 0.9) / unit),
+    Math.min(most, (box.h * fill) / tall, unit === 0 ? Infinity : (box.w * across) / unit),
   );
   const full = font.heightAtSize(size);
   const descent = full - font.heightAtSize(size, { descender: false });
-  const baseline = box.y + (box.h - full) / 2 + descent;
+  const baseline =
+    ink === null
+      ? box.y + (box.h - full) / 2 + descent
+      : box.y + (box.h - tall * size) / 2 - ink.low * size;
   page.drawText(text, {
-    x: box.x + (box.w - font.widthOfTextAtSize(text, size)) / 2,
+    x: box.x + (box.w - unit * size) / 2 - (ink?.left ?? 0) * size,
     y: baseline,
     size,
     font,
@@ -340,17 +409,38 @@ function writeCentred(
  * fontkit face pdf-lib embedded lays the text out and knows.
  */
 function inkBottom(font: PDFFont, text: string, size: number, baseline: number): number {
+  const ink = inkOf(font, text);
+  return ink === null
+    ? baseline - (font.heightAtSize(size) - font.heightAtSize(size, { descender: false }))
+    : baseline + ink.low * size;
+}
+
+/** The lowest and highest ink of `text` at size 1, from its baseline; null when the face cannot say. */
+function inkOf(
+  font: PDFFont,
+  text: string,
+): { low: number; high: number; left: number; right: number } | null {
   const face = (font as unknown as { embedder?: { font?: Face } }).embedder?.font;
-  const low = face?.layout(text).bbox.minY;
-  if (face === undefined || low === undefined || !Number.isFinite(low)) {
-    return baseline - (font.heightAtSize(size) - font.heightAtSize(size, { descender: false }));
-  }
-  return baseline + (low * size) / face.unitsPerEm;
+  const box = face?.layout(text).bbox;
+  if (face === undefined || box === undefined) return null;
+  const [low, high, left, right] = [box.minY, box.maxY, box.minX, box.maxX].map(
+    (v) => v / face.unitsPerEm,
+  ) as [number, number, number, number];
+  return [low, high, left, right].every(Number.isFinite) && high > low && right > left
+    ? { low, high, left, right }
+    : null;
 }
 
 interface Face {
   readonly unitsPerEm: number;
-  layout(text: string): { readonly bbox: { readonly minY: number } };
+  layout(text: string): {
+    readonly bbox: {
+      readonly minX: number;
+      readonly maxX: number;
+      readonly minY: number;
+      readonly maxY: number;
+    };
+  };
 }
 
 /**
@@ -358,12 +448,12 @@ interface Face {
  * margin: the pad's own 400 × 120 frame and the blank around the strokes
  * are not part of the signature.
  */
-function drawCentred(page: PDFPage, path: string, box: Box, color: RGB): number {
+function drawCentred(page: PDFPage, path: string, box: Box, color: RGB, fill?: number): number {
   const ink = inkBounds(path);
   if (ink === null) return box.y + box.h / 2;
   const scale = Math.min(
-    (box.w * 0.9) / Math.max(ink.width, 1),
-    (box.h * 0.85) / Math.max(ink.height, 1),
+    (box.w * (fill ?? 0.9)) / Math.max(ink.width, 1),
+    (box.h * (fill ?? 0.85)) / Math.max(ink.height, 1),
   );
   const top = box.y + box.h - (box.h - ink.height * scale) / 2;
   page.drawSvgPath(path, {

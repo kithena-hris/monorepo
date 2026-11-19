@@ -34,8 +34,18 @@ import {
 import { useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { MoreMenu, Refusal, StateBadge, To, newId, range, useAct, words } from './shared';
-import type { Requisition, ScreenProps } from './types';
+import {
+  MoreMenu,
+  Refusal,
+  StateBadge,
+  To,
+  newId,
+  range,
+  useAct,
+  words,
+  peopleOptions,
+} from './shared';
+import type { Pickable, Requisition, ScreenProps } from './types';
 import { t } from './i18n';
 
 /**
@@ -212,6 +222,10 @@ export function RequisitionEditor(props: ScreenProps<RequisitionForm>): JSX.Elem
     <Loaded load={props.load} what={t('requisitions.the_requisition', 'the requisition')}>
       {(data) => (
         <Editor
+          // The form keeps what is typed in its own state, so a change of state
+          // made by a button here (sent) or elsewhere (approved) starts it again
+          // from what is held: without this it went on saying "Draft" once sent.
+          key={data.requisitions.find((r) => r.id === id)?.state ?? 'new'}
           initial={data.requisitions.find((r) => r.id === id) ?? blank(id === 'new' ? newId() : id)}
           members={data.members}
           isNew={id === 'new'}
@@ -226,7 +240,7 @@ export function RequisitionEditor(props: ScreenProps<RequisitionForm>): JSX.Elem
 /** The form's page: the requisitions, and the names a backfill picks who it replaces from. */
 interface RequisitionForm {
   readonly requisitions: readonly Requisition[];
-  readonly members: readonly { readonly personId: string; readonly name: string }[];
+  readonly members: readonly Pickable[];
 }
 
 function Editor({
@@ -424,7 +438,7 @@ function Editor({
                       'requisitions.nobody_by_that_name',
                       'Nobody by that name works here.',
                     )}
-                    options={members.map((m) => ({ value: m.personId, label: m.name }))}
+                    options={peopleOptions(members)}
                     value={r.replacesPersonId}
                     onChange={(v) => {
                       setR({ ...r, replacesPersonId: typeof v === 'string' ? v : null });

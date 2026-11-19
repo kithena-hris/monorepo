@@ -1,3 +1,4 @@
+import { toPick } from '../domain/people/pick.js';
 import { CATEGORY_ICONS } from '../domain/benefits/benefits.js';
 import { agreementsOf } from './agreements.js';
 import { catalogueOf, categoriesOf, everyCatalogue } from './catalogue.js';
@@ -299,10 +300,7 @@ export async function jobScreen(ctx: Ctx, jobId: string): Promise<Result<unknown
     // R4: the terms in order and what each step may offer, from the ones before it.
     ...(await jobTerms(ctx, job)),
     benefits: await catalogueOf(ctx, job.entityId),
-    members: (await ctx.tx.members.list()).map((m) => ({
-      personId: m.personId,
-      name: m.displayName,
-    })),
+    members: toPick(await ctx.tx.members.list()),
   });
 }
 
@@ -828,10 +826,7 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     locations: await ctx.tx.locations.list(),
     orgUnits: await ctx.tx.orgUnits.list(),
     // For an approval chain's "person" step: a name to pick, nothing more.
-    members: (await ctx.tx.members.list()).map((m) => ({
-      personId: m.personId,
-      name: m.displayName,
-    })),
+    members: toPick(await ctx.tx.members.list()),
     pipelines: await ctx.tx.pipelines.list(),
     chains: await ctx.tx.chains.list(),
     questionnaires: await ctx.tx.questionnaires.list(),

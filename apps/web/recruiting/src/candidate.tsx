@@ -1581,13 +1581,23 @@ export function Spotlight({
   const arranged =
     chosen.interviews.filter((i) => i.state === 'scheduled' || i.state === 'completed').length >=
     chosen.stages.slice(0, at + 1).filter((s) => s.category === 'interview').length;
-  const toSchedule = stage?.category === 'interview' && maySchedule && interviewing && !arranged;
+  // The candidate has been asked for times and has not been answered: that
+  // request is what is open, and booking beside it left two things in flight.
+  const awaited = chosen.asks.some(
+    (a) => (a.kind === 'slots' || a.kind === 'availability') && a.state === 'open',
+  );
+  const toSchedule =
+    stage?.category === 'interview' && maySchedule && interviewing && !arranged && !awaited;
   /** The one button in view: what this stage asks for next. */
   const primary = ((): { label: string; icon: JSX.Element; run: () => void } | null => {
     if (!active) return null;
     if (stage?.category === 'contract' && accepted !== undefined && mayOffer)
       return {
-        label: tr('candidate.open_the_contract', 'Open the contract'),
+        // The card's own words: preparing one that is not out yet, opening one that is.
+        label:
+          accepted.contract === 'out_for_signature'
+            ? tr('candidate.open_the_contract', 'Open the contract')
+            : tr('candidate.prepare_the_contract', 'Prepare the contract'),
         icon: <icons.document aria-hidden />,
         run: () => {
           go(`/recruiting/offers/${accepted.id}/contract`);

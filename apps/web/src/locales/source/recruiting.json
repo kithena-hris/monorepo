@@ -4989,7 +4989,7 @@
   },
   "offers.approve": {
     "text": "Approve",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferApproval: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the action of <Button>."
   },
   "offers.approve_offer": {
     "text": "Approve offer: {{name}}",
@@ -5751,8 +5751,8 @@
     "text": "{{name}}, for the company",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <li>. Filled in: {{name}}."
   },
-  "offers.signers_initial_hint": {
-    "text": "Each initials every page and signs and dates the last.",
+  "offers.signers_initial_sign": {
+    "text": "Each initials every page and signs the last. The day is printed under each signature.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <p>."
   },
   "offers.signing": {
