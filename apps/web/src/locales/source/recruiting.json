@@ -4989,7 +4989,7 @@
   },
   "offers.approve": {
     "text": "Approve",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferApproval: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the action of <Button>."
   },
   "offers.approve_offer": {
     "text": "Approve offer: {{name}}",
