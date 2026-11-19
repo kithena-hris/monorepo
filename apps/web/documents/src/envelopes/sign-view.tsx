@@ -182,6 +182,9 @@ const today = (): string =>
     new Date(),
   );
 
+/** Narrower than this share of the page, a box cannot hold the print's sentence under it. */
+const NARROW = 0.2;
+
 /** What a box holds once a signature is applied to it: a dated one holds the day. */
 const signedValue = (f: EnvelopeField): string => (f.kind === 'date' ? today() : 'signed');
 
@@ -295,7 +298,7 @@ const ACT = (): Readonly<Record<FieldKind, string>> => ({
     return t('envelopes.sign-view.initial', 'Initial');
   },
   get date(): string {
-    return t('envelopes.sign-view.sign_and_date', 'Sign and date');
+    return t('envelopes.sign-view.sign', 'Sign');
   },
   name: t('envelopes.sign-view.add_your_name', 'Add your name'),
   get title(): string {
@@ -422,9 +425,18 @@ export function DocumentToSign({
                       : HINT()[f.kind],
                   done,
                   // Printed the moment it is filled, as the sealed file prints it.
+                  // A box too narrow for the sentence (initials) carries the
+                  // Signature ID's start alone, as the sealed file prints it.
                   ...(live === null || !done
                     ? {}
-                    : { caption: traceCaption(live.traceId, live.at) }),
+                    : {
+                        caption:
+                          f.w < NARROW
+                            ? t('envelopes.sign-view.id_short', 'ID {{id}}', {
+                                id: live.traceId.slice(0, 8),
+                              })
+                            : traceCaption(live.traceId, live.at),
+                      }),
                 };
               })}
             {...(signing === null ? {} : { onActivate: signing.apply })}
@@ -448,25 +460,19 @@ export function DocumentToSign({
                     }
                   />
                 );
-                // Framed as the sealed file stamps it: a thin rule, "Signed by"
-                // and the name along the top, the ink under, the day under
-                // that on a dated one; the print follows under the box.
+                // Framed as the sealed file stamps it: a wash of the ink's blue,
+                // a hairline around it, a bar of ink down the leading edge,
+                // "Signed by" and the name along the top and the ink under.
+                // The day is not in the box: it is in the print under it.
                 return (
-                  <span className="grid size-full grid-rows-[auto_minmax(0,1fr)_auto] rounded-[2px] bg-white/80 ring-1 ring-[var(--reach-neutral-400)]">
+                  <span className="grid size-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[2px] border-s-2 border-[#1f295c] bg-[#f4f6fe]/80 ring-1 ring-[#b3bde0]">
                     <span
-                      className="truncate px-0.5 text-left text-[max(6px,0.75cqw)] leading-none text-[var(--reach-neutral-600)]"
+                      className="truncate px-1 pt-px text-left text-[max(6px,0.75cqw)] leading-none text-[var(--reach-neutral-600)]"
                       aria-hidden
                     >
                       {t('envelopes.sign-view.signed_by', 'Signed by')} {name}
                     </span>
                     {mark}
-                    {f.kind === 'date' ? (
-                      <span className="truncate px-1 text-center text-2xs font-normal">
-                        {value}
-                      </span>
-                    ) : (
-                      <span />
-                    )}
                   </span>
                 );
               }
@@ -654,7 +660,7 @@ const HINT = (): Readonly<Record<FieldKind, string>> => ({
     return t('envelopes.sign-view.initial', 'Initial');
   },
   get date(): string {
-    return t('envelopes.sign-view.sign_and_date', 'Sign and date');
+    return t('envelopes.sign-view.sign', 'Sign');
   },
   name: t('envelopes.sign-view.name', 'Name'),
   get title(): string {

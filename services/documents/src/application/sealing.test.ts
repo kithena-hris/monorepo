@@ -6,7 +6,7 @@ import { send, sign, markOpened, type Envelope } from '../domain/signature/envel
 import { facesFor } from './fonts.js';
 import { extractText, getDocumentProxy } from 'unpdf';
 
-import { seal, stampSoFar, traceLines } from './sealing.js';
+import { seal, stampSoFar, traceFit, traceLines } from './sealing.js';
 
 const at = '2026-10-09T10:00:00.000Z' as Instant;
 
@@ -117,5 +117,25 @@ describe('sealing (K9)', () => {
     const sealed = await textOf(await seal(await twoPages(), env, trail, 'Acme'));
     expect(sealed).toContain('Electronically signed via Kithena');
     expect(sealed).toContain('Signature ID: 01a13c68-0000-7000-8000-00000000abcd');
+  });
+
+  it('keeps the print under a signature no wider than its box', () => {
+    const lines = [
+      'Electronically signed via Kithena on 14 Oct 2026, 21:54 UTC',
+      'Signature ID: 01a13c68-0000-7000-8000-00000000abcd',
+    ] as const;
+    // A face half as wide as it is tall, for the sum: 59 characters at 5.5pt are 162pt.
+    const widthAt = (text: string, size: number) => text.length * size * 0.5;
+    // Room enough: both lines, at their size.
+    expect(traceFit(lines, 180, widthAt)).toEqual({ lines, size: 5.5 });
+    // A narrower signature: the same words, smaller, inside the box.
+    const smaller = traceFit(lines, 130, widthAt);
+    expect(smaller.lines).toEqual(lines);
+    expect(smaller.size).toBeLessThan(5.5);
+    expect(widthAt(lines[0], smaller.size)).toBeLessThanOrEqual(130);
+    // A box of initials: no size that can be read fits the sentence, so the ID's start alone.
+    const narrow = traceFit(lines, 60, widthAt);
+    expect(narrow.lines).toEqual(['ID 01a13c68']);
+    expect(widthAt('ID 01a13c68', narrow.size)).toBeLessThanOrEqual(60);
   });
 });

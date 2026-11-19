@@ -1,7 +1,9 @@
 import { t } from '../../lib/i18n';
 /**
- * Keeps each caption a page's 6pt under the ink of its box: now, when the
- * page is drawn at another size, and when a handwriting face arrives.
+ * Keeps each caption a page's 2.5pt under its box, or under its ink where
+ * that runs lower: now, when the page is drawn at another size, and when a
+ * handwriting face arrives. Under the box and not under the ink inside it,
+ * because a signed box is framed, and print over its frame reads as a fault.
  * Answers how to stop.
  */
 export function hug(
@@ -12,10 +14,12 @@ export function hug(
   const place = () => {
     const r = host.getBoundingClientRect();
     for (const [id, caption] of captions) {
-      const bottom = inkBottom(boxes.get(id));
+      const box = boxes.get(id);
+      const bottom = Math.max(inkBottom(box), box?.getBoundingClientRect().bottom ?? -Infinity);
       if (bottom > -Infinity)
         caption.style.top = t('components.placement-layer.hug.px', '{{value}}px', {
-          value: String(bottom - r.top + r.width / 99),
+          // 2.5pt of a page 595pt wide.
+          value: String(bottom - r.top + r.width / 238),
         });
     }
   };

@@ -97,34 +97,38 @@ export const CODE_MINUTES = 10;
 export const CODE_ATTEMPTS = 5;
 
 /**
- * A dated signature: the signature with the day it was signed under it, one
- * box. What Kithena places for a signer nobody placed boxes for, and a place
- * to sign in its own right (`SIGNS`).
+ * A signature's box, as Kithena places one for a signer nobody placed boxes
+ * for. The day it was signed is not in the box: it is in the print under
+ * every signature, with the Signature ID.
  */
-const DATED = { w: 0.38, h: 0.09 } as const;
+const SIGNATURE = { w: 0.3, h: 0.055 } as const;
 
-/** The boxes a signer signs in: a signature, or a signature with its date. */
+/**
+ * The boxes a signer signs in. `date` is the dated signature Kithena placed
+ * until November 2026; envelopes sent then still hold one, and it signs as a
+ * signature does. Nothing makes a new one.
+ */
 export const SIGNS: ReadonlySet<FieldKind> = new Set(['signature', 'date']);
 
-const dated = (signerId: string, page: number, x: number, y: number): Field => ({
-  id: `${signerId}-date`,
+const signature = (signerId: string, page: number, x: number, y: number): Field => ({
+  id: `${signerId}-signature`,
   signerId,
-  kind: 'date',
+  kind: 'signature',
   page,
   x,
   y,
-  ...DATED,
+  ...SIGNATURE,
   required: true,
   label: null,
 });
 
 /**
- * Kithena places what nobody placed (K2): a dated signature for each signer
- * on the last page, side by side, one row per signer from the bottom.
+ * Kithena places what nobody placed (K2): a signature for each signer on the
+ * last page, side by side, one row per signer from the bottom.
  */
 export function defaultFields(signerIds: readonly string[], lastPage: number): Field[] {
   return signerIds.map((signerId, i) =>
-    dated(signerId, lastPage, i % 2 === 0 ? 0.08 : 0.54, 0.78 - Math.floor(i / 2) * 0.12),
+    signature(signerId, lastPage, i % 2 === 0 ? 0.08 : 0.54, 0.78 - Math.floor(i / 2) * 0.12),
   );
 }
 
@@ -156,7 +160,7 @@ const clamp = (n: number, size: number): number => Math.min(Math.max(n, 0), 1 - 
 
 /**
  * K2: each signer, in signing order, signs beside a line the document has
- * ("Signature", "Signed by"), a dated signature; a signer with no line left
+ * ("Signature", "Signed by"); a signer with no line left
  * signs at the foot of the last page, as `defaultFields` places them.
  */
 export function fieldsAt(
@@ -168,7 +172,7 @@ export function fieldsAt(
   const placed = signerIds.slice(0, lines.length).flatMap((signerId, i): Field[] => {
     const line = lines[i];
     if (line === undefined) return [];
-    return [dated(signerId, line.page, clamp(line.x, DATED.w), clamp(line.y, DATED.h))];
+    return [signature(signerId, line.page, clamp(line.x, SIGNATURE.w), clamp(line.y, SIGNATURE.h))];
   });
   return [
     ...placed,

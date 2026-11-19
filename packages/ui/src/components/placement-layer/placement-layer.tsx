@@ -109,9 +109,8 @@ export function PlacementLayer({
   const refs = useRef(new Map<string, HTMLElement>());
   const captions = useRef(new Map<string, HTMLElement>());
 
-  // Each caption a page's 6pt under the ink it captions, not under its box:
-  // a name is drawn smaller than its box, and the print sits close under the
-  // name, as the sealed file prints it. Again when the page is redrawn at
+  // Each caption a page's 2.5pt under its box, as the sealed file prints it
+  // (`hug`). Again when the page is redrawn at
   // another size, and when the handwriting face arrives.
   useLayoutEffect(() => {
     const host = layer.current;
@@ -264,7 +263,8 @@ export function PlacementLayer({
             )}
           </>
         );
-        // Under the box, its own width at least, as small as print under a signature is.
+        // Under the box and no wider than it, as small as print under a signature
+        // is: a line too long for the box breaks rather than run across the page.
         const caption =
           box.caption === undefined ? null : (
             <span
@@ -274,10 +274,11 @@ export function PlacementLayer({
                 else captions.current.set(box.id, el);
               }}
               aria-hidden
-              className="pointer-events-none absolute whitespace-pre text-[max(7px,0.95cqw)] leading-[1.25] text-[var(--reach-neutral-600)]"
+              className="pointer-events-none absolute text-[max(6px,0.8cqw)] leading-[1.25] break-words whitespace-pre-line text-[var(--reach-neutral-600)]"
               style={{
                 left: `${String(box.x * 100)}%`,
                 top: `calc(${String((box.y + box.h) * 100)}% + 2px)`,
+                maxWidth: `${String(box.w * 100)}%`,
               }}
             >
               {box.caption}
