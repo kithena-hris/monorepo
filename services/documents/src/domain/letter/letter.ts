@@ -42,7 +42,7 @@ export function merge(
  * each signature landed on its own name and on the signature after it.
  */
 export function signingBlock(names: readonly string[]): string {
-  return names.map((name) => `\n\n\nName: ${name}\n\nSignature:\n\n\n`).join('');
+  return names.map((name) => `\n\n\nName: ${name}\n\n\nSignature:\n\n\n`).join('');
 }
 
 const FIGURE = /\d+(?:[.,]\d+)*/gu;

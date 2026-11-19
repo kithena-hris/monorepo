@@ -165,7 +165,16 @@ async function stampFields(
         height: box.h,
         color: ink,
       });
-      page.drawText(drawable(`Signed by ${signer?.name ?? ''}`.slice(0, 60)), {
+      // Cut to the box, as the screen cuts it: under initials the whole
+      // sentence ran out of the frame and over what stood beside it.
+      let headed = drawable(`Signed by ${signer?.name ?? ''}`.slice(0, 60));
+      const fits = (t: string): boolean =>
+        body.widthOfTextAtSize(t, STAMP_HEAD) <= box.w - STAMP_BAR - 6;
+      if (!fits(headed)) {
+        while (headed.length > 1 && !fits(`${headed}...`)) headed = headed.slice(0, -1);
+        headed = `${headed.trimEnd()}...`;
+      }
+      page.drawText(headed, {
         x: box.x + STAMP_BAR + 3,
         y: box.y + box.h - head + 1.5,
         size: STAMP_HEAD,
@@ -314,16 +323,23 @@ function writeCentred(
 ): number {
   if (text === '') return box.y + box.h / 2;
   const unit = font.widthOfTextAtSize(text, 1);
-  // By the face's whole height, tails and capitals included: a handwriting
-  // face runs far above and below its size.
-  const tall = font.heightAtSize(1);
+  // By where these glyphs' ink really is, when the face can say. A
+  // handwriting face is sized for its deepest swash and tallest flourish, so
+  // by the face's own height a name was drawn small and high in its box, over
+  // the "Signed by" above it; by its ink it fills the box and sits in the
+  // middle of it.
+  const ink = inkOf(font, text);
+  const tall = ink === null ? font.heightAtSize(1) : ink.high - ink.low;
   const size = Math.max(
     6,
-    Math.min(most, (box.h * fill) / tall, unit === 0 ? Infinity : (box.w * 0.9) / unit),
+    Math.min(most, (box.h * fill) / tall, unit === 0 ? Infinity : (box.w * 0.84) / unit),
   );
   const full = font.heightAtSize(size);
   const descent = full - font.heightAtSize(size, { descender: false });
-  const baseline = box.y + (box.h - full) / 2 + descent;
+  const baseline =
+    ink === null
+      ? box.y + (box.h - full) / 2 + descent
+      : box.y + (box.h - tall * size) / 2 - ink.low * size;
   page.drawText(text, {
     x: box.x + (box.w - font.widthOfTextAtSize(text, size)) / 2,
     y: baseline,
@@ -340,17 +356,25 @@ function writeCentred(
  * fontkit face pdf-lib embedded lays the text out and knows.
  */
 function inkBottom(font: PDFFont, text: string, size: number, baseline: number): number {
+  const ink = inkOf(font, text);
+  return ink === null
+    ? baseline - (font.heightAtSize(size) - font.heightAtSize(size, { descender: false }))
+    : baseline + ink.low * size;
+}
+
+/** The lowest and highest ink of `text` at size 1, from its baseline; null when the face cannot say. */
+function inkOf(font: PDFFont, text: string): { low: number; high: number } | null {
   const face = (font as unknown as { embedder?: { font?: Face } }).embedder?.font;
-  const low = face?.layout(text).bbox.minY;
-  if (face === undefined || low === undefined || !Number.isFinite(low)) {
-    return baseline - (font.heightAtSize(size) - font.heightAtSize(size, { descender: false }));
-  }
-  return baseline + (low * size) / face.unitsPerEm;
+  const box = face?.layout(text).bbox;
+  if (face === undefined || box === undefined) return null;
+  const low = box.minY / face.unitsPerEm;
+  const high = box.maxY / face.unitsPerEm;
+  return Number.isFinite(low) && Number.isFinite(high) && high > low ? { low, high } : null;
 }
 
 interface Face {
   readonly unitsPerEm: number;
-  layout(text: string): { readonly bbox: { readonly minY: number } };
+  layout(text: string): { readonly bbox: { readonly minY: number; readonly maxY: number } };
 }
 
 /**

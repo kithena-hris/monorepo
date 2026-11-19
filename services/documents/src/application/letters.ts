@@ -76,7 +76,14 @@ async function draw(title: string, text: string): Promise<Uint8Array> {
     y = 842 - 72;
   };
   pdf.setTitle(title);
-  for (const paragraph of drawable(text).split('\n')) {
+  const paragraphs = drawable(text).split('\n');
+  for (const [at, paragraph] of paragraphs.entries()) {
+    // What belongs together stays on one page. A signer's name goes over with
+    // its signature line and the box beside it (name, line, box, print: about
+    // 120pt); a heading goes over with the first lines under it.
+    const follows = (paragraphs[at + 1] ?? '').trim() !== '';
+    const room = paragraph.startsWith('Name: ') ? 120 : follows ? size * 1.5 * 2 : 0;
+    if (paragraph.trim() !== '' && y - room < 72 && y < 842 - 72) next();
     let line = '';
     const flush = (): void => {
       if (y < 72) next();
