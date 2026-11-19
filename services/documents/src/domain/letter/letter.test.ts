@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { figuresToCheck, matchName, merge, placeholders, signingBlock } from './letter.js';
 
-const template = 'Dear {{Preferred name}},\n\nFrom {{ Start date }} your title is {{Job title}}. {{Preferred name}}, welcome.';
+const template =
+  'Dear {{Preferred name}},\n\nFrom {{ Start date }} your title is {{Job title}}. {{Preferred name}}, welcome.';
 
 describe('a letter from a template (G3)', () => {
   it('names each placeholder once, in order', () => {
