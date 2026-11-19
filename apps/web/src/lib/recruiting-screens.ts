@@ -153,9 +153,24 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Jobs':
       return read('RecruitingJobs');
     case 'Requisitions':
-    case 'Requisition':
     case 'RequisitionApproval':
       return read('RecruitingRequisitions');
+    case 'Requisition': {
+      // The form picks who a backfill replaces, so it is read with the names to pick from.
+      const [list, members] = await Promise.all([
+        read('RecruitingRequisitions'),
+        read('RecruitingMembers'),
+      ]);
+      return list.status !== 'ready'
+        ? list
+        : {
+            status: 'ready',
+            data: {
+              requisitions: list.data,
+              members: members.status === 'ready' ? members.data : [],
+            },
+          };
+    }
     case 'JobSetup':
       return id === 'new' ? read('RecruitingNewJob') : read('RecruitingJob', { jobId: id });
     case 'Pipeline': {

@@ -31,6 +31,8 @@ export const OPERATIONS = {
   RecruitingHome: query('RecruitingHome', 'recruitingHome'),
   /** R2 */
   RecruitingRequisitions: query('RecruitingRequisitions', 'recruitingRequisitions'),
+  /** Names to pick a person from */
+  RecruitingMembers: query('RecruitingMembers', 'recruitingMembers'),
   /** R4–R7, R14 */
   RecruitingJob: query('RecruitingJob', 'recruitingJob', '$jobId: String!', 'jobId: $jobId'),
   /** R4: a country's terms, all at once, fetched ahead by the setup */

@@ -493,7 +493,10 @@ describe('signatures (K1–K9)', () => {
     // Signed, though the email to Nora, whose turn it now is, did not go.
     expect(signed.body).toEqual({ completed: false, next: ['Nora Becker'] });
     // Nora's turn, and Adam's own copy as signed so far (K7).
-    expect(mailed).toEqual(['signature_requested nora@board.example', 'document_signed adam@acme.example']);
+    expect(mailed).toEqual([
+      'signature_requested nora@board.example',
+      'document_signed adam@acme.example',
+    ]);
     const followed = await call('ada', 'GET', `/v1/documents/envelopes/${envelope}`);
     expect(followed.body.signers.map((s: { status: string }) => s.status)).toEqual([
       'signed',
@@ -533,7 +536,12 @@ describe('signatures (K1–K9)', () => {
 
     // Reminded: Nora alone, with a link that replaces her first.
     const before = mailed.length;
-    const reminded = await call('ada', 'POST', `/v1/documents/envelopes/${envelope}/remind`, origin);
+    const reminded = await call(
+      'ada',
+      'POST',
+      `/v1/documents/envelopes/${envelope}/remind`,
+      origin,
+    );
     expect(reminded.body.reminded).toEqual(['Nora Becker']);
     expect(mailed.slice(before)).toEqual(['signature_reminder nora@board.example']);
     expect((await open(token))?.status).toBe(404);
@@ -582,6 +590,37 @@ describe('signatures (K1–K9)', () => {
     const file = await call('adam', 'GET', `/v1/documents/d/${contract}/file?mode=download`);
     const sealedPdf = await PDFDocument.load(Buffer.from(file.body.base64, 'base64'));
     expect(sealedPdf.getPageCount()).toBe(4);
+  });
+
+  it('who sends it and signs second finds it in their Inbox when their turn comes', async () => {
+    // A contract from Recruiting: the candidate first, then the company, who sent it.
+    const sent = await call('ada', 'POST', `/v1/documents/d/${contract}/envelopes`, {
+      signers: [
+        { personId: ids.adam.person, order: 1 },
+        { personId: ids.ada.person, order: 2 },
+      ],
+      ...origin,
+    });
+    expect(sent.status).toBe(201);
+    const task = `documents:sign:${String(sent.body.id)}`;
+    const inbox = async (who: 'ada' | 'adam'): Promise<string[]> => {
+      const answer = await call(who, 'GET', '/v1/documents/inbox');
+      return (answer.body.items as { id: string }[]).map((i) => i.id);
+    };
+    expect(await inbox('adam')).toContain(task);
+    // Not yet hers: nothing to sign until Adam has.
+    expect(await inbox('ada')).not.toContain(task);
+    await call('adam', 'POST', `/v1/documents/envelopes/${String(sent.body.id)}/sign`, {
+      signature: { kind: 'typed', text: 'Adam Novak' },
+      ...origin,
+    });
+    expect(await inbox('adam')).not.toContain(task);
+    expect(await inbox('ada')).toContain(task);
+    const done = await call('ada', 'POST', `/v1/documents/envelopes/${String(sent.body.id)}/sign`, {
+      signature: { kind: 'typed', text: 'Ada Lovelace' },
+      ...origin,
+    });
+    expect(done.body).toEqual({ completed: true, next: [] });
   });
 });
 

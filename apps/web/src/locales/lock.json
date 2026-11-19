@@ -6316,7 +6316,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -17671,7 +17670,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -23990,7 +23993,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -34967,7 +34969,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -41286,7 +41292,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -52263,7 +52268,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -58582,7 +58591,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -69559,7 +69567,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -75878,7 +75890,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -87233,7 +87244,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -93552,7 +93567,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -104907,7 +104921,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -112489,7 +112507,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -122203,7 +122220,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -128522,7 +128543,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -139877,7 +139897,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -146196,7 +146220,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -157173,7 +157196,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -163492,7 +163519,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -175225,7 +175251,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -181544,7 +181574,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -192899,7 +192928,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -199218,7 +199251,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -210951,7 +210983,11 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -218533,7 +218569,6 @@
     "recruiting:requisitions.optional_required_to_reject": "22e7acdd9370",
     "recruiting:requisitions.reason": "f81ab834de5f",
     "recruiting:requisitions.reject": "ab604a360777",
-    "recruiting:requisitions.replacing_person_id": "a6d92c5f9c6c",
     "recruiting:requisitions.requests_for_headcount_an_approved_requisition": "d9610cc19d6e",
     "recruiting:requisitions.requisitions": "32c155606d2c",
     "recruiting:requisitions.save": "1509f561f241",
@@ -228247,6 +228282,10 @@
     "email-messaging:notice.signing_code.plain": "d88f1671d75f",
     "email-messaging:notice.signing_code.title": "72360b6b8a1e",
     "recruiting:candidate.contract_out_hint": "fffae9300720",
-    "recruiting:candidate.contract_out_title": "eac24da4d6d5"
+    "recruiting:candidate.contract_out_title": "eac24da4d6d5",
+    "recruiting:requisitions.choose_who_leaves": "00e1d1736bbb",
+    "recruiting:requisitions.nobody_by_that_name": "6970cd722d09",
+    "recruiting:requisitions.replacing": "a1670258ef34",
+    "recruiting:requisitions.search_people": "8a7e7f1bc563"
   }
 }
