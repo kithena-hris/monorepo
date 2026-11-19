@@ -799,6 +799,10 @@
     "text": "Approve an offer",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: text built in code."
   },
+  "inbox.screens.approve_the_offer_for": {
+    "text": "Approve the offer: {{name}}, {{job}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: text built in code. Filled in: {{name}}, {{job}}."
+  },
   "inbox.screens.approve_the_requisition": {
     "text": "Approve the requisition: {{title}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: text built in code. Filled in: {{title}}."

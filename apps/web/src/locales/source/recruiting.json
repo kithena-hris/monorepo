@@ -1819,6 +1819,10 @@
     "text": "Add link and send",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, MeetingLink: text inside <Button>."
   },
+  "interviews.add_the_interviews": {
+    "text": "Add the interviews",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: the action of <Button>."
+  },
   "interviews.add_the_interviews_to_the_jobs": {
     "text": "Add the interviews to the job’s plan first.",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: the description of <EmptyState>."
@@ -3655,6 +3659,10 @@
     "text": "Choose a team",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, Details: the placeholder of <Combobox>."
   },
+  "job.choose_the_hiring_manager_to_publish": {
+    "text": "Choose the hiring manager to publish",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the actions of <Button>."
+  },
   "job.confidential": {
     "text": "Confidential",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, Details: text inside <FieldLabel>."
@@ -4999,6 +5007,10 @@
     "text": "Blocks the offer",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: the title of <Alert>."
   },
+  "offers.cancel": {
+    "text": "Cancel",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <Button>."
+  },
   "offers.candidate": {
     "text": "Candidate",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx: a \"header\" value."
@@ -5687,6 +5699,14 @@
     "text": "Send for approval",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <Button>."
   },
+  "offers.send_the_offer": {
+    "text": "Send the offer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <Button>."
+  },
+  "offers.send_this_offer_to": {
+    "text": "Send this offer to {{name}}?",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <AlertDialogTitle>. Filled in: {{name}}."
+  },
   "offers.send_to_sign": {
     "text": "Send to sign",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <Button>."
@@ -5803,6 +5823,10 @@
     "text": "Their reason: “{{reason}}”",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <p>. Filled in: {{reason}}."
   },
+  "offers.they_are_emailed_now_and_can": {
+    "text": "They are emailed now, and can accept or decline it on their page.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <AlertDialogDescription>."
+  },
   "offers.this_country_pack_is_awaiting_a": {
     "text": "This country pack is awaiting a country reviewer.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: text inside <p>."
@@ -5907,6 +5931,10 @@
     "text": "Working from (country code)",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldLabel>."
   },
+  "offers.written_in_the_contract": {
+    "text": "Written in the contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the items of <Badge>."
+  },
   "offers.year": {
     "text": "Year",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <SegmentedControlItem>."
@@ -5926,10 +5954,6 @@
   "pipeline.a_label_on_each_card_not": {
     "text": "A label on each card, not a decision: every finding cites the CV and a person agrees or not.",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <Alert>."
-  },
-  "pipeline.active_candidates": {
-    "text": "{{length}} active candidates",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the meta of <span>. Filled in: {{length}}."
   },
   "pipeline.ai_match": {
     "text": "AI match",
@@ -5970,6 +5994,14 @@
   "pipeline.could_not_be_read": {
     "text": "{{length}} could not be read: {{join}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <Alert>. Filled in: {{length}}, {{join}}."
+  },
+  "pipeline.count_active_candidates_one": {
+    "text": "{{count}} active candidate",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the meta of <span>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "pipeline.count_active_candidates_other": {
+    "text": "{{count}} active candidates",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the meta of <span>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "pipeline.d": {
     "text": "{{daysInStage}} d",
@@ -6330,6 +6362,10 @@
   "requisitions.of": {
     "text": "{{filled}} of {{openings}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx: a \"cell\" value. Filled in: {{filled}}, {{openings}}."
+  },
+  "requisitions.open_a_job_from_it": {
+    "text": "Open a job from it",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the actions of <Button>."
   },
   "requisitions.openings": {
     "text": "Openings",
