@@ -6319,6 +6319,10 @@
     "text": "Changing the openings or the budget sends it back for approval, with the difference.",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: text inside <Alert>."
   },
+  "requisitions.choose_who_leaves": {
+    "text": "Choose who this replaces",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the placeholder of <Combobox>."
+  },
   "requisitions.comment": {
     "text": "Comment",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, RequisitionApproval: text inside <FieldLabel>."
@@ -6354,6 +6358,10 @@
   "requisitions.no_requisitions_here": {
     "text": "No requisitions here",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Requisitions: the title of <EmptyState>."
+  },
+  "requisitions.nobody_by_that_name": {
+    "text": "Nobody by that name works here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the emptyMessage of <Combobox>."
   },
   "requisitions.nobody_is_asked_until_you_send": {
     "text": "Nobody is asked until you send it.",
@@ -6391,8 +6399,8 @@
     "text": "Reject",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, RequisitionApproval: text inside <Button>."
   },
-  "requisitions.replacing_person_id": {
-    "text": "Replacing (person id)",
+  "requisitions.replacing": {
+    "text": "Replacing",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: text inside <FieldLabel>."
   },
   "requisitions.requests_for_headcount_an_approved_requisition": {
@@ -6406,6 +6414,10 @@
   "requisitions.save": {
     "text": "Save",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the actions of <Button>."
+  },
+  "requisitions.search_people": {
+    "text": "Search people",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the searchPlaceholder of <Combobox>."
   },
   "requisitions.send_for_approval": {
     "text": "Send for approval",
