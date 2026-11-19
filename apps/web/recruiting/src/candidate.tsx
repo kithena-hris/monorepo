@@ -1587,7 +1587,11 @@ export function Spotlight({
     if (!active) return null;
     if (stage?.category === 'contract' && accepted !== undefined && mayOffer)
       return {
-        label: tr('candidate.open_the_contract', 'Open the contract'),
+        // The card's own words: preparing one that is not out yet, opening one that is.
+        label:
+          accepted.contract === 'out_for_signature'
+            ? tr('candidate.open_the_contract', 'Open the contract')
+            : tr('candidate.prepare_the_contract', 'Prepare the contract'),
         icon: <icons.document aria-hidden />,
         run: () => {
           go(`/recruiting/offers/${accepted.id}/contract`);

@@ -2135,8 +2135,8 @@ function ContractDraft({
                 </ol>
                 <p className="mt-1 text-xs text-fg-muted">
                   {tr(
-                    'offers.signers_initial_hint',
-                    'Each initials every page and signs and dates the last.',
+                    'offers.signers_initial_sign',
+                    'Each initials every page and signs the last. The day is printed under each signature.',
                   )}
                 </p>
               </div>

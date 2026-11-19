@@ -109,7 +109,8 @@ function Head({ item, menu }: { readonly item: Shown; readonly menu: ReactNode }
         {LANE_TAG[item.lane]}
       </Badge>
       <Badge size="sm" variant="outline">
-        {item.area === null
+        {/* An area named as its module is said once, as in the list's rows. */}
+        {item.area === null || item.area === moduleName(item.module)
           ? moduleName(item.module)
           : t('components.inbox.detail.text', '{{moduleName}} › {{area}}', {
               moduleName: moduleName(item.module),
