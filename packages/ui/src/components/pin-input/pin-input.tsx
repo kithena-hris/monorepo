@@ -123,8 +123,15 @@ export function PinInput({
   };
 
   const onBoxChange = (index: number, raw: string): void => {
-    const characters = sanitise(raw);
+    let characters = sanitise(raw);
     if (characters === '') return;
+    // The first box takes a whole code (see its `maxLength`), so a key pressed
+    // in it while it holds a character arrives as two: the one it held and the
+    // new one. That is a correction of this box, not a code to spread.
+    const held = value[index];
+    if (held !== undefined && held !== ' ' && characters.length === 2) {
+      characters = characters.replace(held, '') || held;
+    }
 
     // A box can receive more than one character: autofill, a fast typist, a
     // keyboard that composes. Everything past the first spills forward.
@@ -210,7 +217,11 @@ export function PinInput({
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
-              maxLength={1}
+              // The first box has room for the whole code: an autofilled one
+              // (`one-time-code`, from the email or the message it came in) is
+              // typed into this box alone, and a limit of one kept its first
+              // digit and dropped the rest. `onBoxChange` spreads it.
+              maxLength={index === 0 ? length : 1}
               aria-label={t(
                 'components.pin-input.pin-input.character_of',
                 '{{label}}, character {{value}} of {{length}}',
