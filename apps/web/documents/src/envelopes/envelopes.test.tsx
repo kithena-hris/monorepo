@@ -54,7 +54,7 @@ describe('sending (K1–K3)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('places their boxes on the document, a dated signature to start', async () => {
+  it('places their boxes on the document, a signature to start', async () => {
     const data = adamDocument();
     const { container } = render(
       <screens.SendForSignature
@@ -65,7 +65,8 @@ describe('sending (K1–K3)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('heading', { name: 'Add a box' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Signature' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Dated signature' })).toBeTruthy();
+    // The day is in the print under a signature: there is no dated one to add.
+    expect(screen.queryByRole('radio', { name: 'Dated signature' })).toBeNull();
     expect(screen.getByText('Adam Novak · 1 box')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });

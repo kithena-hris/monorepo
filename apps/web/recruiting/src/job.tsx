@@ -434,8 +434,8 @@ const sameTeam = (
 /**
  * The hiring team, by role: the recruiters, the hiring manager, the
  * interviewers and the coordinators, each a row with whoever holds it. A
- * person holds one role on a job, so someone chosen for one is not offered
- * for another.
+ * person holds one role on a job, so someone chosen for one leaves the role
+ * they held.
  */
 function Team({
   data,
@@ -472,14 +472,15 @@ function Team({
                 'job.nobody_by_that_name_works_here',
                 'Nobody by that name works here.',
               )}
-              options={data.members
-                .filter((m) => !team.some((t) => t.personId === m.personId && t.role !== role))
-                .map((m) => ({ value: m.personId, label: m.name }))}
+              // Everybody is offered: somebody holding another role here moves to
+              // this one when chosen. Left out, the recruiter who made the job
+              // could not be found to be its hiring manager.
+              options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
               value={team.filter((t) => t.role === role).map((t) => t.personId)}
               onChange={(v) => {
                 const ids = typeof v === 'string' || v === null ? [] : [...v];
                 setTeam([
-                  ...team.filter((t) => t.role !== role),
+                  ...team.filter((t) => t.role !== role && !ids.includes(t.personId)),
                   ...ids.map((personId) => ({ personId, role })),
                 ]);
               }}
@@ -2259,6 +2260,19 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                       {tr(
                         'job.write_the_description_to_publish',
                         'Write the description to publish',
+                      )}
+                    </Button>
+                  ) : !data.team.some((m) => m.role === 'hiring_manager') ? (
+                    // Recruiting refuses to publish without one; say so on the button that would.
+                    <Button
+                      startIcon={<icons.people aria-hidden />}
+                      onClick={() => {
+                        edit('team');
+                      }}
+                    >
+                      {tr(
+                        'job.choose_the_hiring_manager_to_publish',
+                        'Choose the hiring manager to publish',
                       )}
                     </Button>
                   ) : blocking > 0 ? (

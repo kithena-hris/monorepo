@@ -76,7 +76,15 @@ export function validRequisition(r: Requisition): Result<Requisition> {
 
 export function submit(r: Requisition): Result<Requisition> {
   if (r.state !== 'draft' && r.state !== 'approved') {
-    return err(failure('NOT_SUBMITTABLE', `A ${r.state} requisition cannot be sent for approval`));
+    // In words: the state is an identifier (`pending_approval`), and the message is read on screen.
+    return err(
+      failure(
+        'NOT_SUBMITTABLE',
+        r.state === 'pending_approval'
+          ? 'This requisition is already waiting for approval'
+          : `A ${r.state.replaceAll('_', ' ')} requisition cannot be sent for approval`,
+      ),
+    );
   }
   const valid = validRequisition(r);
   return valid.ok ? ok({ ...r, state: 'pending_approval' }) : valid;

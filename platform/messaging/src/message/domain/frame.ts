@@ -40,8 +40,52 @@ export interface FrameView {
   readonly footer: string;
   /** Where to change what reaches you, when there is a place. */
   readonly manage: { readonly label: string; readonly href: string } | null;
+  /**
+   * What the email is about, at a glance: the address of a white glyph
+   * (`iconAt`), drawn on a disc of the company's colour over the heading.
+   * Absent or null, the card opens on the heading.
+   */
+  readonly icon?: string | null;
+  /**
+   * A one-time code, on its own under the words: large, spaced, and all of it
+   * taken by one press, so it is read across a room and copied without a
+   * stray space. The label is escaped by the caller; the value is digits.
+   */
+  readonly code?: { readonly label: string; readonly value: string } | null;
 }
 
+/** What an email can be about; each is a file both sites serve (`apps/web/scripts/email-icons.mjs`). */
+export type FrameIcon =
+  | 'mail'
+  | 'code'
+  | 'calendar'
+  | 'sign'
+  | 'document'
+  | 'offer'
+  | 'bell'
+  | 'person'
+  | 'inbox'
+  | 'clock'
+  | 'report';
+
+/**
+ * The icon's address, on the site the email's own button opens: the tenant
+ * app or the job site, which both serve `/email/<name>.png`. Null for a link
+ * that is not Kithena's (a video call's), where there is no such file.
+ *
+ * ponytail: Kithena's sites are told by their host name; a deployment on its
+ * own domain gets no icon until the base address is passed in from config.
+ */
+export function iconAt(href: string | null | undefined, name: FrameIcon): string | null {
+  if (href == null) return null;
+  try {
+    const at = new URL(href);
+    if (at.protocol !== 'https:' || !/(^|\.)kithena\.com$/u.test(at.hostname)) return null;
+    return `${at.origin}/email/${name}.png`;
+  } catch {
+    return null;
+  }
+}
 
 export function frame(view: FrameView): string {
   return `<!doctype html>
@@ -81,8 +125,8 @@ ${sender(view)}            <tr>
               <td class="k-surface" style="background:${light.surface};border:1px solid ${light.border};border-radius:${scale.radiusCard};overflow:hidden;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr><td style="height:4px;line-height:4px;font-size:0;background:${view.accent};">&nbsp;</td></tr>
-                  <tr>
-                    <td class="k-pad" style="padding:30px 32px 0 32px;">
+${badge(view)}                  <tr>
+                    <td class="k-pad" style="padding:${view.icon == null ? '30px' : '18px'} 32px 0 32px;">
                       <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:700;color:${light.fg};">${view.title}</h1>
                     </td>
                   </tr>
@@ -91,7 +135,7 @@ ${sender(view)}            <tr>
 ${view.paragraphs.map((p) => `                      <p style="margin:0 0 14px 0;">${p}</p>`).join('\n')}
                     </td>
                   </tr>
-${facts(view)}${times(view)}${steps(view)}${actions(view)}${note(view)}                  <tr><td style="height:32px;line-height:32px;font-size:0;">&nbsp;</td></tr>
+${code(view)}${facts(view)}${times(view)}${steps(view)}${actions(view)}${note(view)}                  <tr><td style="height:32px;line-height:32px;font-size:0;">&nbsp;</td></tr>
                 </table>
               </td>
             </tr>
@@ -101,6 +145,41 @@ ${footer(view)}          </table>
     </table>
   </body>
 </html>`;
+}
+
+/** What it is about: a white glyph on a disc of the company's colour, over the heading. */
+function badge(view: FrameView): string {
+  if (view.icon == null) return '';
+  return `                  <tr>
+                    <td class="k-pad" style="padding:28px 32px 0 32px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="48" height="48" align="center" valign="middle" bgcolor="${view.accent}" style="width:48px;height:48px;border-radius:14px;background:${view.accent};">
+                            <img src="${view.icon}" width="24" height="24" alt="" style="display:block;width:24px;height:24px;border:0;outline:none;" />
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+`;
+}
+
+/** A one-time code: its label, then the digits large and apart, all taken by one press. */
+function code(view: FrameView): string {
+  if (view.code == null) return '';
+  return `                  <tr>
+                    <td class="k-pad" style="padding:8px 32px 0 32px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="k-inset" style="background:${light['surface-sunken']};border:1px solid ${light.border};border-radius:${scale.radiusCard};">
+                        <tr>
+                          <td align="center" style="padding:18px 20px 20px 20px;">
+                            <div class="k-muted" style="font-size:${scale.small.size};line-height:20px;color:${light['fg-muted']};">${view.code.label}</div>
+                            <div class="k-fg" style="padding-top:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;line-height:42px;font-weight:700;letter-spacing:8px;padding-left:8px;color:${light.fg};-webkit-user-select:all;user-select:all;">${view.code.value}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+`;
 }
 
 /** The company, as its mail is signed: its mark, else its initial on its colour, then its name. */

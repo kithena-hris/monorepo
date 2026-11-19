@@ -559,14 +559,17 @@ function KitBody({
         actions={
           i.state === 'scheduled' ? (
             <>
-              <Button
-                loading={act.pending}
-                onClick={() => {
-                  act.run('SetInterviewState', { interviewId: i.id, input: { to: 'completed' } });
-                }}
-              >
-                {tr('interviews.mark_completed', 'Mark completed')}
-              </Button>
+              {/* Only once it has begun, as Recruiting has it: completed before then, its scorecard could not be sent. */}
+              {begun ? (
+                <Button
+                  loading={act.pending}
+                  onClick={() => {
+                    act.run('SetInterviewState', { interviewId: i.id, input: { to: 'completed' } });
+                  }}
+                >
+                  {tr('interviews.mark_completed', 'Mark completed')}
+                </Button>
+              ) : null}
               <MoreMenu
                 label={tr('interviews.more_for_the_interview', 'More for the interview')}
                 items={[
@@ -1178,6 +1181,16 @@ function ScheduleBody({
             'interviews.add_the_interviews_to_the_jobs',
             'Add the interviews to the job’s plan first.',
           )}
+          action={
+            <Button
+              variant="primary"
+              onClick={() =>
+                props.onNavigate?.(`/recruiting/jobs/${data.job.id}/setup?edit=interviews`)
+              }
+            >
+              {tr('interviews.add_the_interviews', 'Add the interviews')}
+            </Button>
+          }
         />
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">

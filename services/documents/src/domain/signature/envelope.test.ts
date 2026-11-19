@@ -63,16 +63,17 @@ const ok = <T>(r: { ok: true; value: T } | { ok: false; error: { message: string
 };
 
 describe('sending (K1–K3)', () => {
-  it('places a dated signature for each signer on the last page when none are given', () => {
+  it('places a signature for each signer on the last page when none are given', () => {
     const env = sent();
+    // A signature, never a dated one: the day is in the print under every signature.
     expect(env.fields.map((f) => [f.signerId, f.kind, f.page])).toEqual([
-      ['s-yuki', 'date', 6],
-      ['s-nora', 'date', 6],
+      ['s-yuki', 'signature', 6],
+      ['s-nora', 'signature', 6],
     ]);
     expect(defaultFields(['a', 'b'], 1).every((f) => f.x >= 0 && f.x + f.w <= 1)).toBe(true);
   });
 
-  it('takes a dated signature as a place to sign, and nothing that is not a signature', () => {
+  it('still takes a dated signature, as envelopes sent before hold, as a place to sign', () => {
     const box = (signerId: string, kind: 'date' | 'name') => ({
       id: `${signerId}-${kind}`,
       signerId,
@@ -153,7 +154,7 @@ describe('signing (K4–K6)', () => {
     });
   });
 
-  it('signs in order, fills the date, and completes with the last', () => {
+  it('signs in order and completes with the last', () => {
     let env = ok(issueCode(ok(markOpened(sent(), 's-yuki', at(1))), 's-yuki', 'h', at(1)));
     env = ok(checkCode(env, 's-yuki', 'h', at(2))).envelope;
     expect(
@@ -163,8 +164,8 @@ describe('signing (K4–K6)', () => {
       sign(env, 's-yuki', { signature: { kind: 'typed', text: 'Yuki Sato' }, values: {} }, at(3)),
     );
     expect(env.signers.map((s) => s.status)).toEqual(['signed', 'sent']);
-    expect(env.fields.find((f) => f.signerId === 's-yuki' && f.kind === 'date')?.value).toBe(
-      '2026-10-09',
+    expect(env.fields.find((f) => f.signerId === 's-yuki' && f.kind === 'signature')?.value).toBe(
+      'signed',
     );
     expect(remaining(env).map((s) => s.id)).toEqual(['s-nora']);
     env = ok(markOpened(env, 's-nora', at(4)));
@@ -180,9 +181,22 @@ describe('signing (K4–K6)', () => {
     expect(env.completedAt).toBe(at(5));
   });
 
-  it('dates the box with the signer’s own day, never more than a day from the clock', () => {
+  it('dates a dated box of an earlier envelope with the signer’s own day, never more than a day from the clock', () => {
+    const datedBox = (signerId: string) => ({
+      id: `${signerId}-date`,
+      signerId,
+      kind: 'date' as const,
+      page: 1,
+      x: 0.1,
+      y: 0.8,
+      w: 0.3,
+      h: 0.08,
+      required: true,
+      label: null,
+    });
+    const before = ok(send({ ...input, fields: [datedBox('s-yuki'), datedBox('s-nora')] }));
     const verified = (): Envelope => {
-      const env = ok(issueCode(ok(markOpened(sent(), 's-yuki', at(1))), 's-yuki', 'h', at(1)));
+      const env = ok(issueCode(ok(markOpened(before, 's-yuki', at(1))), 's-yuki', 'h', at(1)));
       return ok(checkCode(env, 's-yuki', 'h', at(2))).envelope;
     };
     const dated = (day: string | undefined): string | null | undefined => {
@@ -296,11 +310,12 @@ describe('fields beside the signature lines (K2)', () => {
       ],
       4,
     );
-    const sig = (id: string) => fields.find((f) => f.signerId === id && f.kind === 'date');
+    const sig = (id: string) => fields.find((f) => f.signerId === id && f.kind === 'signature');
     expect(sig('a')).toMatchObject({ page: 3, x: 0.1, y: 0.7 });
     expect(sig('b')).toMatchObject({ page: 4, x: 0.55, y: 0.2 });
     expect(sig('c')).toMatchObject({ page: 4 });
-    expect(fields.filter((f) => f.kind === 'date')).toHaveLength(3);
+    expect(fields.filter((f) => f.kind === 'signature')).toHaveLength(3);
+    expect(fields.some((f) => f.kind === 'date')).toBe(false);
   });
 
   it('has every signer initial each page before the last, side by side in the margin', () => {

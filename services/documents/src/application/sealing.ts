@@ -73,6 +73,35 @@ export function traceLines(trace: Trace): readonly [string, string] {
   return [`Electronically signed via Kithena on ${when}`, `Signature ID: ${trace.id}`];
 }
 
+/** The smallest the print under a signature is drawn: under it, nobody reads it. */
+const TRACE_FLOOR = 4;
+
+/**
+ * The print as it fits under a box of `width`: both lines at their size when
+ * there is room, and smaller, down to a floor, when there is not. Under a
+ * signature it is always both lines, the Signature ID whole: that is the
+ * record, and on a very small page it may run a little past the box rather
+ * than lose a character. Under initials (`brief`), which are narrow and sit
+ * beside a signature that says it all, the start of the ID alone when the
+ * sentence does not fit: under a row of initials it ran across the page.
+ */
+export function traceFit(
+  lines: readonly [string, string],
+  width: number,
+  widthAt: (text: string, size: number) => number,
+  brief = false,
+): { readonly lines: readonly string[]; readonly size: number } {
+  const widest = Math.max(...lines.map((l) => widthAt(l, 1)));
+  const size = Math.min(TRACE_SIZE, widest === 0 ? TRACE_SIZE : width / widest);
+  if (size >= TRACE_FLOOR || !brief) return { lines, size: Math.max(size, TRACE_FLOOR) };
+  const short = `ID ${lines[1].replace(/^.*:\s*/u, '').slice(0, 8)}`;
+  const one = widthAt(short, 1);
+  return {
+    lines: [short],
+    size: Math.max(3, Math.min(TRACE_SIZE, one === 0 ? TRACE_SIZE : width / one)),
+  };
+}
+
 /**
  * Every field a signer has filled, drawn where it was placed, each with its
  * trace under it. A field of somebody who has not signed has no value yet
@@ -116,32 +145,37 @@ async function stampFields(
       // top, the ink below, so a printed page shows at a glance that this is
       // an electronic signature and whose.
       const head = STAMP_HEAD + 2;
+      // A wash of the ink's own blue behind it, a hairline around, and a bar
+      // of ink down the leading edge: the mark of a signing, not a text box.
       page.drawRectangle({
         x: box.x,
         y: box.y,
         width: box.w,
         height: box.h,
-        borderColor: rgb(0.62, 0.66, 0.78),
-        borderWidth: 0.6,
-        opacity: 0,
+        color: rgb(0.955, 0.965, 0.995),
+        opacity: 0.7,
+        borderColor: rgb(0.7, 0.74, 0.88),
+        borderWidth: 0.5,
         borderOpacity: 1,
       });
+      page.drawRectangle({
+        x: box.x,
+        y: box.y,
+        width: STAMP_BAR,
+        height: box.h,
+        color: ink,
+      });
       page.drawText(drawable(`Signed by ${signer?.name ?? ''}`.slice(0, 60)), {
-        x: box.x + 2,
+        x: box.x + STAMP_BAR + 3,
         y: box.y + box.h - head + 1.5,
         size: STAMP_HEAD,
         font: body,
         color: rgb(0.42, 0.44, 0.5),
       });
-      const inkBox = { ...box, h: box.h - head };
-      if (field.kind === 'date') {
-        // A dated signature: the signature over the box, the day right under it.
-        const under = inkBox.h * 0.3;
-        const signed = await stamp({ ...inkBox, y: inkBox.y + under, h: inkBox.h - under }, false);
-        bottom = writeUnder(page, drawable(field.value), body, inkBox, signed - DAY_GAP, ink, 9);
-      } else {
-        bottom = await stamp(inkBox, field.kind === 'initials');
-      }
+      // The day is not in the box, on a dated signature of an earlier
+      // envelope either: it is in the print under every signature.
+      const inkBox = { ...box, x: box.x + STAMP_BAR, w: box.w - STAMP_BAR, h: box.h - head };
+      bottom = await stamp(inkBox, field.kind === 'initials');
       bottom = Math.min(bottom, box.y);
     } else {
       const text = field.kind === 'checkbox' ? (field.value === 'true' ? 'X' : '') : field.value;
@@ -149,15 +183,23 @@ async function stampFields(
     }
     const trace = traces.get(field.signerId);
     if (trace !== undefined) {
-      // TRACE_GAP under the ink: tight, as e-signature services print it.
-      const cap = body.heightAtSize(TRACE_SIZE, { descender: false });
-      const lead = TRACE_SIZE * 1.3;
+      // TRACE_GAP under the box: tight, as e-signature services print it, and
+      // never wider than the box it is under.
+      const [said, id] = traceLines(trace);
+      const fitted = traceFit(
+        [drawable(said), drawable(id)],
+        box.w,
+        (text, size) => body.widthOfTextAtSize(text, size),
+        field.kind === 'initials',
+      );
+      const cap = body.heightAtSize(fitted.size, { descender: false });
+      const lead = fitted.size * 1.3;
       const first = Math.max(bottom - TRACE_GAP - cap, lead + 2);
-      for (const [i, text] of traceLines(trace).entries()) {
-        page.drawText(drawable(text), {
+      for (const [i, text] of fitted.lines.entries()) {
+        page.drawText(text, {
           x: box.x,
           y: first - i * lead,
-          size: TRACE_SIZE,
+          size: fitted.size,
           font: body,
           color: rgb(0.42, 0.44, 0.5),
         });
@@ -250,11 +292,11 @@ interface Box {
 const SIGNED: ReadonlySet<string> = new Set(['signature', 'initials', 'date']);
 /** "Signed by …" along the top of a signature's frame. */
 const STAMP_HEAD = 5;
-/** The print under a signed field: its size, and the gap above it (6pt, 8px on screen). */
+/** The bar of ink down a signature's leading edge. */
+const STAMP_BAR = 1.5;
+/** The print under a signed field: its size, and the gap above it (2.5pt, 3px on screen). */
 const TRACE_SIZE = 5.5;
-const TRACE_GAP = 6;
-/** Between a dated signature and its day. */
-const DAY_GAP = 2;
+const TRACE_GAP = 2.5;
 
 /**
  * Text in the middle of its box, as large as fits: at most `fill` of the
@@ -309,32 +351,6 @@ function inkBottom(font: PDFFont, text: string, size: number, baseline: number):
 interface Face {
   readonly unitsPerEm: number;
   layout(text: string): { readonly bbox: { readonly minY: number } };
-}
-
-/**
- * A line centred across the box with its top at `top`: the day under a
- * dated signature, close under its ink. Answers where its ink ends.
- */
-function writeUnder(
-  page: PDFPage,
-  text: string,
-  font: PDFFont,
-  box: Box,
-  top: number,
-  color: RGB,
-  size: number,
-): number {
-  if (text === '') return top;
-  const ascent = font.heightAtSize(size, { descender: false });
-  const baseline = top - ascent;
-  page.drawText(text, {
-    x: box.x + (box.w - font.widthOfTextAtSize(text, size)) / 2,
-    y: baseline,
-    size,
-    font,
-    color,
-  });
-  return inkBottom(font, text, size, baseline);
 }
 
 /**

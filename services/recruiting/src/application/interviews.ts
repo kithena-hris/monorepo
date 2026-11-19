@@ -1310,7 +1310,7 @@ export async function setInterviewState(
     ctx.viewer.personId !== null && interview.interviewerIds.includes(ctx.viewer.personId);
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule') && !(onIt && to === 'completed'))
     return err(forbidden());
-  const moved = moveInterview(interview, to);
+  const moved = moveInterview(interview, to, ctx.at);
   if (!moved.ok) return moved;
   const next = { ...interview, ...moved.value };
   await ctx.tx.interviews.save(next);

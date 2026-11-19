@@ -199,6 +199,7 @@
   "inbox.screens.a_candidate": "ஒரு விண்ணப்பதாரர்",
   "inbox.screens.accepted_the_offer": "{{name}} சலுகையை ஏற்றுக்கொண்டார்",
   "inbox.screens.approve_an_offer": "வாய்ப்பை அங்கீகரிக்கவும்",
+  "inbox.screens.approve_the_offer_for": "வேலை வாய்ப்பை அங்கீகரிக்கவும்: {{name}}, {{job}}",
   "inbox.screens.approve_the_requisition": "பணியிடக் கோரிக்கையை அங்கீகரிக்கவும்: {{title}}",
   "inbox.screens.choose_a_time": "நேரத்தைத் தேர்ந்தெடுக்கவும்: {{name}}, {{value}}",
   "inbox.screens.create_the_contract_for": "{{title}} பணிக்கான ஒப்பந்தத்தை உருவாக்கி கையொப்பத்திற்கு அனுப்புங்கள்.",

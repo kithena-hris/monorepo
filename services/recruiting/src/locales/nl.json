@@ -196,6 +196,7 @@
   "inbox.screens.a_candidate": "een kandidaat",
   "inbox.screens.accepted_the_offer": "{{name}} heeft het aanbod geaccepteerd",
   "inbox.screens.approve_an_offer": "Een aanbod goedkeuren",
+  "inbox.screens.approve_the_offer_for": "Keur het aanbod goed: {{name}}, {{job}}",
   "inbox.screens.approve_the_requisition": "Vacatureaanvraag goedkeuren: {{title}}",
   "inbox.screens.choose_a_time": "Kies een tijd: {{name}}, {{value}}",
   "inbox.screens.create_the_contract_for": "Stel het contract voor {{title}} op en stuur het ter ondertekening.",

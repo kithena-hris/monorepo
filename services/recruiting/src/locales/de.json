@@ -194,6 +194,7 @@
   "inbox.screens.a_candidate": "eine Kandidatin oder ein Kandidat",
   "inbox.screens.accepted_the_offer": "{{name}} hat das Angebot angenommen",
   "inbox.screens.approve_an_offer": "Angebot genehmigen",
+  "inbox.screens.approve_the_offer_for": "Angebot genehmigen: {{name}}, {{job}}",
   "inbox.screens.approve_the_requisition": "Stellenanforderung genehmigen: {{title}}",
   "inbox.screens.choose_a_time": "Zeit wählen: {{name}}, {{value}}",
   "inbox.screens.create_the_contract_for": "Erstellen Sie den Vertrag für {{title}} und senden Sie ihn zur Unterschrift.",

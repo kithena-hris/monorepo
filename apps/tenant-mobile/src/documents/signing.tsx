@@ -76,7 +76,8 @@ interface EnvelopeField {
 const KIND_LABEL = (): Readonly<Record<Kind, string>> => ({
   signature: t('documents.signing.signature', 'Signature'),
   initials: t('documents.signing.initials', 'Initials'),
-  date: t('documents.signing.dated_signature', 'Dated signature'),
+  // A dated signature of an earlier envelope: a signature, the day in the print under it.
+  date: t('documents.signing.signature', 'Signature'),
   name: t('documents.signing.name', 'Name'),
   title: t('documents.signing.job_title', 'Job title'),
   text: t('documents.signing.text', 'Text'),
@@ -86,7 +87,7 @@ const KIND_LABEL = (): Readonly<Record<Kind, string>> => ({
 const HINT = (): Readonly<Record<Kind, string>> => ({
   signature: t('documents.signing.sign', 'Sign'),
   initials: t('documents.signing.initial', 'Initial'),
-  date: t('documents.signing.sign_and_date', 'Sign and date'),
+  date: t('documents.signing.sign', 'Sign'),
   name: t('documents.signing.name', 'Name'),
   title: t('documents.signing.title', 'Title'),
   text: t('documents.signing.text', 'Text'),
@@ -530,9 +531,7 @@ function Signing({
               >
                 {signing.mark === null
                   ? t('documents.signing.adopt_and_sign', 'Adopt and sign')
-                  : focused.kind === 'date'
-                    ? t('documents.signing.sign_and_date', 'Sign and date')
-                    : t('documents.signing.sign', 'Sign')}
+                  : t('documents.signing.sign', 'Sign')}
               </Button>
             ) : null}
             <Button
@@ -613,14 +612,8 @@ function Signing({
                     className="text-[var(--reach-neutral-900)]"
                   />
                 );
-                if (f.kind !== 'date') return mark;
-                // A dated signature: the signature, the day under it.
-                return (
-                  <View className="h-full w-full">
-                    <View className="flex-1">{mark}</View>
-                    <Filled className="text-center">{signing.filled[f.id] ?? ''}</Filled>
-                  </View>
-                );
+                // The day is in the print under the box, never in it.
+                return mark;
               }
               return (
                 <Filled className="px-1">

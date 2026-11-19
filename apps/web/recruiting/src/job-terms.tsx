@@ -776,21 +776,22 @@ export function DaysChoice({ data, props }: TermsProps): JSX.Element {
       {/* Shortcuts that fill the days above, said as such: they are not a second setting. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
         <span>{tr('job-terms.fill_in_a_common_week', 'Fill in a common week:')}</span>
-        {WEEKS()
-          .filter(([days]) => days.join() !== terms.workDays.toSorted((a, b) => a - b).join())
-          .map(([days, label]) => (
-            <Button
-              key={label}
-              size="xs"
-              variant="ghost"
-              startIcon={<icons.calendar aria-hidden />}
-              onClick={() => {
-                save({ workDays: [...days] });
-              }}
-            >
-              {label}
-            </Button>
-          ))}
+        {/* Each keeps its place: the one in force is switched off, not taken away,
+            so the next one never slides under the pointer that just pressed. */}
+        {WEEKS().map(([days, label]) => (
+          <Button
+            key={label}
+            size="xs"
+            variant="ghost"
+            startIcon={<icons.calendar aria-hidden />}
+            disabled={days.join() === terms.workDays.toSorted((a, b) => a - b).join()}
+            onClick={() => {
+              save({ workDays: [...days] });
+            }}
+          >
+            {label}
+          </Button>
+        ))}
       </div>
     </>
   );

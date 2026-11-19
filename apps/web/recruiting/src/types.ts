@@ -617,6 +617,8 @@ export interface CandidateData {
       readonly startDate: string;
       readonly baseMinor: number;
       readonly currency: string;
+      /** Its contract's state, once one is made; absent from an older answer. */
+      readonly contract?: string | null;
     }[];
     readonly prehire: {
       readonly state: string;

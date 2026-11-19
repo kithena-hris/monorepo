@@ -37,7 +37,7 @@ const HOST_SUFFIX = process.env['TENANT_HOST_SUFFIX'] ?? '';
  * else redirects.
  */
 const PUBLIC_PATH =
-  /^\/(login|recover|signed-out|auth\/|api\/(session|recover|mobile\/)|kiosk\/|kiosk-sw\.js$|manifest\.webmanifest$|app-icon-\d+\.png$|apple-touch-icon\.png$|sign\/|(performance\/tools|people\/chat)\/[a-z]+\/done$)/;
+  /^\/(login|recover|signed-out|auth\/|api\/(session|recover|mobile\/)|kiosk\/|kiosk-sw\.js$|manifest\.webmanifest$|app-icon-\d+\.png$|apple-touch-icon\.png$|email\/[a-z]+\.png$|sign\/|(performance\/tools|people\/chat)\/[a-z]+\/done$)/;
 
 /**
  * Resolved tenants, briefly.

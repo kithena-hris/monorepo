@@ -52,7 +52,7 @@ export function RowBadges({
       ) : null}
       {/* Where it lives, in words rather than one more box beside the ones that matter. */}
       <span className="text-xs text-fg-muted">
-        {item.area === null
+        {item.area === null || item.area === moduleName(item.module)
           ? moduleName(item.module)
           : t('components.inbox.rows.text', '{{moduleName}} › {{area}}', {
               moduleName: moduleName(item.module),

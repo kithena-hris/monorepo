@@ -3,7 +3,7 @@ import { err, ok, wordsIn, type Result, type Words } from '@kithena/domain-kit';
 import { accentHex } from '@kithena/contracts';
 
 import { escapeHtml, safeHref, safeImageSrc } from './markup.js';
-import { frame } from './frame.js';
+import { frame, iconAt, type FrameIcon } from './frame.js';
 import { light } from './palette.js';
 import { Unrenderable, type RenderedMessage } from './invitation.js';
 
@@ -742,7 +742,9 @@ const COPY: {
         company,
         code,
       }),
-      heading: t('notice.signing_code.heading', 'Your code is {{code}}', { code }),
+      // The digits stand on their own under the words (`frame`'s code block),
+      // so the heading says what they are for.
+      heading: t('notice.signing_code.title', 'Your code to sign'),
       lede: t(
         'notice.signing_code.lede',
         'Enter it on the signing page to show it is you. It works for ten minutes. If you did not ask for it, somebody may have your link; nothing can be signed without the code.',
@@ -879,6 +881,26 @@ const REPORT_WORDS = {
 /** Every notice kind, read off the copy that must have one for each. */
 export const NOTICE_KINDS = Object.keys(COPY) as readonly NoticeKind[];
 
+/** What each notice is about, as the icon over its heading. One not named here is a bell. */
+const ICON: Partial<Readonly<Record<NoticeKind, FrameIcon>>> = {
+  profile_reminder: 'person',
+  approval_requested: 'inbox',
+  approval_decided: 'offer',
+  approval_expired: 'clock',
+  scheduled_report: 'report',
+  export_shared: 'document',
+  export_share_requested: 'document',
+  summary_shared: 'report',
+  signature_requested: 'sign',
+  signing_code: 'code',
+  signature_reminder: 'clock',
+  document_signed: 'sign',
+  document_completed: 'offer',
+  inbox_task: 'inbox',
+  inbox_update: 'bell',
+  inbox_digest: 'inbox',
+};
+
 /** US English, the words in the code: what a notice says when no language is given. */
 const ENGLISH = wordsIn('en-US', {});
 
@@ -934,6 +956,14 @@ export function renderNotice(
       company: escapeHtml(company),
       logo: safeImageSrc(brand.logoUrl),
       accent: accentHex(brand.themeId) ?? light['accent-solid'],
+      icon: iconAt(url, ICON[notice.kind] ?? 'bell'),
+      code:
+        notice.kind === 'signing_code'
+          ? {
+              label: escapeHtml(t('notice.signing_code.label', 'Your verification code')),
+              value: escapeHtml(notice.code),
+            }
+          : null,
       paragraphs: [escapeHtml(plain.lede)],
       facts:
         about?.body == null
@@ -967,6 +997,16 @@ export function renderNotice(
     text: [
       heading,
       '',
+      // First, on a line of its own and in the words a phone looks for: iOS,
+      // Android and Gmail offer a code they can find to the box that asks for it.
+      ...(notice.kind === 'signing_code'
+        ? [
+            t('notice.signing_code.plain', 'Your verification code is {{code}}', {
+              code: notice.code,
+            }),
+            '',
+          ]
+        : []),
       plain.lede,
       ...(about?.body == null ? [] : ['', about.body]),
       ...(steps.length === 0 ? [] : ['', ...steps.map((x, n) => `${String(n + 1)}. ${x}`)]),

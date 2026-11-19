@@ -30,9 +30,24 @@ const MOVES: Readonly<Record<InterviewState, readonly InterviewState[]>> = {
   cancelled: [],
 };
 
-export function moveInterview(interview: Interview, to: InterviewState): Result<Interview> {
+/**
+ * `at` is when it is being moved. An interview is completed, or missed, only
+ * once it has begun: one marked completed a day early owed a scorecard that
+ * could not be submitted until it started (`submitScorecard`).
+ */
+export function moveInterview(
+  interview: Interview,
+  to: InterviewState,
+  at?: string,
+): Result<Interview> {
   if (!MOVES[interview.state].includes(to))
     return err(failure('INTERVIEW_STATE', `A ${interview.state} interview cannot become ${to}`));
+  if (
+    at !== undefined &&
+    (to === 'completed' || to === 'no_show') &&
+    Date.parse(at) < Date.parse(interview.startsAt)
+  )
+    return err(failure('INTERVIEW_NOT_STARTED', 'The interview has not begun yet'));
   return ok({ ...interview, state: to });
 }
 

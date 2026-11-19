@@ -1,4 +1,12 @@
 {
+  "correspondence.code": {
+    "text": "Your verification code",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"label\" value."
+  },
+  "correspondence.code_plain": {
+    "text": "Your verification code is {{code}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"body\" value. Filled in: {{code}}."
+  },
   "correspondence.footer": {
     "text": "Sent by {{company}} about your application. Reply to this email to answer them.",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/correspondence.ts: a \"footer\" value. Filled in: {{company}}."
@@ -535,17 +543,25 @@
     "text": "Sent by Kithena on behalf of {{company}}.",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
   },
-  "notice.signing_code.heading": {
-    "text": "Your code is {{code}}",
-    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value. Filled in: {{code}}."
+  "notice.signing_code.label": {
+    "text": "Your verification code",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts: a \"label\" value."
   },
   "notice.signing_code.lede": {
     "text": "Enter it on the signing page to show it is you. It works for ten minutes. If you did not ask for it, somebody may have your link; nothing can be signed without the code.",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value."
   },
+  "notice.signing_code.plain": {
+    "text": "Your verification code is {{code}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts: a \"text\" value. Filled in: {{code}}."
+  },
   "notice.signing_code.subject": {
     "text": "Your code to sign for {{company}}: {{code}}",
     "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}, {{code}}."
+  },
+  "notice.signing_code.title": {
+    "text": "Your code to sign",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
   },
   "notice.summary_shared.action": {
     "text": "Open the summary",

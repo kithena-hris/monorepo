@@ -62,8 +62,10 @@ export const KIND_LABEL: Readonly<Record<FieldKind, string>> = {
   get initials(): string {
     return t('envelopes.prepare.initials', 'Initials');
   },
+  // A dated signature, as envelopes sent before November 2026 hold: a
+  // signature to everybody reading it, and no longer a box to add.
   get date(): string {
-    return t('envelopes.prepare.dated_signature', 'Dated signature');
+    return t('envelopes.prepare.signature', 'Signature');
   },
   name: t('envelopes.prepare.full_name', 'Full name'),
   get title(): string {
@@ -103,17 +105,17 @@ export const toneOf = (index: number): PlacedBox['tone'] => ((index % 6) + 1) as
 let counter = 0;
 const nextId = () => `f${String(Date.now())}-${String(++counter)}`;
 
-/** Kithena's start for a signer: a dated signature on the last page, two to a row. */
+/** Kithena's start for a signer: a signature on the last page, two to a row. */
 export function startingFields(signer: string, index: number, pages: number): PlacedField[] {
   return [
     {
       id: nextId(),
       signer,
-      kind: 'date',
+      kind: 'signature',
       page: pages,
       x: index % 2 === 0 ? 0.08 : 0.54,
       y: Math.max(0.05, 0.78 - Math.floor(index / 2) * 0.12),
-      ...SIZE.date,
+      ...SIZE.signature,
       required: true,
     },
   ];
@@ -198,11 +200,13 @@ export function WhereTheySign({
                 if (v !== '') setTool(v as FieldKind);
               }}
             >
-              {(Object.keys(KIND_LABEL) as FieldKind[]).map((k) => (
-                <ToggleGroupItem key={k} value={k} className="justify-start">
-                  {KIND_LABEL[k]}
-                </ToggleGroupItem>
-              ))}
+              {(Object.keys(KIND_LABEL) as FieldKind[])
+                .filter((k) => k !== 'date')
+                .map((k) => (
+                  <ToggleGroupItem key={k} value={k} className="justify-start">
+                    {KIND_LABEL[k]}
+                  </ToggleGroupItem>
+                ))}
             </ToggleGroup>
             <p className="text-sm text-fg-muted">
               {t(

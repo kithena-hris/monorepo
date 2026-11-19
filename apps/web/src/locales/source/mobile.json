@@ -1175,10 +1175,6 @@
     "text": "Aug",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/signing.tsx, MONTHS: text built in code."
   },
-  "documents.signing.dated_signature": {
-    "text": "Dated signature",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/signing.tsx, KIND_LABEL: a \"date\" value."
-  },
   "documents.signing.dec": {
     "text": "Dec",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/signing.tsx, MONTHS: text built in code."
@@ -1282,10 +1278,6 @@
   "documents.signing.sign": {
     "text": "Sign",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/signing.tsx, HINT: a \"signature\" value."
-  },
-  "documents.signing.sign_and_date": {
-    "text": "Sign and date",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/signing.tsx, HINT: a \"date\" value."
   },
   "documents.signing.signature": {
     "text": "Signature",

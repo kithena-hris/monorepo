@@ -10,7 +10,11 @@ import type {
 } from '@kithena/contracts';
 
 import { may, worksCouncilMay } from '../domain/access/access.js';
-import { hire as hireApplication, toContract } from '../domain/pipeline/application.js';
+import {
+  currentStage,
+  hire as hireApplication,
+  toContract,
+} from '../domain/pipeline/application.js';
 import { withContractStage, withHiredStage } from '../domain/pipeline/pipeline.js';
 import {
   isEligible,
@@ -72,7 +76,14 @@ import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } fr
 import { refreshProjection } from './jobs.js';
 import { askApprovers } from './chat.js';
 import { emailFor, emailValues, moveAndEmail, type ComposedEmail } from './emails.js';
-import { loadApplication, render, sendNow, worksCouncilCleared, type Loaded } from './moves.js';
+import {
+  loadApplication,
+  moveApplication,
+  render,
+  sendNow,
+  worksCouncilCleared,
+  type Loaded,
+} from './moves.js';
 import { appUrl, inboxTask, tellMembers } from './notify.js';
 import { contractNote } from './pack-notes.js';
 import { generalSettings } from './setup.js';
@@ -508,6 +519,14 @@ export async function sendTheOffer(ctx: Ctx, offerId: string): Promise<Result<Of
   if (!sent.ok) return sent;
   await ctx.tx.offers.save(sent.value);
   await publish(ctx, offerEvent(ctx, 'sent', sent.value));
+  // An offer made from an earlier step takes the candidate to the offer step:
+  // the board said "Interview 1" of somebody who had an offer to read. One
+  // that may not move (a step in between that must be passed) stays, sent.
+  const at = loaded.value.stages.findIndex((s) => s.id === currentStage(loaded.value.app));
+  const offerAt = loaded.value.stages.findIndex((s) => s.category === 'offer');
+  const offerStage = loaded.value.stages[offerAt];
+  if (offerStage !== undefined && at < offerAt)
+    await moveApplication(ctx, offer.applicationId, offerStage.id);
   // The company's offer email when it has one (`emails.ts`), with the page link and the date it is open until.
   const words = await emailFor(ctx, 'offer', loaded.value.candidate.language);
   // Through the job site's sign-in: accepting an offer is a signed-in act.

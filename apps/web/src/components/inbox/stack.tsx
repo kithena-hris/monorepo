@@ -30,7 +30,8 @@ export function StackRow({
   if (first === undefined) return <></>;
   const Icon = iconOf(first.icon);
   const where =
-    first.area === null
+    // An area named as its module is said once, not "Recruiting › Recruiting".
+    first.area === null || first.area === moduleName(first.module)
       ? moduleName(first.module)
       : t('components.inbox.stack.where', '{{module}} › {{area}}', {
           module: moduleName(first.module),

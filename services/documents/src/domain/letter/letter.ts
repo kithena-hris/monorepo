@@ -30,13 +30,19 @@ export function merge(
 
 /**
  * Where each signer of a drafted document signs (PRD §14.2, "Draft a
- * document"): a "Signature:" line and their name under it, one per signer in
+ * document"): their name, then a "Signature:" line, one per signer in
  * signing order, at the end. Kithena writes it, never the model, and
  * `signatureLines` then finds each line, so every signer's box lands beside
  * their own, in order.
+ *
+ * The box is taller than a line of text (`DATED` in `signature/envelope.ts`):
+ * it starts above the "Signature:" line and runs three lines below. So the
+ * name sits over it with a line between, and three lines are left under it.
+ * With the name directly under the label and the next signer two lines on,
+ * each signature landed on its own name and on the signature after it.
  */
 export function signingBlock(names: readonly string[]): string {
-  return names.map((name) => `\n\n\nSignature:\nName: ${name}`).join('');
+  return names.map((name) => `\n\n\nName: ${name}\n\nSignature:\n\n\n`).join('');
 }
 
 const FIGURE = /\d+(?:[.,]\d+)*/gu;

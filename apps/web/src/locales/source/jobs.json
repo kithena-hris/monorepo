@@ -445,7 +445,7 @@
   },
   "app.me.[company].candidate-home.read_your_offer": {
     "text": "Read your offer",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the actions of <Button>."
   },
   "app.me.[company].candidate-home.referee_added": {
     "text": "Referee added",
@@ -482,6 +482,10 @@
   "app.me.[company].candidate-home.you_have_an_email_with_a": {
     "text": "You have an email with a link and a code to sign it online. Once you sign, you are hired.",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Alert>."
+  },
+  "app.me.[company].candidate-home.you_have_an_offer_to_read": {
+    "text": "You have an offer to read",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <Alert>."
   },
   "app.me.[company].candidate-home.you_have_left_the_talent_pool": {
     "text": "You have left the talent pool",
@@ -798,6 +802,10 @@
   "app.me.[company].offer-page.why_declining": {
     "text": "Why you are declining",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: text inside <FieldLabel>."
+  },
+  "app.me.[company].offer-page.yes_accept": {
+    "text": "Yes, accept this offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: text inside <Button>."
   },
   "app.me.[company].offer-page.you_accepted": {
     "text": "You accepted this offer",

@@ -200,6 +200,7 @@
   "inbox.screens.a_candidate": "kandydat",
   "inbox.screens.accepted_the_offer": "{{name}} przyjął(a) ofertę",
   "inbox.screens.approve_an_offer": "Zatwierdź ofertę",
+  "inbox.screens.approve_the_offer_for": "Zatwierdź ofertę: {{name}}, {{job}}",
   "inbox.screens.approve_the_requisition": "Zatwierdź zapotrzebowanie: {{title}}",
   "inbox.screens.choose_a_time": "Wybierz termin: {{name}}, {{value}}",
   "inbox.screens.create_the_contract_for": "Utwórz umowę na stanowisko {{title}} i wyślij ją do podpisu.",

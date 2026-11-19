@@ -528,14 +528,19 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
               })),
               competencies: Object.fromEntries(competencies),
             },
-      offers: offers.map((o) => ({
-        id: o.id,
-        state: o.state,
-        version: latest(o).version,
-        startDate: latest(o).startDate,
-        baseMinor: latest(o).pay.baseMinor,
-        currency: latest(o).pay.currency,
-      })),
+      offers: await Promise.all(
+        offers.map(async (o) => ({
+          id: o.id,
+          state: o.state,
+          version: latest(o).version,
+          startDate: latest(o).startDate,
+          baseMinor: latest(o).pay.baseMinor,
+          currency: latest(o).pay.currency,
+          // How far its contract has come, so the page stops offering to
+          // prepare one that is already out for signature.
+          contract: (await ctx.tx.contracts.forOffer(o.id))?.state ?? null,
+        })),
+      ),
       prehire: await ctx.tx.prehires.get(app.id),
       // The hiring team reads the answers; the token's hash never leaves Recruiting.
       matrix: may(ctx.viewer, facts, 'candidate.profile') ? await latestMatrix(ctx, app.id) : null,
@@ -915,15 +920,22 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     detail: null,
   } as const;
   for (const a of await ctx.tx.approvals.waitingOn(person)) {
+    const detail = await approvalDetail(ctx, a);
     const title =
       a.subject.kind === 'requisition'
         ? t('inbox.screens.approve_the_requisition', 'Approve the requisition: {{title}}', {
             title: (await ctx.tx.requisitions.get(a.subject.id))?.title ?? '',
           })
-        : t('inbox.screens.approve_an_offer', 'Approve an offer');
+        : detail?.kind === 'offer'
+          ? // Whose offer: several wait at once, and "Approve an offer" told none apart.
+            t('inbox.screens.approve_the_offer_for', 'Approve the offer: {{name}}, {{job}}', {
+              name: detail.candidate,
+              job: detail.job,
+            })
+          : t('inbox.screens.approve_an_offer', 'Approve an offer');
     items.push({
       ...base,
-      detail: await approvalDetail(ctx, a),
+      detail,
       id: `recruiting:${a.subject.kind === 'requisition' ? 'requisition-approval' : 'offer-approval'}:${a.id}`,
       lane: 'task',
       kind:
