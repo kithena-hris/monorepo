@@ -43,6 +43,26 @@ export interface RequisitionChange {
   readonly to: string;
 }
 
+/**
+ * The budget as the yearly pay range a job opened from it starts with: what
+ * was approved, typed once on the request. None without a budget.
+ */
+export function payOf(budget: Budget | null): {
+  readonly minMinor: number;
+  readonly maxMinor: number;
+  readonly currency: string;
+  readonly period: 'year';
+} | null {
+  return budget === null
+    ? null
+    : {
+        minMinor: budget.from.amountMinor,
+        maxMinor: budget.to.amountMinor,
+        currency: budget.to.currency,
+        period: 'year',
+      };
+}
+
 const budgetText = (budget: Budget | null): string =>
   budget === null
     ? 'none'

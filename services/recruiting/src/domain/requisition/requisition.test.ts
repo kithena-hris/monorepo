@@ -6,6 +6,7 @@ import {
   decide,
   edit,
   mayDecide,
+  payOf,
   recordHire,
   resolveSteps,
   submit,
@@ -111,6 +112,18 @@ const facts = {
   aboveBudget: false,
   grade: null,
 };
+
+describe('the pay a job opened from it starts with', () => {
+  it('is the approved budget, as a yearly range, and none without one', () => {
+    expect(payOf({ from: eur(7_200_000), to: eur(8_800_000) })).toEqual({
+      minMinor: 7_200_000,
+      maxMinor: 8_800_000,
+      currency: 'EUR',
+      period: 'year',
+    });
+    expect(payOf(null)).toBeNull();
+  });
+});
 
 describe('approval chains (PRD §7.2)', () => {
   it('chooses the first chain whose conditions hold', () => {

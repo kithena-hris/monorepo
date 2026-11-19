@@ -6,6 +6,7 @@ import { jobPermissions, type TeamRole } from '../domain/access/access.js';
 import { adChecks, adPasses, type AdPlace } from '../domain/ad/checks.js';
 import { renderAd } from '../domain/ad/render.js';
 import { validatePipeline, withWorksCouncil, type Stage } from '../domain/pipeline/pipeline.js';
+import { payOf } from '../domain/requisition/requisition.js';
 import { isEligible } from '../domain/benefits/benefits.js';
 import { asksPayHistory, defaultForm, validateForm, type FormField } from '../domain/form/form.js';
 import {
@@ -60,6 +61,11 @@ export async function createJob(ctx: Ctx, input: NewJob): Promise<Result<JobReco
     }
   }
   const countries = await countriesOf(ctx, input.locationIds);
+  // What the requisition was approved to pay is what the job starts with:
+  // typed once, on the request, and still the recruiter's to change here.
+  const [first] = input.requisitionIds;
+  const budget =
+    first === undefined ? null : ((await ctx.tx.requisitions.get(first))?.budget ?? null);
   const job: JobRecord = {
     id: input.id,
     internalTitle: input.internalTitle,
@@ -82,7 +88,7 @@ export async function createJob(ctx: Ctx, input: NewJob): Promise<Result<JobReco
     openedAt: null,
     createdAt: ctx.at,
     outline: { contractType: null, hours: 'full_time', seniority: input.seniority ?? null },
-    salary: null,
+    salary: payOf(budget),
     searchable: settings.searchable,
     benefitIds: [],
     scorecardTemplateId: null,
