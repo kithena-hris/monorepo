@@ -259,6 +259,7 @@ export function EmailComposer({
   onChange,
   many = false,
   optional = true,
+  stageId,
 }: {
   /** The application the preview is filled from; the first of many. */
   readonly applicationId: string | undefined;
@@ -277,6 +278,8 @@ export function EmailComposer({
   readonly many?: boolean;
   /** False where the email is the whole point: no switch to turn it off. */
   readonly optional?: boolean;
+  /** A move's destination: the step the email names. */
+  readonly stageId?: string | undefined;
 }): JSX.Element {
   const mine = templates.filter((t) => t.purpose === purpose);
   const others = templates.filter((t) => t.purpose !== purpose);
@@ -291,7 +294,12 @@ export function EmailComposer({
       'PreviewEmail',
       {
         applicationId,
-        input: { purpose, templateId: templateId === 'default' ? null : templateId, fill: !many },
+        input: {
+          purpose,
+          templateId: templateId === 'default' ? null : templateId,
+          fill: !many,
+          ...(stageId === undefined ? {} : { stageId }),
+        },
       },
       (drafted) => {
         const d = drafted as ComposedEmail;
@@ -299,7 +307,7 @@ export function EmailComposer({
         setLoading(false);
       },
     );
-  }, [enabled, applicationId, purpose, templateId, many]);
+  }, [enabled, applicationId, purpose, templateId, many, stageId]);
   return (
     <div className="flex flex-col gap-4 rounded-2xl bg-[var(--reach-fill)] p-4">
       {optional ? (

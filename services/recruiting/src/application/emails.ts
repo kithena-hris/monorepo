@@ -148,11 +148,17 @@ const fmt = (iso: string, timeZone: string, language = 'en-GB'): string =>
 export async function emailValues(
   ctx: Ctx,
   loaded: Loaded,
-  options: { readonly link: boolean } = { link: true },
+  options: {
+    readonly link: boolean;
+    /** The step a move is taking them to: its name goes in the email, not the one they are leaving. */
+    readonly stageId?: string | undefined;
+  } = { link: true },
 ): Promise<Record<string, string>> {
   const settings = await generalSettings(ctx);
   const job = await ctx.tx.jobs.get(loaded.app.jobId);
-  const stage = loaded.stages.find((s) => s.id === currentStage(loaded.app));
+  const stage =
+    loaded.stages.find((s) => s.id === options.stageId) ??
+    loaded.stages.find((s) => s.id === currentStage(loaded.app));
   const zone = loaded.candidate.timeZone ?? 'UTC';
   const next = (await ctx.tx.interviews.forApplication(loaded.app.id))
     .filter((i) => i.state === 'scheduled' && i.startsAt > ctx.at)
@@ -257,6 +263,7 @@ export async function previewEmail(
     readonly purpose: EmailPurpose;
     readonly templateId: string | null;
     readonly fill: boolean;
+    readonly stageId?: string | undefined;
   },
 ): Promise<Result<EmailDraft>> {
   const loaded = await loadApplication(ctx, applicationId);
@@ -268,7 +275,7 @@ export async function previewEmail(
       ? await emailFor(ctx, input.purpose, null)
       : { subject: held.subject ?? '', body: held.body, templateId: held.id };
   if (!input.fill) return ok(base);
-  const values = await emailValues(ctx, loaded.value, { link: false });
+  const values = await emailValues(ctx, loaded.value, { link: false, stageId: input.stageId });
   return ok({ ...base, subject: render(base.subject, values), body: render(base.body, values) });
 }
 

@@ -1082,6 +1082,8 @@ export const ROUTES: readonly Route[] = [
       purpose: z.enum(EMAIL_PURPOSES),
       templateId: Id.nullable().default(null),
       fill: z.boolean().default(true),
+      /** For a move: the step they are going to. */
+      stageId: Id.optional(),
     }),
     run: (ctx, { params, body }) => previewEmail(ctx, params.applicationId, body),
   }),
