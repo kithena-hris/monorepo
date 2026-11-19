@@ -3,7 +3,7 @@ import { err, ok, type Result } from '@kithena/domain-kit';
 
 import { escapeHtml, safeHref, safeImageSrc } from './markup.js';
 import { ENGLISH, Unrenderable, type Language, type RenderedMessage } from './invitation.js';
-import { frame } from './frame.js';
+import { frame, iconAt, type FrameIcon } from './frame.js';
 import { light } from './palette.js';
 
 /**
@@ -105,6 +105,16 @@ export function renderCorrespondence(
     .split(/\n{2,}/u)
     .map((p) => escapeHtml(p).replace(/\n/gu, '<br />'));
   const manage = member?.manageHref == null ? null : safeHref(member.manageHref);
+  const oneTime = codeIn(heading, body);
+  // What it is about, from what it carries: a code, times to choose, or a letter.
+  const about: FrameIcon =
+    oneTime !== null
+      ? 'code'
+      : days.length > 0
+        ? 'calendar'
+        : /\b(offer|contract)\b/iu.test(heading)
+          ? 'offer'
+          : 'mail';
   const html = frame({
     language: escapeHtml(words.language),
     title: escapeHtml(title.slice(0, 200)),
@@ -112,6 +122,14 @@ export function renderCorrespondence(
     company: escapeHtml(companyName),
     logo: safeImageSrc(parts.logoUrl ?? null),
     accent: accentHex(parts.themeId) ?? light['accent-solid'],
+    icon: iconAt(action?.href ?? secondary?.href ?? manage, about),
+    code:
+      oneTime === null
+        ? null
+        : {
+            label: escapeHtml(t('correspondence.code', 'Your verification code')),
+            value: escapeHtml(oneTime),
+          },
     paragraphs,
     facts: facts.map((f) => ({ label: escapeHtml(f.label), value: escapeHtml(f.value) })),
     times:
@@ -158,7 +176,11 @@ export function renderCorrespondence(
     subject: heading,
     html,
     text: plain({
-      body,
+      // A code first, on a line of its own, in the words a phone looks for.
+      body:
+        oneTime === null
+          ? body
+          : `${t('correspondence.code_plain', 'Your verification code is {{code}}', { code: oneTime })}\n\n${body}`,
       companyName,
       parts: { days, facts, steps: (parts.steps ?? []).slice(0, LIMITS.steps) },
       action: parts.action,
@@ -166,6 +188,18 @@ export function renderCorrespondence(
       timesTitle: parts.times?.title ?? t('correspondence.times', 'Times'),
     }),
   });
+}
+
+/**
+ * The one-time code a module's email carries: six digits standing alone in
+ * its subject and said again in its words. A module writes its own words, so
+ * the code is found rather than passed; a number in only one of the two (a
+ * date, a salary) is not one.
+ */
+export function codeIn(subject: string, body: string): string | null {
+  const found = /(?<!\d)(\d{6})(?!\d)/u.exec(subject)?.[1];
+  if (found === undefined) return null;
+  return new RegExp(`(?<!\\d)${found}(?!\\d)`, 'u').test(body) ? found : null;
 }
 
 const URL_LINE = /^\s*(https:\/\/\S+)\s*$/u;

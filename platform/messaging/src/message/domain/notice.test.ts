@@ -328,3 +328,19 @@ describe('a notice that names its item', () => {
     expect(titled.value.html).toContain('Approve Adam’s time off</h1>');
   });
 });
+
+describe('a code to sign', () => {
+  it('stands on its own under the words, with its icon, and first in the text', () => {
+    const result = renderNotice(
+      { kind: 'signing_code', code: '482913' },
+      'https://acme.app.kithena.com/sign/abc',
+      'Acme Corp',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.subject).toContain('482913');
+    expect(result.value.html).toContain('user-select:all;">482913<');
+    expect(result.value.html).toContain('https://acme.app.kithena.com/email/code.png');
+    expect(result.value.text).toContain('Your verification code is 482913');
+  });
+});
