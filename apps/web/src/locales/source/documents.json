@@ -1015,10 +1015,6 @@
     "text": "Add a box",
     "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <CardTitle>."
   },
-  "envelopes.prepare.dated_signature": {
-    "text": "Dated signature",
-    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
-  },
   "envelopes.prepare.for": {
     "text": "For",
     "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
@@ -1159,6 +1155,10 @@
     "text": "{{place}} for you to fill in. Start takes you to each one.",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: the message of <PinnedBar>. Filled in: {{place}}."
   },
+  "envelopes.sign-view.id_short": {
+    "text": "ID {{id}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, DocumentToSign: the boxes of <PlacementLayer>. Filled in: {{id}}."
+  },
   "envelopes.sign-view.initial": {
     "text": "Initial",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
@@ -1225,10 +1225,6 @@
   },
   "envelopes.sign-view.sign": {
     "text": "Sign",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
-  },
-  "envelopes.sign-view.sign_and_date": {
-    "text": "Sign and date",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
   },
   "envelopes.sign-view.signed_by": {
