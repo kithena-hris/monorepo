@@ -199,6 +199,7 @@
   "inbox.screens.a_candidate": "एक उम्मीदवार",
   "inbox.screens.accepted_the_offer": "{{name}} ने प्रस्ताव स्वीकार किया",
   "inbox.screens.approve_an_offer": "ऑफ़र मंज़ूर करें",
+  "inbox.screens.approve_the_offer_for": "ऑफ़र मंज़ूर करें: {{name}}, {{job}}",
   "inbox.screens.approve_the_requisition": "पद अनुरोध मंज़ूर करें: {{title}}",
   "inbox.screens.choose_a_time": "समय चुनें: {{name}}, {{value}}",
   "inbox.screens.create_the_contract_for": "{{title}} के लिए अनुबंध बनाएं और हस्ताक्षर के लिए भेजें।",

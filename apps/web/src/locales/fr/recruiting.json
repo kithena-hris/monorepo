@@ -1423,7 +1423,6 @@
   "offers.you_see_the_offer_and_its": "Vous voyez l’offre et ses vérifications ; rien d’autre sur le candidat.",
   "offers.your_own_pdf_is_sent": "Un PDF rédigé par votre entreprise : il est envoyé à {{name}} pour signature dans le même ordre, et sa signature l’embauche de la même façon. Chaque signature se place à côté d’une ligne de signature que le PDF contient déjà.",
   "pipeline.a_label_on_each_card_not": "Une étiquette sur chaque carte, pas une décision : chaque constat cite le CV et une personne le confirme ou non.",
-  "pipeline.active_candidates": "{{length}} candidats actifs",
   "pipeline.ai_match": "Correspondance IA",
   "pipeline.ai_match_percent": "Correspondance IA {{round}} pour cent, {{band}}",
   "pipeline.any_match": "Toute correspondance",

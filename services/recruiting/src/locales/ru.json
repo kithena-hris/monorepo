@@ -201,6 +201,7 @@
   "inbox.screens.a_candidate": "кандидат",
   "inbox.screens.accepted_the_offer": "{{name}} принял(а) предложение",
   "inbox.screens.approve_an_offer": "Утвердить оффер",
+  "inbox.screens.approve_the_offer_for": "Утвердить оффер: {{name}}, {{job}}",
   "inbox.screens.approve_the_requisition": "Утвердить заявку на вакансию: {{title}}",
   "inbox.screens.choose_a_time": "Выбрать время: {{name}}, {{value}}",
   "inbox.screens.create_the_contract_for": "Создайте договор на должность {{title}} и отправьте его на подпись.",
