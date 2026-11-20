@@ -335,7 +335,7 @@ function Editor({
                   label: t('requisitions.cancel_requisition', 'Cancel requisition'),
                   icon: <icons.close aria-hidden />,
                   destructive: true,
-                  hidden: r.state !== 'draft' || isNew,
+                  hidden: isNew || r.state === 'filled' || r.state === 'cancelled',
                   onSelect: () => {
                     act.run('CancelRequisition', { requisitionId: r.id });
                   },

@@ -61,6 +61,7 @@ import {
   chainFor,
   mayDecide,
   recordHire,
+  releaseHire,
   resolveSteps,
 } from '../domain/requisition/requisition.js';
 import { addDays, addMonths } from '../domain/dates.js';
@@ -1581,6 +1582,16 @@ export async function cancelThePrehire(
   const cancelled = cancelPrehire(held, reason);
   if (!cancelled.ok) return cancelled;
   await ctx.tx.prehires.save(cancelled.value);
+  // The opening they were counted against is open again.
+  const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
+  for (const id of job?.requisitionIds ?? []) {
+    const r = await ctx.tx.requisitions.get(id);
+    const released = r === null ? null : releaseHire(r);
+    if (released?.ok) {
+      await ctx.tx.requisitions.save(released.value);
+      break;
+    }
+  }
   const candidate = await ctx.tx.candidates.get(held.candidateId);
   await publish(
     ctx,

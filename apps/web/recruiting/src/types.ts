@@ -559,6 +559,8 @@ export interface CandidateData {
     readonly purpose: string;
   }[];
   readonly allPools: readonly { readonly id: string; readonly name: string }[];
+  /** Whether the viewer may delete the candidate on request. */
+  readonly mayDelete?: boolean;
   /** Interviewers and note authors by name, so the page shows people, not ids. */
   readonly names?: Readonly<Record<string, string>>;
   /** The offer open over the page (`?offer=`). */

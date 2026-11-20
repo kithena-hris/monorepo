@@ -570,6 +570,8 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
       .map((t) => ({ id: t.id, name: t.name, purpose: t.purpose })),
     allPools: profile ? (await ctx.tx.pools.list()).map((p) => ({ id: p.id, name: p.name })) : [],
     applications,
+    // Deleting on request (GDPR art. 17) is an administrator's.
+    mayDelete: ctx.viewer.admin,
     // The people the page names: every interviewer, scorer, note author and email sender, by name.
     names: await namesFor(ctx, [
       ...applications.flatMap((a) => a.interviews.flatMap((i) => i.interviewerIds)),

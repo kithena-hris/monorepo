@@ -168,6 +168,13 @@ export function recordHire(r: Requisition): Result<Requisition> {
   return ok({ ...r, filled, state: filled === r.openings ? 'filled' : 'approved' });
 }
 
+/** A hire that fell through before the start gives its opening back. */
+export function releaseHire(r: Requisition): Result<Requisition> {
+  if (r.filled === 0 || (r.state !== 'filled' && r.state !== 'approved'))
+    return err(failure('NO_HIRE', 'No hire is counted against this requisition'));
+  return ok({ ...r, filled: r.filled - 1, state: 'approved' });
+}
+
 /* ------------------------------------------------------ approval chains -- */
 
 /** Who approves a step (PRD §7.2): a person, a role, or the manager's manager. */

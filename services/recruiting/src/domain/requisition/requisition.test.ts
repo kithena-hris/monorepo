@@ -8,6 +8,7 @@ import {
   mayDecide,
   payOf,
   recordHire,
+  releaseHire,
   resolveSteps,
   submit,
   type ApprovalChain,
@@ -45,7 +46,11 @@ describe('a requisition’s life (PRD §7.1)', () => {
     expect(approved.state).toBe('approved');
     const one = unwrap(recordHire(approved));
     expect(one).toMatchObject({ filled: 1, state: 'approved' });
-    expect(unwrap(recordHire(one))).toMatchObject({ filled: 2, state: 'filled' });
+    const full = unwrap(recordHire(one));
+    expect(full).toMatchObject({ filled: 2, state: 'filled' });
+    // A hire that fell through gives its opening back, and only a counted one.
+    expect(unwrap(releaseHire(full))).toMatchObject({ filled: 1, state: 'approved' });
+    expect(releaseHire(approved).ok).toBe(false);
   });
 
   it('refuses a backfill that does not say whom it replaces, and a budget upside down', () => {

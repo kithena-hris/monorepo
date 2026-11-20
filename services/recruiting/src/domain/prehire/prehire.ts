@@ -108,6 +108,15 @@ export function cancelPrehire(prehire: Prehire, reason: PrehireCancelReason): Re
   return ok({ ...prehire, state: 'cancelled', cancelReason: reason });
 }
 
+/**
+ * Whether a hired application is still a hire to keep and hand over. One
+ * whose pre-hire was cancelled never became employment, so the candidate may
+ * be deleted on request like any other.
+ */
+export function keptAsHire(prehire: Prehire | null): boolean {
+  return prehire?.state !== 'cancelled';
+}
+
 export function moveStart(
   prehire: Prehire,
   to: CalendarDate,
