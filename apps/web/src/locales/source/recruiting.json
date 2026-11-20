@@ -651,6 +651,22 @@
     "text": "Debrief",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
+  "candidate.delete": {
+    "text": "Delete",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
+  },
+  "candidate.delete_body": {
+    "text": "Their name, contact details, files and answers are erased from every application. This cannot be undone.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <AlertDialogDescription>."
+  },
+  "candidate.delete_candidate": {
+    "text": "Delete candidate…",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
+  },
+  "candidate.delete_title": {
+    "text": "Delete {{name}}?",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <AlertDialogTitle>. Filled in: {{name}}."
+  },
   "candidate.details": {
     "text": "Details",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
@@ -786,6 +802,10 @@
   "candidate.journey": {
     "text": "Journey",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
+  },
+  "candidate.keep": {
+    "text": "Keep",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
   },
   "candidate.knockout_to_review": {
     "text": "Knockout to review",

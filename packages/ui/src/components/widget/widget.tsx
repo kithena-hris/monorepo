@@ -10,6 +10,9 @@ import { toneVar, type ChartTone } from '../chart/tones';
  * each half the row, one under 39rem. Never three: a reader keeps two things
  * side by side in mind, and a third loses the context of the first. A
  * `Widget` with `span` 1 or 2 takes half the row, 3 or 4 the whole of it.
+ * The grid is 71rem at most, so half a row is never wider than 35rem (560px):
+ * past that a list's label and its figure drift apart and a row reads as two
+ * unrelated ends. A wider page leaves the rest of the row empty, as `sm` does.
  *
  * `sm`, for tiles that hold one figure: columns of 13rem, as many as fit,
  * the rest of the row left empty; a span the container cannot fit falls
@@ -32,6 +35,7 @@ export function WidgetGrid({
       data-widget-grid={size}
       className={cn(
         '@container/widgets grid grid-flow-row-dense items-start justify-start gap-4 touch:gap-3',
+        size === 'md' && 'max-w-[71rem]',
         className,
       )}
       style={{
