@@ -2,6 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { CandidatePage, Instant, LaunchCountry } from '@kithena/contracts';
 
 import { currentStage, effectiveHistory } from '../domain/pipeline/application.js';
+import { keptAsHire } from '../domain/prehire/prehire.js';
 import { retentionAction } from '../domain/privacy/retention.js';
 import { asksOf } from './asks.js';
 import { adminOnly, event, notFound, publish, type Ctx } from './context.js';
@@ -131,8 +132,10 @@ export async function anonymise(ctx: Ctx, candidateId: string): Promise<Result<t
   if (await ctx.tx.legalHolds.has(candidateId))
     return err(failure('LEGAL_HOLD', 'A legal hold keeps this candidate'));
   const apps = await ctx.tx.applications.forCandidate(candidateId);
-  if (apps.some((a) => a.outcome === 'hired'))
-    return err(failure('HIRED', 'A hire is kept and handed over, not deleted'));
+  for (const a of apps) {
+    if (a.outcome === 'hired' && keptAsHire(await ctx.tx.prehires.get(a.id)))
+      return err(failure('HIRED', 'A hire is kept and handed over, not deleted'));
+  }
   for (const file of await ctx.tx.files.removeOf(candidateId))
     await ctx.deps.blobs.delete(file.blobKey);
   for (const app of apps) {

@@ -1,7 +1,7 @@
 import { CalendarDate } from '@kithena/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { cancelPrehire, openPrehire, startPrehire } from './prehire.js';
+import { cancelPrehire, keptAsHire, openPrehire, startPrehire } from './prehire.js';
 
 const open = () => openPrehire('a1', 'c1', CalendarDate.parse('2026-12-01'), ['right_to_work']);
 
@@ -17,5 +17,11 @@ describe('a pre-hire on their first day', () => {
     const cancelled = cancelPrehire(open(), 'reneged');
     const started = cancelled.ok ? startPrehire(cancelled.value) : null;
     expect(started?.ok).toBe(false);
+  });
+
+  it('is a hire to keep until it is cancelled', () => {
+    const cancelled = cancelPrehire(open(), 'reneged');
+    expect([keptAsHire(open()), keptAsHire(null)]).toEqual([true, true]);
+    expect(cancelled.ok && keptAsHire(cancelled.value)).toBe(false);
   });
 });

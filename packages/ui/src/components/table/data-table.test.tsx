@@ -789,4 +789,26 @@ describe('<DataTable columnSizing="fill">', () => {
     expect(Number.parseFloat(table?.style.minWidth ?? '0')).toBeGreaterThan(0);
     expect(table?.className).toContain('table-fixed');
   });
+
+  it('runs a choice in a row’s menu without opening the row', () => {
+    const open = vi.fn();
+    const archive = vi.fn();
+    render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        describeRow={(p) => p.name}
+        onRowClick={open}
+        rowActions={() => [{ id: 'archive', label: 'Archive', onSelect: archive }]}
+      />,
+    );
+    const trigger = screen.getAllByRole('button', { name: /Actions for/u })[0];
+    if (trigger === undefined) throw new Error('no row menu');
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Archive' }));
+    expect(archive).toHaveBeenCalledOnce();
+    expect(open).not.toHaveBeenCalled();
+  });
 });

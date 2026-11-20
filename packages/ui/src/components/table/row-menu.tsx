@@ -42,7 +42,15 @@ export function RowMenu({
           }}
         />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-52">
+      <DropdownMenuContent
+        align="end"
+        className="min-w-52"
+        // Nor is a choice in it: React bubbles a click out of the portal to
+        // the row, which would open the row over whatever the choice began.
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+      >
         {actions.map((action) => {
           const shortcut = keysOf(action.shortcut, keys);
           return (

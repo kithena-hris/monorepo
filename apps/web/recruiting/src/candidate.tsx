@@ -1,4 +1,11 @@
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
   Dialog,
   DialogBody,
   DialogContent,
@@ -1462,6 +1469,7 @@ export function Spotlight({
   const [moveMessage, setMoveMessage] = useState<ComposedEmail | null>(null);
   const [pooling, setPooling] = useState(false);
   const [poolId, setPoolId] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const chosen: Application | undefined =
     data.applications.find((a) => a.applicationId === applicationId) ?? data.applications[0];
@@ -1704,6 +1712,17 @@ export function Spotlight({
         setPooling(true);
       },
       group: 'tell',
+    },
+    {
+      id: 'delete',
+      label: tr('candidate.delete_candidate', 'Delete candidate…'),
+      icon: <icons.delete aria-hidden />,
+      destructive: true,
+      hidden: data.mayDelete !== true,
+      onSelect: () => {
+        setDeleting(true);
+      },
+      group: 'page',
     },
     {
       id: 'page',
@@ -2364,6 +2383,38 @@ export function Spotlight({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={deleting} onOpenChange={setDeleting}>
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {tr('candidate.delete_title', 'Delete {{name}}?', { name })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {tr(
+              'candidate.delete_body',
+              'Their name, contact details, files and answers are erased from every application. This cannot be undone.',
+            )}
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">{tr('candidate.keep', 'Keep')}</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="danger"
+                loading={act.pending}
+                onClick={() => {
+                  act.run('DeleteCandidate', { candidateId: data.candidate.id }, () => {
+                    setDeleting(false);
+                    go('/recruiting/candidates');
+                  });
+                }}
+              >
+                {tr('candidate.delete', 'Delete')}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog open={pooling} onOpenChange={setPooling}>
         <DialogContent>
           <DialogHeader>
