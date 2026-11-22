@@ -869,6 +869,8 @@ function Team({
           <ListItem
             key={r.id}
             asChild
+            // A person's row opens them, here as in the reporting line beside it.
+            chevron
             leading={<Avatar size="md" name={r.name} src={r.avatarUrl ?? undefined} />}
             {...(r.title === null ? {} : { description: r.title })}
           >
