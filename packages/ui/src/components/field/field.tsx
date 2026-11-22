@@ -132,12 +132,19 @@ export function Field({
         className={cn(
           'group/field flex gap-1.5',
           orientation === 'vertical' &&
-            cn('max-w-md flex-col has-[textarea]:max-w-2xl touch:max-w-none', floatRoot),
+            cn(
+              'max-w-md flex-col has-[textarea]:max-w-2xl touch:max-w-none',
+              // In a dialog the dialog is the measure: a field ends where its
+              // buttons do, not a little short of them.
+              '[[role=dialog]_&]:max-w-none',
+              floatRoot,
+            ),
           // A control beside its label is a row a thumb has to hit on its own;
           // at the tap floor, two rows' hit areas never overlap.
           orientation === 'horizontal' &&
             'flex-row items-center justify-between gap-4 touch:min-h-tap',
-          orientation === 'columns' && cn(fieldColumns, 'max-w-2xl touch:max-w-none'),
+          orientation === 'columns' &&
+            cn(fieldColumns, 'max-w-2xl touch:max-w-none [[role=dialog]_&]:max-w-none'),
           className,
         )}
         {...props}
