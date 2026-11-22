@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
-import { PeopleHome, tenure, waited } from './people-home';
+import { festivalOf, greetingOf, PeopleHome, tenure, waited } from './people-home';
 import { ADA, nobody, overview } from './people-home.fixture';
 
 /**
@@ -47,10 +47,85 @@ const employee = (over: Partial<ReturnType<typeof overview>> = {}) =>
     ...over,
   });
 
+describe('Home’s greeting', () => {
+  it('follows the hour where they work', () => {
+    // Madrid is two hours ahead of UTC in September.
+    expect(greetingOf('2026-09-27T03:30:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good morning, Ada!',
+    );
+    expect(greetingOf('2026-09-27T10:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good afternoon, Ada!',
+    );
+    expect(greetingOf('2026-09-27T16:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good evening, Ada!',
+    );
+    expect(greetingOf('2026-09-27T01:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good evening, Ada!',
+    );
+  });
+
+  it('greets a festival on its day, where they work', () => {
+    const at = (day: string) => greetingOf(`${day}T10:00:00.000Z`, 'Europe/Madrid', 'Ada');
+    expect(at('2027-01-01')).toBe('Happy New Year, Ada! 🎉');
+    expect(at('2027-02-06')).toBe('Happy Lunar New Year, Ada! 🧧');
+    expect(at('2027-03-28')).toBe('Happy Easter, Ada! 🐣');
+    expect(at('2026-11-08')).toBe('Happy Diwali, Ada! 🪔');
+    expect(at('2026-12-25')).toBe('Merry Christmas, Ada! 🎄');
+    // The first of Shawwal and the tenth of Dhu al-Hijjah, whenever they fall.
+    const eids = Array.from({ length: 365 }, (_, i) =>
+      new Date(Date.UTC(2027, 0, 1 + i, 10)).toISOString(),
+    ).filter((day) => festivalOf(day, 'Europe/Madrid') === 'eid');
+    expect(eids).toHaveLength(2);
+    expect(greetingOf(eids[0] ?? '', 'Europe/Madrid', 'Ada')).toBe('Eid Mubarak, Ada! 🌙');
+    // An ordinary day keeps the hour's greeting.
+    expect(festivalOf('2026-09-27T10:00:00.000Z', 'Europe/Madrid')).toBeNull();
+    // The day is theirs, not the server's: still the 31st in New York.
+    expect(greetingOf('2027-01-01T03:00:00.000Z', 'America/New_York', 'Ada')).toBe(
+      'Good evening, Ada!',
+    );
+  });
+
+  it('uses the name the host hands it, the one they prefer, before the record’s', () => {
+    render(<PeopleHome load={ready(employee())} greeting="Addie" />);
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Good morning, Addie!' }),
+    ).toBeInTheDocument();
+  });
+
+  it('draws when a task is due at the row’s end, apart from where it is from', () => {
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        toDo={{
+          href: '/inbox',
+          tasks: [
+            {
+              id: 't1',
+              title: 'Write your self review',
+              description: 'Performance · Overdue 21 days',
+              context: 'Performance',
+              due: 'Overdue 21 days',
+              href: '/inbox/todo?item=t1',
+              icon: 'edit',
+              tone: 'danger',
+            },
+          ],
+          waiting: [],
+        }}
+      />,
+    );
+    expect(screen.getByText('Overdue 21 days')).toBeInTheDocument();
+    expect(screen.getByText('Performance')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '1 to do' })).toHaveAttribute('href', '/inbox');
+  });
+});
+
 describe('Home, as an employee (B1)', () => {
   it('greets them, with today where they work, and says who they are', async () => {
     const { container } = render(<PeopleHome load={ready(employee())} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Hi Ada' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Good morning, Ada!' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/^Sunday 27 September · 11:30 in Madrid office$/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
     expect(within(part('Your profile')).getByText('Ada Lovelace')).toBeInTheDocument();
@@ -262,7 +337,8 @@ describe('Home, as HR (B2)', () => {
     expect(part('Starting soon')).toHaveTextContent('Mei Tanaka');
     expect(part('Joiners by month')).toBeInTheDocument();
     // HR's own record, which the old overview left out.
-    expect(screen.getByText(/Your record is missing 2 details/)).toBeInTheDocument();
+    // HR's own record is beside everybody else's.
+    expect(within(part('Your profile')).getByText('2 missing')).toBeInTheDocument();
     expect(await axeViolations(hr.container)).toEqual([]);
     hr.unmount();
     render(<PeopleHome load={ready(employee())} />);

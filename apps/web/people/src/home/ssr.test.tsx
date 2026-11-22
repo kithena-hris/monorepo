@@ -44,7 +44,7 @@ describe('Home on the server, then in the browser', () => {
   ] as const)('renders %s’s Home whole, and hydrates it without a mismatch', async (_, data) => {
     const { html, errors } = await serveAndHydrate(element(data));
     expect(html).not.toContain('<!--$!-->');
-    expect(html).toContain('Hi Ada');
+    expect(html).toContain('Good morning, Ada!');
     expect(errors).toEqual([]);
   });
 });

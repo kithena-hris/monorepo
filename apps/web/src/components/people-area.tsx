@@ -254,7 +254,10 @@ export async function PeopleArea({
  * signed in, as for any screen, and renders it on the server. `null` when
  * People offers no Home or cannot say which: the shell's own Home stands.
  */
-export async function PeopleHome(inbox?: Promise<InboxPeek>): Promise<JSX.Element | null> {
+export async function PeopleHome(
+  inbox?: Promise<InboxPeek>,
+  greeting?: string,
+): Promise<JSX.Element | null> {
   const t = await serverWords();
   const area = AREAS.people;
   const nav = await remoteNav(area);
@@ -284,6 +287,7 @@ export async function PeopleHome(inbox?: Promise<InboxPeek>): Promise<JSX.Elemen
           search={{}}
           today={today()}
           {...(toDo === undefined ? {} : { toDo })}
+          {...(greeting === undefined ? {} : { greeting })}
         />
       )}
     </Waking>

@@ -74,6 +74,8 @@ export interface PeopleScreenProps {
   readonly today: string;
   /** Home's To do, worded by the shell from the Inbox (B1): given to People's Home in its place. */
   readonly toDo?: ReturnType<typeof homeToDo>;
+  /** What Home calls them: the name they prefer, else their given name. */
+  readonly greeting?: string;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
    * the actions, for the screen's own header (`headerFrame`): the remote's
@@ -1201,6 +1203,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         return {
           load: loadable,
           ...(input.toDo === undefined ? {} : { toDo: input.toDo }),
+          ...(input.greeting === undefined ? {} : { greeting: input.greeting }),
           // What signing up still asks: their photo, and files kept to their fields.
           onPhoto: (file: File) => uploadPhoto(null, file),
           onSetupFile: async (

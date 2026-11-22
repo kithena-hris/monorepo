@@ -124,6 +124,10 @@ export interface HomeTask {
   readonly id: string;
   readonly title: string;
   readonly description: string;
+  /** `description` without when it is due. */
+  readonly context: string;
+  /** When it is due, in words. */
+  readonly due?: string;
   readonly href: string;
   readonly icon: string;
   readonly tone?: 'warning' | 'danger';
@@ -152,6 +156,9 @@ export function homeToDo(peek: InboxPeek): {
       id: i.id,
       title: i.title,
       description: [where, i.status?.label, due?.label].filter(Boolean).join(' · '),
+      // Apart as well, for a Home that draws when it is due at the row's end.
+      context: [where, i.status?.label].filter(Boolean).join(' · '),
+      ...(due === null ? {} : { due: due.label }),
       href: `/inbox/${lane}?item=${encodeURIComponent(i.id)}`,
       icon: i.icon,
       ...(due === null || due.tone === 'neutral' || i.lane !== 'task' ? {} : { tone: due.tone }),

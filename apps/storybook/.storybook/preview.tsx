@@ -342,8 +342,7 @@ const withViews: Decorator = (Story, context) => {
   const fixed: unknown = context.parameters['view'];
   const chosen: unknown = typeof fixed === 'string' ? fixed : context.globals['view'];
   const view = typeof chosen === 'string' ? chosen : 'both';
-  const single = import.meta.env.MODE === 'test' || context.parameters['sideBySide'] === false;
-  if (single || view === 'web') return <Story />;
+  if (import.meta.env.MODE === 'test' || view === 'web') return <Story />;
 
   const fullscreen = context.parameters['layout'] === 'fullscreen';
   const phone = (
@@ -352,6 +351,9 @@ const withViews: Decorator = (Story, context) => {
     </PhoneFrame>
   );
   if (view === 'mobile') return <div className="reach-views reach-views--single">{phone}</div>;
+  // Opting out of side by side leaves the one desk copy; a Mobile view above
+  // still gets its phone.
+  if (context.parameters['sideBySide'] === false) return <Story />;
 
   return (
     <div

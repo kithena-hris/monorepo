@@ -235,6 +235,8 @@ export const Infinite: Story = {
  * is as tall as its items. Here as a grid of cards, as many columns as fit.
  */
 export const PageScrolledGrid: Story = {
+  // 2,000 people down the page is taller than a snapshot may be.
+  parameters: { chromatic: { disableSnapshot: true } },
   render: function PageScrolledGridStory() {
     const people = makePeople(2000, 400_000);
     return (
