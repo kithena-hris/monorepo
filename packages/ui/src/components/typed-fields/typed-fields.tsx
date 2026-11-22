@@ -43,7 +43,9 @@ export interface SearchFieldProps extends Omit<
   /**
    * `field` is the filled search box. `prompt` asks for a sentence rather
    * than a keyword: a raised surface, the assistant's spark in place of the
-   * magnifier and a larger type. Same element, same keys.
+   * magnifier and a larger type. Same element, same keys. With `size="sm"`
+   * it keeps the spark and the keys and takes a toolbar's height, for a
+   * question asked from the row of filters over a table.
    */
   variant?: 'field' | 'prompt';
   /**
@@ -87,6 +89,7 @@ export function SearchField({
   variant = 'field',
   loading = false,
   shortcut,
+  size,
   className,
   containerClassName,
   ...props
@@ -160,18 +163,24 @@ export function SearchField({
       {...(start === null ? {} : { startAdornment: start })}
       endAdornment={end}
       containerClassName={cn(
-        prompt && [
-          // Raised rather than filled: it is the question the page asks, not
-          // one field among others.
-          'h-14 gap-3 rounded-[1.125rem] bg-surface px-4 text-md shadow-sm',
-          'hover:not-focus-within:bg-surface focus-within:shadow-md',
-          'touch:rounded-[1.125rem] touch:px-3.5',
-          '[&>span:first-child_svg]:size-5',
-        ],
+        prompt &&
+          size === 'sm' &&
+          // In a toolbar: the field's own surface and height, the spark in accent.
+          'rounded-full',
+        prompt &&
+          size !== 'sm' && [
+            // Raised rather than filled: it is the question the page asks, not
+            // one field among others.
+            'h-14 gap-3 rounded-[1.125rem] bg-surface px-4 text-md shadow-sm',
+            'hover:not-focus-within:bg-surface focus-within:shadow-md',
+            'touch:rounded-[1.125rem] touch:px-3.5',
+            '[&>span:first-child_svg]:size-5',
+          ],
         containerClassName,
       )}
       // The browser's own clear button is hidden in the base layer (base.css).
       className={className}
+      {...(size === undefined ? {} : { size })}
       {...props}
     />
   );

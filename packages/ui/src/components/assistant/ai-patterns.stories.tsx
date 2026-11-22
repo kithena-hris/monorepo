@@ -39,7 +39,7 @@ const meta = {
           '',
           '| Piece | Build it with |',
           '| --- | --- |',
-          '| Smart search bar | `SearchField variant="prompt"`, with `loading` and `shortcut` |',
+          '| Smart search bar | `SearchField variant="prompt"`, with `loading` and `shortcut`; `size="sm"` in a toolbar |',
           '| Understood as | `ChipRow` with an `AssistantLabel` as its `label`, removable `Chip`s, `variant="dashed"` for a part not used, and a link `Button` as its `action` |',
           '| AI card | `AssistantCard`: the `Card variant="assistant"` edge, the mark, a title, an `action` and a `note` |',
           '| AI badge | `Badge tone="assistant"` |',
@@ -69,6 +69,16 @@ export const SmartSearchBar: Story = {
           label="Ask"
           placeholder={placeholder}
           shortcut="page.search"
+          value={idle}
+          onValueChange={setIdle}
+        />
+        {/* The same question, asked from the row of filters over a table. */}
+        <SearchField
+          variant="prompt"
+          size="sm"
+          label="Ask from the toolbar"
+          placeholder="Ask in plain English"
+          containerClassName="max-w-md"
           value={idle}
           onValueChange={setIdle}
         />

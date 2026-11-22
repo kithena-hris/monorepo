@@ -2028,6 +2028,68 @@ function Body({
   const saveable =
     onSaveSegment !== undefined && (Object.keys(filters).length > 0 || conditions.length > 0);
 
+  // At a desk the question is asked from the row of filters; under a finger it keeps a row of its own.
+  const ask = (
+    <AskBar
+      value={question}
+      onValueChange={setQuestion}
+      onAsk={askIt}
+      loading={reading}
+      suggestions={state.suggestions ?? []}
+      recent={recent}
+      compact={!coarse}
+    />
+  );
+  // What People made of the question: what it could not read, what it asks back, what it understood.
+  const heard = (
+    <>
+      {failed === null ? null : (
+        <p role="status" className="text-sm text-danger-fg">
+          {failed}
+        </p>
+      )}
+      <NeedsYou
+        refused={said?.refused ?? []}
+        ask={said?.ask ?? null}
+        coarse={coarse}
+        onPick={(r) => {
+          const topic = said?.ask?.topic;
+          if (topic != null) rememberReading(topic, r.label);
+          revise((a) => ({ ...a, ask: null }));
+          onConditionsChange?.(r.conditions, r.match);
+        }}
+        onUse={(r) => {
+          if (r.instead === null) return;
+          revise((a) => ({
+            ...a,
+            refused: (a.refused ?? []).filter((x) => x.text !== r.text),
+          }));
+          onConditionsChange?.([...conditions, r.instead.condition], 'all');
+        }}
+        onRemove={(r) => {
+          revise((a) => ({
+            ...a,
+            refused: (a.refused ?? []).filter((x) => x.text !== r.text),
+          }));
+          setQuestion((q) => q.replace(r.text, '').replaceAll(/\s+/gu, ' ').trim());
+        }}
+      />
+      {fromQuestion && understood.length + unusedParts.length + sayNotes.length > 0 ? (
+        <Understood
+          chips={understood}
+          unused={unusedParts}
+          {...(onConditionsChange === undefined || fields.length === 0
+            ? {}
+            : {
+                onEdit: () => {
+                  setFiltersOpen(true);
+                },
+              })}
+          notes={sayNotes}
+        />
+      ) : null}
+    </>
+  );
   return (
     <Stack gap={4}>
       <Views
@@ -2037,61 +2099,10 @@ function Body({
         incomplete={incomplete}
         {...(onView === undefined ? {} : { onView })}
       />
-      {smart ? (
+      {smart && coarse ? (
         <div className="flex min-w-0 flex-col gap-3">
-          <AskBar
-            value={question}
-            onValueChange={setQuestion}
-            onAsk={askIt}
-            loading={reading}
-            suggestions={state.suggestions ?? []}
-            recent={recent}
-          />
-          {failed === null ? null : (
-            <p role="status" className="text-sm text-danger-fg">
-              {failed}
-            </p>
-          )}
-          <NeedsYou
-            refused={said?.refused ?? []}
-            ask={said?.ask ?? null}
-            coarse={coarse}
-            onPick={(r) => {
-              const topic = said?.ask?.topic;
-              if (topic != null) rememberReading(topic, r.label);
-              revise((a) => ({ ...a, ask: null }));
-              onConditionsChange?.(r.conditions, r.match);
-            }}
-            onUse={(r) => {
-              if (r.instead === null) return;
-              revise((a) => ({
-                ...a,
-                refused: (a.refused ?? []).filter((x) => x.text !== r.text),
-              }));
-              onConditionsChange?.([...conditions, r.instead.condition], 'all');
-            }}
-            onRemove={(r) => {
-              revise((a) => ({
-                ...a,
-                refused: (a.refused ?? []).filter((x) => x.text !== r.text),
-              }));
-              setQuestion((q) => q.replace(r.text, '').replaceAll(/\s+/gu, ' ').trim());
-            }}
-          />
-          {fromQuestion && understood.length + unusedParts.length + sayNotes.length > 0 ? (
-            <Understood
-              chips={understood}
-              unused={unusedParts}
-              {...(onConditionsChange === undefined || fields.length === 0
-                ? {}
-                : {
-                    onEdit: () => {
-                      setFiltersOpen(true);
-                    },
-                  })}
-              notes={sayNotes}
-            />
-          ) : null}
+          {ask}
+          {heard}
         </div>
       ) : null}
       {coarse && fromQuestion ? (
@@ -2102,19 +2113,18 @@ function Body({
         </div>
       ) : null}
       {/*
-        One toolbar (C1): the filters in force as chips, then the view and the
-        export. Sort, group and columns are one View menu rather than three
-        controls; after a question the chips are the question's, above, and
-        this row says how many it found and what to do with them.
+        One toolbar (C1): the question, the filters in force as chips, then
+        the view and the export. Sort, group and columns are one View menu
+        rather than three controls; after a question the chips are the
+        question's, under this row, which says how many it found and what to
+        do with them.
       */}
       <Toolbar
-        {...(smart
+        {...(smart && coarse
           ? {}
           : {
-              search: (
-                // Without smart search the field searches names as they are typed; with it, Enter asks.
-                <NameSearch search={search} onSearchChange={onSearchChange} />
-              ),
+              // Without smart search the field searches names as they are typed; with it, Enter asks.
+              search: smart ? ask : <NameSearch search={search} onSearchChange={onSearchChange} />,
             })}
         filters={
           fromQuestion ? (
@@ -2212,6 +2222,9 @@ function Body({
           )
         }
       />
+      {smart && !coarse ? (
+        <div className="flex min-w-0 flex-col gap-3 empty:hidden">{heard}</div>
+      ) : null}
       {onConditionsChange === undefined || fields.length === 0 ? null : (
         <Filters
           open={filtersOpen}
