@@ -6,6 +6,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type JSX } from 'react';
 
 import { askAssistant } from '../app/assistant/actions';
 import { askInbox } from '../app/(app)/inbox/actions';
+import { ASK_EVENT } from '../lib/ask-event';
 import { aboutInbox } from '../lib/inbox/ask';
 import type { Turn } from './assistant-panel';
 import { t as tr } from '../lib/t';
@@ -51,6 +52,20 @@ export function Assistant(): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  // A screen hands over a question (a quick look on Home): open, with it in
+  // the box to read, change and send.
+  useEffect(() => {
+    const onAsk = (event: Event): void => {
+      if (!(event instanceof CustomEvent) || typeof event.detail !== 'string') return;
+      setDraft(event.detail);
+      setOpen(true);
+    };
+    window.addEventListener(ASK_EVENT, onAsk);
+    return () => {
+      window.removeEventListener(ASK_EVENT, onAsk);
     };
   }, []);
 

@@ -179,7 +179,8 @@ describe('People overview: who you are here, what needs you, what is missing', (
       .getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / })
       .waitFor({ timeout: 30_000 });
     // Who he is here, in the widget beside his To do list.
-    await titled(page, 'Your profile').getByText(adamName, { exact: true }).waitFor();
+    // His name heads the card, and is his own card in the small org chart under it.
+    await titled(page, 'Your profile').getByText(adamName, { exact: true }).first().waitFor();
     await page.waitForLoadState('networkidle');
     // His manager above him, in the same card.
     await titled(page, 'Your profile').getByRole('link', { name: priya }).first().waitFor();

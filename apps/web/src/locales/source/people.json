@@ -3231,6 +3231,14 @@
     "text": "A clear photo of your face, so colleagues know who you are.",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: the hint of <AvatarUploader>."
   },
+  "home.people-home.a_year_ago": {
+    "text": "a year ago",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code."
+  },
+  "home.people-home.above_you": {
+    "text": "In your reporting line",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <ol>."
+  },
   "home.people-home.active": {
     "text": "Active",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"active\" value."
@@ -3238,6 +3246,22 @@
   "home.people-home.add_your": {
     "text": "Add your {{label}}",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ToDo: the title of <Todo>. Filled in: {{label}}."
+  },
+  "home.people-home.ask_complete": {
+    "text": "Which records are incomplete, and what is missing from them?",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the ask of <Figure>."
+  },
+  "home.people-home.ask_expiring": {
+    "text": "Whose permit, contract or probation ends in the next 90 days?",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the ask of <Figure>."
+  },
+  "home.people-home.ask_headcount": {
+    "text": "How has headcount changed over the last 12 months, and in which teams?",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the ask of <Figure>."
+  },
+  "home.people-home.ask_the_assistant": {
+    "text": "Ask the assistant",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Peek: text inside <Button>."
   },
   "home.people-home.asked_by": {
     "text": "asked by {{who}}",
@@ -3247,9 +3271,17 @@
     "text": "{{value}} asked to see unmasked values",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>. Filled in: {{value}}."
   },
+  "home.people-home.away": {
+    "text": "Away",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: the items of <Facts>."
+  },
   "home.people-home.away_next": {
     "text": "Away next",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: the aria-label of <List>."
+  },
+  "home.people-home.away_soon": {
+    "text": "Away soon",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: text inside <Badge>."
   },
   "home.people-home.away_today_and_next": {
     "text": "Away today and next",
@@ -3278,6 +3310,14 @@
   "home.people-home.count_details_for_hr_to_fill_in_other": {
     "text": "{{count}} details for HR to fill in",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the title of <Todo>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.count_direct_reports_one": {
+    "text": "{{count}} direct report",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.count_direct_reports_other": {
+    "text": "{{count}} direct reports",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "home.people-home.count_identifiers_to_check_one": {
     "text": "{{count}} identifier to check",
@@ -3339,9 +3379,9 @@
     "text": "{{counted}} details of their own to add",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the title of <Todo>. Filled in: {{counted}}."
   },
-  "home.people-home.direct_reports": {
-    "text": "Direct reports",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the title of <Part>."
+  "home.people-home.due": {
+    "text": "Due",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the items of <Facts>."
   },
   "home.people-home.eid_mubarak": {
     "text": "Eid Mubarak, {{name}}!",
@@ -3370,6 +3410,10 @@
   "home.people-home.failed_a_check_or_couldnt_be": {
     "text": "Failed a check, or couldn’t be verified",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>."
+  },
+  "home.people-home.filled_in_by": {
+    "text": "{{section}} · filled in by {{who}}",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the description of <ListItem>. Filled in: {{section}}, {{who}}."
   },
   "home.people-home.finish_setting_up_your_account": {
     "text": "Finish setting up your account",
@@ -3467,6 +3511,10 @@
     "text": "Merry Christmas, {{name}}!",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{name}}."
   },
+  "home.people-home.missing_details": {
+    "text": "Missing details",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the onClick of <Button>."
+  },
   "home.people-home.missing_details_only_hr_keeps": {
     "text": "Missing details only HR keeps",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>."
@@ -3547,9 +3595,21 @@
     "text": "Onboarding",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"onboarding\" value."
   },
+  "home.people-home.open": {
+    "text": "Open",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: text inside <a>."
+  },
+  "home.people-home.open_in_review": {
+    "text": "Open in Review",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code."
+  },
   "home.people-home.open_inbox": {
     "text": "Open Inbox",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HostList: the label of <Way>."
+  },
+  "home.people-home.open_profile": {
+    "text": "Open profile",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: a \"go\" value."
   },
   "home.people-home.open_review": {
     "text": "Open Review",
@@ -3567,9 +3627,17 @@
     "text": "Open the team calendar",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: the label of <Way>."
   },
+  "home.people-home.open_this_balance": {
+    "text": "Open this balance",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Leave: text inside <Stat>."
+  },
+  "home.people-home.open_this_request": {
+    "text": "Open this request",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Leave: text inside <a>."
+  },
   "home.people-home.open_workforce_insights": {
     "text": "Open workforce insights",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the label of <Way>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: text built in code."
   },
   "home.people-home.open_your_profile": {
     "text": "Open your profile",
@@ -3603,6 +3671,10 @@
     "text": "Ready",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the trailing of <Badge>."
   },
+  "home.people-home.record": {
+    "text": "Record",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the side of <a>."
+  },
   "home.people-home.records_are_complete_and_nothing_is": {
     "text": "Records are complete and nothing is flagged.",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the detail of <Done>."
@@ -3611,13 +3683,97 @@
     "text": "Reminded by email once a week",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>."
   },
+  "home.people-home.reports_to_you": {
+    "text": "Reports to you",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <a>."
+  },
   "home.people-home.request_time_off": {
     "text": "Request time off",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Leave: the label of <Way>."
   },
+  "home.people-home.returns": {
+    "text": "Returns",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: the items of <Facts>."
+  },
   "home.people-home.same_work_email_or_name_and": {
     "text": "Same work email, or name and birth date",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>."
+  },
+  "home.people-home.says_changes_one": {
+    "text": "{{count}} change to a record waits for HR to approve or decline.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.says_changes_other": {
+    "text": "{{count}} changes to records wait for HR to approve or decline.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.says_complete": {
+    "text": "{{percent}}% of records have every required detail.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{percent}}."
+  },
+  "home.people-home.says_down": {
+    "text": "Down {{n}} on {{over}}.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{n}}, {{over}}."
+  },
+  "home.people-home.says_expiring_one": {
+    "text": "{{count}} permit, contract or probation ends in the next 90 days.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.says_expiring_other": {
+    "text": "{{count}} permits, contracts or probations end in the next 90 days.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.says_expiring_where": {
+    "text": "Workforce insights lists each one with its end date.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>."
+  },
+  "home.people-home.says_headcount_one": {
+    "text": "{{count}} person is on the records today.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.says_headcount_other": {
+    "text": "{{count}} people are on the records today.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.says_incomplete_one": {
+    "text": "{{count}} record still has a gap.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.says_incomplete_other": {
+    "text": "{{count}} records still have gaps.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.says_nothing_changes": {
+    "text": "Nothing changes on a record until HR decides.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>."
+  },
+  "home.people-home.says_oldest": {
+    "text": "The oldest was asked {{waited}}.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{waited}}."
+  },
+  "home.people-home.says_same": {
+    "text": "The same as {{over}}.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{over}}."
+  },
+  "home.people-home.says_to_fill_one": {
+    "text": "{{count}} missing detail is HR’s to fill in.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.says_to_fill_other": {
+    "text": "{{count}} missing details are HR’s to fill in.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.says_up": {
+    "text": "Up {{n}} on {{over}}.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{n}}, {{over}}."
+  },
+  "home.people-home.says_waiting_one": {
+    "text": "{{count}} person has details of their own to add, and is reminded weekly.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.says_waiting_other": {
+    "text": "{{count}} people have details of their own to add, and are reminded weekly.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "home.people-home.see_all_requests": {
     "text": "See all your requests",
@@ -3630,6 +3786,10 @@
   "home.people-home.see_them_in_the_directory_other": {
     "text": "See your {{count}} direct reports in the directory",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the label of <Way>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.sent": {
+    "text": "Sent",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the items of <Facts>."
   },
   "home.people-home.sent_nothing_changes_until_hr_approves": {
     "text": "Sent {{waited}} · nothing changes until HR approves",
@@ -3651,6 +3811,14 @@
     "text": "Starting soon",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"pre_hire\" value."
   },
+  "home.people-home.starts": {
+    "text": "Starts",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: the items of <Facts>."
+  },
+  "home.people-home.summary": {
+    "text": "Summary",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Figure: the aria-label of <ul>."
+  },
   "home.people-home.text_4": {
     "text": "{{what}}: {{charAt}}{{slice}}",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{what}}, {{charAt}}, {{slice}}."
@@ -3658,6 +3826,10 @@
   "home.people-home.that_image_was_not_accepted": {
     "text": "That image was not accepted.",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: the onReject of <AvatarUploader>."
+  },
+  "home.people-home.the_month_before": {
+    "text": "the month before",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code."
   },
   "home.people-home.the_queue_is_clear": {
     "text": "The queue is clear",
@@ -3673,11 +3845,11 @@
   },
   "home.people-home.to_one": {
     "text": "{{count}} other reports to {{first}}.",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the description of <ListItem>. Filled in: {{count}}, {{first}}. Plural: the words for a {{count}} of one."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <PersonCard>. Filled in: {{count}}, {{first}}. Plural: the words for a {{count}} of one."
   },
   "home.people-home.to_other": {
     "text": "{{count}} others report to {{first}}.",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the description of <ListItem>. Filled in: {{count}}, {{first}}. Plural: the words for any other {{count}}."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <PersonCard>. Filled in: {{count}}, {{first}}. Plural: the words for any other {{count}}."
   },
   "home.people-home.today": {
     "text": "today",
@@ -3741,7 +3913,7 @@
   },
   "home.people-home.you": {
     "text": "You",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <ListItem>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the description of <PersonCard>."
   },
   "home.people-home.your_account_is_not_linked_to": {
     "text": "Your account is not linked to anybody’s record, so there is no profile to show.",
@@ -3769,15 +3941,15 @@
   },
   "home.people-home.your_manager": {
     "text": "Your manager",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the description of <ListItem>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <ol>."
   },
   "home.people-home.your_manager_title": {
     "text": "Your manager · {{title}}",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the description of <ListItem>. Filled in: {{title}}."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the description of <PersonCard>. Filled in: {{title}}."
   },
   "home.people-home.your_managers_from_the_top": {
     "text": "Your managers, from the top",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the aria-label of <List>."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the aria-label of <ol>."
   },
   "home.people-home.your_new_is_with_hr": {
     "text": "Your new {{label}} is with HR",
