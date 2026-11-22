@@ -137,6 +137,8 @@ export const EveryType: Story = {
 export const Search: Story = {
   name: 'Search',
   parameters: {
+    // One copy on the canvas: the play counts the clear buttons.
+    sideBySide: false,
     docs: {
       description: {
         story: [

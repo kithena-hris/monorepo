@@ -952,7 +952,12 @@ export const InfiniteVirtualized: Story = {
   },
   play: async ({ canvasElement }) => {
     // Under a finger the rows are cards under a header strip of their own.
-    if (window.matchMedia('(pointer: coarse)').matches) return;
+    // A real phone, or the phone frame a Mobile view draws the story in.
+    if (
+      window.matchMedia('(pointer: coarse)').matches ||
+      canvasElement.querySelector('[data-pointer="coarse"]') !== null
+    )
+      return;
     const box = canvasElement.querySelector<HTMLElement>('[role="region"]');
     if (box === null) throw new Error('No table');
     await waitFor(async () => {
@@ -1047,7 +1052,12 @@ export const ColumnsFixedWhileLoading: Story = {
   },
   play: async ({ canvasElement }) => {
     // Under a finger the rows are cards, and there are no columns to hold.
-    if (window.matchMedia('(pointer: coarse)').matches) return;
+    // A real phone, or the phone frame a Mobile view draws the story in.
+    if (
+      window.matchMedia('(pointer: coarse)').matches ||
+      canvasElement.querySelector('[data-pointer="coarse"]') !== null
+    )
+      return;
     const box = canvasElement.querySelector<HTMLElement>('[role="region"]');
     if (box === null) throw new Error('No table');
     const before = headerWidths(canvasElement);
@@ -1070,6 +1080,8 @@ export const ColumnsFixedWhileLoading: Story = {
  */
 export const RevealRow: Story = {
   name: 'Reveal a row',
+  // One copy on the canvas: the play looks for one table and one row.
+  parameters: { sideBySide: false },
   render: function Reveal() {
     const { rows: loaded, loading, more } = useLoadingRows();
     const table = useRef<DataTableHandle | null>(null);
