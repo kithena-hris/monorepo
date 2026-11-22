@@ -780,7 +780,6 @@
   "overview.overview.public_holiday": "{{date}} · festività",
   "overview.overview.remote": "Da remoto",
   "overview.overview.request": "Richiesta",
-  "overview.overview.request_2": "Richiedi {{bridgeDays}}",
   "overview.overview.since_left_of_your_day": "Dalle {{clockTime}} · {{left}} rimanenti della giornata di {{plannedMinutes}}",
   "overview.overview.start_break": "Inizia pausa",
   "overview.overview.take": "Prendi {{bridgeDays}}",
