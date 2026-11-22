@@ -25,7 +25,7 @@ import {
 import { useCachedRead } from '../lib/query';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
-import { ASK_EVENT } from './assistant';
+import { ASK_EVENT } from '../lib/ask-event';
 import type { homeToDo } from './inbox/format';
 import type { HomeAway, HomeLeave } from '../lib/home-time-off';
 import {

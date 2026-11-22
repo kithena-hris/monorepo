@@ -1666,7 +1666,7 @@ function Figure({
 }: {
   readonly href: string;
   readonly label: string;
-  readonly value: ReactNode;
+  readonly value: string | number;
   readonly unit?: string;
   readonly description: ReactNode;
   readonly chart?: ReactNode;

@@ -6,6 +6,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type JSX } from 'react';
 
 import { askAssistant } from '../app/assistant/actions';
 import { askInbox } from '../app/(app)/inbox/actions';
+import { ASK_EVENT } from '../lib/ask-event';
 import { aboutInbox } from '../lib/inbox/ask';
 import type { Turn } from './assistant-panel';
 import { t as tr } from '../lib/t';
@@ -25,9 +26,6 @@ import { t as tr } from '../lib/t';
  * there, and a reload starts afresh. Follow-ups work because each question is
  * sent with the ones before it — never with their answers.
  */
-
-/** The window event a screen asks the assistant with: its detail is the question. */
-export const ASK_EVENT = 'kithena:ask';
 
 const loadWindow = () => import('./assistant-panel');
 const AssistantWindow = lazy(loadWindow);
