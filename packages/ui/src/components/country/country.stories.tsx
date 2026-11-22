@@ -55,6 +55,20 @@ export const Shapes: Story = {
   ),
 };
 
+/** The longest names there are, in a column too narrow for them: cut with an ellipsis, the flag kept whole. */
+export const LongNames: Story = {
+  render: () => (
+    <ul className="flex w-44 flex-col gap-2 text-sm text-fg">
+      {['GS', 'VC', 'CD', 'BQ', 'UM', 'BA'].map((code) => (
+        <li key={code} className="flex flex-col gap-1">
+          <Country code={code} className="w-full" />
+          <Country code={code} shape="boxed" className="w-full" />
+        </li>
+      ))}
+    </ul>
+  ),
+};
+
 export const InAColumn: Story = {
   render: () => (
     <ul className="flex w-40 flex-col gap-2 text-sm text-fg">
