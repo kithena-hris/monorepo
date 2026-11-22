@@ -398,9 +398,7 @@ export function NavItem({
           data-rail-label=""
           className={cn(
             'flex min-w-0 items-center gap-2',
-            captioned
-              ? 'w-full justify-center px-0.5 text-2xs leading-tight font-medium'
-              : 'flex-1',
+            captioned ? 'w-full justify-center text-2xs leading-tight font-medium' : 'flex-1',
             asIcon && !captioned && 'sr-only',
           )}
         >
@@ -558,10 +556,8 @@ export function NavItem({
 
   // The tooltip only exists in the rail, where the label is not on screen.
   // Wrapping it everywhere would put a tooltip on text that is already there.
-  return captioned && (shortcut === undefined || shortcut === null) && !badge ? (
-    // Its name is on screen: a tooltip would say it twice.
-    <li>{link}</li>
-  ) : asIcon ? (
+  // Captioned or not: a name too long for the rail is cut under its icon, and whole here.
+  return asIcon ? (
     <li>
       <Tooltip
         content={

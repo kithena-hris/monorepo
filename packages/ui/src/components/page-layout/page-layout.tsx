@@ -576,7 +576,7 @@ export function PageLayout({
                     className={cn(
                       'flex shrink-0 flex-col items-stretch gap-1 overflow-x-hidden pt-4 pb-3',
                       // Room for a word under each icon, not only the icon.
-                      sidebarRailCaptions ? 'w-20 px-1.5' : 'w-15 px-2',
+                      sidebarRailCaptions ? 'w-22 px-1' : 'w-15 px-2',
                     )}
                   >
                     {sidebarHeader ? (

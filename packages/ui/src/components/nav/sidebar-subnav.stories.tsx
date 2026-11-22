@@ -270,24 +270,26 @@ export const RailWithNames: Story = {
   render: () => (
     <DeskOrPhone
       desk={
-        <RailContext value={{ collapsed: true, captions: true }}>
-          <Nav label="Areas, named" className={`w-20 px-1.5 py-2.5 ${panel}`}>
-            <NavList className="gap-1">
-              <NavItem href="#home" icon={<icons.home />}>
-                Home
-              </NavItem>
-              <NavItem href="#people" icon={<icons.people />} current>
-                People
-              </NavItem>
-              <NavItem href="#performance" icon={<icons.goal />} badge={3}>
-                Performance
-              </NavItem>
-              <NavItem href="#settings" icon={<icons.settings />}>
-                Settings
-              </NavItem>
-            </NavList>
-          </Nav>
-        </RailContext>
+        <div className="w-22">
+          <RailContext value={{ collapsed: true, captions: true }}>
+            <Nav label="Areas, named" className={`px-1 py-2.5 ${panel}`}>
+              <NavList className="gap-1">
+                <NavItem href="#home" icon={<icons.home />}>
+                  Home
+                </NavItem>
+                <NavItem href="#people" icon={<icons.people />} current>
+                  People
+                </NavItem>
+                <NavItem href="#performance" icon={<icons.goal />} badge={3}>
+                  Performance
+                </NavItem>
+                <NavItem href="#settings" icon={<icons.settings />}>
+                  Settings
+                </NavItem>
+              </NavList>
+            </Nav>
+          </RailContext>
+        </div>
       }
       phone={
         <p className="text-base text-fg-muted">
@@ -307,30 +309,32 @@ export const RailWithLongNames: Story = {
   render: () => (
     <DeskOrPhone
       desk={
-        <RailContext value={{ collapsed: true, captions: true }}>
-          <Nav label="Areas, long names" className={`w-20 px-1.5 py-2.5 ${panel}`}>
-            <NavList className="gap-1">
-              <NavItem href="#start" icon={<icons.home />}>
-                Startseite
-              </NavItem>
-              <NavItem href="#people" icon={<icons.people />} current>
-                Mitarbeitende
-              </NavItem>
-              <NavItem href="#recruiting" icon={<icons.work />}>
-                Personalbeschaffung
-              </NavItem>
-              <NavItem href="#performance" icon={<icons.goal />} badge={12}>
-                Leistung und Entwicklung
-              </NavItem>
-              <NavItem href="#documents" icon={<icons.document />}>
-                Documentos
-              </NavItem>
-              <NavItem href="#settings" icon={<icons.settings />}>
-                Einstellungen
-              </NavItem>
-            </NavList>
-          </Nav>
-        </RailContext>
+        <div className="w-22">
+          <RailContext value={{ collapsed: true, captions: true }}>
+            <Nav label="Areas, long names" className={`px-1 py-2.5 ${panel}`}>
+              <NavList className="gap-1">
+                <NavItem href="#start" icon={<icons.home />}>
+                  Startseite
+                </NavItem>
+                <NavItem href="#people" icon={<icons.people />} current>
+                  Mitarbeitende
+                </NavItem>
+                <NavItem href="#recruiting" icon={<icons.work />}>
+                  Personalbeschaffung
+                </NavItem>
+                <NavItem href="#performance" icon={<icons.goal />} badge={12}>
+                  Leistung und Entwicklung
+                </NavItem>
+                <NavItem href="#documents" icon={<icons.document />}>
+                  Documentos
+                </NavItem>
+                <NavItem href="#settings" icon={<icons.settings />}>
+                  Einstellungen
+                </NavItem>
+              </NavList>
+            </Nav>
+          </RailContext>
+        </div>
       }
       phone={
         <p className="text-base text-fg-muted">
