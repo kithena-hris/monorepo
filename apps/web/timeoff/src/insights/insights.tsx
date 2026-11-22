@@ -258,7 +258,8 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
                 {i === 0 ? null : <Separator />}
                 <div className="flex items-start gap-3.5">
                   <Badge size="lg" variant="outline">
-                    {p.figure}
+                    {/* A bare count gets its thousands marked; a figure with its unit comes written. */}
+                    {/^\d+(\.\d+)?$/.test(p.figure) ? amount(p.figure) : p.figure}
                   </Badge>
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-[0.9375rem]/[1.5]">{p.text}</p>
