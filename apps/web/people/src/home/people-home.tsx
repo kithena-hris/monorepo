@@ -189,6 +189,11 @@ export interface PeopleHomeProps {
    * data, so the server's render can be handed it too.
    */
   readonly toDo?: HostToDo;
+  /**
+   * What the host calls them: the name they prefer, else their given name.
+   * Without it, the first word of the name on their record.
+   */
+  readonly greeting?: string;
 }
 
 /** One row of the host's To do, already worded by the host. */
@@ -196,6 +201,10 @@ export interface HostTask {
   readonly id: string;
   readonly title: string;
   readonly description: string;
+  /** `description` without when it is due, from a host that says `due` apart. */
+  readonly context?: string;
+  /** When it is due, in words: "Overdue 3 days". Drawn at the row's end. */
+  readonly due?: string;
   readonly href: string;
   /** A Reach icon name; an unknown one draws as the Inbox's. */
   readonly icon: string;
@@ -281,6 +290,28 @@ const weekday = (now: string, timeZone: string): string => {
     return '';
   }
 };
+
+/**
+ * "Good morning", "Good afternoon" or "Good evening", by the hour where they
+ * work when People answered: the server's page and the browser's agree.
+ */
+export function greetingOf(now: string, timeZone: string, name: string): string {
+  let hour = 12;
+  try {
+    hour = Number(
+      new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone }).format(
+        new Date(now),
+      ),
+    );
+  } catch {
+    // An unknown zone: the afternoon is the least wrong.
+  }
+  if (hour >= 5 && hour < 12)
+    return tr('home.people-home.good_morning', 'Good morning, {{name}}!', { name });
+  if (hour >= 12 && hour < 18)
+    return tr('home.people-home.good_afternoon', 'Good afternoon, {{name}}!', { name });
+  return tr('home.people-home.good_evening', 'Good evening, {{name}}!', { name });
+}
 
 const STATUS: Readonly<
   Record<string, { label: string; tone: 'success' | 'info' | 'neutral' | 'warning' }>
@@ -426,6 +457,7 @@ function Todo({
   href,
   word,
   primary,
+  due,
 }: {
   readonly icon: ReactNode;
   readonly tone?: 'warning' | 'danger' | 'info' | 'accent';
@@ -434,6 +466,8 @@ function Todo({
   readonly href: string;
   readonly word: string | null;
   readonly primary?: boolean;
+  /** When it is due, at the row's end, in the row's tone. */
+  readonly due?: string;
 }): JSX.Element {
   return (
     // The row is the way on: one link, named by what it does, with its word
@@ -443,6 +477,15 @@ function Todo({
       chevron
       leading={<Tile icon={icon} name={title} {...(tone === undefined ? {} : { tone })} />}
       description={description}
+      {...(due === undefined
+        ? {}
+        : {
+            trailing: (
+              <Badge size="sm" tone={tone === 'danger' || tone === 'warning' ? tone : 'neutral'}>
+                {due}
+              </Badge>
+            ),
+          })}
       {...(word === null
         ? {}
         : {
@@ -473,7 +516,8 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
             icon={<Icon aria-hidden />}
             {...(t.tone === undefined ? {} : { tone: t.tone })}
             title={t.title}
-            description={t.description}
+            description={t.due === undefined ? t.description : (t.context ?? t.description)}
+            {...(t.due === undefined ? {} : { due: t.due })}
             href={t.href}
             word={null}
           />
@@ -1137,7 +1181,6 @@ function HrHome({
   }
   const headcount = hr.headcount;
   const oldest = approvals?.items.at(-1);
-  const me = state.me;
   return (
     <Stack gap={4}>
       {/* The records' figures: four across, as wide together as the widgets under them. */}
@@ -1307,62 +1350,6 @@ function HrHome({
             />
           </Section>
         )}
-        {me === null ? null : (
-          // HR's own record, which the old overview left out.
-          <Section
-            title={tr('home.people-home.your_profile', 'Your profile')}
-            icon={<icons.person aria-hidden />}
-            tone="chart-2"
-            className="touch:hidden"
-            flush
-            action={
-              <SeeAll href="/people/me">{tr('home.people-home.my_profile', 'My profile')}</SeeAll>
-            }
-          >
-            <List aria-label={tr('home.people-home.your_profile', 'Your profile')}>
-              <ListItem
-                asChild
-                chevron
-                leading={<Avatar size="lg" name={me.name} src={me.avatarUrl ?? undefined} />}
-                description={
-                  me.missing === null || me.missing === 0
-                    ? tr('home.people-home.your_record_is_complete', 'Your record is complete')
-                    : tr(
-                        'home.people-home.your_record_is_missing',
-                        'Your record is missing {{counted}}',
-                        {
-                          counted: tr(
-                            'home.people-home.count_details',
-                            { one: '{{count}} detail', other: '{{count}} details' },
-                            { count: me.missing },
-                          ),
-                        },
-                      )
-                }
-                {...(me.required === 0
-                  ? {}
-                  : {
-                      trailing: (
-                        <CircularProgress
-                          value={Math.round(
-                            ((me.required - (me.missing ?? 0)) / me.required) * 100,
-                          )}
-                          size={36}
-                          showValue={false}
-                          label={tr(
-                            'home.people-home.how_complete_your_record_is',
-                            'How complete your record is',
-                          )}
-                          tone={(me.missing ?? 0) === 0 ? 'success' : 'accent'}
-                        />
-                      ),
-                    })}
-              >
-                <a href="/people/me">{me.name}</a>
-              </ListItem>
-            </List>
-          </Section>
-        )}
       </WidgetGrid>
     </Stack>
   );
@@ -1524,11 +1511,35 @@ function Setup({
   );
 }
 
+/** One of the ways on under the greeting: a small link with its glyph. */
+function Shortcut({
+  href,
+  icon,
+  children,
+}: {
+  readonly href: string;
+  readonly icon: ReactNode;
+  readonly children: ReactNode;
+}): JSX.Element {
+  return (
+    <Button asChild size="sm" variant="secondary" startIcon={icon}>
+      <a href={href}>{children}</a>
+    </Button>
+  );
+}
+
 /**
- * Home: "Hi", today where they work, and the page for who they are: HR's
+ * Home: today where they work over a greeting by the hour, on a wash of
+ * colour; the few ways on from here; then the page for who they are: HR's
  * (B2) or anybody's (B1). Signing up's last asks come first.
  */
-export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps): JSX.Element {
+export function PeopleHome({
+  load,
+  onPhoto,
+  onSetupFile,
+  toDo,
+  greeting,
+}: PeopleHomeProps): JSX.Element {
   return (
     <Loaded load={load} what={tr('home.people-home.your_home', 'your home')}>
       {(state) => {
@@ -1546,13 +1557,20 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
           .filter((x) => x !== '')
           .join(' · ');
         return (
-          <Stack gap={5}>
+          // The wash is behind the header and the first row under it.
+          <div className="page-backdrop flex flex-col gap-5">
             <PageHeader
-              className="@3xl/page:pe-64"
+              className="not-data-stuck:bg-transparent @3xl/page:pe-64"
+              {...(when === ''
+                ? {}
+                : {
+                    // Above the greeting, and away with the page as it scrolls.
+                    breadcrumb: <p className="text-sm font-medium text-fg-muted">{when}</p>,
+                  })}
               title={
                 me === null
                   ? tr('home.people-home.home', 'Home')
-                  : tr('home.people-home.hi', 'Hi {{first}}', { first: first(me.name) })
+                  : greetingOf(state.now, me.timeZone, greeting ?? first(me.name))
               }
               description={
                 me === null
@@ -1561,12 +1579,8 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
                       'Your account is not linked to anybody’s record, so there is no profile to show.',
                     )
                   : hrFigures !== null
-                    ? tr(
-                        'home.people-home.heres_what_needs_hr_today',
-                        '{{when}}. Here’s what needs HR today.',
-                        { when },
-                      )
-                    : when
+                    ? tr('home.people-home.what_needs_hr_today', 'Here’s what needs HR today.')
+                    : tr('home.people-home.what_needs_you_today', 'Here’s what needs you today.')
               }
               {...(hrFigures === null
                 ? {}
@@ -1618,6 +1632,53 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
                 )
               }
             />
+            {me === null ? null : (
+              <nav
+                aria-label={tr('home.people-home.shortcuts', 'Shortcuts')}
+                className="flex flex-wrap gap-2"
+              >
+                {toDo === undefined ? null : (
+                  <Shortcut href={toDo.href} icon={<icons.inbox aria-hidden />}>
+                    {tr(
+                      'home.people-home.count_to_do',
+                      { one: '{{count}} to do', other: '{{count}} to do' },
+                      { count: toDo.tasks.length },
+                    )}
+                  </Shortcut>
+                )}
+                {hrFigures === null ? null : (
+                  <Shortcut href="/people/review/waiting" icon={<icons.review aria-hidden />}>
+                    {tr('home.people-home.review', 'Review')}
+                  </Shortcut>
+                )}
+                <Shortcut href="/people/directory/list" icon={<icons.team aria-hidden />}>
+                  {tr('home.people-home.directory', 'Directory')}
+                </Shortcut>
+                {hrFigures === null ? null : (
+                  <Shortcut
+                    href="/people/insights/workforce"
+                    icon={<icons.analytics aria-hidden />}
+                  >
+                    {tr('home.people-home.insights', 'Insights')}
+                  </Shortcut>
+                )}
+                {hrFigures === null ? null : (
+                  // HR's own record: the rest of Home is everybody else's.
+                  <Shortcut href="/people/me" icon={<icons.person aria-hidden />}>
+                    {me.missing === null || me.missing === 0
+                      ? tr('home.people-home.your_profile', 'Your profile')
+                      : tr(
+                          'home.people-home.your_profile_missing',
+                          {
+                            one: 'Your profile · {{count}} detail missing',
+                            other: 'Your profile · {{count}} details missing',
+                          },
+                          { count: me.missing },
+                        )}
+                  </Shortcut>
+                )}
+              </nav>
+            )}
             {me === null || state.setup == null ? null : (
               <Setup
                 setup={state.setup}
@@ -1666,7 +1727,7 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
                 )}
               </WidgetGrid>
             )}
-          </Stack>
+          </div>
         );
       }}
     </Loaded>

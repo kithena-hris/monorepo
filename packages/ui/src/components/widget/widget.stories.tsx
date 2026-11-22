@@ -4,6 +4,7 @@ import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { icons } from '../../icons';
 import { List, ListItem } from '../list-item/list-item';
+import { PageHeader } from '../page-layout/page-layout';
 import { Progress } from '../progress/progress';
 import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../select/select';
@@ -202,5 +203,67 @@ export const TopFive: Story = {
         </List>
       </Widget>
     </WidgetGrid>
+  ),
+};
+
+/**
+ * The screen an app opens on: the day over a greeting, on `page-backdrop`'s
+ * wash of colour, the few ways on from here, then the dashboard. The wrapper
+ * takes the utility; the header takes `not-data-stuck:bg-transparent` so the
+ * wash shows through it until it sticks.
+ */
+export const UnderAGreeting: Story = {
+  name: 'Under a greeting, on a backdrop',
+  args: { title: 'To do' },
+  render: () => (
+    <div className="page-backdrop flex flex-col gap-5 [--reach-page-gutter:1rem] [--reach-page-top:1rem]">
+      <PageHeader
+        className="not-data-stuck:bg-transparent"
+        breadcrumb={<p className="text-sm font-medium text-fg-muted">Monday 5 October · 08:57</p>}
+        title="Good morning, Ada!"
+        description="Here’s what needs you today."
+        actions={<Button variant="primary">Add person</Button>}
+      />
+      <nav aria-label="Shortcuts" className="flex flex-wrap gap-2">
+        <Button size="sm" startIcon={<icons.inbox aria-hidden />}>
+          4 to do
+        </Button>
+        <Button size="sm" startIcon={<icons.team aria-hidden />}>
+          Directory
+        </Button>
+        <Button size="sm" startIcon={<icons.analytics aria-hidden />}>
+          A shortcut with a much longer name than the others have
+        </Button>
+      </nav>
+      <WidgetGrid size="sm" fill>
+        <Stat label="Headcount" value="4,860" description="+212 in 12 months" />
+        <Stat label="Complete records" value={96} unit="%" description="212 incomplete" />
+        <Stat label="Waiting for a decision" value={7} description="Oldest asked 3 days ago" />
+      </WidgetGrid>
+      <WidgetGrid>
+        <Widget title="To do" icon={<icons.inbox />} tone="accent" meta={2} flush span={2}>
+          <List>
+            <ListItem
+              icon={<icons.edit />}
+              description="Performance"
+              trailing={
+                <Badge size="sm" tone="danger">
+                  Overdue 21 days
+                </Badge>
+              }
+              chevron
+            >
+              Write your self review
+            </ListItem>
+            <ListItem icon={<icons.calendar />} description="Time off" chevron>
+              Approve a request for time off
+            </ListItem>
+          </List>
+        </Widget>
+        <Widget title="Starting soon" icon={<icons.hire />} tone="success" span={2}>
+          <p className="text-sm text-fg-muted">Nobody starts this week.</p>
+        </Widget>
+      </WidgetGrid>
+    </div>
   ),
 };

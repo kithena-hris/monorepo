@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
-import { PeopleHome, tenure, waited } from './people-home';
+import { greetingOf, PeopleHome, tenure, waited } from './people-home';
 import { ADA, nobody, overview } from './people-home.fixture';
 
 /**
@@ -47,10 +47,64 @@ const employee = (over: Partial<ReturnType<typeof overview>> = {}) =>
     ...over,
   });
 
+describe('Home’s greeting', () => {
+  it('follows the hour where they work', () => {
+    // Madrid is two hours ahead of UTC in September.
+    expect(greetingOf('2026-09-27T03:30:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good morning, Ada!',
+    );
+    expect(greetingOf('2026-09-27T10:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good afternoon, Ada!',
+    );
+    expect(greetingOf('2026-09-27T16:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good evening, Ada!',
+    );
+    expect(greetingOf('2026-09-27T01:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
+      'Good evening, Ada!',
+    );
+  });
+
+  it('uses the name the host hands it, the one they prefer, before the record’s', () => {
+    render(<PeopleHome load={ready(employee())} greeting="Addie" />);
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Good morning, Addie!' }),
+    ).toBeInTheDocument();
+  });
+
+  it('draws when a task is due at the row’s end, apart from where it is from', () => {
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        toDo={{
+          href: '/inbox',
+          tasks: [
+            {
+              id: 't1',
+              title: 'Write your self review',
+              description: 'Performance · Overdue 21 days',
+              context: 'Performance',
+              due: 'Overdue 21 days',
+              href: '/inbox/todo?item=t1',
+              icon: 'edit',
+              tone: 'danger',
+            },
+          ],
+          waiting: [],
+        }}
+      />,
+    );
+    expect(screen.getByText('Overdue 21 days')).toBeInTheDocument();
+    expect(screen.getByText('Performance')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '1 to do' })).toHaveAttribute('href', '/inbox');
+  });
+});
+
 describe('Home, as an employee (B1)', () => {
   it('greets them, with today where they work, and says who they are', async () => {
     const { container } = render(<PeopleHome load={ready(employee())} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Hi Ada' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Good morning, Ada!' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/^Sunday 27 September · 11:30 in Madrid office$/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
     expect(within(part('Your profile')).getByText('Ada Lovelace')).toBeInTheDocument();
@@ -262,7 +316,10 @@ describe('Home, as HR (B2)', () => {
     expect(part('Starting soon')).toHaveTextContent('Mei Tanaka');
     expect(part('Joiners by month')).toBeInTheDocument();
     // HR's own record, which the old overview left out.
-    expect(screen.getByText(/Your record is missing 2 details/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Your profile · 2 details missing' })).toHaveAttribute(
+      'href',
+      '/people/me',
+    );
     expect(await axeViolations(hr.container)).toEqual([]);
     hr.unmount();
     render(<PeopleHome load={ready(employee())} />);

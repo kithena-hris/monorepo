@@ -860,7 +860,7 @@ export function AppShell({
             // Where the sidebar is (a 40rem container), the tab bar is not.
             bottomBarClassName="@min-[40rem]/page:hidden"
             // The gutter is a variable too, so a page's sticky header spans it edge to edge.
-            contentClassName="relative px-(--reach-page-gutter) pt-3 pb-28 [--reach-page-gutter:1rem] @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12 @min-[40rem]/page:[--reach-page-gutter:2.5rem]"
+            contentClassName="relative px-(--reach-page-gutter) pt-(--reach-page-top) pb-28 [--reach-page-gutter:1rem] [--reach-page-top:0.75rem] @min-[40rem]/page:pb-12 @min-[40rem]/page:[--reach-page-gutter:2.5rem] @min-[40rem]/page:[--reach-page-top:2rem]"
             /*
           The company's own, never ours: its logo where it has uploaded one,
           its initials where it has not.
