@@ -18,6 +18,7 @@ import {
   type DataColumn,
   icons,
   Card,
+  CardToolbar,
   List,
   ListItem,
   Widget,
@@ -786,34 +787,35 @@ export function Jobs(props: ScreenProps<JobsData>): JSX.Element {
                 </Button>
               }
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <SegmentedControl
-                aria-label={tr('home.show', 'Show')}
-                value={showing}
-                onValueChange={(v) => props.onFilter?.({ show: v === 'open' ? null : v })}
-              >
-                {SHOWING.map((s) => (
-                  <SegmentedControlItem key={s} value={s}>
-                    {tr('home.showing', '{{label}} {{count}}', {
-                      label: SHOWING_LABEL[s](),
-                      count: String(counted(s)),
-                    })}
-                  </SegmentedControlItem>
-                ))}
-              </SegmentedControl>
-              <Search
-                label={tr('home.search_jobs', 'Search jobs')}
-                placeholder={tr(
-                  'home.title_team_place_or_manager',
-                  'Title, team, place or manager',
-                )}
-                initial={props.search?.['q'] ?? ''}
-                onSearch={(v) => props.onFilter?.({ q: v === '' ? null : v })}
-                className="w-72 max-w-full"
-              />
-            </div>
             <Refusal error={act.error} />
+            {/* One surface: what narrows the list is the head of the list. */}
             <Card>
+              <CardToolbar className="flex-row flex-wrap items-center">
+                <SegmentedControl
+                  aria-label={tr('home.show', 'Show')}
+                  value={showing}
+                  onValueChange={(v) => props.onFilter?.({ show: v === 'open' ? null : v })}
+                >
+                  {SHOWING.map((s) => (
+                    <SegmentedControlItem key={s} value={s}>
+                      {tr('home.showing', '{{label}} {{count}}', {
+                        label: SHOWING_LABEL[s](),
+                        count: String(counted(s)),
+                      })}
+                    </SegmentedControlItem>
+                  ))}
+                </SegmentedControl>
+                <Search
+                  label={tr('home.search_jobs', 'Search jobs')}
+                  placeholder={tr(
+                    'home.title_team_place_or_manager',
+                    'Title, team, place or manager',
+                  )}
+                  initial={props.search?.['q'] ?? ''}
+                  onSearch={(v) => props.onFilter?.({ q: v === '' ? null : v })}
+                  className="w-72 max-w-full"
+                />
+              </CardToolbar>
               <DataTable<JobsRow>
                 label={tr('home.jobs', 'Jobs')}
                 rows={rows}

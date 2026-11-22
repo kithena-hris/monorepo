@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  CardToolbar,
   Chip,
   ChipGroup,
   ChipGroupItem,
@@ -2255,10 +2256,10 @@ function Body({
             {joined ? (
               // Clipped, not hidden: a hidden box would be what the table's pinned head sticks to.
               <Card className="overflow-clip">
-                <div className="flex min-w-0 flex-col gap-3 border-b border-border px-4 py-3">
+                <CardToolbar>
                   {controls}
                   {smart ? heard : null}
-                </div>
+                </CardToolbar>
                 {table}
               </Card>
             ) : (

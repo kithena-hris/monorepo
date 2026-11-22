@@ -342,6 +342,7 @@ export {
   CardDescription,
   CardFooter,
   CardHeader,
+  CardToolbar,
   CardTitle,
 } from './components/card/card';
 export type { CardProps } from './components/card/card';

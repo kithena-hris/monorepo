@@ -7,7 +7,15 @@ import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Money } from '../money/money';
 import { Stat } from '../stat/stat';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardToolbar,
+} from './card';
 
 const meta = {
   title: 'Components/Card',
@@ -274,6 +282,26 @@ export const Composed: Story = {
         <Button variant="ghost">View history</Button>
         <Button variant="primary">Edit profile</Button>
       </CardFooter>
+    </Card>
+  ),
+};
+
+/** The controls of a list as the head of its card: one surface, what narrows it and what it narrows. */
+export const WithAToolbar: Story = {
+  render: () => (
+    <Card className="max-w-2xl">
+      <CardToolbar className="flex-row flex-wrap items-center">
+        <Badge>Open 5</Badge>
+        <Badge>Drafts 9</Badge>
+        <span className="ms-auto">
+          <Button size="sm" variant="ghost">
+            Export
+          </Button>
+        </span>
+      </CardToolbar>
+      <CardContent className="pt-4">
+        <p className="text-sm text-fg-muted">The table or list the controls act on.</p>
+      </CardContent>
     </Card>
   ),
 };

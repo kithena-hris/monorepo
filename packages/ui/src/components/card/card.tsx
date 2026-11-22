@@ -166,6 +166,25 @@ export function CardDescription({
  * would, so a card without a title never puts its first field against its
  * edge.
  */
+/**
+ * The controls of what the card holds, as its head: a search, filters and
+ * the view's actions over a table or a list, with a rule under them. The
+ * card is then one surface, the controls and what they act on. On a card
+ * whose table pins its header, give the card `overflow-clip` rather than
+ * `overflow-hidden`, which would become what the header sticks to.
+ */
+export function CardToolbar({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
+  return (
+    <div
+      className={cn(
+        'flex min-w-0 flex-col gap-3 border-b border-border px-4 py-3 touch:px-3.5',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export function CardContent({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
   return (
     <div
