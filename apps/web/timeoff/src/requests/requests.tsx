@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   Dropzone,
+  EmptyState,
   formatList,
   icons,
   List,
@@ -175,13 +176,13 @@ const body =
 
 const EMPTY: Record<Tab, string> = {
   get upcoming(): string {
-    return t('requests.requests.nothing_booked_ahead', 'Nothing booked ahead.');
+    return t('requests.requests.nothing_booked_ahead', 'Nothing booked ahead');
   },
   get past(): string {
-    return t('requests.requests.no_time_off_taken_yet_this', 'No time off taken yet this year.');
+    return t('requests.requests.no_time_off_taken_yet_this', 'No time off taken yet this year');
   },
   get cancelled(): string {
-    return t('requests.requests.nothing_cancelled', 'Nothing cancelled.');
+    return t('requests.requests.nothing_cancelled', 'Nothing cancelled');
   },
 };
 
@@ -263,7 +264,10 @@ function Ready({
               </SegmentedControl>
             )}
             {data.items.length === 0 ? (
-              <p className="text-sm text-fg-muted">{EMPTY[data.tab]}</p>
+              // Said the way every other empty list here says it: on a card, in Reach's own words for nothing.
+              <Card>
+                <EmptyState icon={<icons.calendar aria-hidden />} title={EMPTY[data.tab]} />
+              </Card>
             ) : (
               <List navigable>
                 {data.items.map((r) => {

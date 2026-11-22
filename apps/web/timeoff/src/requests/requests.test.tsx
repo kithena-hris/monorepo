@@ -79,7 +79,7 @@ describe('my requests', () => {
     const { rerender } = render(
       <MyRequests load={ready({ ...past(), tab: 'cancelled', items: [], selected: null })} />,
     );
-    expect(screen.getByText('Nothing cancelled.')).toBeTruthy();
+    expect(screen.getByText('Nothing cancelled')).toBeTruthy();
     rerender(<MyRequests load={ready(past())} />);
     expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual([
       'Personal day4 Sept · 1 dayTaken',

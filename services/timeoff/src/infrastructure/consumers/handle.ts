@@ -5,6 +5,8 @@ import {
   LocationKey,
   LocationUpdated,
   LocationZoneChanged,
+  OrgUnitCreated,
+  OrgUnitUpdated,
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
@@ -181,6 +183,43 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
       return ok({ applied: true });
     });
 
+  /**
+   * Everyone in a team, after People named or renamed it: no event id onto
+   * the member. People names a team by id on a person's events and by name
+   * on the unit's own, so the name is learnt here.
+   */
+  const inTeam = (
+    tenantId: TenantId,
+    teamKey: TeamKey,
+    name: string,
+    correlationId: string,
+  ): Promise<Result<{ applied: boolean }>> =>
+    transact(deps, tenantId, async (tx) => {
+      for (const m of await tx.members.list({ teamKey })) {
+        if (m.teamName === name) continue;
+        // oxlint-disable-next-line no-await-in-loop -- one transaction, a team's members
+        const done = await upsertIn(
+          tx,
+          deps,
+          { ...fieldsOf(m), teamName: name },
+          { eventId: null, effectiveFrom: null, correlationId },
+        );
+        if (!done.ok) return done;
+      }
+      return ok({ applied: true });
+    });
+
+  /**
+   * The name of a team somebody joins: what the people already in it call it.
+   * ponytail: the name lives on the members, so the first person into a team
+   * nobody is in yet has none until People next restates the unit; a team
+   * table of its own (as locations have) would hold it from the start.
+   */
+  const teamNameOf = async (tx: Tx, teamKey: TeamKey | null): Promise<string | null> =>
+    teamKey === null
+      ? null
+      : ((await tx.members.list({ teamKey })).find((m) => m.teamName !== null)?.teamName ?? null);
+
   return async (raw) => {
     const name: unknown =
       typeof raw === 'object' && raw !== null ? Reflect.get(raw, 'eventName') : undefined;
@@ -204,7 +243,10 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
             workEmail: p.workEmail,
             managerPersonId: p.managerId,
             teamKey,
-            teamName: existing !== null && existing.teamKey === teamKey ? existing.teamName : null,
+            teamName:
+              existing !== null && existing.teamKey === teamKey
+                ? existing.teamName
+                : await teamNameOf(tx, teamKey),
             hireDate: p.employment.from,
             terminationDate: p.employment.to,
             status,
@@ -234,7 +276,10 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
             workEmail: p.workEmail,
             managerPersonId: p.managerId,
             teamKey,
-            teamName: existing !== null && existing.teamKey === teamKey ? existing.teamName : null,
+            teamName:
+              existing !== null && existing.teamKey === teamKey
+                ? existing.teamName
+                : await teamNameOf(tx, teamKey),
             locationKey,
             country: place?.country ?? existing?.country ?? null,
             timeZone: place?.timeZone ?? existing?.timeZone,
@@ -277,7 +322,7 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
           return {
             ...fieldsOf(m),
             teamKey,
-            teamName: m.teamKey === teamKey ? m.teamName : null,
+            teamName: m.teamKey === teamKey ? m.teamName : await teamNameOf(tx, teamKey),
             locationKey,
             country: place?.country ?? m.country,
             timeZone: place?.timeZone ?? m.timeZone,
@@ -350,6 +395,22 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
        */
       case PersonSyncedFromExternal.name: {
         return parse(PersonSyncedFromExternal, raw) ? 'ignored' : 'rejected';
+      }
+
+      /* A team named, renamed, moved or archived: its name onto the people in it. */
+      case OrgUnitCreated.name:
+      case OrgUnitUpdated.name: {
+        const event =
+          name === OrgUnitCreated.name ? parse(OrgUnitCreated, raw) : parse(OrgUnitUpdated, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        const result = await inTeam(
+          event.tenantId,
+          teamKeyOf(p.orgUnitId),
+          p.name,
+          event.correlationId,
+        );
+        return outcome(result, event);
       }
 
       case LocationCreated.name: {

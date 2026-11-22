@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { formatNumber } from '../../lib/intl';
 import { Tooltip } from '../tooltip/tooltip';
 import {
   ChartBrush,
@@ -379,7 +380,7 @@ export function Sparkline({
   area = true,
   showLastPoint = true,
   className,
-  format = (value) => String(value),
+  format = formatNumber,
 }: SparklineProps): JSX.Element {
   const values = data.map((d) => d.value);
   const min = Math.min(...values);
@@ -501,7 +502,7 @@ export function BarChart({
   height = 200,
   showValues = false,
   reference,
-  format = (v) => String(v),
+  format = formatNumber,
   className,
   onSelect,
   selectedIndex,
@@ -785,7 +786,7 @@ export function TrendChart({
   series,
   label,
   height = 200,
-  format = (v) => String(v),
+  format = formatNumber,
   area = false,
   showLastPoint = false,
   summary,
@@ -1174,7 +1175,7 @@ export function HorizontalBarChart({
   showValues = true,
   sorted = true,
   limit,
-  format = (v) => String(v),
+  format = formatNumber,
   toneOf,
   onSelect,
   selectedIndex,
@@ -1360,7 +1361,7 @@ export function StackedBarChart({
   label,
   height = 200,
   normalise = false,
-  format = (v) => String(v),
+  format = formatNumber,
   hiddenSeries = [],
   onHiddenSeriesChange,
   onSelect,
@@ -1579,7 +1580,7 @@ export function HeatmapChart({
   describe,
   showValues = false,
   max,
-  format = (v) => String(v),
+  format = formatNumber,
   onSelect,
   zoomable = false,
   window: controlledWindow,
@@ -1774,7 +1775,7 @@ export function FunnelChart({
   showConversion = true,
   highlightBiggestDrop = false,
   tone = 'chart-1',
-  format = (v) => String(v),
+  format = formatNumber,
   onSelect,
   selectedIndex,
   zoomable = false,

@@ -57,6 +57,7 @@ import {
   EmptyState,
   FilterBuilder,
   Inline,
+  Country,
   Kbd,
   KeyValues,
   ListDetail,
@@ -1109,6 +1110,36 @@ const kbd: DocPage = {
   ],
 };
 
+const country: DocPage = {
+  slug: 'country',
+  title: 'Country',
+  description: 'A flag and the country’s name, in the reader’s language.',
+  when: 'A country in a table, on a record or beside a person. The name comes from the platform from an ISO code, so there is no list of countries to keep and it follows the page’s language.',
+  importLine: "import { Country } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'Default',
+      blurb:
+        '`display` is the name, the code for a tight column, or the flag alone (named for a screen reader). `shape` crops the flag to a circle or sets it on a tile, so flags of different outlines line up down a column.',
+      render: () => (
+        <div className="flex flex-col gap-3 text-sm text-fg">
+          <Country code="DE" />
+          <Country code="TW" shape="rounded" />
+          <Country code="BR" shape="boxed" />
+          <Country code="US" display="code" />
+          <Country code="JP" display="flag" shape="rounded" />
+        </div>
+      ),
+      code: `<Country code="DE" />
+<Country code="TW" shape="rounded" />
+<Country code="BR" shape="boxed" />
+<Country code="US" display="code" />
+<Country code="JP" display="flag" shape="rounded" />`,
+    },
+  ],
+};
+
 const spinnerPage: DocPage = {
   slug: 'reveal',
   title: 'Reveal',
@@ -1494,6 +1525,7 @@ export const MORE_PAGES: readonly DocPage[] = [
   dropzone,
   feedback,
   filterBuilder,
+  country,
   kbd,
   keyValues,
   layout,

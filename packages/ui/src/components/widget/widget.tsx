@@ -13,6 +13,8 @@ import { toneVar, type ChartTone } from '../chart/tones';
  * The grid is 71rem at most, so half a row is never wider than 35rem (560px):
  * past that a list's label and its figure drift apart and a row reads as two
  * unrelated ends. A wider page leaves the rest of the row empty, as `sm` does.
+ * The two widgets of a row share its height, so a short one beside a tall one
+ * leaves no gap under itself for the next row to float in.
  *
  * `sm`, for tiles that hold one figure: columns of 13rem, as many as fit,
  * the rest of the row left empty; a span the container cannot fit falls
@@ -42,7 +44,9 @@ export function WidgetGrid({
       data-widget-grid={size}
       className={cn(
         '@container/widgets grid grid-flow-row-dense gap-4 touch:gap-3',
-        fill ? 'items-stretch' : 'items-start justify-start',
+        // Two widgets in a row are one height: the shorter keeps its room
+        // rather than leaving a hole in the page under it.
+        fill || size === 'md' ? 'items-stretch' : 'items-start justify-start',
         (size === 'md' || fill) && 'max-w-[71rem]',
         className,
       )}

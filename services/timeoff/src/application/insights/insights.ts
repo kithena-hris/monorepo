@@ -54,8 +54,11 @@ export type InsightWriter = (
   points: readonly PointFacts[],
 ) => Promise<readonly PointWords[]>;
 
-const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
-const hours = (minutes: number): string => `${String(Math.round(minutes / 60))}h`;
+/** A figure in a sentence, with its thousands marked: the sentences are English, so its grouping is. */
+const figure = (n: number): string =>
+  new Intl.NumberFormat('en-GB', { maximumFractionDigits: 3 }).format(n);
+const people = (n: number): string => (n === 1 ? '1 person' : `${figure(n)} people`);
+const hours = (minutes: number): string => `${figure(Math.round(minutes / 60))}h`;
 const monthOf = (date: CalendarDate): string =>
   new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(
     new Date(`${date}T00:00:00Z`),
@@ -73,7 +76,7 @@ export const templatedInsight = ({
   switch (point.kind) {
     case 'unbooked':
       return {
-        text: `${days(point.days).toString()} days of vacation are still unbooked this year.${
+        text: `${figure(days(point.days).toNumber())} days of vacation are still unbooked this year.${
           point.personIds.length === 0
             ? ''
             : ` At this pace ${people(point.personIds.length)} will lose some at the year end.`
@@ -85,13 +88,13 @@ export const templatedInsight = ({
         text: `${people(point.personIds.length)} ${point.personIds.length === 1 ? 'hasn’t' : 'haven’t'} taken a day off since ${monthOf(point.since)}.${
           point.largestTeam === null || teamName === null
             ? ''
-            : ` ${String(point.largestTeam.count)} of them are in ${teamName}.`
+            : ` ${figure(point.largestTeam.count)} of them are in ${teamName}.`
         }`,
         sources: ['Time off'],
       };
     case 'missed_clock_outs':
       return {
-        text: `Missed clock-outs went from ${String(point.lastMonth)} last month to ${String(point.thisMonth)} this month.`,
+        text: `Missed clock-outs went from ${figure(point.lastMonth)} last month to ${figure(point.thisMonth)} this month.`,
         sources: ['Attendance'],
       };
     case 'overtime':

@@ -264,6 +264,87 @@ export const CollapsedRailWithAFlyout: Story = {
   ),
 };
 
+/** The rail naming its items: each icon over its word, so nobody has to learn the icons. */
+export const RailWithNames: Story = {
+  name: 'Rail with names',
+  render: () => (
+    <DeskOrPhone
+      desk={
+        <div className="w-22">
+          <RailContext value={{ collapsed: true, captions: true }}>
+            <Nav label="Areas, named" className={`px-1 py-2.5 ${panel}`}>
+              <NavList className="gap-1">
+                <NavItem href="#home" icon={<icons.home />}>
+                  Home
+                </NavItem>
+                <NavItem href="#people" icon={<icons.people />} current>
+                  People
+                </NavItem>
+                <NavItem href="#performance" icon={<icons.goal />} badge={3}>
+                  Performance
+                </NavItem>
+                <NavItem href="#settings" icon={<icons.settings />}>
+                  Settings
+                </NavItem>
+              </NavList>
+            </Nav>
+          </RailContext>
+        </div>
+      }
+      phone={
+        <p className="text-base text-fg-muted">
+          On a phone there’s no rail. The tab bar names its tabs.
+        </p>
+      }
+    />
+  ),
+};
+
+/**
+ * Names longer than the rail: other languages, and areas with two words. A
+ * name that does not fit is cut with an ellipsis and never widens the rail.
+ */
+export const RailWithLongNames: Story = {
+  name: 'Rail with long names',
+  render: () => (
+    <DeskOrPhone
+      desk={
+        <div className="w-22">
+          <RailContext value={{ collapsed: true, captions: true }}>
+            <Nav label="Areas, long names" className={`px-1 py-2.5 ${panel}`}>
+              <NavList className="gap-1">
+                <NavItem href="#start" icon={<icons.home />}>
+                  Startseite
+                </NavItem>
+                <NavItem href="#people" icon={<icons.people />} current>
+                  Mitarbeitende
+                </NavItem>
+                <NavItem href="#recruiting" icon={<icons.work />}>
+                  Personalbeschaffung
+                </NavItem>
+                <NavItem href="#performance" icon={<icons.goal />} badge={12}>
+                  Leistung und Entwicklung
+                </NavItem>
+                <NavItem href="#documents" icon={<icons.document />}>
+                  Documentos
+                </NavItem>
+                <NavItem href="#settings" icon={<icons.settings />}>
+                  Einstellungen
+                </NavItem>
+              </NavList>
+            </Nav>
+          </RailContext>
+        </div>
+      }
+      phone={
+        <p className="text-base text-fg-muted">
+          On a phone there’s no rail. The tab bar names its tabs.
+        </p>
+      }
+    />
+  ),
+};
+
 export const AnUmbrellaPage: Story = {
   name: 'An umbrella page',
   render: () => {

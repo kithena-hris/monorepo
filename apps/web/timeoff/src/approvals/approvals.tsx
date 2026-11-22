@@ -10,6 +10,7 @@ import {
   ListItem,
   Skeleton,
   VirtualList,
+  EmptyState,
   icons,
   usePages,
   tallyFigures,
@@ -204,16 +205,15 @@ function Waiting({
   const chosen = data.clear.filter((item) => !unchecked.has(item.requestId));
   if (data.clear.length === 0 && data.lookCloser.length === 0) {
     return (
-      <Card padded className="text-center">
-        <p className="text-md font-semibold">
-          {t('approvals.approvals.nothing_is_waiting_for_you', 'Nothing is waiting for you')}
-        </p>
-        <p className="mt-1 text-sm text-fg-muted">
-          {t(
+      <Card>
+        <EmptyState
+          icon={<icons.success aria-hidden />}
+          title={t('approvals.approvals.nothing_is_waiting_for_you', 'Nothing is waiting for you')}
+          description={t(
             'approvals.approvals.new_requests_from_your_team_come',
             'New requests from your team come here, sorted into what is clear and what needs a look.',
           )}
-        </p>
+        />
       </Card>
     );
   }

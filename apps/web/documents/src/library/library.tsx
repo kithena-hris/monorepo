@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  CardToolbar,
   type DataColumn,
   DataTable,
   Dialog,
@@ -446,45 +447,50 @@ function Ready({
           className="flex flex-col gap-3"
           aria-label={tr('library.library.every_document', 'Every document')}
         >
-          <div className="flex flex-wrap items-center gap-3">
-            <ShowPicker
-              data={data}
-              onShow={(show) => props.onFilter?.({ show: show === 'all' ? null : show })}
-              onNew={() => {
-                setNewSection(true);
-              }}
-            />
-          </div>
-          {data.rows.length === 0 ? (
-            <EmptyState
-              icon={<icons.folder />}
-              title={
-                data.q === ''
-                  ? tr('library.library.nothing_here_yet', 'Nothing here yet')
-                  : tr('library.library.nothing_matches', 'Nothing matches “{{q}}”', { q: data.q })
-              }
-              description={
-                data.deleted
-                  ? tr(
-                      'library.library.nothing_has_been_deleted_in_the',
-                      'Nothing has been deleted in the last 30 days.',
-                    )
-                  : tr(
-                      'library.library.add_a_document_or_choose_another',
-                      'Add a document, or choose another section.',
-                    )
-              }
-            />
-          ) : (
-            <DataTable<Row>
-              label={tr('library.library.documents', 'Documents')}
-              rows={data.rows}
-              rowId={rowId}
-              describeRow={rowTitle}
-              fill
-              columns={columns}
-            />
-          )}
+          {/* One surface: what narrows the list is the head of the list. */}
+          <Card>
+            <CardToolbar className="flex-row flex-wrap items-center">
+              <ShowPicker
+                data={data}
+                onShow={(show) => props.onFilter?.({ show: show === 'all' ? null : show })}
+                onNew={() => {
+                  setNewSection(true);
+                }}
+              />
+            </CardToolbar>
+            {data.rows.length === 0 ? (
+              <EmptyState
+                icon={<icons.folder />}
+                title={
+                  data.q === ''
+                    ? tr('library.library.nothing_here_yet', 'Nothing here yet')
+                    : tr('library.library.nothing_matches', 'Nothing matches “{{q}}”', {
+                        q: data.q,
+                      })
+                }
+                description={
+                  data.deleted
+                    ? tr(
+                        'library.library.nothing_has_been_deleted_in_the',
+                        'Nothing has been deleted in the last 30 days.',
+                      )
+                    : tr(
+                        'library.library.add_a_document_or_choose_another',
+                        'Add a document, or choose another section.',
+                      )
+                }
+              />
+            ) : (
+              <DataTable<Row>
+                label={tr('library.library.documents', 'Documents')}
+                rows={data.rows}
+                rowId={rowId}
+                describeRow={rowTitle}
+                fill
+                columns={columns}
+              />
+            )}
+          </Card>
         </section>
       )}
 
@@ -632,7 +638,7 @@ function Tiles({
 }): JSX.Element {
   return (
     // Tiles of one size, never stretched to the row.
-    <WidgetGrid size="sm" role="list" aria-label={tr('library.library.queues', 'Queues')}>
+    <WidgetGrid size="sm" fill role="list" aria-label={tr('library.library.queues', 'Queues')}>
       {data.tiles.map((t) => {
         const on = data.queue === t.key;
         return (
@@ -967,7 +973,7 @@ function ShowPicker({
         else onShow(v);
       }}
     >
-      <SelectTrigger aria-label={tr('library.library.show', 'Show')} className="min-w-56">
+      <SelectTrigger aria-label={tr('library.library.show', 'Show')} className="w-64 max-w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

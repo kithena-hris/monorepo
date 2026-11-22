@@ -896,8 +896,10 @@ export function AppShell({
                 />
               </Link>
             }
-            // The sidebar is the rail alone: every area as an icon, fixed while the
-            // page scrolls, its sections flying out on hover, focus or a tap.
+            // The sidebar is the rail alone: every area as an icon over its name,
+            // fixed while the page scrolls, its sections flying out on hover,
+            // focus or a tap.
+            sidebarRailCaptions
             sidebarRail={
               <SidebarRail
                 areas={navAreas.areas}

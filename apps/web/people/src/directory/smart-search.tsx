@@ -144,7 +144,10 @@ export function AskBar({
   loading,
   suggestions,
   recent,
+  compact = false,
 }: {
+  /** In the row of filters over the table, at that row's height. */
+  readonly compact?: boolean;
   readonly value: string;
   readonly onValueChange: (value: string) => void;
   readonly onAsk: (sentence: string) => void;
@@ -211,6 +214,7 @@ export function AskBar({
         >
           <SearchField
             variant="prompt"
+            {...(compact ? { size: 'sm' as const } : {})}
             label={t('directory.smart-search.search_people', 'Search people')}
             placeholder={
               example === undefined
@@ -235,7 +239,7 @@ export function AskBar({
       </PopoverAnchor>
       <PopoverContent
         aria-label={t('directory.smart-search.suggestions', 'Suggestions')}
-        className="w-(--radix-popover-trigger-width) max-w-130 p-2.5"
+        className="w-(--radix-popover-trigger-width) max-w-130 min-w-96 p-2.5"
         onOpenAutoFocus={(event) => {
           // Typing goes on in the box; the list is a ↓ or a click away.
           event.preventDefault();

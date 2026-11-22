@@ -22,7 +22,7 @@ import {
 import { cn } from '../../lib/cn';
 import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
 import { Badge } from '../badge/badge';
-import { RailContext, useRailCollapsed } from '../page-layout/page-layout';
+import { RailContext, useRailCaptions, useRailCollapsed } from '../page-layout/page-layout';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
 import { Spinner } from '../spinner/spinner';
 import { Tooltip } from '../tooltip/tooltip';
@@ -281,6 +281,7 @@ export function NavItem({
   ...props
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
+  const captions = useRailCaptions();
   const describedBy = useId();
   const described = description !== undefined && description !== null;
   const ruled = use(RuledList) && level === 2;
@@ -317,6 +318,8 @@ export function NavItem({
    * collapse control implies.
    */
   if (collapsed && !asIcon) return <></>;
+  // In a rail that names its items: the name under the icon, not in a tooltip.
+  const captioned = asIcon && captions;
 
   const inside = (
     <>
@@ -393,7 +396,11 @@ export function NavItem({
         // The count sits by the name it counts, not at the far end of the row.
         <span
           data-rail-label=""
-          className={cn('flex min-w-0 flex-1 items-center gap-2', asIcon && 'sr-only')}
+          className={cn(
+            'flex min-w-0 items-center gap-2',
+            captioned ? 'w-full justify-center text-2xs leading-tight font-medium' : 'flex-1',
+            asIcon && !captioned && 'sr-only',
+          )}
         >
           <span className={cn('min-w-0', wrap ? 'py-2 leading-snug break-words' : 'truncate')}>
             {label}
@@ -498,6 +505,8 @@ export function NavItem({
         // In a compact menu, one row a tile high, centred on it.
         compact && 'items-center gap-3 rounded-[0.875rem] p-2.5',
         asIcon && 'justify-center px-0',
+        // The icon over its name: a taller item, the two a hair apart.
+        captioned && 'flex-col gap-1 py-1.5',
         className,
       )}
       {...props}
@@ -547,6 +556,7 @@ export function NavItem({
 
   // The tooltip only exists in the rail, where the label is not on screen.
   // Wrapping it everywhere would put a tooltip on text that is already there.
+  // Captioned or not: a name too long for the rail is cut under its icon, and whole here.
   return asIcon ? (
     <li>
       <Tooltip

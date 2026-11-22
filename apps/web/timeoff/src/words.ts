@@ -1,4 +1,4 @@
-import { dateFormat as intlDate, icons, type IconName } from '@reach/ui';
+import { dateFormat as intlDate, formatNumber, icons, type IconName } from '@reach/ui';
 import { createElement, type ReactNode } from 'react';
 import { t } from './i18n';
 
@@ -31,9 +31,16 @@ export function chartTone(token: string | undefined): Tone {
   return token !== undefined && /^chart-[1-6]$/.test(token) ? (token as Tone) : 'neutral';
 }
 
-/** "11.500" as "11.5": a decimal string, never through a float for anything but display. */
-export const amount = (value: string): string =>
-  value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+/**
+ * "11.500" as "11.5" and "44584" as "44,584": a decimal string as the page's
+ * language writes a number, never through a float for anything but display.
+ */
+export const amount = (value: string): string => {
+  const number = Number(value);
+  return value.trim() === '' || Number.isNaN(number)
+    ? value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
+    : formatNumber(number, { maximumFractionDigits: 3 });
+};
 
 /** "−1.5" with a true minus, "+2.08" with a plus: a ledger's signed amount. */
 export const signed = (value: string): string =>

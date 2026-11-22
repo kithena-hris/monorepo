@@ -7,6 +7,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardToolbar,
   CardTitle,
   ChangeDiff,
   ChipRow,
@@ -185,32 +186,37 @@ export function Requisitions(props: ScreenProps<readonly Requisition[]>): JSX.El
                 </Button>
               }
             />
-            <ChipRow aria-label={t('requisitions.state', 'State')}>
-              {STATES.map((s) => (
-                <Chip
-                  key={s}
-                  selected={state === s}
-                  onClick={() => props.onFilter?.({ state: s === 'all' ? null : s })}
-                >
-                  {s === 'all' ? t('requisitions.all', 'All') : words(s)}
-                </Chip>
-              ))}
-            </ChipRow>
-            {rows.length === 0 ? (
-              <EmptyState
-                icon={<icons.work aria-hidden />}
-                title={t('requisitions.no_requisitions_here', 'No requisitions here')}
-              />
-            ) : (
-              <DataTable<RequisitionRow>
-                label={t('requisitions.requisitions', 'Requisitions')}
-                rows={rows}
-                rowId={idOf}
-                describeRow={titleOf}
-                fill
-                columns={columns}
-              />
-            )}
+            {/* One surface: what narrows the list is the head of the list. */}
+            <Card>
+              <CardToolbar>
+                <ChipRow aria-label={t('requisitions.state', 'State')}>
+                  {STATES.map((s) => (
+                    <Chip
+                      key={s}
+                      selected={state === s}
+                      onClick={() => props.onFilter?.({ state: s === 'all' ? null : s })}
+                    >
+                      {s === 'all' ? t('requisitions.all', 'All') : words(s)}
+                    </Chip>
+                  ))}
+                </ChipRow>
+              </CardToolbar>
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon={<icons.work aria-hidden />}
+                  title={t('requisitions.no_requisitions_here', 'No requisitions here')}
+                />
+              ) : (
+                <DataTable<RequisitionRow>
+                  label={t('requisitions.requisitions', 'Requisitions')}
+                  rows={rows}
+                  rowId={idOf}
+                  describeRow={titleOf}
+                  fill
+                  columns={columns}
+                />
+              )}
+            </Card>
           </div>
         );
       }}

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   LocationCreated,
   LocationZoneChanged,
+  OrgUnitCreated,
+  OrgUnitUpdated,
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
@@ -184,6 +186,38 @@ describe('the People consumer', () => {
       lastEventId: id(9),
       lastEffectiveFrom: '2026-09-20',
     });
+  });
+
+  it('learns a team’s name from People, and keeps it through a rename', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const handle = timeoffConsumer(app.deps);
+    const s = app.state(TENANT);
+    const team = () => s.members.get(ADAM)?.teamName;
+
+    expect(await handle(hired)).toBe('applied');
+    expect(team()).toBeNull();
+    expect(
+      await handle(
+        envelope(OrgUnitCreated, 20, '2026-01-01', {
+          orgUnitId: ORG,
+          name: 'Platform',
+          parentId: null,
+        }),
+      ),
+    ).toBe('applied');
+    expect(team()).toBe('Platform');
+    expect(
+      await handle(
+        envelope(OrgUnitUpdated, 21, '2026-02-01', {
+          orgUnitId: ORG,
+          name: 'Platform engineering',
+          parentId: null,
+          archived: false,
+          fieldsChanged: ['name'],
+        }),
+      ),
+    ).toBe('applied');
+    expect(team()).toBe('Platform engineering');
   });
 
   it('places somebody from the snapshot where they sit: the office, its country and zone', async () => {
