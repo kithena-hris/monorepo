@@ -107,6 +107,18 @@
     "text": "Fairness",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the title of <PageSection>."
   },
+  "analytics.figure_applications": {
+    "text": "applications",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the figures of <PageHeader>."
+  },
+  "analytics.figure_hires": {
+    "text": "hires",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the figures of <PageHeader>."
+  },
+  "analytics.figure_open_jobs": {
+    "text": "open jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: the figures of <PageHeader>."
+  },
   "analytics.figures": {
     "text": "Figures",
     "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, Analytics: text inside <h2>."

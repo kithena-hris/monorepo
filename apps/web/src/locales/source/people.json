@@ -7471,6 +7471,18 @@
     "text": "Fields",
     "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, ScheduleForm: text inside <FieldLabel>."
   },
+  "reports.report-schedules.figure_active": {
+    "text": "active",
+    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, Schedules: the figures of <PageHeader>."
+  },
+  "reports.report-schedules.figure_paused": {
+    "text": "paused",
+    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, Schedules: the figures of <PageHeader>."
+  },
+  "reports.report-schedules.figure_schedules": {
+    "text": "schedules",
+    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, Schedules: the figures of <PageHeader>."
+  },
   "reports.report-schedules.for_a_person_to_read_and": {
     "text": "For a person to read and edit.",
     "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, ScheduleForm: the description of <RadioCard>."
@@ -8182,6 +8194,22 @@
   "review.review.fields": {
     "text": "Fields",
     "context": "People: employee records, org chart, HR settings. review/review.tsx, ExportDetail: the items of <KeyValues>."
+  },
+  "review.review.figure_changes": {
+    "text": "changes",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, Queue: text inside <PageHeader>."
+  },
+  "review.review.figure_duplicates": {
+    "text": "duplicates",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, Queue: text inside <PageHeader>."
+  },
+  "review.review.figure_identifiers": {
+    "text": "identifiers",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, Queue: text inside <PageHeader>."
+  },
+  "review.review.figure_waiting": {
+    "text": "waiting",
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, Queue: text inside <PageHeader>."
   },
   "review.review.flagged_when_decided": {
     "text": "Flagged when decided: {{value}}",

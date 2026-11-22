@@ -28,6 +28,7 @@ import {
   Timeline,
   TimelineItem,
   type TimelineItemProps,
+  tallyFigures,
 } from '@reach/ui';
 import { useState, useTransition, type JSX, type ReactNode } from 'react';
 
@@ -185,9 +186,17 @@ const EMPTY: Record<Tab, string> = {
 };
 
 /** The list's header: the same whichever view of it is on show. */
-function ListHeader(): JSX.Element {
+function ListHeader({ count }: { readonly count?: number }): JSX.Element {
   return (
     <Header
+      {...(count === undefined
+        ? {}
+        : {
+            figures: tallyFigures({
+              label: t('requests.requests.figure_requests', 'requests'),
+              value: count,
+            }),
+          })}
       title={t('requests.requests.your_requests_title', 'Your requests')}
       description={t(
         'requests.requests.your_requests_description',
@@ -231,7 +240,7 @@ function Ready({
           })}
         />
       ) : (
-        <ListHeader />
+        <ListHeader count={data.items.length} />
       )}
       <div className={body}>
         {single && selected !== null && !selected.mine ? null : (

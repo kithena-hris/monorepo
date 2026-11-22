@@ -515,6 +515,14 @@
     "text": "Every template whose conditions match a hire is merged into the plan. Country tasks are added on top and cannot be removed.",
     "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: the description of <PageHeader>."
   },
+  "templates.figure_in_flight": {
+    "text": "plans in flight",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the figures of <PageHeader>."
+  },
+  "templates.figure_on_track": {
+    "text": "on track",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the figures of <PageHeader>."
+  },
   "templates.figures": {
     "text": "Figures",
     "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: text inside <h2>."

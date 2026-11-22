@@ -4739,6 +4739,10 @@
     "text": "Escalated: nobody answered in time.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
   },
+  "requests.requests.figure_requests": {
+    "text": "requests",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ListHeader: text inside <Header>."
+  },
   "requests.requests.give_back_days_you_dont_need": {
     "text": "Give back days you don’t need. Shortening is approved automatically.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the description of <RadioCard>."

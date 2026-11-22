@@ -573,6 +573,23 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
           <div className="flex flex-col gap-4">
             <PageHeader
               title={tr('analytics.analytics', 'Analytics')}
+              figures={[
+                {
+                  label: tr('analytics.figure_open_jobs', 'open jobs'),
+                  value: o.openJobs.toLocaleString(),
+                },
+                {
+                  label: tr('analytics.figure_applications', 'applications'),
+                  value: o.applications.toLocaleString(),
+                },
+                {
+                  label: tr('analytics.figure_hires', 'hires'),
+                  value: o.hires.toLocaleString(),
+                  ...(o.applications > 0
+                    ? { share: o.hires / o.applications, tone: 'success' as const }
+                    : {}),
+                },
+              ]}
               description={tr(
                 'analytics.every_number_is_computed_from_the',
                 'Every number is computed from the stage history. Groups under five people are hidden.',

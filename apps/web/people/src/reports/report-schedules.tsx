@@ -36,6 +36,7 @@ import {
   Tooltip,
   TooltipProvider,
   useScreenCommand,
+  tallyFigures,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -324,6 +325,23 @@ function Schedules({
       <PageHeader
         title={TITLE()}
         description={ABOUT()}
+        figures={tallyFigures(
+          {
+            label: t('reports.report-schedules.figure_schedules', 'schedules'),
+            value: state.schedules.length,
+          },
+          [
+            {
+              label: t('reports.report-schedules.figure_active', 'active'),
+              value: state.schedules.filter((r) => !r.paused).length,
+              tone: 'success',
+            },
+            {
+              label: t('reports.report-schedules.figure_paused', 'paused'),
+              value: state.schedules.filter((r) => r.paused).length,
+            },
+          ],
+        )}
         actions={
           <Button
             variant="primary"

@@ -958,6 +958,16 @@ function Screen({
       <PageHeader
         title={t('components.inbox.screen.inbox', 'Inbox')}
         description={summary}
+        figures={[
+          {
+            label: t('components.inbox.screen.figure_new', 'new'),
+            value: fresh.length.toLocaleString(),
+          },
+          {
+            label: t('components.inbox.screen.figure_need_you', 'need you'),
+            value: counts.todo.toLocaleString(),
+          },
+        ]}
         actions={
           <>
             {approves ? (

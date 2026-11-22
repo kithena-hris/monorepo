@@ -29,6 +29,7 @@ import {
   Stack,
   icons,
   usePages,
+  tallyFigures,
 } from '@reach/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
@@ -224,6 +225,14 @@ export function ActivityLog({
   return (
     <Stack gap={6}>
       <PageHeader
+        {...(load.status === 'ready' && load.page.total != null
+          ? {
+              figures: tallyFigures({
+                label: t('components.activity-log.figure_entries', 'entries'),
+                value: load.page.total,
+              }),
+            }
+          : {})}
         breadcrumb={
           <Breadcrumb className="touch:hidden">
             <BreadcrumbList>

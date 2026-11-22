@@ -2583,6 +2583,18 @@
     "text": "Feedback you receive shows here.",
     "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the empty of <Posts>."
   },
+  "feedback.figure_asked": {
+    "text": "asked of you",
+    "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the figures of <PageHeader>."
+  },
+  "feedback.figure_received": {
+    "text": "received",
+    "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the figures of <PageHeader>."
+  },
+  "feedback.figure_sent": {
+    "text": "sent",
+    "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the figures of <PageHeader>."
+  },
   "feedback.give_feedback": {
     "text": "Give feedback",
     "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the actions of <Button>."
@@ -3778,6 +3790,14 @@
   "learning.external_course": {
     "text": "External course",
     "context": "Performance: reviews, goals, feedback, learning. learning.tsx, KINDS: text built in code."
+  },
+  "learning.figure_assigned": {
+    "text": "assigned to you",
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: the figures of <PageHeader>."
+  },
+  "learning.figure_sessions": {
+    "text": "sessions",
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: the figures of <PageHeader>."
   },
   "learning.going": {
     "text": "Going",
