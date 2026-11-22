@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  CardToolbar,
   CardTitle,
   ChartCard,
   DonutChart,
@@ -195,125 +196,122 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
             }
           />
           {copying ? null : <Refusal error={act.error} />}
+          {/* One surface: what narrows the list is the head of the list. */}
           <Card>
-            <CardContent className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Search
-                  label={tr('cycles.search_cycles', 'Search cycles')}
-                  placeholder={tr('cycles.search_cycles', 'Search cycles')}
-                  initial={props.search?.['q'] ?? ''}
-                  onSearch={(q) => {
-                    props.onFilter?.({ q: q === '' ? null : q });
-                  }}
-                />
-                <ChipRow aria-label={tr('cycles.state', 'State')}>
-                  {STATES().map(([v, l]) => (
-                    <Chip
-                      key={v}
-                      selected={state === v}
-                      onClick={() => {
-                        props.onFilter?.({ state: v === '' ? null : v });
-                      }}
-                    >
-                      {l}
-                    </Chip>
-                  ))}
-                </ChipRow>
-                <span className="ml-auto">
-                  <Live />
-                </span>
-              </div>
-              {/* Every cycle, drawn only where it is in view. */}
-              <DataTable
-                label={tr('cycles.cycles', 'Cycles')}
-                rows={data.rows}
-                endLabel={tr('cycles.thats_every_cycle', 'That’s every cycle · {{length}}', {
-                  length: String(data.rows.length),
-                })}
-                rowId={(c) => c.id}
-                describeRow={(c) => c.name}
-                estimateRowHeight={57}
-                fill
-                columns={[
-                  {
-                    id: 'cycle',
-                    header: tr('cycles.cycle', 'Cycle'),
-                    cell: (c) => (
-                      <span className="flex flex-col">
-                        <To
-                          href={
-                            c.state === 'draft'
-                              ? `/performance/cycles/${c.id}/setup`
-                              : `/performance/cycles/${c.id}`
-                          }
-                          onNavigate={props.onNavigate}
-                        >
-                          {c.name}
-                        </To>
-                        <span className="text-xs text-fg-muted">
-                          {c.owner === 'Automation'
-                            ? tr('cycles.from_an_automation', 'From an automation')
-                            : tr('cycles.owner', 'Owner: {{owner}}', { owner: c.owner })}
-                        </span>
-                      </span>
-                    ),
-                  },
-                  {
-                    id: 'state',
-                    header: tr('cycles.state', 'State'),
-                    cell: (c) => <CycleBadge state={c.state} />,
-                  },
-                  {
-                    id: 'who',
-                    header: tr('cycles.who', 'Who'),
-                    cell: (c) => <span className="text-sm text-fg-muted">{c.who}</span>,
-                  },
-                  {
-                    id: 'kinds',
-                    header: tr('cycles.activities', 'Activities'),
-                    cell: (c) => (
-                      <span className="text-sm">{c.kinds.map(kindLabel).join(', ')}</span>
-                    ),
-                  },
-                  {
-                    id: 'dates',
-                    header: tr('cycles.dates', 'Dates'),
-                    cell: (c) => <span className="text-sm text-fg-muted">{c.dates}</span>,
-                  },
-                  {
-                    id: 'progress',
-                    header: tr('cycles.progress', 'Progress'),
-                    className: 'min-w-28',
-                    cell: (c) =>
-                      ['in_progress', 'closed', 'archived'].includes(c.state) ? (
-                        <Progress
-                          value={c.progress}
-                          label={tr('cycles.text', '{{name}}: {{progress}}%', {
-                            name: c.name,
-                            progress: String(c.progress),
-                          })}
-                        />
-                      ) : (
-                        '—'
-                      ),
-                  },
-                ]}
-                empty={
-                  <EmptyState
-                    icon={<icons.review aria-hidden />}
-                    title={tr('cycles.no_cycles_here', 'No cycles here')}
-                    description={
-                      data.hr
-                        ? tr('cycles.start_one_with_new_cycle', 'Start one with New cycle.')
-                        : tr(
-                            'cycles.cycles_you_take_part_in_show',
-                            'Cycles you take part in show here.',
-                          )
-                    }
-                  />
-                }
+            <CardToolbar className="flex-row flex-wrap items-center">
+              <Search
+                label={tr('cycles.search_cycles', 'Search cycles')}
+                placeholder={tr('cycles.search_cycles', 'Search cycles')}
+                initial={props.search?.['q'] ?? ''}
+                onSearch={(q) => {
+                  props.onFilter?.({ q: q === '' ? null : q });
+                }}
               />
-            </CardContent>
+              <ChipRow aria-label={tr('cycles.state', 'State')}>
+                {STATES().map(([v, l]) => (
+                  <Chip
+                    key={v}
+                    selected={state === v}
+                    onClick={() => {
+                      props.onFilter?.({ state: v === '' ? null : v });
+                    }}
+                  >
+                    {l}
+                  </Chip>
+                ))}
+              </ChipRow>
+              <span className="ml-auto">
+                <Live />
+              </span>
+            </CardToolbar>
+            {/* Every cycle, drawn only where it is in view. */}
+            <DataTable
+              label={tr('cycles.cycles', 'Cycles')}
+              rows={data.rows}
+              endLabel={tr('cycles.thats_every_cycle', 'That’s every cycle · {{length}}', {
+                length: String(data.rows.length),
+              })}
+              rowId={(c) => c.id}
+              describeRow={(c) => c.name}
+              estimateRowHeight={57}
+              fill
+              columns={[
+                {
+                  id: 'cycle',
+                  header: tr('cycles.cycle', 'Cycle'),
+                  cell: (c) => (
+                    <span className="flex flex-col">
+                      <To
+                        href={
+                          c.state === 'draft'
+                            ? `/performance/cycles/${c.id}/setup`
+                            : `/performance/cycles/${c.id}`
+                        }
+                        onNavigate={props.onNavigate}
+                      >
+                        {c.name}
+                      </To>
+                      <span className="text-xs text-fg-muted">
+                        {c.owner === 'Automation'
+                          ? tr('cycles.from_an_automation', 'From an automation')
+                          : tr('cycles.owner', 'Owner: {{owner}}', { owner: c.owner })}
+                      </span>
+                    </span>
+                  ),
+                },
+                {
+                  id: 'state',
+                  header: tr('cycles.state', 'State'),
+                  cell: (c) => <CycleBadge state={c.state} />,
+                },
+                {
+                  id: 'who',
+                  header: tr('cycles.who', 'Who'),
+                  cell: (c) => <span className="text-sm text-fg-muted">{c.who}</span>,
+                },
+                {
+                  id: 'kinds',
+                  header: tr('cycles.activities', 'Activities'),
+                  cell: (c) => <span className="text-sm">{c.kinds.map(kindLabel).join(', ')}</span>,
+                },
+                {
+                  id: 'dates',
+                  header: tr('cycles.dates', 'Dates'),
+                  cell: (c) => <span className="text-sm text-fg-muted">{c.dates}</span>,
+                },
+                {
+                  id: 'progress',
+                  header: tr('cycles.progress', 'Progress'),
+                  className: 'min-w-28',
+                  cell: (c) =>
+                    ['in_progress', 'closed', 'archived'].includes(c.state) ? (
+                      <Progress
+                        value={c.progress}
+                        label={tr('cycles.text', '{{name}}: {{progress}}%', {
+                          name: c.name,
+                          progress: String(c.progress),
+                        })}
+                      />
+                    ) : (
+                      '—'
+                    ),
+                },
+              ]}
+              empty={
+                <EmptyState
+                  icon={<icons.review aria-hidden />}
+                  title={tr('cycles.no_cycles_here', 'No cycles here')}
+                  description={
+                    data.hr
+                      ? tr('cycles.start_one_with_new_cycle', 'Start one with New cycle.')
+                      : tr(
+                          'cycles.cycles_you_take_part_in_show',
+                          'Cycles you take part in show here.',
+                        )
+                  }
+                />
+              }
+            />
           </Card>
           {starting ? (
             <NewCycle
