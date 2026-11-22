@@ -1115,6 +1115,14 @@
     "text": "Requests, documents and approvals appear here as each module is switched on.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/home-dashboard.tsx, HomeDashboard: the description of <EmptyState>."
   },
+  "components.home-modal.open_the_full_page": {
+    "text": "Open the full page",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-modal.tsx, HomeModal: the actions of <a>."
+  },
+  "components.home-modal.opening": {
+    "text": "Opening",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-modal.tsx, HomeModal: the label of <Spinner>."
+  },
   "components.inbox.bell.open": {
     "text": "Open",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/bell.tsx, Arrivals: a \"label\" value."

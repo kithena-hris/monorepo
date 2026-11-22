@@ -68,10 +68,11 @@ import { t as tr } from '../i18n';
  * Review with that chip chosen, the records' figures, who is starting and who
  * joined.
  *
- * A row, a face or a figure opens a quick look first, over Home: what it is,
- * the few facts about it, and the way to its page. Closing it leaves them
- * where they were. Each is still a link, so a new tab or a page with no
- * script goes straight to the page.
+ * Nothing on Home takes them off it. Where the host can open a page over
+ * Home, a task, a person, a request or a missing detail opens its own page
+ * there, to be done whole, and closing it is back on Home. What only informs
+ * (who is away, a figure) opens a quick look: the facts, and a button to its
+ * page over Home. Each is still a link, so a new tab goes straight to the page.
  *
  * Everything here was decided by People for this viewer: a part they have no
  * use for arrives as null and is simply not drawn, and nothing on the page
@@ -224,6 +225,11 @@ export interface PeopleHomeProps {
   readonly leave?: HostLeave;
   /** Hands a question to the host's assistant, when it has one. */
   readonly onAsk?: (question: string) => void;
+  /**
+   * Opens a page over Home, from a host that can: a task, a profile or a
+   * request is then done there, and closing it is back on Home.
+   */
+  readonly onOpen?: (href: string, label: string) => void;
 }
 
 /** Who is away, already worded by the host: People never learns what leave is. */
@@ -536,28 +542,42 @@ interface Peeked {
   readonly go: string;
   /** A question about it for the host's assistant. */
   readonly ask?: string;
+  /**
+   * Its page does the whole job (a task, a profile, a request): where the
+   * host can open a page over Home, a press opens that at once and the look
+   * is skipped.
+   */
+  readonly direct?: boolean;
 }
 
-/** Opens a quick look; null where nothing can, and a link is only a link. */
-const PeekContext = createContext<((peeked: Peeked) => void) | null>(null);
+/** What a press on Home can open: a quick look, and a page over Home where the host can. */
+interface Looks {
+  readonly peek: (peeked: Peeked) => void;
+  readonly open: ((href: string, label: string) => void) | null;
+}
+
+/** Null where nothing can open, and a link is only a link. */
+const PeekContext = createContext<Looks | null>(null);
+
+/** A plain press: a modified one (a new tab, a new window) is the browser's. */
+const plain = (event: MouseEvent): boolean =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 
 /**
- * A link's press, turned into a quick look. A modified press (a new tab, a
- * new window) is left to the browser, as is everything where no quick look
- * can open.
+ * A link's press, turned into what Home opens over itself: the page, where
+ * it does the whole job and the host can open one; else a quick look.
  */
 function opens(
-  peek: ((peeked: Peeked) => void) | null,
+  looks: Looks | null,
   peeked: Peeked,
 ): { readonly onClick?: (event: MouseEvent) => void } {
-  if (peek === null) return {};
+  if (looks === null) return {};
   return {
     onClick: (event) => {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
+      if (!plain(event)) return;
       event.preventDefault();
-      peek(peeked);
+      if (peeked.direct === true && looks.open !== null) looks.open(peeked.href, peeked.title);
+      else looks.peek(peeked);
     },
   };
 }
@@ -577,11 +597,14 @@ function Peek({
   open,
   onClose,
   onAsk,
+  onOpen,
 }: {
   readonly peeked: Peeked | null;
   readonly open: boolean;
   readonly onClose: () => void;
   readonly onAsk?: ((question: string) => void) | undefined;
+  /** Opens its page over Home, where the host can. */
+  readonly onOpen: ((href: string, label: string) => void) | null;
 }): JSX.Element {
   return (
     <Dialog
@@ -625,7 +648,20 @@ function Peek({
               </Button>
             )}
             <Button asChild variant="primary" endIcon={<icons.forward aria-hidden />}>
-              <a href={peeked.href}>{peeked.go}</a>
+              <a
+                href={peeked.href}
+                {...(onOpen === null
+                  ? {}
+                  : {
+                      onClick: (event: MouseEvent) => {
+                        if (!plain(event)) return;
+                        event.preventDefault();
+                        onOpen(peeked.href, peeked.title);
+                      },
+                    })}
+              >
+                {peeked.go}
+              </a>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -658,6 +694,7 @@ const personPeek = (
   ),
   href: `/people/${person.id}`,
   go: tr('home.people-home.open_profile', 'Open profile'),
+  direct: true,
 });
 
 /* -------------------------------------------------------------- parts -- */
@@ -850,6 +887,7 @@ function Todo({
           ),
           href,
           go: go ?? tr('home.people-home.open', 'Open'),
+          direct: true,
         })}
       >
         {title}
@@ -1190,7 +1228,7 @@ function Profile({
             className="relative tap-target h-auto p-0"
             aria-haspopup="dialog"
             onClick={() => {
-              peek({
+              peek.peek({
                 media: <Tile icon={<icons.missing aria-hidden />} name="Missing" tone="warning" />,
                 title: tr('home.people-home.missing_details', 'Missing details'),
                 description: tr(
@@ -1209,7 +1247,23 @@ function Profile({
                     {missing.map((m) =>
                       m.ownedBy === null ? (
                         <ListItem key={m.key} asChild chevron description={m.section}>
-                          <a href={`/people/me?field=${encodeURIComponent(m.key)}`}>{m.label}</a>
+                          <a
+                            href={`/people/me?field=${encodeURIComponent(m.key)}`}
+                            {...(peek.open === null
+                              ? {}
+                              : {
+                                  onClick: (event: MouseEvent) => {
+                                    if (!plain(event)) return;
+                                    event.preventDefault();
+                                    peek.open?.(
+                                      `/people/me?field=${encodeURIComponent(m.key)}`,
+                                      m.label,
+                                    );
+                                  },
+                                })}
+                          >
+                            {m.label}
+                          </a>
                         </ListItem>
                       ) : (
                         <ListItem
@@ -1558,6 +1612,7 @@ function Leave({ leave }: { readonly leave: HostLeave }): JSX.Element {
                 description: `${b.left} ${b.unit}`,
                 href: b.href,
                 go: tr('home.people-home.open_this_balance', 'Open this balance'),
+                direct: true,
               })}
             />
           ))}
@@ -1608,6 +1663,7 @@ function Leave({ leave }: { readonly leave: HostLeave }): JSX.Element {
                   ),
                   href: r.href,
                   go: tr('home.people-home.open_this_request', 'Open this request'),
+                  direct: true,
                 })}
               >
                 {r.title}
@@ -2492,16 +2548,27 @@ export function PeopleHome({
   away,
   leave,
   onAsk,
+  onOpen,
 }: PeopleHomeProps): JSX.Element {
   // The quick look: what was last pressed stays while it closes.
   const [peeked, setPeeked] = useState<Peeked | null>(null);
   const [peeking, setPeeking] = useState(false);
-  const peek = (next: Peeked): void => {
-    setPeeked(next);
-    setPeeking(true);
+  const looks: Looks = {
+    peek: (next) => {
+      setPeeked(next);
+      setPeeking(true);
+    },
+    // A page over Home takes the quick look's place.
+    open:
+      onOpen === undefined
+        ? null
+        : (href, label) => {
+            setPeeking(false);
+            onOpen(href, label);
+          },
   };
   return (
-    <PeekContext.Provider value={peek}>
+    <PeekContext.Provider value={looks}>
       <Peek
         peeked={peeked}
         open={peeking}
@@ -2509,6 +2576,7 @@ export function PeopleHome({
           setPeeking(false);
         }}
         onAsk={onAsk}
+        onOpen={looks.open}
       />
       <Loaded load={load} what={tr('home.people-home.your_home', 'your home')}>
         {(state) => {

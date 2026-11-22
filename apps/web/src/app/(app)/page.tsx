@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 
 import { AccountSheet } from '../../components/app-shell';
 import { HomeDashboard } from '../../components/home-dashboard';
+import { HomeModal } from '../../components/home-modal';
 import { HomeInbox } from '../../components/inbox/home-card';
 import { EMPTY_PEEK } from '../../lib/inbox/peek';
 import { inboxPeek } from '../../lib/inbox/server';
@@ -59,6 +60,8 @@ export default async function Home(): Promise<JSX.Element> {
       {/* A phone's title bar: the account beside Home's own title. */}
       <span className="absolute end-0 top-0 z-10 flex @3xl/page:hidden">{account}</span>
       {people}
+      {/* What a row on Home opens: its task or its page, done over Home. */}
+      <HomeModal />
     </div>
   );
 }

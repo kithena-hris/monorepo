@@ -277,6 +277,35 @@ describe('Home, as an employee (B1)', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
   });
 
+  it('opens a person and a task as their page over Home, where the host can, with no quick look', async () => {
+    const user = fast();
+    const onOpen = vi.fn();
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        onOpen={onOpen}
+        toDo={{
+          href: '/inbox',
+          tasks: [
+            {
+              id: 't1',
+              title: 'Write your self review',
+              description: 'Performance',
+              href: '/inbox/todo?item=t1',
+              icon: 'edit',
+            },
+          ],
+          waiting: [],
+        }}
+      />,
+    );
+    await user.click(within(part('Your profile')).getByRole('link', { name: 'Alan Turing' }));
+    expect(onOpen).toHaveBeenLastCalledWith(expect.stringMatching(/^\/people\//), 'Alan Turing');
+    await user.click(screen.getByRole('link', { name: /Write your self review/ }));
+    expect(onOpen).toHaveBeenLastCalledWith('/inbox/todo?item=t1', 'Write your self review');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('names the missing details in a quick look, each the way to fill it in', async () => {
     const user = fast();
     render(<PeopleHome load={ready(employee())} />);

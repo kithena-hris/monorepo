@@ -25,7 +25,7 @@ import {
 import { useCachedRead } from '../lib/query';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
-import { ASK_EVENT } from '../lib/ask-event';
+import { ASK_EVENT, OPEN_EVENT } from '../lib/ask-event';
 import type { homeToDo } from './inbox/format';
 import type { HomeAway, HomeLeave } from '../lib/home-time-off';
 import {
@@ -1211,6 +1211,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...(input.greeting === undefined ? {} : { greeting: input.greeting }),
           ...(input.away === undefined ? {} : { away: input.away }),
           ...(input.leave === undefined ? {} : { leave: input.leave }),
+          // A row's page opens over Home, to be done there (`home-modal.tsx`).
+          onOpen: (href: string, label: string) => {
+            window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { href, label } }));
+          },
           // A question from a quick look goes to the assistant, in its box to send.
           onAsk: (question: string) => {
             window.dispatchEvent(new CustomEvent(ASK_EVENT, { detail: question }));
