@@ -366,21 +366,20 @@ export function festivalOf(now: string, timeZone: string): string | null {
  * they work when People answered, so the server's page and the browser's agree.
  */
 export function greetingOf(now: string, timeZone: string, name: string): string {
+  // The festival's own sign after its words, outside what is translated.
   switch (festivalOf(now, timeZone)) {
     case 'new_year':
-      return tr('home.people-home.happy_new_year', 'Happy New Year, {{name}}!', { name });
+      return `${tr('home.people-home.happy_new_year', 'Happy New Year, {{name}}!', { name })} 🎉`;
     case 'lunar_new_year':
-      return tr('home.people-home.happy_lunar_new_year', 'Happy Lunar New Year, {{name}}!', {
-        name,
-      });
+      return `${tr('home.people-home.happy_lunar_new_year', 'Happy Lunar New Year, {{name}}!', { name })} 🧧`;
     case 'easter':
-      return tr('home.people-home.happy_easter', 'Happy Easter, {{name}}!', { name });
+      return `${tr('home.people-home.happy_easter', 'Happy Easter, {{name}}!', { name })} 🐣`;
     case 'eid':
-      return tr('home.people-home.eid_mubarak', 'Eid Mubarak, {{name}}!', { name });
+      return `${tr('home.people-home.eid_mubarak', 'Eid Mubarak, {{name}}!', { name })} 🌙`;
     case 'diwali':
-      return tr('home.people-home.happy_diwali', 'Happy Diwali, {{name}}!', { name });
+      return `${tr('home.people-home.happy_diwali', 'Happy Diwali, {{name}}!', { name })} 🪔`;
     case 'christmas':
-      return tr('home.people-home.merry_christmas', 'Merry Christmas, {{name}}!', { name });
+      return `${tr('home.people-home.merry_christmas', 'Merry Christmas, {{name}}!', { name })} 🎄`;
     default:
   }
   let hour = 12;

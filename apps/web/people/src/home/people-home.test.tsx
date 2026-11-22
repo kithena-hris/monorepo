@@ -66,16 +66,17 @@ describe('Home’s greeting', () => {
 
   it('greets a festival on its day, where they work', () => {
     const at = (day: string) => greetingOf(`${day}T10:00:00.000Z`, 'Europe/Madrid', 'Ada');
-    expect(at('2027-01-01')).toBe('Happy New Year, Ada!');
-    expect(at('2027-02-06')).toBe('Happy Lunar New Year, Ada!');
-    expect(at('2027-03-28')).toBe('Happy Easter, Ada!');
-    expect(at('2026-11-08')).toBe('Happy Diwali, Ada!');
-    expect(at('2026-12-25')).toBe('Merry Christmas, Ada!');
+    expect(at('2027-01-01')).toBe('Happy New Year, Ada! 🎉');
+    expect(at('2027-02-06')).toBe('Happy Lunar New Year, Ada! 🧧');
+    expect(at('2027-03-28')).toBe('Happy Easter, Ada! 🐣');
+    expect(at('2026-11-08')).toBe('Happy Diwali, Ada! 🪔');
+    expect(at('2026-12-25')).toBe('Merry Christmas, Ada! 🎄');
     // The first of Shawwal and the tenth of Dhu al-Hijjah, whenever they fall.
     const eids = Array.from({ length: 365 }, (_, i) =>
       new Date(Date.UTC(2027, 0, 1 + i, 10)).toISOString(),
     ).filter((day) => festivalOf(day, 'Europe/Madrid') === 'eid');
     expect(eids).toHaveLength(2);
+    expect(greetingOf(eids[0] ?? '', 'Europe/Madrid', 'Ada')).toBe('Eid Mubarak, Ada! 🌙');
     // An ordinary day keeps the hour's greeting.
     expect(festivalOf('2026-09-27T10:00:00.000Z', 'Europe/Madrid')).toBeNull();
     // The day is theirs, not the server's: still the 31st in New York.
