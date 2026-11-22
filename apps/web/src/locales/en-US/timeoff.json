@@ -11,7 +11,8 @@
   "kiosk.kiosk.not_recognised": "Not recognized",
   "requests.requests.cancelled": "Canceled",
   "requests.requests.figure_requests": "Requests",
-  "requests.requests.nothing_cancelled": "Nothing canceled.",
+  "requests.requests.nothing_booked_ahead": "No upcoming bookings",
+  "requests.requests.nothing_cancelled": "No cancellations",
   "settings.approval-settings.shortening_or_cancelling_time_off": "Shortening or canceling time off",
   "words.cancelled": "Canceled"
 }

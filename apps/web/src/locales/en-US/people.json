@@ -1,6 +1,7 @@
 {
   "analytics.analytics.annualised_over_leavers": "Annualized over {{leavers}} leavers: {{formula}}",
   "analytics.what-changed.choose_the_format_and_who_it": "Choose the format and who it is for; anything they may not see is left out or summarized.",
+  "home.people-home.what_needs_you_today": "Here’s what needs your attention today.",
   "import.work-locations.a_new_work_location_is_added": "A new work location is added in Settings › Organization, with the name, country and time zone you give it, by the run that imports the file.",
   "import.work-locations.added_in_settings_organisation_by_the": "Added in Settings › Organization by the run",
   "nav./settings/people/organisation.label": "Organization",
