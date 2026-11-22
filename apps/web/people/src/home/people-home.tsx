@@ -1110,11 +1110,14 @@ function Profile({
                 <a
                   key={r.id}
                   href={`/people/${r.id}`}
-                  aria-label={r.name}
                   title={r.name}
-                  className="rounded-full focus-visible:outline-2 focus-visible:outline-border-focus"
+                  className="relative tap-target rounded-full focus-visible:outline-2 focus-visible:outline-border-focus"
                 >
-                  <Avatar size="md" name={r.name} src={r.avatarUrl ?? undefined} />
+                  {/* Named in full for a screen reader; the initials are the picture. */}
+                  <span aria-hidden>
+                    <Avatar size="md" name={r.name} src={r.avatarUrl ?? undefined} />
+                  </span>
+                  <span className="sr-only">{r.name}</span>
                 </a>
               ))}
             </AvatarGroup>
