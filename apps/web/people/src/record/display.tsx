@@ -1,4 +1,4 @@
-import { dateFormat, MaskedValue, Money, Signature } from '@reach/ui';
+import { Country, dateFormat, MaskedValue, Money, Signature } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { FileValue, isFileField } from './files';
@@ -49,6 +49,9 @@ export function DisplayValue({
     );
   }
   if (typeof value === 'string') {
+    // A country by its code: its flag and its name in the reader's language.
+    if (field.dataType === 'country' && /^[A-Za-z]{2}$/.test(value))
+      return <Country code={value} shape="rounded" />;
     const option = field.options.find((o) => o.value === value);
     if (option !== undefined) return <>{option.label}</>;
     if (field.dataType === 'date' && value === INDEFINITE)
