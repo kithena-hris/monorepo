@@ -1202,6 +1202,7 @@
   "requests.requests.continue": "Продолжить",
   "requests.requests.declined_by": "Отклонено: {{role}}",
   "requests.requests.escalated_nobody_answered_in_time": "Эскалировано: никто не ответил вовремя.",
+  "requests.requests.figure_requests": "запросы",
   "requests.requests.give_back_days_you_dont_need": "Верните ненужные дни. Сокращение одобряется автоматически.",
   "requests.requests.give_the_days_back": "Вернуть дни",
   "requests.requests.its_approved_so_moving_it_goes": "Оно одобрено, поэтому перенос вернётся к согласующему. Баланс обновится после его согласия.",
