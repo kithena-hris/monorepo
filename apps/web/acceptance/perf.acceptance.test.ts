@@ -74,10 +74,13 @@ const BUDGET = {
 // every page grew 1.1-1.5 KB in the shell's shared chunks though the list
 // itself loads lazily; Time Off's went from 560 to 562 rather than wait on a
 // split no one had found.
+// From 22 Nov 2026, by the owner's choice: Reach gained Country and a rail that
+// names its areas, and Time Off's first load measured 562.4; its budget went
+// from 562 to 563.
 const JS_BUDGET_KB: Readonly<Record<string, number>> = {
   people: 604,
   settings: 602,
-  timeoff: 562,
+  timeoff: 563,
 };
 
 /**
