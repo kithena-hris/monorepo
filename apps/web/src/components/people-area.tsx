@@ -5,7 +5,15 @@ import { homeToDo } from './inbox/format';
 import { PeopleScreen } from './people-screen';
 import { Waking, WakingHeader } from './waking';
 import type { InboxPeek } from '../lib/inbox/peek';
-import { accessToken } from '../lib/people';
+import {
+  homeAway,
+  homeLeave,
+  type HomeAway,
+  type HomeLeave,
+  type OverviewAnswer,
+  type TimelineAnswer,
+} from '../lib/home-time-off';
+import { accessToken, timeOff } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import {
@@ -254,9 +262,33 @@ export async function PeopleArea({
  * signed in, as for any screen, and renders it on the server. `null` when
  * People offers no Home or cannot say which: the shell's own Home stands.
  */
+/**
+ * Time Off's part of Home: the team's next three weeks and the reader's own
+ * balances and requests, read as them. What Time Off refuses or cannot
+ * answer is left out, not an error on Home.
+ */
+async function homeTimeOff(): Promise<{ away?: HomeAway; leave?: HomeLeave }> {
+  const day = today();
+  const to = new Date(Date.parse(`${day}T12:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
+  const [overview, timeline] = await Promise.all([
+    timeOff<OverviewAnswer>('TimeOffOverview'),
+    timeOff<TimelineAnswer>('TimeOffCalendarTimeline', { from: day, to, scope: 'team' }),
+  ]);
+  const me = overview.ok ? (overview.data.member?.personId ?? null) : null;
+  return {
+    ...(timeline.ok ? { away: homeAway(timeline.data, day, me) } : {}),
+    // An account that is not a member has no time off of its own.
+    ...(overview.ok && overview.data.member !== null
+      ? { leave: homeLeave(overview.data, day) }
+      : {}),
+  };
+}
+
 export async function PeopleHome(
   inbox?: Promise<InboxPeek>,
   greeting?: string,
+  /** The company has Time Off: Home shows who is away and their own time off. */
+  withTimeOff = false,
 ): Promise<JSX.Element | null> {
   const t = await serverWords();
   const area = AREAS.people;
@@ -264,11 +296,13 @@ export async function PeopleHome(
   const component = nav?.slots.home;
   if (component === undefined) return null;
   // Home's To do is the Inbox's (B1), read beside People's own data.
-  const [load, ssr, peek] = await Promise.all([
+  const [load, ssr, peek, time] = await Promise.all([
     loadScreen(component, { params: {}, search: {} }),
     prepareRemoteSsr(remoteBase(area), area),
     inbox,
+    withTimeOff ? homeTimeOff().catch(() => ({})) : {},
   ]);
+  const { away, leave }: { away?: HomeAway; leave?: HomeLeave } = time;
   const toDo = peek === undefined ? undefined : homeToDo(peek);
   // People is asleep or still waking: Home asks again by itself.
   const waking = load.status === 'error' && load.unreachable === true;
@@ -288,6 +322,8 @@ export async function PeopleHome(
           today={today()}
           {...(toDo === undefined ? {} : { toDo })}
           {...(greeting === undefined ? {} : { greeting })}
+          {...(away === undefined ? {} : { away })}
+          {...(leave === undefined ? {} : { leave })}
         />
       )}
     </Waking>

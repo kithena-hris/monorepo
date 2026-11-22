@@ -128,6 +128,12 @@ export interface HomeTask {
   readonly context: string;
   /** When it is due, in words. */
   readonly due?: string;
+  /** Why it is theirs: the module's own sentence about it. */
+  readonly summary?: string;
+  /** Who it is from, where the item names somebody. */
+  readonly from?: string;
+  /** When it arrived: "3 Oct". */
+  readonly since: string;
   readonly href: string;
   readonly icon: string;
   readonly tone?: 'warning' | 'danger';
@@ -159,6 +165,9 @@ export function homeToDo(peek: InboxPeek): {
       // Apart as well, for a Home that draws when it is due at the row's end.
       context: [where, i.status?.label].filter(Boolean).join(' · '),
       ...(due === null ? {} : { due: due.label }),
+      ...(i.summary === null || i.summary === '' ? {} : { summary: i.summary }),
+      ...(i.from?.name == null ? {} : { from: i.from.name }),
+      since: shortDay(dayIn(i.at, peek.zone)),
       href: `/inbox/${lane}?item=${encodeURIComponent(i.id)}`,
       icon: i.icon,
       ...(due === null || due.tone === 'neutral' || i.lane !== 'task' ? {} : { tone: due.tone }),

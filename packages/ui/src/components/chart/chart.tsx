@@ -983,10 +983,38 @@ export function TrendChart({
              * not, and the column is also focusable, which the line could never
              * be.
              */}
-            <div className="absolute inset-0 flex">
+            <div
+              className="absolute inset-0 flex touch:inset-x-[calc(var(--chart-half)*-1)]"
+              style={
+                {
+                  '--chart-half': `${String(shownPeriods.length < 2 ? 0 : 50 / (shownPeriods.length - 1))}%`,
+                } as CSSProperties
+              }
+            >
               {shownPeriods.map((period, index) => {
                 const active = hovered === index;
                 const readout = readoutFor(index);
+                // The line's first point is on the plot's left edge and its
+                // last on the right, so the end columns are half as wide and
+                // read out at their outer edge: every column is centred on
+                // its own point, and the marker lands on the line.
+                const edge =
+                  shownPeriods.length < 2
+                    ? null
+                    : index === 0
+                      ? 'start'
+                      : index === shownPeriods.length - 1
+                        ? 'end'
+                        : null;
+                // Under a finger a half column is under the tap floor, so
+                // there the columns are equal and the row runs half a column
+                // past each edge instead: the same centres, full targets.
+                const at =
+                  edge === 'start'
+                    ? 'left-0 touch:left-1/2'
+                    : edge === 'end'
+                      ? 'left-full touch:left-1/2'
+                      : 'left-1/2';
                 return (
                   <ChartMark
                     key={period}
@@ -1038,7 +1066,8 @@ export function TrendChart({
                           : undefined
                       }
                       className={cn(
-                        'relative h-full min-w-0 flex-1',
+                        'relative h-full min-w-0',
+                        edge === null ? 'flex-1' : 'flex-[0.5_1_0%] touch:flex-1',
                         onSelect ? 'cursor-pointer' : 'cursor-default',
                         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
                       )}
@@ -1046,7 +1075,8 @@ export function TrendChart({
                       <span
                         aria-hidden
                         className={cn(
-                          'absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-border-strong',
+                          'absolute inset-y-0 w-px -translate-x-1/2 bg-border-strong',
+                          at,
                           'transition-opacity duration-(--animate-duration-fast)',
                           active ? 'opacity-100' : 'opacity-0',
                         )}
@@ -1060,12 +1090,12 @@ export function TrendChart({
                             aria-hidden
                             className={cn(
                               'absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-3 ring-surface',
+                              at,
                               bgTone[toneOf(entry)],
                               'transition-[opacity,transform] duration-(--animate-duration-fast)',
                               active ? 'opacity-100' : 'opacity-0',
                             )}
                             style={{
-                              left: '50%',
                               top: `${String(100 - ((point.value - min) / span) * 100)}%`,
                             }}
                           />
