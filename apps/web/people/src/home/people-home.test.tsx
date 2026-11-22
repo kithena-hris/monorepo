@@ -122,10 +122,10 @@ describe('Home’s greeting', () => {
     // Under the title where the widget is narrow, at the row's end where it is not.
     expect(screen.getAllByText('Overdue 21 days')).toHaveLength(2);
     expect(screen.getByText('Performance')).toBeInTheDocument();
-    expect(
-      screen.getByText('Your manager reads it before your review meeting.'),
-    ).toBeInTheDocument();
+    // Who sent it and since when is a line of its own, apart from when it is due.
     expect(screen.getByText('From Grace Hopper · since 6 Sep')).toBeInTheDocument();
+    // Why it is theirs waits in the quick look.
+    expect(screen.queryByText('Your manager reads it before your review meeting.')).toBeNull();
     // The way on is a glyph, named.
     expect(screen.getByRole('link', { name: 'Open Inbox' })).toHaveAttribute('href', '/inbox');
     // Nothing on Home repeats the sidebar.
@@ -141,7 +141,7 @@ describe('Home, as an employee (B1)', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/^Sunday 27 September · 11:30 in Madrid office$/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
-    expect(within(part('Your profile')).getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(within(part('Your profile')).getAllByText('Ada Lovelace')).not.toHaveLength(0);
     expect(screen.getByText('Engineer · Research · Madrid office')).toBeInTheDocument();
     expect(screen.getByText(/4 Mar 2024 · 2 years, 6 months/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open your profile' })).toHaveAttribute(
@@ -262,6 +262,33 @@ describe('Home, as an employee (B1)', () => {
     );
   });
 
+  it('opens a quick look at a manager, with the way to their profile, and closes back to Home', async () => {
+    const user = fast();
+    render(<PeopleHome load={ready(employee())} />);
+    await user.click(within(part('Your profile')).getByRole('link', { name: 'Alan Turing' }));
+    const look = screen.getByRole('dialog', { name: 'Alan Turing' });
+    expect(within(look).getByText('Your manager')).toBeInTheDocument();
+    expect(within(look).getByRole('link', { name: 'Open profile' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/people\//),
+    );
+    await user.click(within(look).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
+  });
+
+  it('names the missing details in a quick look, each the way to fill it in', async () => {
+    const user = fast();
+    render(<PeopleHome load={ready(employee())} />);
+    await user.click(within(part('Your profile')).getByRole('button', { name: /missing/ }));
+    const look = screen.getByRole('dialog', { name: 'Missing details' });
+    expect(within(look).getAllByRole('listitem').length).toBeGreaterThan(0);
+    expect(within(look).getByRole('link', { name: 'Open your profile' })).toHaveAttribute(
+      'href',
+      '/people/me',
+    );
+  });
+
   it('says what done looks like when nothing is left', async () => {
     const full = employee();
     const done = employee({
@@ -308,6 +335,29 @@ describe('Home, as HR (B2)', () => {
       { id: 'm', name: 'Mei Tanaka', avatarUrl: null, detail: 'Data analyst', missing: 3 },
     ],
   };
+
+  it('opens a figure as a quick look that says what it means, with a question for the assistant', async () => {
+    const user = fast();
+    const onAsk = vi.fn();
+    render(<PeopleHome load={ready({ ...overview(), hr: figures })} onAsk={onAsk} />, {
+      wrapper: TooltipProvider,
+    });
+    await user.click(screen.getByRole('link', { name: 'Headcount' }));
+    const look = screen.getByRole('dialog', { name: 'Headcount' });
+    const says = within(look).getByRole('list', { name: 'Summary' });
+    expect(within(says).getByText('412 people are on the records today.')).toBeInTheDocument();
+    expect(within(says).getByText('Up 14 on a year ago.')).toBeInTheDocument();
+    expect(within(says).getByText('Up 14 on the month before.')).toBeInTheDocument();
+    expect(within(look).getByRole('link', { name: 'Open workforce insights' })).toHaveAttribute(
+      'href',
+      '/people/insights/workforce',
+    );
+    await user.click(within(look).getByRole('button', { name: 'Ask the assistant' }));
+    expect(onAsk).toHaveBeenCalledWith(
+      'How has headcount changed over the last 12 months, and in which teams?',
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 
   it('gives HR the four figures and one review queue, each row opening Review pre-filtered', async () => {
     const hr = render(<PeopleHome load={ready({ ...overview(), hr: figures })} />, {

@@ -14,6 +14,13 @@ import {
   CircularProgress,
   Progress,
   dateFormat,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   formatList,
   type IconName,
   icons,
@@ -22,6 +29,7 @@ import {
   ListItem,
   locale,
   PageHeader,
+  PersonCard,
   Stack,
   TrendChart,
   Stat,
@@ -30,7 +38,15 @@ import {
   type UploadedImage,
   Widget,
 } from '@reach/ui';
-import { useState, type ComponentType, type JSX, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  type ComponentType,
+  type JSX,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 
 import { whoOf } from '../export/words';
 import { Loaded, type Loadable } from '../load';
@@ -51,6 +67,11 @@ import { t as tr } from '../i18n';
  * adds the queue waiting on HR, one list across every kind, each row opening
  * Review with that chip chosen, the records' figures, who is starting and who
  * joined.
+ *
+ * A row, a face or a figure opens a quick look first, over Home: what it is,
+ * the few facts about it, and the way to its page. Closing it leaves them
+ * where they were. Each is still a link, so a new tab or a page with no
+ * script goes straight to the page.
  *
  * Everything here was decided by People for this viewer: a part they have no
  * use for arrives as null and is simply not drawn, and nothing on the page
@@ -201,6 +222,8 @@ export interface PeopleHomeProps {
   readonly away?: HostAway;
   /** Their own time off: what is left and what is coming up, from a host that knows. */
   readonly leave?: HostLeave;
+  /** Hands a question to the host's assistant, when it has one. */
+  readonly onAsk?: (question: string) => void;
 }
 
 /** Who is away, already worded by the host: People never learns what leave is. */
@@ -500,6 +523,143 @@ const first = (name: string): string => name.split(' ')[0] ?? name;
 /** An item in Review, its chip chosen: where each row of Home's lists goes. */
 const review = (kind: string, item?: string): string =>
   `/people/review/waiting?kind=${kind}${item === undefined ? '' : `&item=${encodeURIComponent(item)}`}`;
+/* --------------------------------------------------------------- peek -- */
+
+/** What a quick look shows: the thing, a few facts, and the way to its page. */
+interface Peeked {
+  readonly media?: ReactNode;
+  readonly title: string;
+  readonly description?: string;
+  readonly body?: ReactNode;
+  /** The page it is a look at, and what the button to it says. */
+  readonly href: string;
+  readonly go: string;
+  /** A question about it for the host's assistant. */
+  readonly ask?: string;
+}
+
+/** Opens a quick look; null where nothing can, and a link is only a link. */
+const PeekContext = createContext<((peeked: Peeked) => void) | null>(null);
+
+/**
+ * A link's press, turned into a quick look. A modified press (a new tab, a
+ * new window) is left to the browser, as is everything where no quick look
+ * can open.
+ */
+function opens(
+  peek: ((peeked: Peeked) => void) | null,
+  peeked: Peeked,
+): { readonly onClick?: (event: MouseEvent) => void } {
+  if (peek === null) return {};
+  return {
+    onClick: (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      peek(peeked);
+    },
+  };
+}
+
+/** A few facts, label over value, two across. */
+function Facts({
+  items,
+}: {
+  readonly items: readonly { readonly label: string; readonly value: ReactNode }[];
+}): JSX.Element | null {
+  return items.length === 0 ? null : <KeyValues layout="stacked" columns={2} items={[...items]} />;
+}
+
+/** The quick look itself: one dialog for the page, showing what was last pressed. */
+function Peek({
+  peeked,
+  open,
+  onClose,
+  onAsk,
+}: {
+  readonly peeked: Peeked | null;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onAsk?: ((question: string) => void) | undefined;
+}): JSX.Element {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      {peeked === null ? null : (
+        <DialogContent
+          // Focus lands on the look itself, not on its first control: a chart's
+          // first point would open its tooltip over the summary.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            if (event.currentTarget instanceof HTMLElement) event.currentTarget.focus();
+          }}
+        >
+          <DialogHeader className="flex items-center gap-3.5 space-y-0">
+            {peeked.media}
+            <div className="min-w-0 flex-1 space-y-1">
+              <DialogTitle>{peeked.title}</DialogTitle>
+              {peeked.description === undefined ? null : (
+                <DialogDescription>{peeked.description}</DialogDescription>
+              )}
+            </div>
+          </DialogHeader>
+          {peeked.body === undefined ? null : (
+            <DialogBody className="flex flex-col gap-4 pb-4">{peeked.body}</DialogBody>
+          )}
+          <DialogFooter>
+            {peeked.ask === undefined || onAsk === undefined ? null : (
+              <Button
+                variant="secondary"
+                startIcon={<icons.assistant aria-hidden />}
+                onClick={() => {
+                  onClose();
+                  onAsk(peeked.ask ?? '');
+                }}
+              >
+                {tr('home.people-home.ask_the_assistant', 'Ask the assistant')}
+              </Button>
+            )}
+            <Button asChild variant="primary" endIcon={<icons.forward aria-hidden />}>
+              <a href={peeked.href}>{peeked.go}</a>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+/** Somebody's quick look: their face, what they do, and how they relate to the reader. */
+const personPeek = (
+  person: {
+    readonly id: string;
+    readonly name: string;
+    readonly avatarUrl?: string | null;
+    readonly title?: string | null;
+  },
+  relation: string,
+  facts: readonly { readonly label: string; readonly value: ReactNode }[] = [],
+): Peeked => ({
+  media: <Avatar size="xl" name={person.name} src={person.avatarUrl ?? undefined} />,
+  title: person.name,
+  ...(person.title == null || person.title === '' ? {} : { description: person.title }),
+  body: (
+    <>
+      <div>
+        <Badge size="sm">{relation}</Badge>
+      </div>
+      <Facts items={facts} />
+    </>
+  ),
+  href: `/people/${person.id}`,
+  go: tr('home.people-home.open_profile', 'Open profile'),
+});
+
 /* -------------------------------------------------------------- parts -- */
 
 /**
@@ -606,8 +766,9 @@ function Tile({
 }
 
 /**
- * One thing to do (B1): its tile, what it is, where it is from and why, when
- * it is due at the row's end, and the whole row the way to do it.
+ * One thing to do (B1): its tile, what it is and where it is from, who sent
+ * it and since when on a line of its own, and when it is due at the row's
+ * end. The row opens a quick look, with why it is theirs and the way to do it.
  */
 function Todo({
   icon,
@@ -615,35 +776,40 @@ function Todo({
   title,
   description,
   supporting,
-  aside,
+  why,
   href,
   due,
+  go,
 }: {
   readonly icon: ReactNode;
   readonly tone?: 'warning' | 'danger' | 'info' | 'accent';
   readonly title: string;
   readonly description: string;
-  /** Why it is theirs, in a sentence under the row's facts. */
+  /** Who it is from and since when: a line of its own, apart from when it is due. */
   readonly supporting?: string;
-  /** Who and since when, beside the due date where the widget is wide. */
-  readonly aside?: string;
+  /** Why it is theirs, in a sentence: said in the quick look. */
+  readonly why?: string;
   readonly href: string;
   /** When it is due, at the row's end, in the row's tone. */
   readonly due?: string;
+  /** What the quick look's button says. */
+  readonly go?: string;
 }): JSX.Element {
+  const peek = useContext(PeekContext);
   const badge =
     due === undefined ? null : (
       <Badge size="sm" tone={tone === 'danger' || tone === 'warning' ? tone : 'neutral'}>
         {due}
       </Badge>
     );
+  const tile = <Tile icon={icon} name={title} {...(tone === undefined ? {} : { tone })} />;
   return (
-    // The row is the way on: one link, named by what it does, with a chevron
-    // at the end rather than a button to aim at.
+    // The row is one link, named by what it does, with a chevron at the end
+    // rather than a button to aim at.
     <ListItem
       asChild
       chevron
-      leading={<Tile icon={icon} name={title} {...(tone === undefined ? {} : { tone })} />}
+      leading={tile}
       description={
         due === undefined ? (
           description
@@ -657,22 +823,37 @@ function Todo({
         )
       }
       {...(supporting === undefined ? {} : { supporting })}
-      {...(aside === undefined && due === undefined
+      {...(due === undefined
         ? {}
-        : {
-            trailing: (
-              <span className="hidden items-center gap-3 @md/col:flex">
-                {aside === undefined ? null : (
-                  <span className="hidden text-sm whitespace-nowrap text-fg-muted @2xl/col:inline">
-                    {aside}
-                  </span>
-                )}
-                {badge}
-              </span>
-            ),
-          })}
+        : { trailing: <span className="hidden @md/col:flex">{badge}</span> })}
     >
-      <a href={href}>{title}</a>
+      <a
+        href={href}
+        {...opens(peek, {
+          media: tile,
+          title,
+          description,
+          body: (
+            <>
+              {why === undefined ? null : <p className="text-sm text-fg">{why}</p>}
+              <Facts
+                items={[
+                  ...(due === undefined
+                    ? []
+                    : [{ label: tr('home.people-home.due', 'Due'), value: badge }]),
+                  ...(supporting === undefined
+                    ? []
+                    : [{ label: tr('home.people-home.sent', 'Sent'), value: supporting }]),
+                ]}
+              />
+            </>
+          ),
+          href,
+          go: go ?? tr('home.people-home.open', 'Open'),
+        })}
+      >
+        {title}
+      </a>
     </ListItem>
   );
 }
@@ -708,8 +889,8 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
             {...(t.tone === undefined ? {} : { tone: t.tone })}
             title={t.title}
             description={t.due === undefined ? t.description : (t.context ?? t.description)}
-            {...(t.summary === undefined ? {} : { supporting: t.summary })}
-            {...(sender(t) === null ? {} : { aside: sender(t) ?? '' })}
+            {...(sender(t) === null ? {} : { supporting: sender(t) ?? '' })}
+            {...(t.summary === undefined ? {} : { why: t.summary })}
             {...(t.due === undefined ? {} : { due: t.due })}
             href={t.href}
           />
@@ -888,6 +1069,7 @@ function ToDo({
                 'Sent {{waited}} · nothing changes until HR approves',
                 { waited: waited(c.requestedAt, state.now) },
               )}
+              go={inReviewWord()}
               href={review('changes', `change-${c.id}`)}
             />
           ))}
@@ -936,19 +1118,23 @@ function Part({
 
 /**
  * Who they are (B1), in one card: photo, name, what they do, their badges
- * and facts; the line above them, from the top, as the org chart draws it;
- * and who reports to them, as faces. Under a finger the line is the manager
- * alone (MA B1).
+ * and facts; then a small org chart: the line above them from the top, a
+ * card each joined by a line, themselves, and who reports to them as faces
+ * under it. A card or a face opens a quick look at that person, and how many
+ * details are missing opens which.
  */
 function Profile({
   me,
   now,
   line,
+  missing,
 }: {
   readonly me: NonNullable<PeopleHomeState['me']>;
   readonly now: string;
   readonly line: PeopleHomeState['reportingLine'];
+  readonly missing: PeopleHomeState['missing'];
 }): JSX.Element {
+  const peek = useContext(PeekContext);
   const role = [me.title, me.department, me.location].filter((x) => x !== null).join(' · ');
   const status = me.status === null ? undefined : STATUS[me.status];
   const time = localTime(now, me.timeZone);
@@ -995,7 +1181,59 @@ function Profile({
             {status.label}
           </Badge>
         )}
-        {me.missing === null || me.missing === 0 ? null : <MissingMark count={me.missing} />}
+        {me.missing === null || me.missing === 0 ? null : peek === null || missing.length === 0 ? (
+          <MissingMark count={me.missing} />
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="relative tap-target h-auto p-0"
+            aria-haspopup="dialog"
+            onClick={() => {
+              peek({
+                media: <Tile icon={<icons.missing aria-hidden />} name="Missing" tone="warning" />,
+                title: tr('home.people-home.missing_details', 'Missing details'),
+                description: tr(
+                  'home.people-home.of_required_missing',
+                  {
+                    one: '{{length}} of {{count}} required detail missing',
+                    other: '{{length}} of {{count}} required details missing',
+                  },
+                  { count: me.required, length: String(missing.length) },
+                ),
+                body: (
+                  <List
+                    className="-mx-6 touch:-mx-5.5"
+                    aria-label={tr('home.people-home.missing_details', 'Missing details')}
+                  >
+                    {missing.map((m) =>
+                      m.ownedBy === null ? (
+                        <ListItem key={m.key} asChild chevron description={m.section}>
+                          <a href={`/people/me?field=${encodeURIComponent(m.key)}`}>{m.label}</a>
+                        </ListItem>
+                      ) : (
+                        <ListItem
+                          key={m.key}
+                          description={tr(
+                            'home.people-home.filled_in_by',
+                            '{{section}} · filled in by {{who}}',
+                            { section: m.section, who: m.ownedBy },
+                          )}
+                        >
+                          {m.label}
+                        </ListItem>
+                      ),
+                    )}
+                  </List>
+                ),
+                href: '/people/me',
+                go: tr('home.people-home.open_your_profile', 'Open your profile'),
+              });
+            }}
+          >
+            <MissingMark count={me.missing} />
+          </Button>
+        )}
       </div>
       <KeyValues
         layout="stacked"
@@ -1045,96 +1283,119 @@ function Profile({
               ]),
         ]}
       />
-      {line === null || above.length === 0 ? null : (
+      {line === null || (above.length === 0 && line.reportsTotal === 0) ? null : (
         <Part title={tr('home.people-home.your_reporting_line', 'Your reporting line')}>
-          <List
-            className="-mx-5 touch:-mx-4"
+          <ol
+            className="flex flex-col items-center pt-2"
             aria-label={tr(
               'home.people-home.your_managers_from_the_top',
               'Your managers, from the top',
             )}
           >
-            {above.map((m, i) => (
-              <ListItem
-                key={m.id}
-                asChild
-                // Under a finger, only the manager: the one row a phone keeps.
-                className={i === above.length - 1 ? undefined : 'touch:hidden'}
-                leading={<Avatar size="md" name={m.name} src={m.avatarUrl ?? undefined} />}
-                description={
-                  m.id === manager?.id
-                    ? m.title == null || m.title === ''
-                      ? tr('home.people-home.your_manager', 'Your manager')
-                      : tr('home.people-home.your_manager_title', 'Your manager · {{title}}', {
-                          title: m.title,
-                        })
-                    : (m.title ?? undefined)
-                }
-                chevron
-              >
-                <a href={`/people/${m.id}`}>{m.name}</a>
-              </ListItem>
-            ))}
-            <ListItem
-              selected
-              className="touch:hidden"
-              leading={<Avatar size="md" name={me.name} src={me.avatarUrl ?? undefined} />}
-              description={
-                line.peers === null || manager === undefined || line.peers === 0
-                  ? (me.title ?? undefined)
-                  : tr(
-                      'home.people-home.to',
-                      {
-                        one: '{{count}} other reports to {{first}}.',
-                        other: '{{count}} others report to {{first}}.',
-                      },
-                      { count: line.peers, first: first(manager.name) },
-                    )
-              }
-            >
-              {tr('home.people-home.you', 'You')}
-            </ListItem>
-          </List>
-        </Part>
-      )}
-      {line === null || line.reportsTotal === 0 ? null : (
-        <Part title={tr('home.people-home.direct_reports', 'Direct reports')}>
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <AvatarGroup
-              max={6}
-              total={line.reportsTotal}
-              aria-label={tr('home.people-home.your_direct_reports', 'Your direct reports')}
-            >
-              {line.reports.map((r) => (
-                // A face opens them, as a person's row does.
-                <a
-                  key={r.id}
-                  href={`/people/${r.id}`}
-                  title={r.name}
-                  className="relative tap-target rounded-full focus-visible:outline-2 focus-visible:outline-border-focus"
-                >
-                  {/* Named in full for a screen reader; the initials are the picture. */}
-                  <span aria-hidden>
-                    <Avatar size="md" name={r.name} src={r.avatarUrl ?? undefined} />
-                  </span>
-                  <span className="sr-only">{r.name}</span>
-                </a>
-              ))}
-            </AvatarGroup>
-            {line.reportsFilter === null ? null : (
-              <Way
-                href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}
-                label={tr(
-                  'home.people-home.see_them_in_the_directory',
-                  {
-                    one: 'See your {{count}} direct report in the directory',
-                    other: 'See your {{count}} direct reports in the directory',
-                  },
+            {above.map((m) => {
+              const relation =
+                m.id === manager?.id
+                  ? tr('home.people-home.your_manager', 'Your manager')
+                  : tr('home.people-home.above_you', 'In your reporting line');
+              return (
+                <li key={m.id} className="flex w-full max-w-sm flex-col items-center">
+                  <PersonCard
+                    layout="row"
+                    className="w-full"
+                    name={m.name}
+                    {...(m.avatarUrl === null ? {} : { avatarSrc: m.avatarUrl })}
+                    description={
+                      m.id === manager?.id
+                        ? m.title == null || m.title === ''
+                          ? relation
+                          : tr('home.people-home.your_manager_title', 'Your manager · {{title}}', {
+                              title: m.title,
+                            })
+                        : (m.title ?? undefined)
+                    }
+                    href={`/people/${m.id}`}
+                    {...opens(peek, personPeek(m, relation))}
+                  />
+                  <span aria-hidden className="h-4 w-px bg-border-strong" />
+                </li>
+              );
+            })}
+            <li className="w-full max-w-sm">
+              <PersonCard
+                layout="row"
+                selected
+                name={me.name}
+                {...(me.avatarUrl === null ? {} : { avatarSrc: me.avatarUrl })}
+                description={[tr('home.people-home.you', 'You'), me.title]
+                  .filter((x) => x !== null && x !== '')
+                  .join(' · ')}
+                {...(line.peers === null || manager === undefined || line.peers === 0
+                  ? {}
+                  : {
+                      note: tr(
+                        'home.people-home.to',
+                        {
+                          one: '{{count}} other reports to {{first}}.',
+                          other: '{{count}} others report to {{first}}.',
+                        },
+                        { count: line.peers, first: first(manager.name) },
+                      ),
+                    })}
+              />
+            </li>
+          </ol>
+          {line.reportsTotal === 0 ? null : (
+            <div className="flex flex-col items-center gap-1.5">
+              <span aria-hidden className="h-4 w-px bg-border-strong" />
+              <p className="text-xs font-medium text-fg-muted">
+                {tr(
+                  'home.people-home.count_direct_reports',
+                  { one: '{{count}} direct report', other: '{{count}} direct reports' },
                   { count: line.reportsTotal },
                 )}
-              />
-            )}
-          </div>
+              </p>
+              <div className="flex items-center gap-2">
+                <AvatarGroup
+                  max={6}
+                  total={line.reportsTotal}
+                  aria-label={tr('home.people-home.your_direct_reports', 'Your direct reports')}
+                >
+                  {line.reports.map((r) => (
+                    // A face opens a quick look at them.
+                    <a
+                      key={r.id}
+                      href={`/people/${r.id}`}
+                      title={r.name}
+                      className="relative tap-target rounded-full focus-visible:outline-2 focus-visible:outline-border-focus"
+                      {...opens(
+                        peek,
+                        personPeek(r, tr('home.people-home.reports_to_you', 'Reports to you')),
+                      )}
+                    >
+                      {/* Named in full for a screen reader; the initials are the picture. */}
+                      <span aria-hidden>
+                        <Avatar size="md" name={r.name} src={r.avatarUrl ?? undefined} />
+                      </span>
+                      <span className="sr-only">{r.name}</span>
+                    </a>
+                  ))}
+                </AvatarGroup>
+                {line.reportsFilter === null ? null : (
+                  <Way
+                    href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}
+                    label={tr(
+                      'home.people-home.see_them_in_the_directory',
+                      {
+                        one: 'See your {{count}} direct report in the directory',
+                        other: 'See your {{count}} direct reports in the directory',
+                      },
+                      { count: line.reportsTotal },
+                    )}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </Part>
       )}
     </Widget>
@@ -1146,6 +1407,7 @@ function Profile({
  * that knows: a face, when, and when they are back or how soon they go.
  */
 function Away({ away }: { readonly away: HostAway }): JSX.Element {
+  const peek = useContext(PeekContext);
   const out = away.people.filter((p) => p.now).length;
   return (
     <Section
@@ -1180,6 +1442,7 @@ function Away({ away }: { readonly away: HostAway }): JSX.Element {
           {away.people.map((p) => (
             <ListItem
               key={p.id}
+              asChild
               leading={
                 <Avatar
                   size="lg"
@@ -1206,7 +1469,46 @@ function Away({ away }: { readonly away: HostAway }): JSX.Element {
                 </span>
               }
             >
-              {p.name}
+              <a
+                href={away.href}
+                {...opens(peek, {
+                  media: (
+                    <Avatar
+                      size="xl"
+                      name={p.name}
+                      {...(p.now ? { status: 'warning' as const } : {})}
+                    />
+                  ),
+                  title: p.name,
+                  ...(p.team === undefined ? {} : { description: p.team }),
+                  body: (
+                    <>
+                      <div>
+                        <Badge size="sm" tone={p.now ? 'warning' : 'neutral'}>
+                          {p.now
+                            ? tr('home.people-home.out_today', 'Out today')
+                            : tr('home.people-home.away_soon', 'Away soon')}
+                        </Badge>
+                      </div>
+                      <Facts
+                        items={[
+                          { label: tr('home.people-home.away', 'Away'), value: p.when },
+                          {
+                            label: p.now
+                              ? tr('home.people-home.returns', 'Returns')
+                              : tr('home.people-home.starts', 'Starts'),
+                            value: p.detail,
+                          },
+                        ]}
+                      />
+                    </>
+                  ),
+                  href: away.href,
+                  go: tr('home.people-home.open_the_team_calendar', 'Open the team calendar'),
+                })}
+              >
+                {p.name}
+              </a>
             </ListItem>
           ))}
         </List>
@@ -1220,6 +1522,7 @@ function Away({ away }: { readonly away: HostAway }): JSX.Element {
  * balances, then what is coming up with where each request stands.
  */
 function Leave({ leave }: { readonly leave: HostLeave }): JSX.Element {
+  const peek = useContext(PeekContext);
   return (
     <Section
       title={tr('home.people-home.your_time_off', 'Your time off')}
@@ -1249,6 +1552,13 @@ function Leave({ leave }: { readonly leave: HostLeave }): JSX.Element {
               value={b.left}
               description={b.unit}
               inset
+              {...opens(peek, {
+                media: <Tile icon={<icons.vacation aria-hidden />} name={b.name} />,
+                title: b.name,
+                description: `${b.left} ${b.unit}`,
+                href: b.href,
+                go: tr('home.people-home.open_this_balance', 'Open this balance'),
+              })}
             />
           ))}
         </div>
@@ -1280,7 +1590,28 @@ function Leave({ leave }: { readonly leave: HostLeave }): JSX.Element {
                 </Badge>
               }
             >
-              <a href={r.href}>{r.title}</a>
+              <a
+                href={r.href}
+                {...opens(peek, {
+                  media: <Tile icon={<icons.calendar aria-hidden />} name={r.title} />,
+                  title: r.title,
+                  description: r.when,
+                  body: (
+                    <>
+                      <div>
+                        <Badge size="sm" tone={r.tone}>
+                          {r.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-fg">{r.detail}</p>
+                    </>
+                  ),
+                  href: r.href,
+                  go: tr('home.people-home.open_this_request', 'Open this request'),
+                })}
+              >
+                {r.title}
+              </a>
             </ListItem>
           ))}
         </List>
@@ -1312,8 +1643,16 @@ function Columns({
 
 /* ---------------------------------------------------------------- HR -- */
 
-/** A figure that is also the way to where it is worked on. */
+/**
+ * A figure that is also the way to where it is worked on. It opens a quick
+ * look first: the number, what it says in sentences worked out from the same
+ * figures, and a question for the host's assistant where it has one.
+ */
 function Figure({
+  says,
+  ask,
+  go,
+  more,
   href,
   label,
   value,
@@ -1336,9 +1675,39 @@ function Figure({
   readonly className?: string;
   /** A meter of what the number is out of, under it. */
   readonly children?: ReactNode;
+  /** What the figure says, a sentence each: the quick look's summary. */
+  readonly says: readonly string[];
+  /** A question about it for the assistant. */
+  readonly ask?: string;
+  /** What the quick look's button says. */
+  readonly go: string;
+  /** Under the summary: a chart. */
+  readonly more?: ReactNode;
 }): JSX.Element {
+  const peek = useContext(PeekContext);
   return (
     <Stat
+      {...opens(peek, {
+        media: <Avatar size="lg" shape="rounded" name={label} fallback={icon} />,
+        title: label,
+        description: `${String(value)}${unit ?? ''}`,
+        body: (
+          <>
+            <ul
+              className="flex list-disc flex-col gap-1.5 ps-5 text-sm text-fg"
+              aria-label={tr('home.people-home.summary', 'Summary')}
+            >
+              {says.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            {more}
+          </>
+        ),
+        href,
+        go,
+        ...(ask === undefined ? {} : { ask }),
+      })}
       href={href}
       label={label}
       value={value}
@@ -1354,6 +1723,45 @@ function Figure({
       {children}
     </Stat>
   );
+}
+
+const inReviewWord = (): string => tr('home.people-home.open_in_review', 'Open in Review');
+
+/** What headcount says, in sentences worked out from the figures on the page. */
+export function headcountSays(headcount: {
+  readonly value: number;
+  readonly change: number | null;
+  readonly trend: readonly ChartPoint[];
+}): string[] {
+  const moved = (n: number, over: string): string =>
+    n === 0
+      ? tr('home.people-home.says_same', 'The same as {{over}}.', { over })
+      : n > 0
+        ? tr('home.people-home.says_up', 'Up {{n}} on {{over}}.', { n: String(n), over })
+        : tr('home.people-home.says_down', 'Down {{n}} on {{over}}.', { n: String(-n), over });
+  const last = headcount.trend.at(-1);
+  const before = headcount.trend.at(-2);
+  return [
+    tr(
+      'home.people-home.says_headcount',
+      {
+        one: '{{count}} person is on the records today.',
+        other: '{{count}} people are on the records today.',
+      },
+      { count: headcount.value },
+    ),
+    ...(headcount.change === null
+      ? []
+      : [moved(headcount.change, tr('home.people-home.a_year_ago', 'a year ago'))]),
+    ...(last === undefined || before === undefined
+      ? []
+      : [
+          moved(
+            last.value - before.value,
+            tr('home.people-home.the_month_before', 'the month before'),
+          ),
+        ]),
+  ];
 }
 
 /** A name after "by": "you" rather than "You". */
@@ -1396,6 +1804,7 @@ function HrHome({
   /** Who they are, who is away and their own time off: first beside the lists. */
   readonly around?: ReactNode;
 }): JSX.Element {
+  const peek = useContext(PeekContext);
   const approvals = state.approvals;
   const team = state.team;
   const changes = approvals?.total ?? 0;
@@ -1428,6 +1837,7 @@ function HrHome({
         ]
           .filter((x) => x !== null)
           .join(' · ')}
+        go={inReviewWord()}
         href={review('changes')}
       />,
     );
@@ -1456,6 +1866,7 @@ function HrHome({
         ]
           .filter((x) => x !== null)
           .join(' · ')}
+        go={inReviewWord()}
         href={review('ids')}
       />,
     );
@@ -1483,6 +1894,7 @@ function HrHome({
         ]
           .filter((x) => x !== null)
           .join(' · ')}
+        go={inReviewWord()}
         href={review('duplicates')}
       />,
     );
@@ -1511,6 +1923,7 @@ function HrHome({
                 },
               )
         }
+        go={inReviewWord()}
         href={review('access')}
       />,
     );
@@ -1532,6 +1945,7 @@ function HrHome({
           'home.people-home.missing_details_only_hr_keeps',
           'Missing details only HR keeps',
         )}
+        go={inReviewWord()}
         href={review('missing')}
       />,
     );
@@ -1556,12 +1970,14 @@ function HrHome({
           'home.people-home.reminded_by_email_once_a_week',
           'Reminded by email once a week',
         )}
+        go={inReviewWord()}
         href={review('missing')}
       />,
     );
   }
   const headcount = hr.headcount;
   const oldest = approvals?.items.at(-1);
+  const insights = tr('home.people-home.open_workforce_insights', 'Open workforce insights');
   return (
     <Columns
       main={
@@ -1616,6 +2032,34 @@ function HrHome({
                     icon={<icons.team aria-hidden />}
                     tone="chart-1"
                     value={headcount.value.toLocaleString(locale())}
+                    go={insights}
+                    ask={tr(
+                      'home.people-home.ask_headcount',
+                      'How has headcount changed over the last 12 months, and in which teams?',
+                    )}
+                    says={headcountSays(headcount)}
+                    {...(headcount.trend.length < 2
+                      ? {}
+                      : {
+                          more: (
+                            <TrendChart
+                              series={[
+                                {
+                                  label: tr('home.people-home.people', 'People'),
+                                  tone: 'chart-1',
+                                  data: headcount.trend,
+                                },
+                              ]}
+                              label={tr(
+                                'home.people-home.headcount_by_month',
+                                'Headcount by month',
+                              )}
+                              height={140}
+                              area
+                              showLastPoint
+                            />
+                          ),
+                        })}
                     description={
                       headcount.change === null
                         ? tr('home.people-home.today', 'today')
@@ -1628,11 +2072,56 @@ function HrHome({
                 )}
                 {hr.complete === null ? null : (
                   <Figure
+                    go={inReviewWord()}
                     href={review('missing')}
                     label={tr('home.people-home.complete_records', 'Complete records')}
                     icon={<icons.success aria-hidden />}
                     tone="chart-2"
                     value={hr.complete.percent}
+                    ask={tr(
+                      'home.people-home.ask_complete',
+                      'Which records are incomplete, and what is missing from them?',
+                    )}
+                    says={[
+                      tr(
+                        'home.people-home.says_complete',
+                        '{{percent}}% of records have every required detail.',
+                        { percent: String(hr.complete.percent) },
+                      ),
+                      tr(
+                        'home.people-home.says_incomplete',
+                        {
+                          one: '{{count}} record still has a gap.',
+                          other: '{{count}} records still have gaps.',
+                        },
+                        { count: hr.complete.incomplete },
+                      ),
+                      ...(team === null || team.toFill === 0
+                        ? []
+                        : [
+                            tr(
+                              'home.people-home.says_to_fill',
+                              {
+                                one: '{{count}} missing detail is HR’s to fill in.',
+                                other: '{{count}} missing details are HR’s to fill in.',
+                              },
+                              { count: team.toFill },
+                            ),
+                          ]),
+                      ...(team === null || team.waiting === 0
+                        ? []
+                        : [
+                            tr(
+                              'home.people-home.says_waiting',
+                              {
+                                one: '{{count}} person has details of their own to add, and is reminded weekly.',
+                                other:
+                                  '{{count}} people have details of their own to add, and are reminded weekly.',
+                              },
+                              { count: team.waiting },
+                            ),
+                          ]),
+                    ]}
                     unit="%"
                     description={tr(
                       'home.people-home.incomplete',
@@ -1652,11 +2141,34 @@ function HrHome({
                 )}
                 {approvals === null ? null : (
                   <Figure
+                    go={inReviewWord()}
                     href={review('changes')}
                     label={tr('home.people-home.waiting_for_a_decision', 'Waiting for a decision')}
                     icon={<icons.pending aria-hidden />}
                     tone="chart-3"
                     value={approvals.total}
+                    says={[
+                      tr(
+                        'home.people-home.says_changes',
+                        {
+                          one: '{{count}} change to a record waits for HR to approve or decline.',
+                          other: '{{count}} changes to records wait for HR to approve or decline.',
+                        },
+                        { count: approvals.total },
+                      ),
+                      ...(oldest === undefined
+                        ? []
+                        : [
+                            tr('home.people-home.says_oldest', 'The oldest was asked {{waited}}.', {
+                              waited: waited(oldest.requestedAt, state.now),
+                            }),
+                          ]),
+                      ...((flag) => (flag === null ? [] : [`${flag}.`]))(unusual(approvals)),
+                      tr(
+                        'home.people-home.says_nothing_changes',
+                        'Nothing changes on a record until HR decides.',
+                      ),
+                    ]}
                     description={
                       oldest === undefined
                         ? tr('home.people-home.nothing_waiting', 'nothing waiting')
@@ -1674,6 +2186,26 @@ function HrHome({
                     icon={<icons.scheduled aria-hidden />}
                     tone="chart-4"
                     value={hr.expiring}
+                    go={insights}
+                    ask={tr(
+                      'home.people-home.ask_expiring',
+                      'Whose permit, contract or probation ends in the next 90 days?',
+                    )}
+                    says={[
+                      tr(
+                        'home.people-home.says_expiring',
+                        {
+                          one: '{{count}} permit, contract or probation ends in the next 90 days.',
+                          other:
+                            '{{count}} permits, contracts or probations end in the next 90 days.',
+                        },
+                        { count: hr.expiring },
+                      ),
+                      tr(
+                        'home.people-home.says_expiring_where',
+                        'Workforce insights lists each one with its end date.',
+                      ),
+                    ]}
                     description={tr(
                       'home.people-home.permits_contracts_probations',
                       'Permits, contracts, probations',
@@ -1758,7 +2290,26 @@ function HrHome({
                       )
                     }
                   >
-                    <a href={`/people/${p.id}`}>{p.name}</a>
+                    <a
+                      href={`/people/${p.id}`}
+                      {...opens(
+                        peek,
+                        personPeek(p, tr('home.people-home.starting_soon', 'Starting soon'), [
+                          { label: tr('home.people-home.starts', 'Starts'), value: p.detail },
+                          {
+                            label: tr('home.people-home.record', 'Record'),
+                            value:
+                              p.missing === null || p.missing === 0 ? (
+                                tr('home.people-home.ready', 'Ready')
+                              ) : (
+                                <MissingMark count={p.missing} />
+                              ),
+                          },
+                        ]),
+                      )}
+                    >
+                      {p.name}
+                    </a>
                   </ListItem>
                 ))}
               </List>
@@ -1940,94 +2491,112 @@ export function PeopleHome({
   greeting,
   away,
   leave,
+  onAsk,
 }: PeopleHomeProps): JSX.Element {
+  // The quick look: what was last pressed stays while it closes.
+  const [peeked, setPeeked] = useState<Peeked | null>(null);
+  const [peeking, setPeeking] = useState(false);
+  const peek = (next: Peeked): void => {
+    setPeeked(next);
+    setPeeking(true);
+  };
   return (
-    <Loaded load={load} what={tr('home.people-home.your_home', 'your home')}>
-      {(state) => {
-        const { me, reportingLine, hr } = state;
-        const hrFigures = state.roles.hr ? (hr ?? null) : null;
-        const today = me === null ? '' : weekday(state.now, me.timeZone);
-        const time = me === null ? '' : localTime(state.now, me.timeZone);
-        const where = me?.location ?? null;
-        const when = [
-          today,
-          [time, where === null ? null : tr('home.people-home.in', 'in {{where}}', { where })]
-            .filter((x) => x !== null && x !== '')
-            .join(' '),
-        ]
-          .filter((x) => x !== '')
-          .join(' · ');
-        // Who they are, who is away and their own time off, beside the lists.
-        const around =
-          me === null ? null : (
-            <>
-              <Profile me={me} now={state.now} line={reportingLine} />
-              {away === undefined ? null : <Away away={away} />}
-              {leave === undefined ? null : <Leave leave={leave} />}
-            </>
-          );
-        return (
-          // The wash is behind the header and the first rows under it.
-          <div className="page-backdrop flex flex-col gap-6">
-            <PageHeader
-              align="center"
-              // A greeting, not a title to keep in view: it goes with the page.
-              sticky={false}
-              {...(when === ''
-                ? {}
-                : {
-                    breadcrumb: (
-                      <p className="text-center text-sm font-medium text-fg-muted">{when}</p>
-                    ),
-                  })}
-              title={
-                me === null
-                  ? tr('home.people-home.home', 'Home')
-                  : greetingOf(state.now, me.timeZone, greeting ?? first(me.name))
-              }
-              description={
-                me === null
-                  ? tr(
-                      'home.people-home.your_account_is_not_linked_to',
-                      'Your account is not linked to anybody’s record, so there is no profile to show.',
-                    )
-                  : hrFigures !== null
-                    ? tr('home.people-home.what_needs_hr_today', 'Here’s what needs HR today.')
-                    : tr('home.people-home.what_needs_you_today', 'Here’s what needs you today.')
-              }
-            />
-            {me === null || state.setup == null ? null : (
-              <Setup
-                setup={state.setup}
-                name={me.name}
-                onPhoto={onPhoto}
-                onSetupFile={onSetupFile}
-              />
-            )}
-            {hrFigures !== null ? (
+    <PeekContext.Provider value={peek}>
+      <Peek
+        peeked={peeked}
+        open={peeking}
+        onClose={() => {
+          setPeeking(false);
+        }}
+        onAsk={onAsk}
+      />
+      <Loaded load={load} what={tr('home.people-home.your_home', 'your home')}>
+        {(state) => {
+          const { me, reportingLine, hr } = state;
+          const hrFigures = state.roles.hr ? (hr ?? null) : null;
+          const today = me === null ? '' : weekday(state.now, me.timeZone);
+          const time = me === null ? '' : localTime(state.now, me.timeZone);
+          const where = me?.location ?? null;
+          const when = [
+            today,
+            [time, where === null ? null : tr('home.people-home.in', 'in {{where}}', { where })]
+              .filter((x) => x !== null && x !== '')
+              .join(' '),
+          ]
+            .filter((x) => x !== '')
+            .join(' · ');
+          // Who they are, who is away and their own time off, beside the lists.
+          const around =
+            me === null ? null : (
               <>
-                <HrHome
-                  hr={hrFigures}
-                  state={state}
-                  around={around}
-                  toDo={
-                    toDo === undefined || toDo.tasks.length === 0 ? undefined : (
-                      <HostList toDo={{ ...toDo, waiting: [] }} />
-                    )
-                  }
-                />
+                <Profile me={me} now={state.now} line={reportingLine} missing={state.missing} />
+                {away === undefined ? null : <Away away={away} />}
+                {leave === undefined ? null : <Leave leave={leave} />}
               </>
-            ) : me === null ? null : (
-              <Columns
-                main={
-                  toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />
+            );
+          return (
+            // The wash is behind the header and the first rows under it.
+            <div className="page-backdrop flex flex-col gap-6">
+              <PageHeader
+                align="center"
+                // A greeting, not a title to keep in view: it goes with the page.
+                sticky={false}
+                {...(when === ''
+                  ? {}
+                  : {
+                      breadcrumb: (
+                        <p className="text-center text-sm font-medium text-fg-muted">{when}</p>
+                      ),
+                    })}
+                title={
+                  me === null
+                    ? tr('home.people-home.home', 'Home')
+                    : greetingOf(state.now, me.timeZone, greeting ?? first(me.name))
                 }
-                side={around}
+                description={
+                  me === null
+                    ? tr(
+                        'home.people-home.your_account_is_not_linked_to',
+                        'Your account is not linked to anybody’s record, so there is no profile to show.',
+                      )
+                    : hrFigures !== null
+                      ? tr('home.people-home.what_needs_hr_today', 'Here’s what needs HR today.')
+                      : tr('home.people-home.what_needs_you_today', 'Here’s what needs you today.')
+                }
               />
-            )}
-          </div>
-        );
-      }}
-    </Loaded>
+              {me === null || state.setup == null ? null : (
+                <Setup
+                  setup={state.setup}
+                  name={me.name}
+                  onPhoto={onPhoto}
+                  onSetupFile={onSetupFile}
+                />
+              )}
+              {hrFigures !== null ? (
+                <>
+                  <HrHome
+                    hr={hrFigures}
+                    state={state}
+                    around={around}
+                    toDo={
+                      toDo === undefined || toDo.tasks.length === 0 ? undefined : (
+                        <HostList toDo={{ ...toDo, waiting: [] }} />
+                      )
+                    }
+                  />
+                </>
+              ) : me === null ? null : (
+                <Columns
+                  main={
+                    toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />
+                  }
+                  side={around}
+                />
+              )}
+            </div>
+          );
+        }}
+      </Loaded>
+    </PeekContext.Provider>
   );
 }

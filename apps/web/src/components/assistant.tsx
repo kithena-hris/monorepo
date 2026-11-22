@@ -26,6 +26,9 @@ import { t as tr } from '../lib/t';
  * sent with the ones before it — never with their answers.
  */
 
+/** The window event a screen asks the assistant with: its detail is the question. */
+export const ASK_EVENT = 'kithena:ask';
+
 const loadWindow = () => import('./assistant-panel');
 const AssistantWindow = lazy(loadWindow);
 
@@ -51,6 +54,20 @@ export function Assistant(): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  // A screen hands over a question (a quick look on Home): open, with it in
+  // the box to read, change and send.
+  useEffect(() => {
+    const onAsk = (event: Event): void => {
+      if (!(event instanceof CustomEvent) || typeof event.detail !== 'string') return;
+      setDraft(event.detail);
+      setOpen(true);
+    };
+    window.addEventListener(ASK_EVENT, onAsk);
+    return () => {
+      window.removeEventListener(ASK_EVENT, onAsk);
     };
   }, []);
 
