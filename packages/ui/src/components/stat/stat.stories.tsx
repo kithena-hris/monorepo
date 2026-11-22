@@ -361,7 +361,7 @@ export const IconBesideTheLabel: Story = {
     docs: {
       description: {
         story:
-          '`iconPosition="start"` sets the icon before the label, as its marker, for a row of tiles told apart by kind; the default keeps it at the far side.',
+          '`iconPosition="start"` sets the icon before the label, as its marker, for a row of tiles told apart by kind; the default keeps it at the far side. With a `tone` the start icon sits in a tinted tile, as a widget’s does.',
       },
     },
   },
@@ -369,6 +369,14 @@ export const IconBesideTheLabel: Story = {
     <div className="grid max-w-2xl grid-cols-2 gap-3">
       <Stat iconPosition="start" icon={<Users />} label="Self reviews" value="12" unit="of 40 in" />
       <Stat icon={<Users />} label="Self reviews" value="12" unit="of 40 in" />
+      <Stat
+        iconPosition="start"
+        tone="chart-2"
+        icon={<Users />}
+        label="Self reviews"
+        value="12"
+        unit="of 40 in"
+      />
     </div>
   ),
 };

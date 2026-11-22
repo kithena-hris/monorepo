@@ -136,7 +136,7 @@ export const ViewChips: Story = {
     docs: {
       description: {
         story:
-          'A row of saved views over a list: one at a time, the chosen one inverted, each with its count where there is one.',
+          'A row of saved views over a list: one at a time, the chosen one inverted. Every view keeps its `count` whichever is chosen, and a view that is a state carries a `tone` dot.',
       },
     },
   },
@@ -151,9 +151,18 @@ export const ViewChips: Story = {
           ['Incomplete', 88],
         ] as const
       ).map(([view, count]) => (
-        <ChipGroupItem key={view} value={view} variant="view">
+        <ChipGroupItem
+          key={view}
+          value={view}
+          variant="view"
+          count={count}
+          {...(view === 'Leaving'
+            ? { tone: 'warning' as const }
+            : view === 'Incomplete'
+              ? { tone: 'danger' as const }
+              : {})}
+        >
           {view}
-          <span className="font-medium tabular-nums">{count}</span>
         </ChipGroupItem>
       ))}
     </ChipGroup>

@@ -3,6 +3,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { t } from '../../lib/i18n';
+import { toneVar, type ChartTone } from '../chart/tones';
 
 /**
  * A single headline number.
@@ -46,6 +47,12 @@ export interface StatProps extends ComponentPropsWithoutRef<'div'> {
   icon?: ReactNode;
   /** `start` sets the icon before the label, as its marker; `end` at the far side. */
   iconPosition?: 'start' | 'end';
+  /**
+   * Sets a `start` icon in a tinted tile, from the chart tones, as a
+   * `Widget`'s header does: a row of figures told apart by colour and glyph
+   * before any of them is read.
+   */
+  tone?: ChartTone;
   /**
    * A tile inside a card, a row of counts under a headline: it sits on the
    * card's sunken fill with no shadow of its own, so it reads as part of the
@@ -94,6 +101,7 @@ export function Stat({
   description,
   icon,
   iconPosition = 'end',
+  tone,
   inset = false,
   href,
   action,
@@ -144,7 +152,20 @@ export function Stat({
     >
       {icon && iconPosition === 'start' ? (
         <div className="flex items-center gap-2">
-          <span className="shrink-0 text-fg-subtle [&_svg]:size-4">{icon}</span>
+          {tone === undefined ? (
+            <span className="shrink-0 text-fg-subtle [&_svg]:size-4">{icon}</span>
+          ) : (
+            <span
+              aria-hidden
+              className="grid size-7 shrink-0 place-items-center rounded-md [&_svg]:size-3.5"
+              style={{
+                color: `color-mix(in oklab, ${toneVar[tone]} 75%, var(--color-fg))`,
+                background: `color-mix(in oklch, ${toneVar[tone]} 18%, transparent)`,
+              }}
+            >
+              {icon}
+            </span>
+          )}
           <p className="min-w-0 flex-1 text-sm font-medium text-fg-muted">{name}</p>
           {end}
         </div>

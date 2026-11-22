@@ -35,6 +35,7 @@ import {
   ListItem,
   locale,
   PageHeader,
+  type PageHeaderFigure,
   PersonCard,
   Popover,
   PopoverContent,
@@ -174,6 +175,16 @@ export interface DirectoryState {
   readonly now?: string;
   /** On notice, of everybody: the Leaving view's count. Absent from an older People. */
   readonly leaving?: number | null;
+  /**
+   * What each view holds of everybody, whatever this list is narrowed to, so
+   * every view keeps its count while another is open. Absent from an older People.
+   */
+  readonly views?: {
+    readonly everyone: number;
+    readonly starting: number | null;
+    readonly leaving: number | null;
+    readonly incomplete: number | null;
+  };
   readonly incomplete: number | null;
   readonly columns: readonly DirectoryColumn[];
   /** Everything a condition may name. Absent: no advanced filters. */
@@ -659,6 +670,61 @@ export function describeCondition(
  * opens the full profile. Under a finger the table is a list of people, each
  * row a tap to their profile.
  */
+/**
+ * The summary as the stuck header draws it: each count with a ring of what
+ * part of the people it is. Narrowed, the first ring is how much of everybody
+ * the list holds.
+ */
+export function figuresOf(state: DirectoryState): PageHeaderFigure[] {
+  const { total, notStarted, incomplete } = state;
+  const n = (value: number) => value.toLocaleString(locale());
+  const part = (value: number) => (total === 0 ? 0 : value / total);
+  const everyone = state.views?.everyone ?? total;
+  return [
+    {
+      label: t(
+        'directory.directory.figure_people',
+        { one: 'person', other: 'people' },
+        {
+          count: total,
+        },
+      ),
+      value: n(total),
+      ...(everyone > total ? { share: total / everyone, tone: 'info' as const } : {}),
+    },
+    ...(notStarted === null
+      ? []
+      : [
+          {
+            label: t('directory.directory.figure_active', 'active'),
+            value: n(state.active),
+            share: part(state.active),
+            tone: 'success' as const,
+          },
+        ]),
+    ...(notStarted === null || notStarted === 0
+      ? []
+      : [
+          {
+            label: t('directory.directory.figure_not_started', 'not started'),
+            value: n(notStarted),
+            share: part(notStarted),
+            tone: 'info' as const,
+          },
+        ]),
+    ...(incomplete === null
+      ? []
+      : [
+          {
+            label: t('directory.directory.figure_incomplete', 'incomplete'),
+            value: n(incomplete),
+            share: part(incomplete),
+            tone: 'warning' as const,
+          },
+        ]),
+  ];
+}
+
 export function Directory(props: DirectoryProps): JSX.Element {
   const { load, view = 'list', onViewChange } = props;
   const summary = load.status === 'ready' ? summaryOf(load.data) : undefined;
@@ -668,6 +734,7 @@ export function Directory(props: DirectoryProps): JSX.Element {
       <PageHeader
         title={t('directory.directory.directory', 'Directory')}
         description={summary}
+        {...(load.status === 'ready' ? { figures: figuresOf(load.data) } : {})}
         actions={
           onViewChange === undefined ? undefined : (
             <ViewSwitch view={view} onChange={onViewChange} />
@@ -773,6 +840,13 @@ function Views({
     conditions[0].values.length === values.length &&
     values.every((v) => conditions[0]?.values.includes(v));
   const everyone = conditions.length === 0 && !incomplete && segmentId === null;
+  // Of everybody, whichever view is open; an older People counts only the open one.
+  const of = state.views ?? {
+    everyone: everyone ? state.total : null,
+    starting: everyone ? state.notStarted : null,
+    leaving: everyone ? (state.leaving ?? null) : null,
+    incomplete: everyone ? state.incomplete : null,
+  };
   const status = (...values: string[]) => ({
     conditions: [{ key: 'status', op: 'in', values }],
     incomplete: false,
@@ -782,7 +856,7 @@ function Views({
     {
       id: 'everyone',
       label: t('directory.directory.everyone', 'Everyone'),
-      count: everyone ? state.total : null,
+      count: of.everyone,
       on: everyone,
       view: { conditions: [], incomplete: false, segmentId: null },
     },
@@ -791,7 +865,8 @@ function Views({
           {
             id: 'starting',
             label: t('directory.directory.starting_soon', 'Starting soon'),
-            count: everyone ? state.notStarted : null,
+            count: of.starting,
+            tone: 'info' as const,
             // Hired and not started: a pre-hire, and one who signed up and is onboarding.
             on: statusIs('pre_hire', 'onboarding'),
             view: status('pre_hire', 'onboarding'),
@@ -799,7 +874,8 @@ function Views({
           {
             id: 'leaving',
             label: t('directory.directory.leaving', 'Leaving'),
-            count: everyone ? (state.leaving ?? null) : null,
+            count: of.leaving,
+            tone: 'warning' as const,
             on: statusIs('notice'),
             view: status('notice'),
           },
@@ -811,7 +887,8 @@ function Views({
           {
             id: 'incomplete',
             label: t('directory.directory.incomplete_2', 'Incomplete'),
-            count: everyone ? state.incomplete : null,
+            count: of.incomplete,
+            tone: 'danger' as const,
             on: incomplete,
             view: { conditions: [], incomplete: true, segmentId: null },
           },
@@ -841,12 +918,15 @@ function Views({
         className="min-w-0 gap-1.5"
       >
         {views.map((v) => (
-          <ChipGroupItem key={v.id} value={v.id} variant="view">
+          <ChipGroupItem
+            key={v.id}
+            value={v.id}
+            variant="view"
+            {...(v.count === null ? {} : { count: v.count.toLocaleString(locale()) })}
+            {...('tone' in v ? { tone: v.tone } : {})}
+          >
             {'saved' in v ? <icons.starred aria-hidden /> : null}
             {v.label}
-            {v.count === null ? null : (
-              <span className="font-medium tabular-nums">{v.count.toLocaleString(locale())}</span>
-            )}
           </ChipGroupItem>
         ))}
       </ChipGroup>
@@ -1750,6 +1830,9 @@ function Body({
       // one scroll.
       estimateRowHeight={57}
       fill
+      // The table spans the page however few columns it shows, or how narrow
+      // somebody dragged them: the widths are shares of the row.
+      columnSizing="fill"
       {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
       total={state.total}
       columns={columns}

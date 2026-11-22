@@ -335,6 +335,7 @@ export const OPERATIONS = {
   Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $sort: String, $top: Int) {
     peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete, conditions: $conditions, match: $match, sort: $sort, top: $top) {
       total active notStarted leaving incomplete
+      views { everyone starting leaving incomplete }
       segment { id name }
       segments { id name }
       columns { key label shown sortable }

@@ -258,7 +258,7 @@ describe('Home, as HR (B2)', () => {
     expect(part('Starting soon')).toHaveTextContent('Mei Tanaka');
     expect(part('Joiners by month')).toBeInTheDocument();
     // HR's own record, which the old overview left out.
-    expect(screen.getByText(/Your own record is/)).toHaveTextContent('missing 2 details');
+    expect(screen.getByText(/Your record is missing 2 details/)).toBeInTheDocument();
     expect(await axeViolations(hr.container)).toEqual([]);
     hr.unmount();
     render(<PeopleHome load={ready(employee())} />);

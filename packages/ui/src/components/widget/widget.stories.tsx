@@ -86,6 +86,50 @@ export const Tiles: Story = {
   ),
 };
 
+export const FiguresAcrossTheRow: Story = {
+  name: 'Figures across the row',
+  args: { title: 'Figures' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`fill` on a `sm` grid: the tiles share the row equally, as wide together as the `md` grid under them.',
+      },
+    },
+  },
+  render: () => (
+    <div className="flex flex-col gap-4">
+      <WidgetGrid size="sm" fill>
+        {(
+          [
+            ['Headcount', '412', 'chart-1'],
+            ['Complete records', '94%', 'chart-2'],
+            ['Waiting', '3', 'chart-3'],
+            ['Expiring', '7', 'chart-4'],
+          ] as const
+        ).map(([label, value, tone]) => (
+          <Stat
+            key={label}
+            iconPosition="start"
+            icon={<icons.team />}
+            tone={tone}
+            label={label}
+            value={value}
+          />
+        ))}
+      </WidgetGrid>
+      <WidgetGrid>
+        <Widget title="To do" icon={<icons.inbox />}>
+          <p className="text-sm text-fg-muted">Nothing waiting.</p>
+        </Widget>
+        <Widget title="Who is away" icon={<icons.calendar />}>
+          <p className="text-sm text-fg-muted">Nobody today.</p>
+        </Widget>
+      </WidgetGrid>
+    </div>
+  ),
+};
+
 const JOBS = [
   ['Sales Manager', 'Sales · Barcelona', '12 active'],
   ['Backend Engineer', 'Engineering · Remote', '8 active'],

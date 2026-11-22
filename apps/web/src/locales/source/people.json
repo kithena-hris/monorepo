@@ -1855,6 +1855,26 @@
     "text": "Export",
     "context": "People: employee records, org chart, HR settings. directory/directory.tsx, Body: the actions of <Button>."
   },
+  "directory.directory.figure_active": {
+    "text": "active",
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx: a \"label\" value."
+  },
+  "directory.directory.figure_incomplete": {
+    "text": "incomplete",
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx: a \"label\" value."
+  },
+  "directory.directory.figure_not_started": {
+    "text": "not started",
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx: a \"label\" value."
+  },
+  "directory.directory.figure_people_one": {
+    "text": "person",
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx: a \"label\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "directory.directory.figure_people_other": {
+    "text": "people",
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx: a \"label\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "directory.directory.filter_people": {
     "text": "Filter people",
     "context": "People: employee records, org chart, HR settings. directory/directory.tsx, Filters: text inside <DialogTitle>."
@@ -3235,10 +3255,6 @@
     "text": "{{value}} asked to see unmasked values",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>. Filled in: {{value}}."
   },
-  "home.people-home.complete": {
-    "text": "complete",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: text inside <b>."
-  },
   "home.people-home.complete_records": {
     "text": "Complete records",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the label of <Figure>."
@@ -3269,11 +3285,11 @@
   },
   "home.people-home.count_details_one": {
     "text": "{{count}} detail",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: text inside <b>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <ListItem>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
   "home.people-home.count_details_other": {
     "text": "{{count}} details",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: text inside <b>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <ListItem>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "home.people-home.count_identifiers_to_check_one": {
     "text": "{{count}} identifier to check",
@@ -3363,6 +3379,18 @@
     "text": "Failed a check, or couldn’t be verified",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <Todo>."
   },
+  "home.people-home.figure_complete": {
+    "text": "records complete",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, PeopleHome: text inside <PageHeader>."
+  },
+  "home.people-home.figure_expiring": {
+    "text": "expiring in 90 days",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, PeopleHome: text inside <PageHeader>."
+  },
+  "home.people-home.figure_headcount": {
+    "text": "headcount",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, PeopleHome: text inside <PageHeader>."
+  },
   "home.people-home.fill_in": {
     "text": "Fill in",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the word of <Todo>."
@@ -3394,6 +3422,10 @@
   "home.people-home.home": {
     "text": "Home",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, PeopleHome: the title of <PageHeader>."
+  },
+  "home.people-home.how_complete_your_record_is": {
+    "text": "How complete your record is",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the label of <CircularProgress>."
   },
   "home.people-home.hr_could_not_accept_it": {
     "text": "HR could not accept it: {{charAt}}{{slice}}",
@@ -3438,10 +3470,6 @@
   "home.people-home.local_time": {
     "text": "Local time",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Identity: the items of <KeyValues>."
-  },
-  "home.people-home.missing": {
-    "text": "missing {{counted}}",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: text inside <b>. Filled in: {{counted}}."
   },
   "home.people-home.missing_details_only_hr_keeps": {
     "text": "Missing details only HR keeps",
@@ -3537,7 +3565,7 @@
   },
   "home.people-home.open_title": {
     "text": "Open: {{title}}",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the label of <Onward>. Filled in: {{title}}."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the aria-label of <a>. Filled in: {{title}}."
   },
   "home.people-home.org_chart": {
     "text": "Org chart",
@@ -3589,7 +3617,7 @@
   },
   "home.people-home.text_3": {
     "text": "{{value}}: {{title}}",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the label of <Onward>. Filled in: {{value}}, {{title}}."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the aria-label of <a>. Filled in: {{value}}, {{title}}."
   },
   "home.people-home.text_4": {
     "text": "{{what}}: {{charAt}}{{slice}}",
@@ -3719,10 +3747,6 @@
     "text": "Your new {{label}} is with HR",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ToDo: the title of <Todo>. Filled in: {{label}}."
   },
-  "home.people-home.your_own_record_is": {
-    "text": "Your own record is",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: text inside <p>."
-  },
   "home.people-home.your_photo": {
     "text": "Your photo",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: the label of <AvatarUploader>."
@@ -3738,6 +3762,10 @@
   "home.people-home.your_record_is_complete": {
     "text": "Your record is complete",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ToDo: the title of <Done>."
+  },
+  "home.people-home.your_record_is_missing": {
+    "text": "Your record is missing {{counted}}",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the description of <ListItem>. Filled in: {{counted}}."
   },
   "home.people-home.your_reporting_line": {
     "text": "Your reporting line",

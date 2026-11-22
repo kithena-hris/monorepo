@@ -1807,6 +1807,17 @@ export interface DirectoryView {
   readonly leaving: number | null;
   readonly incomplete: number | null;
   /**
+   * What each view holds of everybody, whatever this query is narrowed to, so
+   * a view keeps its number while another one is open. Statuses and gaps are
+   * HR's, and null for anyone else.
+   */
+  readonly views: {
+    readonly everyone: number;
+    readonly starting: number | null;
+    readonly leaving: number | null;
+    readonly incomplete: number | null;
+  };
+  /**
    * Every column this viewer may show, in order; `shown` is the default set
    * (the fields marked for the directory). The screen lets the viewer choose.
    */
@@ -2228,13 +2239,30 @@ export async function directoryView(
         for (const [id, verdict] of verdicts.value) missing.set(id, verdict.missing.length);
       }
     }
+    const everyGap = {
+      gaps: definitions.filter((d) => visibleTo(d, everyone)).map((d) => d.key as string),
+      gapsIn: 'any' as const,
+    };
     const incomplete = everyone.isHr
-      ? await deps.service.access.count(tx, {
-          ...narrowed,
-          gaps: definitions.filter((d) => visibleTo(d, everyone)).map((d) => d.key as string),
-          gapsIn: 'any',
-        })
+      ? await deps.service.access.count(tx, { ...narrowed, ...everyGap })
       : null;
+    // The views' own counts, of everybody. Bare, they are the counts above.
+    const whole = bare ? found : await deps.service.access.count(tx, asking);
+    const onNotice =
+      leaving ??
+      (everyone.isHr
+        ? await deps.service.access.count(tx, {
+            ...asking,
+            refine: {
+              conditions: [{ key: 'status', op: 'in', values: ['notice'] }],
+              match: 'all',
+            },
+          })
+        : null);
+    const gapped =
+      bare || !everyone.isHr
+        ? incomplete
+        : await deps.service.access.count(tx, { ...asking, ...everyGap });
 
     // HR's: the status in words, beside the columns.
     const withStatus = (status: string | undefined, values: Record<string, string>) =>
@@ -2292,6 +2320,12 @@ export async function directoryView(
       notStarted: everyone.isHr ? counted.value.notStarted : null,
       leaving: leaving?.ok === true ? leaving.value.all : null,
       incomplete: incomplete?.ok === true ? incomplete.value.all : null,
+      views: {
+        everyone: whole.ok ? whole.value.all : counted.value.all,
+        starting: everyone.isHr && whole.ok ? whole.value.notStarted : null,
+        leaving: onNotice?.ok === true ? onNotice.value.all : null,
+        incomplete: gapped?.ok === true ? gapped.value.all : null,
+      },
       columns: [
         ...columns.map((c) => ({
           key: c.key,
