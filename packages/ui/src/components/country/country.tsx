@@ -15,8 +15,11 @@ const CODE = /^[A-Za-z]{2}$/u;
  */
 export function countryFlag(code: string): string {
   if (!CODE.test(code)) return '';
+  const upper = code.toUpperCase();
+  // A regional indicator per letter: A is U+1F1E6.
   return String.fromCodePoint(
-    ...[...code.toUpperCase()].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65),
+    0x1f1e6 + upper.charCodeAt(0) - 65,
+    0x1f1e6 + upper.charCodeAt(1) - 65,
   );
 }
 

@@ -961,6 +961,7 @@ export const NAV: readonly NavGroup[] = [
       'money',
       'badge',
       'avatar',
+      'country',
       'progress',
       'timeline',
       'org-chart',
