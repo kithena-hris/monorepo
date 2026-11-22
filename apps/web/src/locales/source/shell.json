@@ -3927,6 +3927,70 @@
     "text": "Working time: {{hours}} a week ({{fte}} FTE), {{mode}} with {{count}} days on site.",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{hours}}, {{fte}}, {{mode}}, {{count}}. Plural: the words for any other {{count}}."
   },
+  "lib.home-time-off.approved": {
+    "text": "Approved",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts, STATUS: a \"label\" value."
+  },
+  "lib.home-time-off.back_day": {
+    "text": "Back {{day}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value. Filled in: {{day}}."
+  },
+  "lib.home-time-off.change_pending": {
+    "text": "Change pending",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts, STATUS: a \"label\" value."
+  },
+  "lib.home-time-off.days_left": {
+    "text": "days left",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"unit\" value."
+  },
+  "lib.home-time-off.hours_left": {
+    "text": "hours left",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"unit\" value."
+  },
+  "lib.home-time-off.in_days_one": {
+    "text": "In {{count}} day",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.home-time-off.in_days_other": {
+    "text": "In {{count}} days",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.home-time-off.new_dates_proposed": {
+    "text": "New dates proposed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts, STATUS: a \"label\" value."
+  },
+  "lib.home-time-off.pending": {
+    "text": "Pending",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts, STATUS: a \"label\" value."
+  },
+  "lib.home-time-off.somebody": {
+    "text": "Somebody",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"name\" value."
+  },
+  "lib.home-time-off.taken": {
+    "text": "Taken",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts, STATUS: a \"label\" value."
+  },
+  "lib.home-time-off.today": {
+    "text": "Today",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: text built in code."
+  },
+  "lib.home-time-off.waiting_for_hr": {
+    "text": "waiting for HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value."
+  },
+  "lib.home-time-off.waiting_for_your_manager": {
+    "text": "waiting for your manager",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value."
+  },
+  "lib.home-time-off.working_days_one": {
+    "text": "{{shown}} working day",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value. Filled in: {{count}}, {{shown}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.home-time-off.working_days_other": {
+    "text": "{{shown}} working days",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value. Filled in: {{count}}, {{shown}}. Plural: the words for any other {{count}}."
+  },
   "lib.inbox.ask.nothing_needs_you": {
     "text": "Nothing needs you. New tasks appear in your Inbox.",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value."

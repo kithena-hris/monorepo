@@ -987,6 +987,19 @@ export function TrendChart({
               {shownPeriods.map((period, index) => {
                 const active = hovered === index;
                 const readout = readoutFor(index);
+                // The line's first point is on the plot's left edge and its
+                // last on the right, so the end columns are half as wide and
+                // read out at their outer edge: every column is centred on
+                // its own point, and the marker lands on the line.
+                const edge =
+                  shownPeriods.length < 2
+                    ? null
+                    : index === 0
+                      ? 'start'
+                      : index === shownPeriods.length - 1
+                        ? 'end'
+                        : null;
+                const at = edge === 'start' ? '0%' : edge === 'end' ? '100%' : '50%';
                 return (
                   <ChartMark
                     key={period}
@@ -1037,8 +1050,9 @@ export function TrendChart({
                             }
                           : undefined
                       }
+                      style={{ flex: `${edge === null ? '1' : '0.5'} 1 0%` }}
                       className={cn(
-                        'relative h-full min-w-0 flex-1',
+                        'relative h-full min-w-0',
                         onSelect ? 'cursor-pointer' : 'cursor-default',
                         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
                       )}
@@ -1046,10 +1060,11 @@ export function TrendChart({
                       <span
                         aria-hidden
                         className={cn(
-                          'absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-border-strong',
+                          'absolute inset-y-0 w-px -translate-x-1/2 bg-border-strong',
                           'transition-opacity duration-(--animate-duration-fast)',
                           active ? 'opacity-100' : 'opacity-0',
                         )}
+                        style={{ left: at }}
                       />
                       {visible.map((entry) => {
                         const point = slice(entry.data)[index];
@@ -1065,7 +1080,7 @@ export function TrendChart({
                               active ? 'opacity-100' : 'opacity-0',
                             )}
                             style={{
-                              left: '50%',
+                              left: at,
                               top: `${String(100 - ((point.value - min) / span) * 100)}%`,
                             }}
                           />

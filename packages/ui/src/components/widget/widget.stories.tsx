@@ -207,10 +207,10 @@ export const TopFive: Story = {
 };
 
 /**
- * The screen an app opens on: the day over a greeting, on `page-backdrop`'s
- * wash of colour, the few ways on from here, then the dashboard. The wrapper
- * takes the utility; the header takes `not-data-stuck:bg-transparent` so the
- * wash shows through it until it sticks.
+ * The screen an app opens on: the day over a greeting, in the middle of
+ * `page-backdrop`'s wash of colour, then the dashboard. The wrapper takes
+ * the utility; the header is `align="center"` and does not stick, so the
+ * wash shows through it and the greeting goes with the page.
  */
 export const UnderAGreeting: Story = {
   name: 'Under a greeting, on a backdrop',
@@ -218,23 +218,14 @@ export const UnderAGreeting: Story = {
   render: () => (
     <div className="page-backdrop flex flex-col gap-5 [--reach-page-gutter:1rem] [--reach-page-top:1rem]">
       <PageHeader
-        className="not-data-stuck:bg-transparent"
-        breadcrumb={<p className="text-sm font-medium text-fg-muted">Monday 5 October · 08:57</p>}
-        title="Good morning, Ada!"
+        align="center"
+        sticky={false}
+        breadcrumb={
+          <p className="text-center text-sm font-medium text-fg-muted">Monday 5 October · 08:57</p>
+        }
+        title="Good morning, Ada! 👋"
         description="Here’s what needs you today."
-        actions={<Button variant="primary">Add person</Button>}
       />
-      <nav aria-label="Shortcuts" className="flex flex-wrap gap-2">
-        <Button size="sm" startIcon={<icons.inbox aria-hidden />}>
-          4 to do
-        </Button>
-        <Button size="sm" startIcon={<icons.team aria-hidden />}>
-          Directory
-        </Button>
-        <Button size="sm" startIcon={<icons.analytics aria-hidden />}>
-          A shortcut with a much longer name than the others have
-        </Button>
-      </nav>
       <WidgetGrid size="sm" fill>
         <Stat label="Headcount" value="4,860" description="+212 in 12 months" />
         <Stat label="Complete records" value={96} unit="%" description="212 incomplete" />

@@ -26,6 +26,7 @@ import { useCachedRead } from '../lib/query';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 import type { homeToDo } from './inbox/format';
+import type { HomeAway, HomeLeave } from '../lib/home-time-off';
 import {
   exportAddressOf,
   scheduleAudienceOf,
@@ -76,6 +77,9 @@ export interface PeopleScreenProps {
   readonly toDo?: ReturnType<typeof homeToDo>;
   /** What Home calls them: the name they prefer, else their given name. */
   readonly greeting?: string;
+  /** Who of the team is away and the reader's own time off, worded by the shell from Time Off. */
+  readonly away?: HomeAway;
+  readonly leave?: HomeLeave;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
    * the actions, for the screen's own header (`headerFrame`): the remote's
@@ -1204,6 +1208,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load: loadable,
           ...(input.toDo === undefined ? {} : { toDo: input.toDo }),
           ...(input.greeting === undefined ? {} : { greeting: input.greeting }),
+          ...(input.away === undefined ? {} : { away: input.away }),
+          ...(input.leave === undefined ? {} : { leave: input.leave }),
           // What signing up still asks: their photo, and files kept to their fields.
           onPhoto: (file: File) => uploadPhoto(null, file),
           onSetupFile: async (

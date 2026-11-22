@@ -8,9 +8,11 @@ import { festivalOf, greetingOf, PeopleHome, tenure, waited } from './people-hom
 import { ADA, nobody, overview } from './people-home.fixture';
 
 /**
- * Home (B1, B2): "Hi" and what needs them; for an employee one To do list,
- * who they are and their line; for HR the figures and "Needs HR", each row
- * opening Review with its chip chosen. Only what People handed over is drawn.
+ * Home (B1, B2): a greeting and what needs them; for an employee one To do
+ * list beside who they are, their line and their reports; for HR the review
+ * queue, each row opening Review with its chip chosen, and the figures. Who
+ * is away and their own time off are the host's. Only what was handed over
+ * is drawn.
  */
 
 const ready = (data: ReturnType<typeof overview>) => ({ status: 'ready' as const, data });
@@ -51,16 +53,16 @@ describe('Home’s greeting', () => {
   it('follows the hour where they work', () => {
     // Madrid is two hours ahead of UTC in September.
     expect(greetingOf('2026-09-27T03:30:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
-      'Good morning, Ada!',
+      'Good morning, Ada! 👋',
     );
     expect(greetingOf('2026-09-27T10:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
-      'Good afternoon, Ada!',
+      'Good afternoon, Ada! 👋',
     );
     expect(greetingOf('2026-09-27T16:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
-      'Good evening, Ada!',
+      'Good evening, Ada! 👋',
     );
     expect(greetingOf('2026-09-27T01:00:00.000Z', 'Europe/Madrid', 'Ada')).toBe(
-      'Good evening, Ada!',
+      'Good evening, Ada! 👋',
     );
   });
 
@@ -81,18 +83,18 @@ describe('Home’s greeting', () => {
     expect(festivalOf('2026-09-27T10:00:00.000Z', 'Europe/Madrid')).toBeNull();
     // The day is theirs, not the server's: still the 31st in New York.
     expect(greetingOf('2027-01-01T03:00:00.000Z', 'America/New_York', 'Ada')).toBe(
-      'Good evening, Ada!',
+      'Good evening, Ada! 👋',
     );
   });
 
   it('uses the name the host hands it, the one they prefer, before the record’s', () => {
     render(<PeopleHome load={ready(employee())} greeting="Addie" />);
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Good morning, Addie!' }),
+      screen.getByRole('heading', { level: 1, name: 'Good morning, Addie! 👋' }),
     ).toBeInTheDocument();
   });
 
-  it('draws when a task is due at the row’s end, apart from where it is from', () => {
+  it('draws a task with where it is from, why, who sent it and when it is due', () => {
     render(
       <PeopleHome
         load={ready(employee())}
@@ -105,6 +107,9 @@ describe('Home’s greeting', () => {
               description: 'Performance · Overdue 21 days',
               context: 'Performance',
               due: 'Overdue 21 days',
+              summary: 'Your manager reads it before your review meeting.',
+              from: 'Grace Hopper',
+              since: '6 Sep',
               href: '/inbox/todo?item=t1',
               icon: 'edit',
               tone: 'danger',
@@ -114,9 +119,17 @@ describe('Home’s greeting', () => {
         }}
       />,
     );
-    expect(screen.getByText('Overdue 21 days')).toBeInTheDocument();
+    // Under the title where the widget is narrow, at the row's end where it is not.
+    expect(screen.getAllByText('Overdue 21 days')).toHaveLength(2);
     expect(screen.getByText('Performance')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '1 to do' })).toHaveAttribute('href', '/inbox');
+    expect(
+      screen.getByText('Your manager reads it before your review meeting.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('From Grace Hopper · since 6 Sep')).toBeInTheDocument();
+    // The way on is a glyph, named.
+    expect(screen.getByRole('link', { name: 'Open Inbox' })).toHaveAttribute('href', '/inbox');
+    // Nothing on Home repeats the sidebar.
+    expect(screen.queryByRole('navigation')).toBeNull();
   });
 });
 
@@ -124,14 +137,14 @@ describe('Home, as an employee (B1)', () => {
   it('greets them, with today where they work, and says who they are', async () => {
     const { container } = render(<PeopleHome load={ready(employee())} />);
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Good morning, Ada!' }),
+      screen.getByRole('heading', { level: 1, name: 'Good morning, Ada! 👋' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/^Sunday 27 September · 11:30 in Madrid office$/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
     expect(within(part('Your profile')).getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Engineer · Research · Madrid office')).toBeInTheDocument();
     expect(screen.getByText(/4 Mar 2024 · 2 years, 6 months/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View your profile' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open your profile' })).toHaveAttribute(
       'href',
       '/people/me',
     );
@@ -218,9 +231,12 @@ describe('Home, as an employee (B1)', () => {
     ).toHaveAttribute('href', '/people/me?field=es_nif');
   });
 
-  it('draws the reporting line from the top down to them, and their reports with “show all”', () => {
+  it('draws the reporting line from the top down to them, and their reports, in their profile', () => {
     render(<PeopleHome load={ready(employee())} />);
-    const line = part('Your reporting line');
+    const line = part('Your profile');
+    expect(
+      within(line).getByRole('heading', { level: 3, name: 'Your reporting line' }),
+    ).toBeInTheDocument();
     const people = within(within(line).getByRole('list', { name: 'Your managers, from the top' }))
       .getAllByRole('link')
       .map((a) => a.textContent);
@@ -228,14 +244,15 @@ describe('Home, as an employee (B1)', () => {
       expect.stringContaining('Grace Hopper'),
       expect.stringContaining('Alan Turing'),
     ]);
-    expect(within(line).getByRole('link', { name: 'Org chart' })).toHaveAttribute(
+    expect(within(line).getByRole('link', { name: 'Open the org chart' })).toHaveAttribute(
       'href',
       '/people/directory/org-chart',
     );
     expect(within(line).getByText(/3 others report to Alan/)).toBeInTheDocument();
-    const team = part('Direct reports');
-    expect(within(team).getByText('8')).toBeInTheDocument();
-    expect(within(team).getByRole('link', { name: 'Show all 8' })).toHaveAttribute(
+    const team = within(line).getByRole('group', { name: 'Your direct reports' });
+    expect(
+      within(line).getByRole('link', { name: 'See your 8 direct reports in the directory' }),
+    ).toHaveAttribute(
       'href',
       `/people/directory/list?filter=${encodeURIComponent(`manager_id:${ADA}`)}`,
     );
@@ -254,14 +271,14 @@ describe('Home, as an employee (B1)', () => {
     });
     const { container } = render(<PeopleHome load={ready(done)} />);
     expect(screen.getByText('Your record is complete.')).toBeInTheDocument();
-    expect(maybe('Needs HR')).toBeNull();
+    expect(maybe('HR review queue')).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
   });
 
   it('still opens for an account with no record, and lists no places of its own', async () => {
     const { container } = render(<PeopleHome load={ready(nobody({ hr: false }))} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
-    expect(maybe('Your reporting line')).toBeNull();
+    expect(maybe('Your profile')).toBeNull();
     // The sections are the sidebar's and the breadcrumb's; Home stays clean.
     expect(screen.queryByRole('navigation')).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
@@ -292,15 +309,13 @@ describe('Home, as HR (B2)', () => {
     ],
   };
 
-  it('gives HR the four figures and one Needs HR list, each row opening Review pre-filtered', async () => {
+  it('gives HR the four figures and one review queue, each row opening Review pre-filtered', async () => {
     const hr = render(<PeopleHome load={ready({ ...overview(), hr: figures })} />, {
       wrapper: TooltipProvider,
     });
     expect(screen.getByText(/Here’s what needs HR today\.$/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add person' })).toHaveAttribute(
-      'href',
-      '/people/directory/list?add=person',
-    );
+    // Adding a person is the Directory's: Home has no page action.
+    expect(screen.queryByRole('link', { name: 'Add person' })).toBeNull();
     for (const label of [
       'Headcount',
       'Complete records',
@@ -308,26 +323,26 @@ describe('Home, as HR (B2)', () => {
       'Expiring in 90 days',
     ])
       expect(screen.getByText(label)).toBeInTheDocument();
-    const needs = part('Needs HR');
+    const needs = part('HR review queue');
     // A row is named by the words on it, so its title is how the name starts.
     const href = (name: string) =>
       within(needs)
-        .getAllByRole('link', { name: (n) => n.startsWith(name.slice(name.indexOf(': ') + 2)) })[0]
+        .getAllByRole('link', { name: (n) => n.startsWith(name) })[0]
         ?.getAttribute('href');
-    expect(href('Review: 7 changes to approve')).toBe('/people/review/waiting?kind=changes');
-    expect(href('Review: 3 identifiers to check')).toBe('/people/review/waiting?kind=ids');
-    expect(href('Compare: 2 possible duplicates')).toBe('/people/review/waiting?kind=duplicates');
+    // No word at the row's end: the row is the way on.
+    expect(within(needs).queryByText('Fill in')).toBeNull();
+    expect(href('7 changes to approve')).toBe('/people/review/waiting?kind=changes');
+    expect(href('3 identifiers to check')).toBe('/people/review/waiting?kind=ids');
+    expect(href('2 possible duplicates')).toBe('/people/review/waiting?kind=duplicates');
     // What flagged the pairs, as they were found: both, here.
     expect(
       within(needs).getByText(
         'Same work email, or name and birth date · flagged by Kithena’s duplicate check and SCIM provisioning',
       ),
     ).toBeInTheDocument();
-    expect(href('Decide: 1 request for full values')).toBe('/people/review/waiting?kind=access');
-    expect(href('Fill in: 11 details for HR to fill in')).toBe(
-      '/people/review/waiting?kind=missing',
-    );
-    expect(href('Remind: 4 people have details of their own to add')).toBe(
+    expect(href('1 request for full values')).toBe('/people/review/waiting?kind=access');
+    expect(href('11 details for HR to fill in')).toBe('/people/review/waiting?kind=missing');
+    expect(href('4 people have details of their own to add')).toBe(
       '/people/review/waiting?kind=missing',
     );
     expect(within(needs).getByRole('link', { name: 'Open Review' })).toHaveAttribute(
@@ -342,7 +357,7 @@ describe('Home, as HR (B2)', () => {
     expect(await axeViolations(hr.container)).toEqual([]);
     hr.unmount();
     render(<PeopleHome load={ready(employee())} />);
-    expect(maybe('Needs HR')).toBeNull();
+    expect(maybe('HR review queue')).toBeNull();
   });
 
   it('says how many changes look unusual, and why the newest does (B2)', () => {
@@ -358,17 +373,17 @@ describe('Home, as HR (B2)', () => {
       { wrapper: TooltipProvider },
     );
     expect(
-      within(part('Needs HR')).getByText(
+      within(part('HR review queue')).getByText(
         '1 looks unusual: a 38% raise · asked by Tim Berners-Lee and others',
       ),
     ).toBeInTheDocument();
   });
 
-  it('names who asked on every row of Needs HR (B2)', () => {
+  it('names who asked on every row of the review queue (B2)', () => {
     render(<PeopleHome load={ready({ ...overview(), hr: figures })} />, {
       wrapper: TooltipProvider,
     });
-    const needs = within(part('Needs HR'));
+    const needs = within(part('HR review queue'));
     expect(
       needs.getByText(
         'Failed a check, or couldn’t be verified · entered by Adam Novak and 2 others',
@@ -377,7 +392,7 @@ describe('Home, as HR (B2)', () => {
     expect(needs.getByText('Sofia Lindqvist asked to see unmasked values')).toBeInTheDocument();
   });
 
-  it('says nothing needs HR when every queue is empty', () => {
+  it('says the queue is clear when every queue is empty', () => {
     render(
       <PeopleHome
         load={ready({
@@ -390,7 +405,95 @@ describe('Home, as HR (B2)', () => {
       />,
       { wrapper: TooltipProvider },
     );
-    expect(screen.getByText('Nothing needs HR.')).toBeInTheDocument();
+    expect(screen.getByText('The queue is clear.')).toBeInTheDocument();
+  });
+});
+
+describe('Home, with a host that knows who is away', () => {
+  const away = {
+    href: '/time-off/calendar/month',
+    people: [
+      {
+        id: 'p1',
+        name: 'Grace Hopper',
+        team: 'Research',
+        when: 'Today – Wed 30 Sep',
+        detail: 'Back Thu 1 Oct',
+        now: true,
+      },
+      {
+        id: 'p2',
+        name: 'Alan Turing',
+        when: 'Mon 5 Oct – Fri 9 Oct',
+        detail: 'In 8 days',
+        now: false,
+      },
+    ],
+  };
+  const leave = {
+    href: '/time-off/requests',
+    requestHref: '/time-off/request',
+    balances: [
+      {
+        key: 'vacation',
+        name: 'Vacation',
+        left: '11.5',
+        unit: 'days left',
+        href: '/time-off/balances/vacation',
+      },
+    ],
+    requests: [
+      {
+        id: 'r1',
+        title: 'Vacation',
+        when: 'Mon 12 Oct – Fri 16 Oct',
+        detail: '5 working days · waiting for your manager',
+        status: 'Pending',
+        tone: 'warning' as const,
+        href: '/time-off/requests/r1',
+      },
+    ],
+  };
+
+  it('lists who is out today and who is next, and their own time off with where it stands', async () => {
+    const { container } = render(<PeopleHome load={ready(employee())} away={away} leave={leave} />);
+    const out = part('Who’s out');
+    expect(within(out).getByText('Grace Hopper')).toBeInTheDocument();
+    expect(within(out).getByText('Out today')).toBeInTheDocument();
+    expect(within(out).getByText('In 8 days')).toBeInTheDocument();
+    expect(within(out).getByRole('link', { name: 'Open the team calendar' })).toHaveAttribute(
+      'href',
+      '/time-off/calendar/month',
+    );
+    const mine = part('Your time off');
+    expect(within(mine).getByText('11.5')).toBeInTheDocument();
+    expect(within(mine).getByText('Pending')).toBeInTheDocument();
+    expect(
+      within(mine)
+        .getAllByRole('link', { name: /^Vacation/ })
+        .at(-1),
+    ).toHaveAttribute('href', '/time-off/requests/r1');
+    expect(within(mine).getByRole('link', { name: 'Request time off' })).toHaveAttribute(
+      'href',
+      '/time-off/request',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('says so when nobody is away and nothing is booked, and draws neither without a host', () => {
+    const { unmount } = render(
+      <PeopleHome
+        load={ready(employee())}
+        away={{ ...away, people: [] }}
+        leave={{ ...leave, requests: [] }}
+      />,
+    );
+    expect(screen.getByText('Everyone is in.')).toBeInTheDocument();
+    expect(screen.getByText('Nothing booked.')).toBeInTheDocument();
+    unmount();
+    render(<PeopleHome load={ready(employee())} />);
+    expect(maybe('Who’s out')).toBeNull();
+    expect(maybe('Your time off')).toBeNull();
   });
 });
 

@@ -156,9 +156,11 @@ describe('People overview: who you are here, what needs you, what is missing', (
       const page = await context.newPage();
       // Home for HR (B2): People's overview, folded into Home.
       await page.goto(`${stack.shell}/`);
-      await page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / }).waitFor({ timeout: 30_000 });
+      await page
+        .getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / })
+        .waitFor({ timeout: 30_000 });
       await page.waitForLoadState('networkidle');
-      const needs = titled(page, 'Needs HR');
+      const needs = titled(page, 'HR review queue');
       const changes = needs.getByRole('link', { name: /changes? to approve/ }).first();
       await changes.waitFor();
       expect(await changes.getAttribute('href')).toBe('/people/review/waiting?kind=changes');
@@ -173,11 +175,14 @@ describe('People overview: who you are here, what needs you, what is missing', (
     const context = await signedIn(EMPLOYEE.session, { ...desktop, colorScheme: 'light' });
     const page = await context.newPage();
     await page.goto(`${stack.shell}/`);
-    await page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / }).waitFor({ timeout: 30_000 });
+    await page
+      .getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / })
+      .waitFor({ timeout: 30_000 });
     // Who he is here, in the widget beside his To do list.
     await titled(page, 'Your profile').getByText(adamName, { exact: true }).waitFor();
     await page.waitForLoadState('networkidle');
-    await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
+    // His manager above him, in the same card.
+    await titled(page, 'Your profile').getByRole('link', { name: priya }).first().waitFor();
     // His To do is the Inbox's first rows: what his record still needs is one
     // checklist there, opened in the Inbox.
     const gap = titled(page, 'To do')

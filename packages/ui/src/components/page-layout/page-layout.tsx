@@ -1241,6 +1241,11 @@ export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, '
    * about itself by being scrolled. At a desk only, and only where there is room.
    */
   figures?: readonly PageHeaderFigure[];
+  /**
+   * `center` sets the title and what is under it in the middle of the row: a
+   * greeting over a dashboard, not a page with actions beside its title.
+   */
+  align?: 'start' | 'center';
   /** Status badges or counts, beside the title. */
   meta?: ReactNode;
   /** Primary and secondary actions. Collapses to full width below `sm`. */
@@ -1383,6 +1388,7 @@ export function PageHeader({
   actions,
   tabs,
   size = 'lg',
+  align = 'start',
   touchBarActions = false,
   sticky = size === 'lg',
   style,
@@ -1506,9 +1512,20 @@ export function PageHeader({
         {...props}
       >
         {trail}
-        <div ref={stick.row} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div
+          ref={stick.row}
+          className={cn(
+            'flex flex-wrap items-start gap-x-4 gap-y-3',
+            align === 'center' ? 'justify-center text-center' : 'justify-between',
+          )}
+        >
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div
+              className={cn(
+                'flex flex-wrap items-center gap-2.5',
+                align === 'center' && 'justify-center',
+              )}
+            >
               <h1
                 // The display face, heavy and tracked in: under a finger `lg` is
                 // the large title a phone opens a screen with.
@@ -1539,7 +1556,10 @@ export function PageHeader({
                 {/* A measure, not a width: past ~65 characters the eye loses the start of the next line. */}
                 <p
                   ref={stick.about}
-                  className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted"
+                  className={cn(
+                    'mt-1.5 max-w-prose text-base text-pretty text-fg-muted',
+                    align === 'center' && 'mx-auto',
+                  )}
                 >
                   {description}
                 </p>
