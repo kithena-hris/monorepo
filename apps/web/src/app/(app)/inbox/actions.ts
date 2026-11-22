@@ -3,7 +3,7 @@
 import { refresh } from 'next/cache';
 
 import { documents, people, recruiting, timeOff } from '../../../lib/people';
-import { changed, type InboxState, type Mute } from '../../../lib/inbox/model';
+import { changed, type InboxState, type Mute, type Shown } from '../../../lib/inbox/model';
 import { changeState, inboxNow } from '../../../lib/inbox/server';
 import { answerInbox, type InboxReply } from '../../../lib/inbox/ask';
 import { serverWords } from '../../../lib/server-words';
@@ -54,6 +54,19 @@ async function state(change: (s: InboxState) => InboxState, redraw = true): Prom
           )
         : t('app.app.inbox.actions.that_did_not_save_try_again', 'That did not save; try again'),
   };
+}
+
+/**
+ * One item of theirs, whole, with what its detail is read against: for a
+ * page that shows a task outside the Inbox (Home's modal). Null when it is no
+ * longer theirs to see.
+ */
+export async function inboxItem(
+  id: string,
+): Promise<{ readonly item: Shown; readonly now: string; readonly zone: string } | null> {
+  const read = await inboxNow();
+  const item = read.items.find((i) => i.id === id);
+  return item === undefined ? null : { item, now: read.now, zone: read.zone };
 }
 
 /* ------------------------------------------------------- your state -- */

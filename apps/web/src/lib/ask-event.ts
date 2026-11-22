@@ -4,3 +4,16 @@
  * not bring the assistant's server actions with it.
  */
 export const ASK_EVENT = 'kithena:ask';
+
+/**
+ * The window event a screen opens a page over itself with: its detail is
+ * `{ href, label }`. Home's modal answers it (`components/home-modal.tsx`),
+ * so a task, a profile or a request is done without leaving Home.
+ */
+export const OPEN_EVENT = 'kithena:open';
+
+export interface OpenDetail {
+  readonly href: string;
+  /** What it is, for the modal's title: "Jen Davis", "Request time off". */
+  readonly label: string;
+}
