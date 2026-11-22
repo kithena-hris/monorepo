@@ -297,7 +297,7 @@
   },
   "approvals.approvals.new_requests_from_your_team_come": {
     "text": "New requests from your team come here, sorted into what is clear and what needs a look.",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Waiting: text inside <p>."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Waiting: the description of <EmptyState>."
   },
   "approvals.approvals.nothing_approved_is_coming_up": {
     "text": "Nothing approved is coming up",
@@ -313,7 +313,7 @@
   },
   "approvals.approvals.nothing_is_waiting_for_you": {
     "text": "Nothing is waiting for you",
-    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Waiting: text inside <p>."
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Waiting: the title of <EmptyState>."
   },
   "approvals.approvals.request": {
     "text": "Request",
@@ -4784,7 +4784,7 @@
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value."
   },
   "requests.requests.no_time_off_taken_yet_this": {
-    "text": "No time off taken yet this year.",
+    "text": "No time off taken yet this year",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, EMPTY: text built in code."
   },
   "requests.requests.nobody_has_decided_yet_withdrawing_it": {
@@ -4792,11 +4792,11 @@
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: text inside <DialogDescription>."
   },
   "requests.requests.nothing_booked_ahead": {
-    "text": "Nothing booked ahead.",
+    "text": "Nothing booked ahead",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, EMPTY: text built in code."
   },
   "requests.requests.nothing_cancelled": {
-    "text": "Nothing cancelled.",
+    "text": "Nothing cancelled",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, EMPTY: text built in code."
   },
   "requests.requests.or_choose_the_note": {
