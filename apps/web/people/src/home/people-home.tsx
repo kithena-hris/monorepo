@@ -21,12 +21,11 @@ import {
   ListItem,
   locale,
   PageHeader,
-  Sparkline,
   Stack,
+  TrendChart,
   Stat,
   type UploadedImage,
   Widget,
-  WidgetGrid,
 } from '@reach/ui';
 import { useState, type ComponentType, type JSX, type ReactNode } from 'react';
 
@@ -291,11 +290,99 @@ const weekday = (now: string, timeZone: string): string => {
   }
 };
 
+/** Easter Sunday in the Western churches, as `MM-DD` (the anonymous Gregorian algorithm). */
+function easter(year: number): string {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const h =
+    (19 * a + b - Math.floor(b / 4) - Math.floor((b - Math.floor((b + 8) / 25) + 1) / 3) + 15) % 30;
+  const l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - (c % 4)) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// ponytail: Diwali and the Lunar New Year follow lunisolar calendars. The
+// platform carries none for Diwali, and its Chinese calendar is a day late
+// when the new moon falls near midnight in Beijing (2027), so their days are
+// listed, three years of them. Past the lists Home falls back to the hour; a
+// holiday calendar from the host is the way on if this outlives them.
+const DIWALI: readonly string[] = ['2026-11-08', '2027-10-29', '2028-10-17'];
+const LUNAR_NEW_YEAR: readonly string[] = ['2027-02-06', '2028-01-26', '2029-02-13'];
+
+/** The month and day of an instant in another calendar, where they work. */
+function inCalendar(
+  calendar: string,
+  at: Date,
+  timeZone: string,
+): { readonly month: string; readonly day: string } {
+  const parts = new Intl.DateTimeFormat(`en-u-ca-${calendar}`, {
+    month: 'numeric',
+    day: 'numeric',
+    timeZone,
+  }).formatToParts(at);
+  const of = (type: string): string => parts.find((p) => p.type === type)?.value ?? '';
+  return { month: of('month'), day: of('day') };
+}
+
 /**
- * "Good morning", "Good afternoon" or "Good evening", by the hour where they
- * work when People answered: the server's page and the browser's agree.
+ * The festival a day is, where they work, or null: New Year, Lunar New Year,
+ * Easter, the two Eids, Diwali and Christmas. The fixed ones by the date,
+ * Easter by its rule, the Eids by the Islamic calendar the platform carries,
+ * and the other two from a list.
+ */
+export function festivalOf(now: string, timeZone: string): string | null {
+  try {
+    const at = new Date(now);
+    // `en-CA` writes a date as `YYYY-MM-DD`.
+    const date = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone,
+    }).format(at);
+    const day = date.slice(5);
+    if (day === '01-01') return 'new_year';
+    if (day === '12-25') return 'christmas';
+    if (day === easter(Number(date.slice(0, 4)))) return 'easter';
+    if (DIWALI.includes(date)) return 'diwali';
+    if (LUNAR_NEW_YEAR.includes(date)) return 'lunar_new_year';
+    // The Umm al-Qura calendar, Saudi Arabia's: a country that sights the
+    // moon itself may keep the day before or after.
+    const hijri = inCalendar('islamic-umalqura', at, timeZone);
+    if (hijri.month === '10' && hijri.day === '1') return 'eid';
+    if (hijri.month === '12' && hijri.day === '10') return 'eid';
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What Home says first: a festival's greeting on its day, else "Good
+ * morning", "Good afternoon" or "Good evening" by the hour, both read where
+ * they work when People answered, so the server's page and the browser's agree.
  */
 export function greetingOf(now: string, timeZone: string, name: string): string {
+  switch (festivalOf(now, timeZone)) {
+    case 'new_year':
+      return tr('home.people-home.happy_new_year', 'Happy New Year, {{name}}!', { name });
+    case 'lunar_new_year':
+      return tr('home.people-home.happy_lunar_new_year', 'Happy Lunar New Year, {{name}}!', {
+        name,
+      });
+    case 'easter':
+      return tr('home.people-home.happy_easter', 'Happy Easter, {{name}}!', { name });
+    case 'eid':
+      return tr('home.people-home.eid_mubarak', 'Eid Mubarak, {{name}}!', { name });
+    case 'diwali':
+      return tr('home.people-home.happy_diwali', 'Happy Diwali, {{name}}!', { name });
+    case 'christmas':
+      return tr('home.people-home.merry_christmas', 'Merry Christmas, {{name}}!', { name });
+    default:
+  }
   let hour = 12;
   try {
     hour = Number(
@@ -926,6 +1013,25 @@ function Team({
   );
 }
 
+/**
+ * Home's two columns: what to act on, wide, and who and what is around it,
+ * narrow beside it. One column where the page is not wide enough for both.
+ */
+function Columns({
+  main,
+  side,
+}: {
+  readonly main: ReactNode;
+  readonly side: ReactNode;
+}): JSX.Element {
+  return (
+    <div className="grid max-w-[71rem] items-start gap-4 touch:gap-3 @5xl/page:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-4 touch:gap-3">{main}</div>
+      <div className="flex min-w-0 flex-col gap-4 touch:gap-3">{side}</div>
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------- HR -- */
 
 /** A figure that is also the way to where it is worked on. */
@@ -964,6 +1070,7 @@ function Figure({
       icon={icon}
       iconPosition="start"
       tone={tone}
+      inset
       className={className}
     >
       {children}
@@ -1181,177 +1288,204 @@ function HrHome({
   }
   const headcount = hr.headcount;
   const oldest = approvals?.items.at(-1);
+  const me = state.me;
   return (
-    <Stack gap={4}>
-      {/* The records' figures: four across, as wide together as the widgets under them. */}
-      <WidgetGrid size="sm" fill>
-        {headcount === null ? null : (
-          <Figure
-            href="/people/insights/workforce"
-            label={tr('home.people-home.headcount', 'Headcount')}
-            icon={<icons.team aria-hidden />}
-            tone="chart-1"
-            value={headcount.value.toLocaleString(locale())}
-            description={
-              headcount.change === null
-                ? tr('home.people-home.today', 'today')
-                : tr('home.people-home.in_12_months', '{{value}}{{change}} in 12 months', {
-                    value: headcount.change >= 0 ? '+' : '',
-                    change: String(headcount.change),
-                  })
-            }
-            {...(headcount.trend.length < 2
-              ? {}
-              : {
-                  chart: (
-                    <Sparkline
-                      data={headcount.trend}
-                      label={tr('home.people-home.headcount_by_month', 'Headcount by month')}
-                    />
-                  ),
-                })}
-          />
-        )}
-        {hr.complete === null ? null : (
-          <Figure
-            href={review('missing')}
-            label={tr('home.people-home.complete_records', 'Complete records')}
-            icon={<icons.success aria-hidden />}
-            tone="chart-2"
-            value={hr.complete.percent}
-            unit="%"
-            description={tr('home.people-home.incomplete', '{{toLocaleString}} incomplete', {
-              toLocaleString: hr.complete.incomplete.toLocaleString(locale()),
-            })}
-          >
-            <Progress
-              size="sm"
-              value={hr.complete.percent}
-              label={tr('home.people-home.complete_records', 'Complete records')}
-              tone={hr.complete.percent >= 100 ? 'success' : 'accent'}
-            />
-          </Figure>
-        )}
-        {approvals === null ? null : (
-          <Figure
-            href={review('changes')}
-            label={tr('home.people-home.waiting_for_a_decision', 'Waiting for a decision')}
-            icon={<icons.pending aria-hidden />}
-            tone="chart-3"
-            value={approvals.total}
-            description={
-              oldest === undefined
-                ? tr('home.people-home.nothing_waiting', 'nothing waiting')
-                : tr('home.people-home.oldest_asked', 'Oldest asked {{waited}}', {
-                    waited: waited(oldest.requestedAt, state.now),
-                  })
-            }
-            className="touch:hidden"
-          />
-        )}
-        {hr.expiring === null ? null : (
-          <Figure
-            href="/people/insights/workforce"
-            label={tr('home.people-home.expiring_in_90_days', 'Expiring in 90 days')}
-            icon={<icons.scheduled aria-hidden />}
-            tone="chart-4"
-            value={hr.expiring}
-            description={tr(
-              'home.people-home.permits_contracts_probations',
-              'Permits, contracts, probations',
-            )}
-            className="touch:hidden"
-          />
-        )}
-      </WidgetGrid>
-      <WidgetGrid>
-        {toDo}
-        <Section
-          title={tr('home.people-home.needs_hr', 'Needs HR')}
-          icon={<icons.review aria-hidden />}
-          tone="warning"
-          {...(needs.length === 0 ? {} : { meta: needs.length })}
-          span={2}
-          flush={needs.length > 0}
-          action={
-            <SeeAll href="/people/review/waiting">
-              {tr('home.people-home.open_review', 'Open Review')}
-            </SeeAll>
-          }
-        >
-          {needs.length === 0 ? (
-            <Done
-              title={tr('home.people-home.nothing_needs_hr', 'Nothing needs HR')}
-              detail={tr(
-                'home.people-home.records_are_complete_and_nothing_is',
-                'Records are complete and nothing is flagged.',
-              )}
-            />
-          ) : (
-            <List aria-label={tr('home.people-home.needs_hr', 'Needs HR')}>{needs}</List>
-          )}
-        </Section>
-        {hr.starting.length === 0 ? null : (
+    <Columns
+      main={
+        <>
+          {toDo}
           <Section
-            title={tr('home.people-home.starting_soon', 'Starting soon')}
-            icon={<icons.hire aria-hidden />}
-            tone="success"
-            meta={hr.starting.length}
-            flush
+            title={tr('home.people-home.needs_hr', 'Needs HR')}
+            icon={<icons.review aria-hidden />}
+            tone="warning"
+            {...(needs.length === 0 ? {} : { meta: needs.length })}
+            flush={needs.length > 0}
             action={
-              <SeeAll href="/people/directory/list">
-                {tr('home.people-home.directory', 'Directory')}
+              <SeeAll href="/people/review/waiting">
+                {tr('home.people-home.open_review', 'Open Review')}
               </SeeAll>
             }
           >
-            <List aria-label={tr('home.people-home.starting_soon', 'Starting soon')}>
-              {hr.starting.map((p) => (
-                <ListItem
-                  key={p.id}
-                  asChild
-                  leading={<Avatar size="lg" name={p.name} src={p.avatarUrl ?? undefined} />}
-                  description={p.detail}
-                  trailing={
-                    p.missing === null || p.missing === 0 ? (
-                      <Badge size="sm" tone="success">
-                        {tr('home.people-home.ready', 'Ready')}
-                      </Badge>
-                    ) : (
-                      <MissingMark count={p.missing} />
-                    )
-                  }
-                >
-                  <a href={`/people/${p.id}`}>{p.name}</a>
-                </ListItem>
-              ))}
-            </List>
+            {needs.length === 0 ? (
+              <Done
+                title={tr('home.people-home.nothing_needs_hr', 'Nothing needs HR')}
+                detail={tr(
+                  'home.people-home.records_are_complete_and_nothing_is',
+                  'Records are complete and nothing is flagged.',
+                )}
+              />
+            ) : (
+              <List aria-label={tr('home.people-home.needs_hr', 'Needs HR')}>{needs}</List>
+            )}
           </Section>
-        )}
-        {hr.joiners.length === 0 ? null : (
+          {/* The records' figures in one card, over how headcount has moved. */}
           <Section
-            title={tr('home.people-home.joiners_by_month', 'Joiners by month')}
-            icon={<icons.analytics aria-hidden />}
+            title={tr('home.people-home.workforce', 'Workforce')}
+            icon={<icons.team aria-hidden />}
             tone="chart-1"
-            className="touch:hidden"
             action={
               <SeeAll href="/people/insights/workforce">
                 {tr('home.people-home.insights', 'Insights')}
               </SeeAll>
             }
           >
-            <BarChart
-              data={hr.joiners}
-              label={tr(
-                'home.people-home.people_who_joined_by_month',
-                'People who joined, by month',
+            <div className="grid grid-cols-2 gap-3">
+              {headcount === null ? null : (
+                <Figure
+                  href="/people/insights/workforce"
+                  label={tr('home.people-home.headcount', 'Headcount')}
+                  icon={<icons.team aria-hidden />}
+                  tone="chart-1"
+                  value={headcount.value.toLocaleString(locale())}
+                  description={
+                    headcount.change === null
+                      ? tr('home.people-home.today', 'today')
+                      : tr('home.people-home.in_12_months', '{{value}}{{change}} in 12 months', {
+                          value: headcount.change >= 0 ? '+' : '',
+                          change: String(headcount.change),
+                        })
+                  }
+                />
               )}
-              height={120}
-              showValues
-            />
+              {hr.complete === null ? null : (
+                <Figure
+                  href={review('missing')}
+                  label={tr('home.people-home.complete_records', 'Complete records')}
+                  icon={<icons.success aria-hidden />}
+                  tone="chart-2"
+                  value={hr.complete.percent}
+                  unit="%"
+                  description={tr('home.people-home.incomplete', '{{toLocaleString}} incomplete', {
+                    toLocaleString: hr.complete.incomplete.toLocaleString(locale()),
+                  })}
+                >
+                  <Progress
+                    size="sm"
+                    value={hr.complete.percent}
+                    label={tr('home.people-home.complete_records', 'Complete records')}
+                    tone={hr.complete.percent >= 100 ? 'success' : 'accent'}
+                  />
+                </Figure>
+              )}
+              {approvals === null ? null : (
+                <Figure
+                  href={review('changes')}
+                  label={tr('home.people-home.waiting_for_a_decision', 'Waiting for a decision')}
+                  icon={<icons.pending aria-hidden />}
+                  tone="chart-3"
+                  value={approvals.total}
+                  description={
+                    oldest === undefined
+                      ? tr('home.people-home.nothing_waiting', 'nothing waiting')
+                      : tr('home.people-home.oldest_asked', 'Oldest asked {{waited}}', {
+                          waited: waited(oldest.requestedAt, state.now),
+                        })
+                  }
+                  className="touch:hidden"
+                />
+              )}
+              {hr.expiring === null ? null : (
+                <Figure
+                  href="/people/insights/workforce"
+                  label={tr('home.people-home.expiring_in_90_days', 'Expiring in 90 days')}
+                  icon={<icons.scheduled aria-hidden />}
+                  tone="chart-4"
+                  value={hr.expiring}
+                  description={tr(
+                    'home.people-home.permits_contracts_probations',
+                    'Permits, contracts, probations',
+                  )}
+                  className="touch:hidden"
+                />
+              )}
+            </div>
+            {headcount === null || headcount.trend.length < 2 ? null : (
+              <TrendChart
+                series={[
+                  {
+                    label: tr('home.people-home.people', 'People'),
+                    tone: 'chart-1',
+                    data: headcount.trend,
+                  },
+                ]}
+                label={tr('home.people-home.headcount_by_month', 'Headcount by month')}
+                height={168}
+                area
+                showLastPoint
+              />
+            )}
           </Section>
-        )}
-      </WidgetGrid>
-    </Stack>
+        </>
+      }
+      side={
+        <>
+          {me === null ? null : (
+            // HR's own record, beside everybody else's.
+            <div className="touch:hidden">
+              <Identity me={me} now={state.now} />
+            </div>
+          )}
+          {hr.starting.length === 0 ? null : (
+            <Section
+              title={tr('home.people-home.starting_soon', 'Starting soon')}
+              icon={<icons.hire aria-hidden />}
+              tone="success"
+              meta={hr.starting.length}
+              flush
+              action={
+                <SeeAll href="/people/directory/list">
+                  {tr('home.people-home.directory', 'Directory')}
+                </SeeAll>
+              }
+            >
+              <List aria-label={tr('home.people-home.starting_soon', 'Starting soon')}>
+                {hr.starting.map((p) => (
+                  <ListItem
+                    key={p.id}
+                    asChild
+                    leading={<Avatar size="lg" name={p.name} src={p.avatarUrl ?? undefined} />}
+                    description={p.detail}
+                    trailing={
+                      p.missing === null || p.missing === 0 ? (
+                        <Badge size="sm" tone="success">
+                          {tr('home.people-home.ready', 'Ready')}
+                        </Badge>
+                      ) : (
+                        <MissingMark count={p.missing} />
+                      )
+                    }
+                  >
+                    <a href={`/people/${p.id}`}>{p.name}</a>
+                  </ListItem>
+                ))}
+              </List>
+            </Section>
+          )}
+          {hr.joiners.length === 0 ? null : (
+            <Section
+              title={tr('home.people-home.joiners_by_month', 'Joiners by month')}
+              icon={<icons.analytics aria-hidden />}
+              tone="chart-1"
+              action={
+                <SeeAll href="/people/insights/workforce">
+                  {tr('home.people-home.insights', 'Insights')}
+                </SeeAll>
+              }
+            >
+              <BarChart
+                data={hr.joiners}
+                label={tr(
+                  'home.people-home.people_who_joined_by_month',
+                  'People who joined, by month',
+                )}
+                height={120}
+                showValues
+              />
+            </Section>
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -1662,22 +1796,24 @@ export function PeopleHome({
                     {tr('home.people-home.insights', 'Insights')}
                   </Shortcut>
                 )}
-                {hrFigures === null ? null : (
-                  // HR's own record: the rest of Home is everybody else's.
-                  <Shortcut href="/people/me" icon={<icons.person aria-hidden />}>
-                    {me.missing === null || me.missing === 0
-                      ? tr('home.people-home.your_profile', 'Your profile')
-                      : tr(
-                          'home.people-home.your_profile_missing',
-                          {
-                            one: 'Your profile · {{count}} detail missing',
-                            other: 'Your profile · {{count}} details missing',
-                          },
-                          { count: me.missing },
-                        )}
-                  </Shortcut>
-                )}
               </nav>
+            )}
+            {me === null ? null : (
+              // Under a finger, who they are is one row above the lists (MA B1).
+              <a
+                href="/people/me"
+                className="hidden items-center gap-3.5 rounded-lg touch:flex focus-visible:outline-2 focus-visible:outline-border-focus"
+              >
+                <Avatar size="2xl" name={me.name} src={me.avatarUrl ?? undefined} />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-xl font-bold">{me.name}</span>
+                  <span className="block text-sm text-fg-muted">
+                    {[me.title, me.location, time]
+                      .filter((x) => x !== null && x !== '')
+                      .join(' · ')}
+                  </span>
+                </span>
+              </a>
             )}
             {me === null || state.setup == null ? null : (
               <Setup
@@ -1700,32 +1836,22 @@ export function PeopleHome({
                 />
               </>
             ) : me === null ? null : (
-              // A dashboard of widgets, each as wide as what it holds.
-              <WidgetGrid>
-                {/* Under a finger, who they are is one row above the list (MA B1). */}
-                <a
-                  href="/people/me"
-                  className="hidden items-center gap-3.5 rounded-lg touch:flex focus-visible:outline-2 focus-visible:outline-border-focus"
-                >
-                  <Avatar size="2xl" name={me.name} src={me.avatarUrl ?? undefined} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-display text-xl font-bold">{me.name}</span>
-                    <span className="block text-sm text-fg-muted">
-                      {[me.title, me.location, time]
-                        .filter((x) => x !== null && x !== '')
-                        .join(' · ')}
-                    </span>
-                  </span>
-                </a>
-                {toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />}
-                <div className="touch:hidden">
-                  <Identity me={me} now={state.now} />
-                </div>
-                {reportingLine === null ? null : <ReportingLine line={reportingLine} me={me} />}
-                {reportingLine === null || reportingLine.reportsTotal === 0 ? null : (
-                  <Team line={reportingLine} />
-                )}
-              </WidgetGrid>
+              <Columns
+                main={
+                  toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />
+                }
+                side={
+                  <>
+                    <div className="touch:hidden">
+                      <Identity me={me} now={state.now} />
+                    </div>
+                    {reportingLine === null ? null : <ReportingLine line={reportingLine} me={me} />}
+                    {reportingLine === null || reportingLine.reportsTotal === 0 ? null : (
+                      <Team line={reportingLine} />
+                    )}
+                  </>
+                }
+              />
             )}
           </div>
         );

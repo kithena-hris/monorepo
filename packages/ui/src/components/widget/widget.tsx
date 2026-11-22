@@ -131,8 +131,8 @@ export interface WidgetProps extends Omit<ComponentPropsWithoutRef<'section'>, '
 }
 
 /**
- * One widget: a card with a header (icon, title, count, one action), a
- * body and an optional footer. A `List` or a table inside it sits flush,
+ * One widget: a card with a header (icon, title, count, one action) ruled
+ * off from a body, and an optional footer. The count is a small pill. A `List` or a table inside it sits flush,
  * without a card of its own, so a widget never holds a second card.
  */
 export function Widget({
@@ -171,7 +171,7 @@ export function Widget({
       )}
       {...props}
     >
-      <header className="flex items-start gap-3 px-5 pt-4.5 pb-3 touch:px-4 touch:pt-4">
+      <header className="flex items-start gap-3 border-b border-border px-5 py-3.5 touch:px-4">
         {icon === undefined ? null : (
           <span
             aria-hidden
@@ -187,7 +187,11 @@ export function Widget({
             <Heading className="text-md leading-tight font-semibold tracking-tight text-pretty">
               {title}
             </Heading>
-            {meta === undefined ? null : (
+            {meta === undefined ? null : typeof meta === 'number' || typeof meta === 'string' ? (
+              <span className="shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-fg-muted tabular-nums">
+                {meta}
+              </span>
+            ) : (
               <span className="shrink-0 text-sm text-fg-muted tabular-nums">{meta}</span>
             )}
           </div>
@@ -200,17 +204,22 @@ export function Widget({
         )}
       </header>
       {toolbar === undefined ? null : (
-        <div className="flex flex-wrap items-center gap-2 px-5 pb-3 touch:px-4">{toolbar}</div>
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3 touch:px-4">{toolbar}</div>
       )}
       {insight === undefined ? null : (
-        <div className="mx-5 mb-3 flex flex-col gap-2 rounded-md bg-surface-sunken px-3.5 py-3 text-sm touch:mx-4">
+        <div
+          className={cn(
+            'mx-5 mb-3 flex flex-col gap-2 rounded-md bg-surface-sunken px-3.5 py-3 text-sm touch:mx-4',
+            toolbar === undefined && 'mt-3',
+          )}
+        >
           {insight}
         </div>
       )}
       <div
         className={cn(
           'flex min-w-0 flex-1 flex-col',
-          flush ? 'pb-1.5' : 'gap-3 px-5 pb-5 touch:px-4 touch:pb-4',
+          flush ? 'pb-1.5' : 'gap-3 px-5 pt-4 pb-5 touch:px-4 touch:pb-4',
         )}
       >
         {children}
