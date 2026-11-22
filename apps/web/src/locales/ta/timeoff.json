@@ -757,7 +757,6 @@
   "overview.overview.public_holiday": "{{date}} · பொது விடுமுறை",
   "overview.overview.remote": "தொலைதூரம்",
   "overview.overview.request": "கோரவும்",
-  "overview.overview.request_2": "{{bridgeDays}} ஐக் கோரவும்",
   "overview.overview.since_left_of_your_day": "{{clockTime}} முதல் · உங்கள் {{plannedMinutes}} நாளில் {{left}} மீதம்",
   "overview.overview.start_break": "இடைவேளையைத் தொடங்கவும்",
   "overview.overview.take": "{{bridgeDays}} எடுக்கவும்",
