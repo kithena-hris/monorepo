@@ -1,8 +1,16 @@
 {
   "approvals.approvals.cancelled": "Canceled",
+  "approvals.approvals.figure_clear": "Ready to approve",
+  "approvals.approvals.figure_look_closer": "to look closer",
+  "attendance.exceptions.figure_exceptions": "Exceptions",
   "attendance.exceptions.for_the_labour_inspector": "For the labor inspector",
+  "attendance.requests.figure_corrections": "Corrections",
+  "attendance.requests.figure_need_you": "Needs your attention",
+  "attendance.requests.figure_overtime": "Overtime",
+  "attendance.team-now.figure_away": "Away",
   "kiosk.kiosk.not_recognised": "Not recognized",
   "requests.requests.cancelled": "Canceled",
+  "requests.requests.figure_requests": "Requests",
   "requests.requests.nothing_cancelled": "Nothing canceled.",
   "settings.approval-settings.shortening_or_cancelling_time_off": "Shortening or canceling time off",
   "words.cancelled": "Canceled"
