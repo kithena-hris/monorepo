@@ -453,16 +453,7 @@ function Todo({
             ),
           })}
     >
-      <a
-        href={href}
-        aria-label={
-          word === null
-            ? tr('home.people-home.open_title', 'Open: {{title}}', { title })
-            : tr('home.people-home.text_3', '{{value}}: {{title}}', { value: word, title })
-        }
-      >
-        {title}
-      </a>
+      <a href={href}>{title}</a>
     </ListItem>
   );
 }

@@ -3563,10 +3563,6 @@
     "text": "Open Review",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the action of <SeeAll>."
   },
-  "home.people-home.open_title": {
-    "text": "Open: {{title}}",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the aria-label of <a>. Filled in: {{title}}."
-  },
   "home.people-home.org_chart": {
     "text": "Org chart",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ReportingLine: the action of <SeeAll>."
@@ -3614,10 +3610,6 @@
   "home.people-home.starting_soon": {
     "text": "Starting soon",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"pre_hire\" value."
-  },
-  "home.people-home.text_3": {
-    "text": "{{value}}: {{title}}",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the aria-label of <a>. Filled in: {{value}}, {{title}}."
   },
   "home.people-home.text_4": {
     "text": "{{what}}: {{charAt}}{{slice}}",
