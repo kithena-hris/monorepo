@@ -73,9 +73,11 @@ describe('the overview', () => {
     expect(within(card).getByText('4 days off, 5–8 Dec, with Inmaculada Concepción.')).toBeTruthy();
     // A template, so no AI tag.
     expect(within(card).queryByText('AI')).toBeNull();
-    expect(within(card).getByRole('link', { name: 'Request Mon 7 Dec' }).getAttribute('href')).toBe(
-      '/time-off/request?type=vacation&from=2026-12-07&to=2026-12-07',
-    );
+    expect(
+      within(card)
+        .getByRole('link', { name: /Take Mon 7 Dec/ })
+        .getAttribute('href'),
+    ).toBe('/time-off/request?type=vacation&from=2026-12-07&to=2026-12-07');
     const team = within(section('Team today'));
     expect(team.getByText('Hana Kim')).toBeTruthy();
     expect(team.getByText('Back Mon 5 Oct')).toBeTruthy();

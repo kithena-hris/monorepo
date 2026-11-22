@@ -3183,10 +3183,6 @@
     "text": "Request",
     "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: the meta of <ListItem>."
   },
-  "overview.overview.request_2": {
-    "text": "Request {{bridgeDays}}",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: the aria-label of <a>. Filled in: {{bridgeDays}}."
-  },
   "overview.overview.since_left_of_your_day": {
     "text": "Since {{clockTime}} · {{left}} left of your {{plannedMinutes}} day",
     "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, ClockCard: text built in code. Filled in: {{clockTime}}, {{left}}, {{plannedMinutes}}."

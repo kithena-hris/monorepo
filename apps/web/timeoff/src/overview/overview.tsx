@@ -782,12 +782,7 @@ function Bridges({
             chevron
             meta={t('overview.overview.request', 'Request')}
           >
-            <a
-              href={`/time-off/request?type=${type.leaveTypeKey}&from=${b.from}&to=${b.to}`}
-              aria-label={t('overview.overview.request_2', 'Request {{bridgeDays}}', {
-                bridgeDays: bridgeDays(b),
-              })}
-            >
+            <a href={`/time-off/request?type=${type.leaveTypeKey}&from=${b.from}&to=${b.to}`}>
               {t('overview.overview.take', 'Take {{bridgeDays}}', { bridgeDays: bridgeDays(b) })}
             </a>
           </ListItem>
