@@ -8,6 +8,7 @@ import {
   ModalPageContent,
   ModalPageHeader,
   Spinner,
+  ToastProvider,
 } from '@reach/ui';
 import { useRouter } from 'next/navigation';
 import { lazy, Suspense, useEffect, useState, type JSX } from 'react';
@@ -74,45 +75,48 @@ export function HomeModal(): JSX.Element {
     </div>
   );
   return (
-    <ModalPage
-      open={opened !== null}
-      onOpenChange={(open) => {
-        if (!open) close();
-      }}
-    >
-      {opened === null ? null : (
-        <ModalPageContent size="inset" aria-describedby={undefined}>
-          <ModalPageHeader
-            title={opened.label}
-            actions={
-              <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
-                <a href={opened.href}>
-                  {t('components.home-modal.open_the_full_page', 'Open the full page')}
-                </a>
-              </Button>
-            }
-          />
-          <ModalPageBody className="p-4 touch:p-3">
-            {task === undefined ? (
-              wait
-            ) : task === null ? (
-              <FramePane key={opened.href} link={opened.href} label={opened.label} />
-            ) : (
-              <div className="mx-auto max-w-3xl rounded-2xl bg-surface shadow-sm">
-                <Suspense fallback={wait}>
-                  <InboxDetail
-                    key={task.item.id}
-                    item={task.item}
-                    now={task.now}
-                    zone={task.zone}
-                    onNext={close}
-                  />
-                </Suspense>
-              </div>
-            )}
-          </ModalPageBody>
-        </ModalPageContent>
-      )}
-    </ModalPage>
+    // The Inbox's detail says what it did in a toast, as it does on its own page.
+    <ToastProvider>
+      <ModalPage
+        open={opened !== null}
+        onOpenChange={(open) => {
+          if (!open) close();
+        }}
+      >
+        {opened === null ? null : (
+          <ModalPageContent size="inset" aria-describedby={undefined}>
+            <ModalPageHeader
+              title={opened.label}
+              actions={
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href={opened.href}>
+                    {t('components.home-modal.open_the_full_page', 'Open the full page')}
+                  </a>
+                </Button>
+              }
+            />
+            <ModalPageBody className="p-4 touch:p-3">
+              {task === undefined ? (
+                wait
+              ) : task === null ? (
+                <FramePane key={opened.href} link={opened.href} label={opened.label} />
+              ) : (
+                <div className="mx-auto max-w-3xl rounded-2xl bg-surface shadow-sm">
+                  <Suspense fallback={wait}>
+                    <InboxDetail
+                      key={task.item.id}
+                      item={task.item}
+                      now={task.now}
+                      zone={task.zone}
+                      onNext={close}
+                    />
+                  </Suspense>
+                </div>
+              )}
+            </ModalPageBody>
+          </ModalPageContent>
+        )}
+      </ModalPage>
+    </ToastProvider>
   );
 }
