@@ -20,6 +20,7 @@ import {
   KeyValues,
   NumberField,
   PageHeader,
+  tallyFigures,
   Select,
   SelectContent,
   SelectItem,
@@ -151,6 +152,26 @@ export function Requisitions(props: ScreenProps<readonly Requisition[]>): JSX.El
           <div className="flex flex-col gap-4">
             <PageHeader
               title={t('requisitions.requisitions', 'Requisitions')}
+              figures={tallyFigures(
+                { label: t('requisitions.figure_requisitions', 'requisitions'), value: all.length },
+                [
+                  {
+                    label: t('requisitions.figure_waiting', 'waiting for approval'),
+                    value: all.filter((r) => r.state === 'pending_approval').length,
+                    tone: 'warning',
+                  },
+                  {
+                    label: t('requisitions.figure_approved', 'approved'),
+                    value: all.filter((r) => r.state === 'approved').length,
+                    tone: 'info',
+                  },
+                  {
+                    label: t('requisitions.figure_filled', 'filled'),
+                    value: all.filter((r) => r.state === 'filled').length,
+                    tone: 'success',
+                  },
+                ],
+              )}
               description={t(
                 'requisitions.requests_for_headcount_an_approved_requisition',
                 'Requests for headcount. An approved requisition opens one or more jobs; one job can fill openings from several.',

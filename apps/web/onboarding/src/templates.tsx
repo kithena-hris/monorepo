@@ -620,7 +620,7 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader title={tr('templates.onboarding_analytics_2', 'Onboarding analytics')} />
           <h2 className="sr-only">{tr('templates.figures', 'Figures')}</h2>
-          <WidgetGrid size="sm">
+          <WidgetGrid size="sm" fill>
             <Stat
               icon={<icons.pending aria-hidden />}
               label={tr('templates.plans_in_flight', 'Plans in flight')}

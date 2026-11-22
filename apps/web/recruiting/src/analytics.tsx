@@ -615,7 +615,7 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               </Alert>
             )}
             <h2 className="sr-only">{tr('analytics.figures', 'Figures')}</h2>
-            <WidgetGrid size="sm">
+            <WidgetGrid size="sm" fill>
               <Stat
                 icon={<icons.work aria-hidden />}
                 label={tr('analytics.open_jobs', 'Open jobs')}

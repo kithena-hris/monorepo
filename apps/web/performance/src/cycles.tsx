@@ -44,6 +44,7 @@ import {
   Stat,
   NumberField,
   PageHeader,
+  tallyFigures,
   Progress,
   RadioCard,
   RadioGroup,
@@ -161,6 +162,10 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={tr('cycles.cycles', 'Cycles')}
+            figures={tallyFigures({
+              label: tr('cycles.figure_cycles', 'cycles'),
+              value: data.rows.length,
+            })}
             description={tr(
               'cycles.a_cycle_is_a_set_of',
               'A cycle is a set of review activities for a group of people, with deadlines. Filters are in the address.',
@@ -2564,7 +2569,7 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
           <CardTitle level={3}>{tr('cycles.what_launches', 'What launches')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
-          <WidgetGrid size="sm">
+          <WidgetGrid size="sm" fill>
             <Stat
               label={tr('cycles.people', 'People')}
               icon={<icons.people aria-hidden />}

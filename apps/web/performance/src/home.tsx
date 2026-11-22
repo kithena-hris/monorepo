@@ -22,16 +22,7 @@ import {
 import type { JSX } from 'react';
 
 import { Loaded } from './load';
-import {
-  CycleBadge,
-  Live,
-  Refusal,
-  ReviewBadge,
-  To,
-  day,
-  kindLabel,
-  useAct,
-} from './shared';
+import { CycleBadge, Live, Refusal, ReviewBadge, To, day, kindLabel, useAct } from './shared';
 import type { ScreenProps } from './types';
 import { t as tr } from './i18n';
 
@@ -798,13 +789,15 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
           <Refusal error={act.error} />
           {/* The figures: tiles of one size, never stretched to the row. */}
           {data.stats.length === 0 ? null : (
-            <WidgetGrid size="sm">
-              {data.stats.map((s) => (
+            <WidgetGrid size="sm" fill>
+              {data.stats.map((s, i) => (
                 <Stat
                   key={s.label}
                   label={s.label}
                   value={s.value}
                   icon={STAT_ICON(s.href)}
+                  iconPosition="start"
+                  tone={(['chart-1', 'chart-2', 'chart-3', 'chart-4'] as const)[i % 4] ?? 'chart-1'}
                   description={s.detail}
                   {...(s.href === undefined ? {} : { href: s.href })}
                   {...(s.warning === true ? { sentiment: 'negative' as const } : {})}

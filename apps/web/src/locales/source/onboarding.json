@@ -71,6 +71,26 @@
     "text": "Due",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
   },
+  "home.figure_completed": {
+    "text": "completed",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the figures of <PageHeader>."
+  },
+  "home.figure_in_progress": {
+    "text": "in progress",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the figures of <PageHeader>."
+  },
+  "home.figure_plans": {
+    "text": "plans",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the figures of <PageHeader>."
+  },
+  "home.figure_scheduled": {
+    "text": "scheduled",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the figures of <PageHeader>."
+  },
+  "home.figure_tasks": {
+    "text": "tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Tasks: the figures of <PageHeader>."
+  },
   "home.for": {
     "text": "For",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."

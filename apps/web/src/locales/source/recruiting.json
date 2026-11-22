@@ -1507,6 +1507,22 @@
     "text": "Drafts",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"drafts\" value."
   },
+  "home.figure_closed": {
+    "text": "closed",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the figures of <PageHeader>."
+  },
+  "home.figure_drafts": {
+    "text": "drafts",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the figures of <PageHeader>."
+  },
+  "home.figure_jobs": {
+    "text": "jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the figures of <PageHeader>."
+  },
+  "home.figure_open": {
+    "text": "open",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the figures of <PageHeader>."
+  },
   "home.filter_all": {
     "text": "All",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TASK_FILTER_LABEL: a \"all\" value."
@@ -2030,6 +2046,14 @@
   "interviews.email_me_when_a_candidate_acts": {
     "text": "Email me when a candidate acts",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Notifications: text inside <FieldLabel>."
+  },
+  "interviews.figure_owed": {
+    "text": "scorecards owed",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Interviews: the figures of <PageHeader>."
+  },
+  "interviews.figure_upcoming": {
+    "text": "upcoming",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Interviews: the figures of <PageHeader>."
   },
   "interviews.free_for_you_a_struck_day": {
     "text": "Free for you, {{join}}. A struck day has nothing free: a weekend, a holiday, someone away, or the hours over.",
@@ -5239,6 +5263,22 @@
     "text": "What the law of the employing entity says the contract states, and where each comes from.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <p>."
   },
+  "offers.figure_accepted": {
+    "text": "accepted",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: the figures of <PageHeader>."
+  },
+  "offers.figure_need_you": {
+    "text": "need you",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: the figures of <PageHeader>."
+  },
+  "offers.figure_offers": {
+    "text": "offers",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: the figures of <PageHeader>."
+  },
+  "offers.figure_sent": {
+    "text": "sent",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: the figures of <PageHeader>."
+  },
   "offers.fill_in_before_sending": {
     "text": "Fill in before sending",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
@@ -6039,6 +6079,22 @@
     "text": "{{daysInStage}} d in stage",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <span>. Filled in: {{daysInStage}}."
   },
+  "pipeline.figure_active": {
+    "text": "active",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the figures of <PageHeader>."
+  },
+  "pipeline.figure_candidates": {
+    "text": "candidates",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the figures of <PageHeader>."
+  },
+  "pipeline.figure_hired": {
+    "text": "hired",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the figures of <PageHeader>."
+  },
+  "pipeline.figure_rejected": {
+    "text": "rejected",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the figures of <PageHeader>."
+  },
   "pipeline.from_your_talent_pools": {
     "text": "From your talent pools",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the title of <Alert>."
@@ -6350,6 +6406,22 @@
   "requisitions.currency": {
     "text": "Currency",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: text inside <FieldLabel>."
+  },
+  "requisitions.figure_approved": {
+    "text": "approved",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Requisitions: the figures of <PageHeader>."
+  },
+  "requisitions.figure_filled": {
+    "text": "filled",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Requisitions: the figures of <PageHeader>."
+  },
+  "requisitions.figure_requisitions": {
+    "text": "requisitions",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Requisitions: the figures of <PageHeader>."
+  },
+  "requisitions.figure_waiting": {
+    "text": "waiting for approval",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Requisitions: the figures of <PageHeader>."
   },
   "requisitions.hiring_manager": {
     "text": "Hiring manager",

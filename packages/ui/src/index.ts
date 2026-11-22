@@ -549,6 +549,7 @@ export {
   PageHeaderFrame,
   PageLayout,
   PageSection,
+  tallyFigures,
   Toolbar,
   usePageHeaderFrame,
   useRailCollapsed,

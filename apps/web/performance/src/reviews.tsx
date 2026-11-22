@@ -22,6 +22,7 @@ import {
   List,
   ListItem,
   PageHeader,
+  tallyFigures,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -192,6 +193,10 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={t('reviews.reviews', 'Reviews')}
+            figures={tallyFigures({
+              label: t('reviews.figure_reviews', 'reviews'),
+              value: data.rows.length,
+            })}
             description={t(
               'reviews.every_review_you_write_across_cycles',
               'Every review you write, across cycles, and what is written about you.',

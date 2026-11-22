@@ -1121,6 +1121,33 @@ export interface PageHeaderFigure {
   readonly tone?: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 }
 
+/**
+ * A total and its parts as a stuck header's figures: the total first, then
+ * each part that is not zero with a ring of its share. For a list page, whose
+ * rows are already in hand: "12 jobs · 8 open · 3 drafts".
+ */
+export function tallyFigures(
+  total: { readonly label: string; readonly value: number },
+  parts: readonly {
+    readonly label: string;
+    readonly value: number;
+    readonly tone?: PageHeaderFigure['tone'];
+  }[] = [],
+  locale?: string,
+): PageHeaderFigure[] {
+  return [
+    { label: total.label, value: total.value.toLocaleString(locale) },
+    ...parts
+      .filter((part) => part.value > 0)
+      .map((part) => ({
+        label: part.label,
+        value: part.value.toLocaleString(locale),
+        share: total.value === 0 ? 0 : part.value / total.value,
+        ...(part.tone === undefined ? {} : { tone: part.tone }),
+      })),
+  ];
+}
+
 const FIGURE_TONE = {
   neutral: 'text-fg-muted',
   info: 'text-info',
