@@ -29,6 +29,7 @@ import {
   List,
   ListItem,
   PageHeader,
+  tallyFigures,
   Signature,
   Skeleton,
   Spinner,
@@ -106,6 +107,33 @@ export function Envelopes({
     <div className="flex flex-col gap-6">
       <PageHeader
         title={tr('envelopes.envelopes.signatures', 'Signatures')}
+        {...(load.status === 'ready'
+          ? {
+              figures: tallyFigures(
+                {
+                  label: tr('envelopes.envelopes.figure_requests', 'requests'),
+                  value: load.data.rows.length,
+                },
+                [
+                  {
+                    label: tr('envelopes.envelopes.figure_out', 'out for signature'),
+                    value: load.data.rows.filter((r) => r.status === 'sent').length,
+                    tone: 'info',
+                  },
+                  {
+                    label: tr('envelopes.envelopes.figure_completed', 'completed'),
+                    value: load.data.rows.filter((r) => r.status === 'completed').length,
+                    tone: 'success',
+                  },
+                  {
+                    label: tr('envelopes.envelopes.figure_declined', 'declined'),
+                    value: load.data.rows.filter((r) => r.status === 'declined').length,
+                    tone: 'danger',
+                  },
+                ],
+              ),
+            }
+          : {})}
         description={tr(
           'envelopes.envelopes.every_request_you_sign_or_follow',
           'Every request you sign or follow.',

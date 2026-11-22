@@ -1,4 +1,4 @@
-import { Avatar, Badge, List, ListItem, PageHeader, Skeleton } from '@reach/ui';
+import { Avatar, Badge, List, ListItem, PageHeader, Skeleton, tallyFigures } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
@@ -48,6 +48,16 @@ function Ready({ data }: { readonly data: ParentalCasesData }): JSX.Element {
     <>
       <PageHeader
         title={TITLE()}
+        figures={tallyFigures(
+          { label: t('parental.cases.figure_cases', 'cases'), value: data.cases.length },
+          [
+            {
+              label: t('parental.cases.figure_waiting', 'waiting for a decision'),
+              value: waiting,
+              tone: 'warning',
+            },
+          ],
+        )}
         description={
           data.cases.length === 0
             ? t('parental.cases.plans_parents_send_come_here', 'Plans parents send come here')

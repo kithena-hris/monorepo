@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   PageHeader,
+  type PageHeaderFigure,
   PageHeaderFrame,
   Stack,
   TertiaryNav,
@@ -122,7 +123,10 @@ export function Header({
   fallback,
   meta,
   actions,
+  figures,
 }: {
+  /** The screen's few numbers, kept in view once the header has stuck. */
+  readonly figures?: readonly PageHeaderFigure[];
   /** A page of its own: its own title, over the section's. */
   readonly title?: ReactNode;
   readonly description?: ReactNode;
@@ -139,6 +143,7 @@ export function Header({
       description={description ?? here.description ?? fallback?.description ?? '\u00a0'}
       {...(meta === undefined ? {} : { meta })}
       {...(actions === undefined ? {} : { actions })}
+      {...(figures === undefined ? {} : { figures })}
     />
   );
 }

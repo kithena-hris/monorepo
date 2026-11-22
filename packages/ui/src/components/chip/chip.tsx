@@ -332,7 +332,23 @@ export interface ChipGroupItemProps
   extends ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item>, ChipContentProps {
   /** `view` for a row of saved views, the chosen one inverted. */
   variant?: 'filled' | 'view';
+  /**
+   * How many the choice holds, already formatted: set in a counter at the
+   * chip's end, so a row of views reads as a row of numbers too. Give every
+   * chip in the row its count, chosen or not; a count that comes and goes
+   * with the choice says nothing about the views that were not chosen.
+   */
+  count?: ReactNode;
+  /** A dot before the label, for a view that is a state: starting, leaving, incomplete. */
+  tone?: 'info' | 'success' | 'warning' | 'danger';
 }
+
+const DOT = {
+  info: 'bg-info',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+} as const;
 
 export function ChipGroupItem({
   className,
@@ -340,13 +356,24 @@ export function ChipGroupItem({
   field,
   children,
   variant = 'filled',
+  count,
+  tone,
   ...props
 }: ChipGroupItemProps): JSX.Element {
   return (
     <ToggleGroupPrimitive.Item
-      className={cn(chip({ variant }), 'group/chip', className)}
+      className={cn(
+        chip({ variant }),
+        'group/chip',
+        // The counter is its own shape at the end: less room after it than after a word.
+        count !== undefined && 'pe-1.5',
+        className,
+      )}
       {...props}
     >
+      {tone === undefined ? null : (
+        <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', DOT[tone])} />
+      )}
       {/* Only a filter chip ticks. Radix renders a multiple-choice item as a
           toggle button (`aria-pressed`) and a single-choice one as a radio
           (`aria-checked`), where exactly one is on and the fill is enough. */}
@@ -356,6 +383,20 @@ export function ChipGroupItem({
       <ChipContent startIcon={startIcon} field={field}>
         {children}
       </ChipContent>
+      {count === undefined ? null : (
+        <span
+          className={cn(
+            'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5',
+            'text-xs font-semibold tabular-nums',
+            // On the page's own fill, so it is a shape inside the chip; on the
+            // chosen chip, a wash of the chip's own text colour.
+            'bg-canvas text-fg-muted',
+            'group-data-[state=on]/chip:bg-[color-mix(in_oklab,currentColor_16%,transparent)] group-data-[state=on]/chip:text-current',
+          )}
+        >
+          {count}
+        </span>
+      )}
     </ToggleGroupPrimitive.Item>
   );
 }

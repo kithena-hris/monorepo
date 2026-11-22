@@ -13,6 +13,7 @@ import {
   List,
   ListItem,
   PageHeader,
+  tallyFigures,
   PageSection,
   RadioCard,
   RadioGroup,
@@ -132,6 +133,24 @@ function Ready({
     <>
       <PageHeader
         title={t('attendance.requests.overtime_and_corrections', 'Overtime and corrections')}
+        figures={tallyFigures(
+          {
+            label: t('attendance.requests.figure_need_you', 'need you'),
+            value: data.needsYou.length,
+          },
+          [
+            {
+              label: t('attendance.requests.figure_overtime', 'overtime'),
+              value: overtime.length,
+              tone: 'info',
+            },
+            {
+              label: t('attendance.requests.figure_corrections', 'corrections'),
+              value: corrections.length,
+              tone: 'warning',
+            },
+          ],
+        )}
         description={
           manages
             ? t(

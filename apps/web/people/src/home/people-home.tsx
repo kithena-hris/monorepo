@@ -11,6 +11,7 @@ import {
   CardTitle,
   type ChartPoint,
   CircularProgress,
+  Progress,
   dateFormat,
   formatList,
   type IconName,
@@ -416,50 +417,7 @@ function Tile({
   );
 }
 
-/**
- * A row's way onward (B1, B2): a button with its word at a desk, a chevron
- * under a finger, where the whole list is a list of places (MA B1, B2).
- */
-function Onward({
-  href,
-  label,
-  word,
-  primary = false,
-}: {
-  readonly href: string;
-  /** What it does, for a screen reader: "Review 4 changes to approve". */
-  readonly label: string;
-  readonly word: string | null;
-  readonly primary?: boolean;
-}): JSX.Element {
-  return (
-    <>
-      {word === null ? null : (
-        <Button
-          asChild
-          size="sm"
-          variant={primary ? 'primary' : 'secondary'}
-          className="touch:hidden"
-        >
-          <a href={href} aria-label={label}>
-            {word}
-          </a>
-        </Button>
-      )}
-      <Button
-        asChild
-        size="sm"
-        variant="ghost"
-        startIcon={<icons.forward aria-hidden />}
-        className={word === null ? undefined : 'hidden touch:inline-flex'}
-      >
-        <a href={href} aria-label={label} />
-      </Button>
-    </>
-  );
-}
-
-/** One thing to do (B1): its tile, what it is, why, and the one way to do it. */
+/** One thing to do (B1): its tile, what it is, why, and the whole row the way to do it. */
 function Todo({
   icon,
   tone,
@@ -478,23 +436,24 @@ function Todo({
   readonly primary?: boolean;
 }): JSX.Element {
   return (
+    // The row is the way on: one link, named by what it does, with its word
+    // and a chevron at the end rather than a button to aim at.
     <ListItem
+      asChild
+      chevron
       leading={<Tile icon={icon} name={title} {...(tone === undefined ? {} : { tone })} />}
       description={description}
-      trailing={
-        <Onward
-          href={href}
-          label={
-            word === null
-              ? tr('home.people-home.open_title', 'Open: {{title}}', { title })
-              : tr('home.people-home.text_3', '{{value}}: {{title}}', { value: word, title })
-          }
-          word={word}
-          {...(primary === undefined ? {} : { primary })}
-        />
-      }
+      {...(word === null
+        ? {}
+        : {
+            meta: (
+              <span className={primary === true ? 'font-semibold text-accent-fg' : undefined}>
+                {word}
+              </span>
+            ),
+          })}
     >
-      {title}
+      <a href={href}>{title}</a>
     </ListItem>
   );
 }
@@ -931,7 +890,10 @@ function Figure({
   unit,
   description,
   chart,
+  icon,
+  tone,
   className,
+  children,
 }: {
   readonly href: string;
   readonly label: string;
@@ -939,7 +901,11 @@ function Figure({
   readonly unit?: string;
   readonly description: ReactNode;
   readonly chart?: ReactNode;
+  readonly icon: ReactNode;
+  readonly tone: 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4';
   readonly className?: string;
+  /** A meter of what the number is out of, under it. */
+  readonly children?: ReactNode;
 }): JSX.Element {
   return (
     <Stat
@@ -949,8 +915,13 @@ function Figure({
       {...(unit === undefined ? {} : { unit })}
       description={description}
       {...(chart === undefined ? {} : { chart })}
-      className={`h-full ${className ?? ''}`}
-    />
+      icon={icon}
+      iconPosition="start"
+      tone={tone}
+      className={className}
+    >
+      {children}
+    </Stat>
   );
 }
 
@@ -1167,12 +1138,14 @@ function HrHome({
   const me = state.me;
   return (
     <Stack gap={4}>
-      {/* The records' figures: tiles of one size, never stretched to the row. */}
-      <WidgetGrid size="sm">
+      {/* The records' figures: four across, as wide together as the widgets under them. */}
+      <WidgetGrid size="sm" fill>
         {headcount === null ? null : (
           <Figure
             href="/people/insights/workforce"
             label={tr('home.people-home.headcount', 'Headcount')}
+            icon={<icons.team aria-hidden />}
+            tone="chart-1"
             value={headcount.value.toLocaleString(locale())}
             description={
               headcount.change === null
@@ -1198,17 +1171,28 @@ function HrHome({
           <Figure
             href={review('missing')}
             label={tr('home.people-home.complete_records', 'Complete records')}
+            icon={<icons.success aria-hidden />}
+            tone="chart-2"
             value={hr.complete.percent}
             unit="%"
             description={tr('home.people-home.incomplete', '{{toLocaleString}} incomplete', {
               toLocaleString: hr.complete.incomplete.toLocaleString(locale()),
             })}
-          />
+          >
+            <Progress
+              size="sm"
+              value={hr.complete.percent}
+              label={tr('home.people-home.complete_records', 'Complete records')}
+              tone={hr.complete.percent >= 100 ? 'success' : 'accent'}
+            />
+          </Figure>
         )}
         {approvals === null ? null : (
           <Figure
             href={review('changes')}
             label={tr('home.people-home.waiting_for_a_decision', 'Waiting for a decision')}
+            icon={<icons.pending aria-hidden />}
+            tone="chart-3"
             value={approvals.total}
             description={
               oldest === undefined
@@ -1224,6 +1208,8 @@ function HrHome({
           <Figure
             href="/people/insights/workforce"
             label={tr('home.people-home.expiring_in_90_days', 'Expiring in 90 days')}
+            icon={<icons.scheduled aria-hidden />}
+            tone="chart-4"
             value={hr.expiring}
             description={tr(
               'home.people-home.permits_contracts_probations',
@@ -1326,27 +1312,53 @@ function HrHome({
             icon={<icons.person aria-hidden />}
             tone="chart-2"
             className="touch:hidden"
+            flush
             action={
               <SeeAll href="/people/me">{tr('home.people-home.my_profile', 'My profile')}</SeeAll>
             }
           >
-            <div className="flex items-center gap-2.5">
-              <Avatar size="sm" name={me.name} src={me.avatarUrl ?? undefined} />
-              <p className="min-w-0 flex-1 text-sm text-fg-muted">
-                {tr('home.people-home.your_own_record_is', 'Your own record is')}{' '}
-                <b className="text-fg">
-                  {me.missing === null || me.missing === 0
-                    ? tr('home.people-home.complete', 'complete')
-                    : tr('home.people-home.missing', 'missing {{counted}}', {
-                        counted: tr(
-                          'home.people-home.count_details',
-                          { one: '{{count}} detail', other: '{{count}} details' },
-                          { count: me.missing },
-                        ),
-                      })}
-                </b>
-              </p>
-            </div>
+            <List aria-label={tr('home.people-home.your_profile', 'Your profile')}>
+              <ListItem
+                asChild
+                chevron
+                leading={<Avatar size="lg" name={me.name} src={me.avatarUrl ?? undefined} />}
+                description={
+                  me.missing === null || me.missing === 0
+                    ? tr('home.people-home.your_record_is_complete', 'Your record is complete')
+                    : tr(
+                        'home.people-home.your_record_is_missing',
+                        'Your record is missing {{counted}}',
+                        {
+                          counted: tr(
+                            'home.people-home.count_details',
+                            { one: '{{count}} detail', other: '{{count}} details' },
+                            { count: me.missing },
+                          ),
+                        },
+                      )
+                }
+                {...(me.required === 0
+                  ? {}
+                  : {
+                      trailing: (
+                        <CircularProgress
+                          value={Math.round(
+                            ((me.required - (me.missing ?? 0)) / me.required) * 100,
+                          )}
+                          size={36}
+                          showValue={false}
+                          label={tr(
+                            'home.people-home.how_complete_your_record_is',
+                            'How complete your record is',
+                          )}
+                          tone={(me.missing ?? 0) === 0 ? 'success' : 'accent'}
+                        />
+                      ),
+                    })}
+              >
+                <a href="/people/me">{me.name}</a>
+              </ListItem>
+            </List>
           </Section>
         )}
       </WidgetGrid>
@@ -1554,6 +1566,41 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
                       )
                     : when
               }
+              {...(hrFigures === null
+                ? {}
+                : {
+                    // Stuck, the header keeps the records' figures in view.
+                    figures: [
+                      ...(hrFigures.headcount === null
+                        ? []
+                        : [
+                            {
+                              label: tr('home.people-home.figure_headcount', 'headcount'),
+                              value: hrFigures.headcount.value.toLocaleString(locale()),
+                              trend: hrFigures.headcount.trend.map((p) => p.value),
+                              tone: 'info' as const,
+                            },
+                          ]),
+                      ...(hrFigures.complete === null
+                        ? []
+                        : [
+                            {
+                              label: tr('home.people-home.figure_complete', 'records complete'),
+                              value: `${String(hrFigures.complete.percent)}%`,
+                              share: hrFigures.complete.percent / 100,
+                              tone: 'success' as const,
+                            },
+                          ]),
+                      ...(hrFigures.expiring === null
+                        ? []
+                        : [
+                            {
+                              label: tr('home.people-home.figure_expiring', 'expiring in 90 days'),
+                              value: hrFigures.expiring.toLocaleString(locale()),
+                            },
+                          ]),
+                    ],
+                  })}
               actions={
                 hrFigures === null ? undefined : (
                   <Button

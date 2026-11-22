@@ -1826,6 +1826,17 @@ type PeopleDirectory {
   """
   suggestions: [String!]
   total: Int
+  views: PeopleDirectoryViews
+}
+
+"""
+What each view holds of everybody, whatever the directory is narrowed to.
+"""
+type PeopleDirectoryViews {
+  everyone: Int
+  incomplete: Int
+  leaving: Int
+  starting: Int
 }
 
 """

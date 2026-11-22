@@ -5,6 +5,7 @@ import {
   CardContent,
   EmptyState,
   PageHeader,
+  tallyFigures,
   Progress,
   Stat,
   DataTable,
@@ -35,30 +36,61 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={t('home.onboarding', 'Onboarding')}
+            figures={tallyFigures(
+              { label: t('home.figure_plans', 'plans'), value: data.rows.length },
+              [
+                {
+                  label: t('home.figure_in_progress', 'in progress'),
+                  value: data.rows.filter((r) => r.state === 'in_progress').length,
+                  tone: 'info',
+                },
+                {
+                  label: t('home.figure_scheduled', 'scheduled'),
+                  value: data.rows.filter((r) => r.state === 'scheduled').length,
+                  tone: 'warning',
+                },
+                {
+                  label: t('home.figure_completed', 'completed'),
+                  value: data.rows.filter((r) => r.state === 'completed').length,
+                  tone: 'success',
+                },
+              ],
+            )}
             description={t(
               'home.from_a_signed_contract_to_the',
               'From a signed contract to the end of probation. Hires arrive from Recruiting, People, or another system.',
             )}
           />
           {/* The figures: tiles of one size, never stretched to the row. */}
-          <WidgetGrid size="sm">
+          <WidgetGrid size="sm" fill>
             <Stat
               label={t('home.plans_in_flight', 'Plans in flight')}
               href="/onboarding/analytics"
               icon={<icons.hire aria-hidden />}
+              iconPosition="start"
+              tone="chart-1"
               value={String(data.rows.length)}
             />
             <Stat
               label={t('home.starting_this_month', 'Starting this month')}
+              icon={<icons.calendar aria-hidden />}
+              iconPosition="start"
+              tone="chart-2"
               value={String(data.rows.filter((r) => thisMonth(r.startDate)).length)}
             />
             <Stat
               label={t('home.tasks_late', 'Tasks late')}
+              icon={<icons.warning aria-hidden />}
+              iconPosition="start"
+              tone="chart-3"
               href="/onboarding/tasks"
               value={String(data.rows.reduce((n, r) => n + r.late, 0))}
             />
             <Stat
               label={t('home.on_track', 'On track')}
+              icon={<icons.success aria-hidden />}
+              iconPosition="start"
+              tone="chart-4"
               href="/onboarding/analytics"
               value={String(data.rows.filter((r) => r.late === 0).length)}
             />
@@ -239,6 +271,10 @@ export function Tasks(props: ScreenProps<TasksData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={t('home.onboarding_tasks', 'Onboarding tasks')}
+            figures={tallyFigures({
+              label: t('home.figure_tasks', 'tasks'),
+              value: data.rows.length,
+            })}
             description={t(
               'home.as_a_manager_a_buddy_it',
               'As a manager, a buddy, IT or HR. They are in your Inbox too.',

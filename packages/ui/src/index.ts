@@ -549,6 +549,7 @@ export {
   PageHeaderFrame,
   PageLayout,
   PageSection,
+  tallyFigures,
   Toolbar,
   usePageHeaderFrame,
   useRailCollapsed,
@@ -556,6 +557,7 @@ export {
 } from './components/page-layout/page-layout';
 export type {
   PageHeaderFrameProps,
+  PageHeaderFigure,
   PageHeaderProps,
   PageLayoutProps,
   PageRailCollapse,

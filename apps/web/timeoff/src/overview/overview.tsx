@@ -777,20 +777,14 @@ function Bridges({
               </Badge>
             }
             supporting={b.text.text}
-            trailing={
-              <Button variant="secondary" size="xs" asChild>
-                <a
-                  href={`/time-off/request?type=${type.leaveTypeKey}&from=${b.from}&to=${b.to}`}
-                  aria-label={t('overview.overview.request_2', 'Request {{bridgeDays}}', {
-                    bridgeDays: bridgeDays(b),
-                  })}
-                >
-                  {t('overview.overview.request', 'Request')}
-                </a>
-              </Button>
-            }
+            // The row is the way to ask for it: one link, its word at the end.
+            asChild
+            chevron
+            meta={t('overview.overview.request', 'Request')}
           >
-            {t('overview.overview.take', 'Take {{bridgeDays}}', { bridgeDays: bridgeDays(b) })}
+            <a href={`/time-off/request?type=${type.leaveTypeKey}&from=${b.from}&to=${b.to}`}>
+              {t('overview.overview.take', 'Take {{bridgeDays}}', { bridgeDays: bridgeDays(b) })}
+            </a>
           </ListItem>
         ))}
       </List>

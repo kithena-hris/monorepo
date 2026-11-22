@@ -17,6 +17,7 @@ import {
   Input,
   NumberField,
   PageHeader,
+  tallyFigures,
   SegmentedControl,
   SegmentedControlItem,
   Table,
@@ -119,6 +120,16 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
           <div className="flex flex-col gap-4">
             <PageHeader
               title={tr('templates.form_templates_2', 'Form templates')}
+              figures={tallyFigures(
+                { label: tr('templates.figure_templates', 'templates'), value: data.rows.length },
+                [
+                  {
+                    label: tr('templates.figure_scored', 'with a score'),
+                    value: data.rows.filter((r) => r.hasScore).length,
+                    tone: 'info',
+                  },
+                ],
+              )}
               description={tr(
                 'templates.the_forms_every_review_and_feedback',
                 'The forms every review and feedback request is written on. A published version never changes.',

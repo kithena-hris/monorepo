@@ -84,9 +84,10 @@ describe('Home, as an employee (B1)', () => {
       />,
     );
     const todo = part('To do');
-    expect(
-      within(todo).getAllByRole('link', { name: 'Open: Finish your profile' })[0],
-    ).toHaveAttribute('href', '/inbox/todo?item=people%3Aonboarding%3A1');
+    expect(within(todo).getAllByRole('link', { name: /^Finish your profile/ })[0]).toHaveAttribute(
+      'href',
+      '/inbox/todo?item=people%3Aonboarding%3A1',
+    );
     expect(within(todo).getByRole('link', { name: 'Open Inbox' })).toHaveAttribute(
       'href',
       '/inbox/todo',
@@ -103,11 +104,11 @@ describe('Home, as an employee (B1)', () => {
     expect(
       within(todo).getByRole('progressbar', { name: '2 of 7 required details missing' }),
     ).toBeInTheDocument();
-    const [add] = within(todo).getAllByRole('link', { name: 'Add: Add your emergency contact' });
+    const [add] = within(todo).getAllByRole('link', { name: /^Add your emergency contact/ });
     expect(add).toHaveAttribute('href', '/people/me?field=emergency_contact');
     expect(within(todo).getByText('Your new home address is with HR')).toBeInTheDocument();
     const [open] = within(todo).getAllByRole('link', {
-      name: 'Open: Your new home address is with HR',
+      name: /^Your new home address is with HR/,
     });
     expect(open).toHaveAttribute('href', '/people/review/waiting?kind=changes&item=change-c9');
     // HR's to fill: named, and not a link to a form they cannot use.
@@ -138,7 +139,7 @@ describe('Home, as an employee (B1)', () => {
       within(todo).getByText('HR could not accept it: the check digit doesn’t match.'),
     ).toBeInTheDocument();
     expect(
-      within(todo).getAllByRole('link', { name: 'Correct it: Correct your National ID' })[0],
+      within(todo).getAllByRole('link', { name: /^Correct your National ID/ })[0],
     ).toHaveAttribute('href', '/people/me?field=es_nif');
   });
 
@@ -233,8 +234,11 @@ describe('Home, as HR (B2)', () => {
     ])
       expect(screen.getByText(label)).toBeInTheDocument();
     const needs = part('Needs HR');
+    // A row is named by the words on it, so its title is how the name starts.
     const href = (name: string) =>
-      within(needs).getAllByRole('link', { name })[0]?.getAttribute('href');
+      within(needs)
+        .getAllByRole('link', { name: (n) => n.startsWith(name.slice(name.indexOf(': ') + 2)) })[0]
+        ?.getAttribute('href');
     expect(href('Review: 7 changes to approve')).toBe('/people/review/waiting?kind=changes');
     expect(href('Review: 3 identifiers to check')).toBe('/people/review/waiting?kind=ids');
     expect(href('Compare: 2 possible duplicates')).toBe('/people/review/waiting?kind=duplicates');
@@ -258,7 +262,7 @@ describe('Home, as HR (B2)', () => {
     expect(part('Starting soon')).toHaveTextContent('Mei Tanaka');
     expect(part('Joiners by month')).toBeInTheDocument();
     // HR's own record, which the old overview left out.
-    expect(screen.getByText(/Your own record is/)).toHaveTextContent('missing 2 details');
+    expect(screen.getByText(/Your record is missing 2 details/)).toBeInTheDocument();
     expect(await axeViolations(hr.container)).toEqual([]);
     hr.unmount();
     render(<PeopleHome load={ready(employee())} />);

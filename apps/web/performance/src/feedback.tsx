@@ -157,6 +157,20 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                 ? tr('feedback.recognition', 'Recognition')
                 : tr('feedback.feedback', 'Feedback')
             }
+            figures={[
+              {
+                label: tr('feedback.figure_received', 'received'),
+                value: data.received.length.toLocaleString(),
+              },
+              {
+                label: tr('feedback.figure_sent', 'sent'),
+                value: data.sent.length.toLocaleString(),
+              },
+              {
+                label: tr('feedback.figure_asked', 'asked of you'),
+                value: data.open.length.toLocaleString(),
+              },
+            ]}
             description={tr(
               'feedback.given_whenever_it_is_useful_outside',
               'Given whenever it is useful, outside any cycle. Praise can be seen by everyone; the rest only by who the writer chose.',

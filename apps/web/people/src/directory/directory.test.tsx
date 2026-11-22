@@ -182,6 +182,30 @@ describe('Directory', () => {
     expect(screen.getByRole('radio', { name: /Leaving\s*2/ })).toBeInTheDocument();
   });
 
+  it('keeps every view’s count while another view is open', () => {
+    const status = { key: 'status', label: 'Status', kind: 'status', options: [] };
+    render(
+      <Directory
+        {...props({
+          onView: vi.fn(),
+          load: {
+            status: 'ready',
+            data: {
+              ...state,
+              total: 2,
+              fields: [status],
+              views: { everyone: 412, starting: 5, leaving: 2, incomplete: 9 },
+            },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: /Everyone\s*412/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Starting soon\s*5/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Leaving\s*2/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Incomplete\s*9/ })).toBeInTheDocument();
+  });
+
   it('lets HR narrow to people with something missing, through the shell', async () => {
     const user = fast();
     const onView = vi.fn();

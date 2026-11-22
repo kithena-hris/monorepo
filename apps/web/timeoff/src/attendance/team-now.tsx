@@ -11,6 +11,7 @@ import {
   SegmentedControlItem,
   icons,
   type IconName,
+  tallyFigures,
 } from '@reach/ui';
 import { createElement, type JSX, type ReactNode } from 'react';
 
@@ -200,7 +201,30 @@ function Ready({
 
   return (
     <>
-      <Header fallback={ATTENDANCE()} />
+      <Header
+        fallback={ATTENDANCE()}
+        figures={tallyFigures(
+          { label: t('attendance.team-now.figure_people', 'people'), value: rows.length },
+          [
+            {
+              label: t('attendance.team-now.figure_in', 'in'),
+              value: tally('in') + tally('done'),
+              tone: 'success',
+            },
+            {
+              label: t('attendance.team-now.figure_on_a_break', 'on a break'),
+              value: tally('break'),
+              tone: 'info',
+            },
+            {
+              label: t('attendance.team-now.figure_not_in_yet', 'not in yet'),
+              value: tally('waiting'),
+              tone: 'warning',
+            },
+            { label: t('attendance.team-now.figure_away', 'away'), value: tally('away') },
+          ],
+        )}
+      />
       <div className={body}>
         <div className="flex min-w-0 flex-col gap-5">
           {/* Who is where, as a filter: each count narrows the list to its people. */}

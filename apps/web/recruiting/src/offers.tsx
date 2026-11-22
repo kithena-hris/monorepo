@@ -38,6 +38,7 @@ import {
   ModalPageHeader,
   NumberField,
   PageHeader,
+  tallyFigures,
   PdfPages,
   SegmentedControl,
   SegmentedControlItem,
@@ -172,6 +173,26 @@ export function Offers(props: ScreenProps<OffersData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={tr('offers.offers', 'Offers')}
+            figures={tallyFigures(
+              { label: tr('offers.figure_offers', 'offers'), value: data.rows.length },
+              [
+                {
+                  label: tr('offers.figure_need_you', 'need you'),
+                  value: data.rows.filter((r) => r.needsMe).length,
+                  tone: 'warning',
+                },
+                {
+                  label: tr('offers.figure_sent', 'sent'),
+                  value: data.rows.filter((r) => r.state === 'sent').length,
+                  tone: 'info',
+                },
+                {
+                  label: tr('offers.figure_accepted', 'accepted'),
+                  value: data.rows.filter((r) => r.state === 'accepted').length,
+                  tone: 'success',
+                },
+              ],
+            )}
             description={tr(
               'offers.drafts_those_waiting_on_an_approver',
               'Drafts, those waiting on an approver, those sent and those accepted.',

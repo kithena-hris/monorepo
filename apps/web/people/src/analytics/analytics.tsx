@@ -889,7 +889,11 @@ function Workforce({
       ) : null}
 
       {/* The figures: tiles of one size, never stretched to the row. */}
-      {figures.length === 0 ? null : <WidgetGrid size="sm">{figures}</WidgetGrid>}
+      {figures.length === 0 ? null : (
+        <WidgetGrid size="sm" fill>
+          {figures}
+        </WidgetGrid>
+      )}
       {sections.length === 0 ? (
         figures.length === 0 ? (
           <EmptyState

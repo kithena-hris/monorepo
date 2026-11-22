@@ -557,6 +557,9 @@ describe('the org chart', () => {
       filters: {},
     });
     expect(searched.ok && searched.value.leaving).toBeNull();
+    // The views keep their counts of everybody, whatever the list is narrowed to.
+    expect(hr.ok && searched.ok && searched.value.views).toEqual(hr.ok && hr.value.views);
+    expect(searched.ok && hr.ok && searched.value.total < hr.value.views.everyone).toBe(true);
     const tim = await directoryView(w.deps, w.as(TIM_ACCOUNT), { search: '', filters: {} });
     expect(tim.ok && tim.value.leaving).toBeNull();
   });

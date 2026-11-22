@@ -18,6 +18,7 @@ import {
   Input,
   KeyValues,
   PageHeader,
+  tallyFigures,
   RadioCard,
   RadioGroup,
   RichTextEditor,
@@ -127,6 +128,16 @@ export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={tr('interviews.my_interviews', 'My interviews')}
+            figures={tallyFigures(
+              { label: tr('interviews.figure_upcoming', 'upcoming'), value: data.upcoming.length },
+              [
+                {
+                  label: tr('interviews.figure_owed', 'scorecards owed'),
+                  value: data.owed.length,
+                  tone: 'warning',
+                },
+              ],
+            ).map((f) => ({ label: f.label, value: f.value, ...(f.tone ? { tone: f.tone } : {}) }))}
             description={tr(
               'interviews.the_next_30_days_and_every',
               'The next 30 days, and every scorecard you owe.',

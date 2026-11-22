@@ -10,6 +10,7 @@ import {
   ModalPage,
   ModalPageContent,
   PageHeader,
+  tallyFigures,
   SegmentedControl,
   SegmentedControlItem,
   Select,
@@ -415,6 +416,25 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             {followUps.dialogs}
             <PageHeader
               title={data.job.title}
+              figures={tallyFigures(
+                { label: t('pipeline.figure_candidates', 'candidates'), value: data.cards.length },
+                [
+                  {
+                    label: t('pipeline.figure_active', 'active'),
+                    value: data.cards.filter((c) => c.outcome === 'active').length,
+                    tone: 'info',
+                  },
+                  {
+                    label: t('pipeline.figure_hired', 'hired'),
+                    value: data.cards.filter((c) => c.outcome === 'hired').length,
+                    tone: 'success',
+                  },
+                  {
+                    label: t('pipeline.figure_rejected', 'rejected'),
+                    value: data.cards.filter((c) => c.outcome === 'rejected').length,
+                  },
+                ],
+              )}
               meta={
                 <span className="flex items-center gap-2">
                   {job.archived ? (

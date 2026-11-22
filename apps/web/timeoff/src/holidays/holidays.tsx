@@ -5,6 +5,7 @@ import {
   List,
   ListItem,
   PageHeader,
+  tallyFigures,
   SegmentedControl,
   SegmentedControlItem,
   Skeleton,
@@ -80,6 +81,19 @@ function Ready({
         title={t('holidays.holidays.holidays_in', 'Holidays in {{year}}', {
           year: String(data.year),
         })}
+        figures={tallyFigures(
+          {
+            label: t('holidays.holidays.figure_holidays', 'holidays'),
+            value: data.holidays.length,
+          },
+          [
+            {
+              label: t('holidays.holidays.figure_to_come', 'still to come'),
+              value: data.holidays.filter((h) => h.date >= data.today).length,
+              tone: 'info',
+            },
+          ],
+        )}
         description={
           data.locationKey === null
             ? t(

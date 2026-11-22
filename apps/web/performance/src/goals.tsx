@@ -15,6 +15,7 @@ import {
   KeyValues,
   NumberField,
   PageHeader,
+  tallyFigures,
   Progress,
   RadioCard,
   RadioGroup,
@@ -201,6 +202,16 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
           <div className="flex flex-col gap-4">
             <PageHeader
               title={t('goals.goals', 'Goals')}
+              figures={tallyFigures(
+                { label: t('goals.figure_goals', 'goals'), value: data.rows.length },
+                [
+                  {
+                    label: t('goals.figure_active', 'active'),
+                    value: data.rows.filter((r) => r.status === 'active').length,
+                    tone: 'success',
+                  },
+                ],
+              )}
               description={t(
                 'goals.what_each_person_team_and_the',
                 'What each person, team and the company is working towards this period, and how far along it is.',
@@ -258,7 +269,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
               </Alert>
             )}
             {data.scope === 'mine' && data.weighted ? (
-              <WidgetGrid size="sm">
+              <WidgetGrid size="sm" fill>
                 <Stat
                   label={t('goals.goal_score', 'Goal score')}
                   value={data.score === null ? '—' : `${String(data.score)}%`}

@@ -1415,6 +1415,10 @@
     "text": "Extend the deadline for {{who}}?",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, ExtendDialog: the title of <Modal>. Filled in: {{who}}."
   },
+  "cycles.figure_cycles": {
+    "text": "cycles",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Cycles: the figures of <PageHeader>."
+  },
   "cycles.filter_people": {
     "text": "Filter people",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PeopleToolbar: the title of <FilterChips>."
@@ -2579,6 +2583,18 @@
     "text": "Feedback you receive shows here.",
     "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the empty of <Posts>."
   },
+  "feedback.figure_asked": {
+    "text": "asked of you",
+    "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the figures of <PageHeader>."
+  },
+  "feedback.figure_received": {
+    "text": "received",
+    "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the figures of <PageHeader>."
+  },
+  "feedback.figure_sent": {
+    "text": "sent",
+    "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the figures of <PageHeader>."
+  },
   "feedback.give_feedback": {
     "text": "Give feedback",
     "context": "Performance: reviews, goals, feedback, learning. feedback.tsx, Feedback: the actions of <Button>."
@@ -3138,6 +3154,14 @@
   "goals.everyone_at_the_company": {
     "text": "Everyone at the company",
     "context": "Performance: reviews, goals, feedback, learning. goals.tsx, VISIBILITY: text built in code."
+  },
+  "goals.figure_active": {
+    "text": "active",
+    "context": "Performance: reviews, goals, feedback, learning. goals.tsx, Goals: the figures of <PageHeader>."
+  },
+  "goals.figure_goals": {
+    "text": "goals",
+    "context": "Performance: reviews, goals, feedback, learning. goals.tsx, Goals: the figures of <PageHeader>."
   },
   "goals.from_to": {
     "text": "From {{start}} to {{target}}",
@@ -3766,6 +3790,14 @@
   "learning.external_course": {
     "text": "External course",
     "context": "Performance: reviews, goals, feedback, learning. learning.tsx, KINDS: text built in code."
+  },
+  "learning.figure_assigned": {
+    "text": "assigned to you",
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: the figures of <PageHeader>."
+  },
+  "learning.figure_sessions": {
+    "text": "sessions",
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Learning: the figures of <PageHeader>."
   },
   "learning.going": {
     "text": "Going",
@@ -4618,6 +4650,10 @@
   "reviews.feedback": {
     "text": "Feedback · {{length}}",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Context: text inside <CardTitle>. Filled in: {{length}}."
+  },
+  "reviews.figure_reviews": {
+    "text": "reviews",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, MyReviews: the figures of <PageHeader>."
   },
   "reviews.file_to_documents": {
     "text": "File to Documents",
@@ -6834,6 +6870,14 @@
   "templates.feedback": {
     "text": "Feedback",
     "context": "Performance: reviews, goals, feedback, learning. templates.tsx: text built in code."
+  },
+  "templates.figure_scored": {
+    "text": "with a score",
+    "context": "Performance: reviews, goals, feedback, learning. templates.tsx, Templates: the figures of <PageHeader>."
+  },
+  "templates.figure_templates": {
+    "text": "templates",
+    "context": "Performance: reviews, goals, feedback, learning. templates.tsx, Templates: the figures of <PageHeader>."
   },
   "templates.first": {
     "text": "First",

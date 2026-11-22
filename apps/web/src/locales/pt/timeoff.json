@@ -1167,6 +1167,7 @@
   "requests.requests.continue": "Continuar",
   "requests.requests.declined_by": "Recusado por {{role}}",
   "requests.requests.escalated_nobody_answered_in_time": "Escalado: ninguém respondeu a tempo.",
+  "requests.requests.figure_requests": "pedidos",
   "requests.requests.give_back_days_you_dont_need": "Devolva os dias de que não precisa. Encurtar é aprovado automaticamente.",
   "requests.requests.give_the_days_back": "Devolver os dias",
   "requests.requests.its_approved_so_moving_it_goes": "Está aprovada, por isso mudá-la volta para o seu aprovador. O saldo atualiza quando ele disser que sim.",

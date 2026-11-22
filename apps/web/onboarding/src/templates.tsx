@@ -35,6 +35,7 @@ import {
   WidgetGrid,
   widgetSpan,
   DataTable,
+  tallyFigures,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -618,9 +619,21 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
     <Loaded load={props.load} what={tr('templates.onboarding_analytics', 'onboarding analytics')}>
       {(data) => (
         <div className="flex flex-col gap-4">
-          <PageHeader title={tr('templates.onboarding_analytics_2', 'Onboarding analytics')} />
+          <PageHeader
+            title={tr('templates.onboarding_analytics_2', 'Onboarding analytics')}
+            figures={tallyFigures(
+              { label: tr('templates.figure_in_flight', 'plans in flight'), value: data.inFlight },
+              [
+                {
+                  label: tr('templates.figure_on_track', 'on track'),
+                  value: data.onTrack,
+                  tone: 'success',
+                },
+              ],
+            )}
+          />
           <h2 className="sr-only">{tr('templates.figures', 'Figures')}</h2>
-          <WidgetGrid size="sm">
+          <WidgetGrid size="sm" fill>
             <Stat
               icon={<icons.pending aria-hidden />}
               label={tr('templates.plans_in_flight', 'Plans in flight')}

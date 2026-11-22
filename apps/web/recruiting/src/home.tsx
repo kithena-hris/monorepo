@@ -6,6 +6,7 @@ import {
   Button,
   EmptyState,
   PageHeader,
+  tallyFigures,
   Progress,
   Select,
   SelectContent,
@@ -623,11 +624,13 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
               }
             />
             {/* The figures: tiles of one size, never stretched to the row. */}
-            <WidgetGrid size="sm">
+            <WidgetGrid size="sm" fill>
               <Stat
                 label={tr('home.open_jobs', 'Open jobs')}
                 href="/recruiting/jobs"
                 icon={<icons.work aria-hidden />}
+                iconPosition="start"
+                tone="chart-1"
                 value={String(open.length)}
                 description={tr(
                   'home.openings_hired',
@@ -651,6 +654,8 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                 label={tr('home.active_candidates', 'Active candidates')}
                 href="/recruiting/candidates"
                 icon={<icons.people aria-hidden />}
+                iconPosition="start"
+                tone="chart-2"
                 value={String(candidates)}
                 delta={`+${String(fresh)}`}
                 deltaLabel={tr('home.this_week', 'this week')}
@@ -661,6 +666,8 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                 label={tr('home.interviews_today', 'Interviews today')}
                 href="/recruiting/interviews"
                 icon={<icons.meeting aria-hidden />}
+                iconPosition="start"
+                tone="chart-3"
                 value={String(interviews.length)}
                 description={
                   next === undefined
@@ -674,6 +681,8 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                 label={tr('home.scorecards_owed', 'Scorecards owed')}
                 href="/recruiting/interviews"
                 icon={<icons.assessment aria-hidden />}
+                iconPosition="start"
+                tone="chart-4"
                 value={String(scorecards.length)}
                 description={
                   scorecards.length === 0
@@ -740,6 +749,25 @@ export function Jobs(props: ScreenProps<JobsData>): JSX.Element {
           <div className="flex flex-col gap-4">
             <PageHeader
               title={tr('home.jobs', 'Jobs')}
+              figures={tallyFigures(
+                {
+                  label: tr('home.figure_jobs', 'jobs'),
+                  value: data.jobs.filter((j) => j.archivedAt === null).length,
+                },
+                [
+                  {
+                    label: tr('home.figure_open', 'open'),
+                    value: counted('open'),
+                    tone: 'success',
+                  },
+                  {
+                    label: tr('home.figure_drafts', 'drafts'),
+                    value: counted('drafts'),
+                    tone: 'info',
+                  },
+                  { label: tr('home.figure_closed', 'closed'), value: counted('closed') },
+                ],
+              )}
               actions={
                 <Button
                   variant="primary"

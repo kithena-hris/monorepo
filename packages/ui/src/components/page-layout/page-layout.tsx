@@ -1107,11 +1107,116 @@ export function PageHeaderFrame({
   );
 }
 
+/** One number a stuck header keeps in view, with a small drawing of it. */
+export interface PageHeaderFigure {
+  /** What is counted, after the number: "active", "starting soon". */
+  readonly label: string;
+  /** The number, already formatted. */
+  readonly value: ReactNode;
+  /** The part of the whole it is, 0 to 1: drawn as a small ring. */
+  readonly share?: number;
+  /** The number over time, oldest first: drawn as a small line. */
+  readonly trend?: readonly number[];
+  /** The drawing's colour. Neutral without one. */
+  readonly tone?: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+}
+
+/**
+ * A total and its parts as a stuck header's figures: the total first, then
+ * each part that is not zero with a ring of its share. For a list page, whose
+ * rows are already in hand: "12 jobs · 8 open · 3 drafts".
+ */
+export function tallyFigures(
+  total: { readonly label: string; readonly value: number },
+  parts: readonly {
+    readonly label: string;
+    readonly value: number;
+    readonly tone?: PageHeaderFigure['tone'];
+  }[] = [],
+  locale?: string,
+): PageHeaderFigure[] {
+  return [
+    { label: total.label, value: total.value.toLocaleString(locale) },
+    ...parts
+      .filter((part) => part.value > 0)
+      .map((part) => ({
+        label: part.label,
+        value: part.value.toLocaleString(locale),
+        share: total.value === 0 ? 0 : part.value / total.value,
+        ...(part.tone === undefined ? {} : { tone: part.tone }),
+      })),
+  ];
+}
+
+const FIGURE_TONE = {
+  neutral: 'text-fg-muted',
+  info: 'text-info',
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-danger',
+} as const;
+
+/** A ring filled to `share`: what part of everybody a count is, at a glance. */
+function FigureRing({ share }: { share: number }): JSX.Element {
+  const r = 7;
+  const round = 2 * Math.PI * r;
+  const part = Math.min(1, Math.max(0, share));
+  return (
+    <svg aria-hidden viewBox="0 0 18 18" className="size-4.5 shrink-0 -rotate-90">
+      <circle cx="9" cy="9" r={r} fill="none" strokeWidth="3" className="stroke-border" />
+      {part > 0 ? (
+        <circle
+          cx="9"
+          cy="9"
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          // Never a dot too small to see: a count of one in five thousand is still there.
+          strokeDasharray={`${String(Math.max(part * round, 1.5))} ${String(round)}`}
+        />
+      ) : null}
+    </svg>
+  );
+}
+
+/** The number's last few values as a line, its end marked. */
+function FigureTrend({ trend }: { trend: readonly number[] }): JSX.Element {
+  const min = Math.min(...trend);
+  const span = Math.max(...trend) - min || 1;
+  const at = trend.map(
+    (v, i) => [2 + (i * 36) / (trend.length - 1), 15 - ((v - min) / span) * 12] as const,
+  );
+  const last = at[at.length - 1] ?? [38, 9];
+  return (
+    <svg aria-hidden viewBox="0 0 42 18" className="h-4.5 w-10.5 shrink-0">
+      <polyline
+        points={at.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx={last[0]} cy={last[1]} r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
   /** A `Breadcrumb`, above the title. */
   breadcrumb?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
+  /**
+   * What the header says once it has stuck and its description has folded:
+   * the page's few numbers, each with a ring (`share`) or a line (`trend`),
+   * before the actions. Without them a stuck header keeps a text
+   * `description` there on one line, so a page never loses what it said
+   * about itself by being scrolled. At a desk only, and only where there is room.
+   */
+  figures?: readonly PageHeaderFigure[];
   /** Status badges or counts, beside the title. */
   meta?: ReactNode;
   /** Primary and secondary actions. Collapses to full width below `sm`. */
@@ -1249,6 +1354,7 @@ export function PageHeader({
   breadcrumb,
   title,
   description,
+  figures,
   meta,
   actions,
   tabs,
@@ -1260,6 +1366,34 @@ export function PageHeader({
 }: PageHeaderProps): JSX.Element {
   const frame = useContext(PageHeaderFrameContext);
   const stick = useStuckHeader(sticky);
+  /*
+   * In view while stuck: the figures, or the description on one line. It
+   * takes the room the row has left and is cut rather than wrapping, so a
+   * stuck header is always one row high.
+   */
+  const kept = !stick.stuck ? null : figures !== undefined && figures.length > 0 ? (
+    <ul className="flex items-center justify-end gap-5">
+      {figures.map((f) => (
+        <li key={f.label} className="flex items-center gap-2 whitespace-nowrap">
+          {f.share !== undefined ? (
+            <span className={FIGURE_TONE[f.tone ?? 'neutral']}>
+              <FigureRing share={f.share} />
+            </span>
+          ) : f.trend !== undefined && f.trend.length > 1 ? (
+            <span className={FIGURE_TONE[f.tone ?? 'neutral']}>
+              <FigureTrend trend={f.trend} />
+            </span>
+          ) : null}
+          <span>
+            <span className="font-semibold text-fg tabular-nums">{f.value}</span>{' '}
+            <span className="text-fg-muted">{f.label}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  ) : typeof description === 'string' ? (
+    <p className="truncate text-end text-fg-muted">{description}</p>
+  ) : null;
   const folding = stick.aboutHeight !== null;
   const trail = breadcrumb ?? frame.breadcrumb;
   const own = actions ?? null;
@@ -1388,6 +1522,19 @@ export function PageHeader({
               </div>
             ) : null}
           </div>
+          {kept === null ? null : (
+            <div
+              className={cn(
+                'min-w-0 flex-1 basis-0 self-center overflow-hidden text-sm',
+                '@max-3xl:hidden touch:hidden',
+                // Arrives as the description leaves, in the same motion.
+                'transition-[opacity,translate] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+                'starting:translate-y-1 starting:opacity-0',
+              )}
+            >
+              {kept}
+            </div>
+          )}
           {allActions ? (
             <div
               className={cn(

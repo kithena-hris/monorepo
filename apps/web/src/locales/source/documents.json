@@ -671,6 +671,22 @@
     "text": "Everything is filled in. Finish, under the document, signs it.",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <p>."
   },
+  "envelopes.envelopes.figure_completed": {
+    "text": "completed",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <PageHeader>."
+  },
+  "envelopes.envelopes.figure_declined": {
+    "text": "declined",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <PageHeader>."
+  },
+  "envelopes.envelopes.figure_out": {
+    "text": "out for signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <PageHeader>."
+  },
+  "envelopes.envelopes.figure_requests": {
+    "text": "requests",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <PageHeader>."
+  },
   "envelopes.envelopes.filed_as_version_with_a_certificate": {
     "text": "Filed as version {{signedVersion}}, with a certificate of completion as its last page.",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <Alert>. Filled in: {{signedVersion}}."
@@ -1614,6 +1630,14 @@
   "library.library.expiring_in_60_days": {
     "text": "Expiring in 60 days",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: text built in code."
+  },
+  "library.library.figure_documents": {
+    "text": "documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the figures of <PageHeader>."
+  },
+  "library.library.figure_need_you": {
+    "text": "need you",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the figures of <PageHeader>."
   },
   "library.library.for": {
     "text": "For",

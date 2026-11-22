@@ -301,6 +301,16 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={tr('learning.learning', 'Learning')}
+            figures={[
+              {
+                label: tr('learning.figure_assigned', 'assigned to you'),
+                value: data.assigned.length.toLocaleString(),
+              },
+              {
+                label: tr('learning.figure_sessions', 'sessions'),
+                value: data.sessions.length.toLocaleString(),
+              },
+            ]}
             description={tr(
               'learning.courses_sessions_and_documents_what_is',
               'Courses, sessions and documents: what is assigned to you, and everything the company offers.',

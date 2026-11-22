@@ -333,7 +333,8 @@ export function DropdownMenuRadioItem({
     <DropdownMenuPrimitive.RadioItem className={cn(item, menuItemIndented, className)} {...props}>
       <span className={menuIndicator}>
         <DropdownMenuPrimitive.ItemIndicator>
-          <span className="size-2 rounded-full bg-accent" />
+          {/* A tick, as a checkbox item's: a small dot read as nothing chosen. */}
+          <Check className="text-accent-fg!" aria-hidden="true" />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}

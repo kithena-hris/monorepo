@@ -421,6 +421,12 @@ const renderShell: NonNullable<Story['render']> = (args) => (
       <PageHeader
         title="People"
         description="912 active employees across 14 countries."
+        // Scrolled, the header keeps its numbers: a ring for a share, a line for a trend.
+        figures={[
+          { label: 'people', value: '940', trend: [812, 840, 861, 880, 905, 940], tone: 'info' },
+          { label: 'active', value: '912', share: 912 / 940, tone: 'success' },
+          { label: 'incomplete', value: '31', share: 31 / 940, tone: 'warning' },
+        ]}
         meta={
           <Badge tone="success" size="sm" dot>
             Synced

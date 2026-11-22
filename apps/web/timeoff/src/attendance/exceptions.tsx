@@ -12,6 +12,7 @@ import {
   Skeleton,
   icons,
   type IconName,
+  tallyFigures,
 } from '@reach/ui';
 import { createElement, type JSX, type ReactNode } from 'react';
 
@@ -183,7 +184,13 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
     `/time-off/downloads/inspector?from=${data.from}&to=${data.to}&format=${format}`;
   return (
     <>
-      <Header fallback={ATTENDANCE()} />
+      <Header
+        fallback={ATTENDANCE()}
+        figures={tallyFigures({
+          label: t('attendance.exceptions.figure_exceptions', 'exceptions'),
+          value: data.kinds.reduce((n, k) => n + k.count, 0),
+        })}
+      />
       {/* The month and its export: the view's own, under a header every tab shares. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <MonthNav month={data.month} path="/time-off/attendance/exceptions" />

@@ -159,7 +159,7 @@ describe('People overview: who you are here, what needs you, what is missing', (
       await page.getByRole('heading', { level: 1, name: /^Hi / }).waitFor({ timeout: 30_000 });
       await page.waitForLoadState('networkidle');
       const needs = titled(page, 'Needs HR');
-      const changes = needs.getByRole('link', { name: /changes? to approve$/ }).first();
+      const changes = needs.getByRole('link', { name: /changes? to approve/ }).first();
       await changes.waitFor();
       expect(await changes.getAttribute('href')).toBe('/people/review/waiting?kind=changes');
       expect(await needs.getByRole('link', { name: 'Open Review' }).getAttribute('href')).toBe(

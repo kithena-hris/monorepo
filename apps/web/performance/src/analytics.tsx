@@ -185,7 +185,7 @@ function Body({
     const cycle = `/performance/cycles/${data.cycleId ?? ''}`;
     return (
       <div className="flex flex-col gap-4">
-        <WidgetGrid size="sm">
+        <WidgetGrid size="sm" fill>
           <Stat
             label={tr('analytics.submitted', 'Submitted')}
             href={cycle}
@@ -379,7 +379,7 @@ function Body({
   if (data.tab === 'fairness')
     return (
       <div className="flex flex-col gap-4">
-        <WidgetGrid size="sm">
+        <WidgetGrid size="sm" fill>
           {(data.prefill ?? []).map((p) => (
             <Stat
               key={p.label}

@@ -28,6 +28,7 @@ import {
   List,
   ListItem,
   PageHeader,
+  tallyFigures,
   Select,
   SelectContent,
   SelectGroup,
@@ -212,6 +213,19 @@ function Ready({
             ? tr('library.library.deleted', 'Deleted')
             : tr('library.library.documents', 'Documents')
         }
+        figures={tallyFigures(
+          {
+            label: tr('library.library.figure_documents', 'documents'),
+            value: data.sections.reduce((n, s) => n + s.count, 0),
+          },
+          [
+            {
+              label: tr('library.library.figure_need_you', 'need you'),
+              value: data.needsYou.length,
+              tone: 'warning',
+            },
+          ],
+        ).map((f) => ({ label: f.label, value: f.value, ...(f.tone ? { tone: f.tone } : {}) }))}
         description={
           data.deleted
             ? tr(

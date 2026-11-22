@@ -263,6 +263,18 @@
     "text": "Declined",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, STATUS: a \"declined\" value."
   },
+  "approvals.approvals.figure_clear": {
+    "text": "clear to approve",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Approvals: text inside <Header>."
+  },
+  "approvals.approvals.figure_look_closer": {
+    "text": "to look at closer",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Approvals: text inside <Header>."
+  },
+  "approvals.approvals.figure_waiting": {
+    "text": "waiting for you",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Approvals: text inside <Header>."
+  },
   "approvals.approvals.include_s_request_in_approve_all": {
     "text": "Include {{who}}’s request in Approve all",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/approvals.tsx, Waiting: the aria-label of <Checkbox>. Filled in: {{who}}."
@@ -779,6 +791,10 @@
     "text": "Export",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <Button>."
   },
+  "attendance.exceptions.figure_exceptions": {
+    "text": "exceptions",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: the figures of <Header>."
+  },
   "attendance.exceptions.for_the_labour_inspector": {
     "text": "For the labour inspector",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/exceptions.tsx, Ready: text inside <DropdownMenuLabel>."
@@ -1087,6 +1103,18 @@
     "text": "Declined",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, STATUS: a \"declined\" value."
   },
+  "attendance.requests.figure_corrections": {
+    "text": "corrections",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: the figures of <PageHeader>."
+  },
+  "attendance.requests.figure_need_you": {
+    "text": "need you",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: the figures of <PageHeader>."
+  },
+  "attendance.requests.figure_overtime": {
+    "text": "overtime",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, Ready: the figures of <PageHeader>."
+  },
   "attendance.requests.loading_your_attendance_requests": {
     "text": "Loading your attendance requests",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/requests.tsx, AttendanceRequestsSkeleton: text inside <span>."
@@ -1218,6 +1246,26 @@
   "attendance.team-now.everyone": {
     "text": "Everyone",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: text inside <SegmentedControlItem>."
+  },
+  "attendance.team-now.figure_away": {
+    "text": "away",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the figures of <Header>."
+  },
+  "attendance.team-now.figure_in": {
+    "text": "in",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the figures of <Header>."
+  },
+  "attendance.team-now.figure_not_in_yet": {
+    "text": "not in yet",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the figures of <Header>."
+  },
+  "attendance.team-now.figure_on_a_break": {
+    "text": "on a break",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the figures of <Header>."
+  },
+  "attendance.team-now.figure_people": {
+    "text": "people",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/team-now.tsx, Ready: the figures of <Header>."
   },
   "attendance.team-now.in": {
     "text": "In",
@@ -2179,6 +2227,14 @@
     "text": "Copy the feed address",
     "context": "Time Off: leave, absences, time tracking, policies. holidays/holidays.tsx, Subscribe: the label of <CopyField>."
   },
+  "holidays.holidays.figure_holidays": {
+    "text": "holidays",
+    "context": "Time Off: leave, absences, time tracking, policies. holidays/holidays.tsx, Ready: the figures of <PageHeader>."
+  },
+  "holidays.holidays.figure_to_come": {
+    "text": "still to come",
+    "context": "Time Off: leave, absences, time tracking, policies. holidays/holidays.tsx, Ready: the figures of <PageHeader>."
+  },
   "holidays.holidays.holidays": {
     "text": "Holidays",
     "context": "Time Off: leave, absences, time tracking, policies. holidays/holidays.tsx, Holidays: the title of <PageHeader>."
@@ -3125,11 +3181,7 @@
   },
   "overview.overview.request": {
     "text": "Request",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: the trailing of <a>."
-  },
-  "overview.overview.request_2": {
-    "text": "Request {{bridgeDays}}",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: the aria-label of <a>. Filled in: {{bridgeDays}}."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: the meta of <ListItem>."
   },
   "overview.overview.since_left_of_your_day": {
     "text": "Since {{clockTime}} · {{left}} left of your {{plannedMinutes}} day",
@@ -3141,7 +3193,7 @@
   },
   "overview.overview.take": {
     "text": "Take {{bridgeDays}}",
-    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: text inside <ListItem>. Filled in: {{bridgeDays}}."
+    "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Bridges: text inside <a>. Filled in: {{bridgeDays}}."
   },
   "overview.overview.team_today": {
     "text": "Team today",
@@ -3466,6 +3518,14 @@
   "parental.cases.back": {
     "text": "{{spanLabel}}, back {{nextWorkingDay}}",
     "context": "Time Off: leave, absences, time tracking, policies. parental/cases.tsx, Ready: the description of <ListItem>. Filled in: {{spanLabel}}, {{nextWorkingDay}}."
+  },
+  "parental.cases.figure_cases": {
+    "text": "cases",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/cases.tsx, Ready: the figures of <PageHeader>."
+  },
+  "parental.cases.figure_waiting": {
+    "text": "waiting for a decision",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/cases.tsx, Ready: the figures of <PageHeader>."
   },
   "parental.cases.loading_the_parental_cases": {
     "text": "Loading the parental cases",
@@ -4674,6 +4734,10 @@
   "requests.requests.escalated_nobody_answered_in_time": {
     "text": "Escalated: nobody answered in time.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
+  },
+  "requests.requests.figure_requests": {
+    "text": "requests",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ListHeader: text inside <Header>."
   },
   "requests.requests.give_back_days_you_dont_need": {
     "text": "Give back days you don’t need. Shortening is approved automatically.",

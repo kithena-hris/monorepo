@@ -1035,8 +1035,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       description: 'A saved segment, by name (PEO-068).',
       fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }),
     });
+  const DirectoryViewsRef = builder
+    .objectRef<Directory['views']>('PeopleDirectoryViews')
+    .implement({
+      description: 'What each view holds of everybody, whatever the directory is narrowed to.',
+      fields: (t) => ({
+        everyone: t.exposeInt('everyone'),
+        starting: t.exposeInt('starting', { nullable: true }),
+        leaving: t.exposeInt('leaving', { nullable: true }),
+        incomplete: t.exposeInt('incomplete', { nullable: true }),
+      }),
+    });
   const DirectoryRef = builder.objectRef<Directory>('PeopleDirectory').implement({
     fields: (t) => ({
+      views: t.field({ type: DirectoryViewsRef, resolve: (v) => v.views }),
       segment: t.field({ type: SegmentRef, nullable: true, resolve: (v) => v.segment }),
       segments: t.field({
         type: [SegmentRef],

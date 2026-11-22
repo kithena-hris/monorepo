@@ -29,6 +29,7 @@ import {
   VirtualList,
   type VirtualListHandle,
   type VirtualRowProps,
+  tallyFigures,
 } from '@reach/ui';
 import {
   useCallback,
@@ -981,7 +982,42 @@ function Queue({
 
   return (
     <Stack gap={4}>
-      <PageHeader title={t('review.review.review', 'Review')} description={description} />
+      <PageHeader
+        title={t('review.review.review', 'Review')}
+        description={description}
+        {...(counts === null
+          ? {}
+          : {
+              figures: tallyFigures(
+                {
+                  label: t('review.review.figure_waiting', 'waiting'),
+                  value:
+                    (counts.changes ?? 0) +
+                    (counts.identifiers ?? 0) +
+                    (counts.duplicates ?? 0) +
+                    (counts.accessRequests ?? 0) +
+                    (counts.exports ?? 0),
+                },
+                [
+                  {
+                    label: t('review.review.figure_changes', 'changes'),
+                    value: counts.changes ?? 0,
+                    tone: 'info',
+                  },
+                  {
+                    label: t('review.review.figure_identifiers', 'identifiers'),
+                    value: counts.identifiers ?? 0,
+                    tone: 'warning',
+                  },
+                  {
+                    label: t('review.review.figure_duplicates', 'duplicates'),
+                    value: counts.duplicates ?? 0,
+                    tone: 'danger',
+                  },
+                ],
+              ),
+            })}
+      />
       {chipRow}
       {refused === null ? null : (
         <Alert tone="danger" title={t('review.review.not_done', 'Not done')}>

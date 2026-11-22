@@ -20,12 +20,19 @@ import { toneVar, type ChartTone } from '../chart/tones';
  */
 export interface WidgetGridProps extends ComponentPropsWithoutRef<'div'> {
   readonly size?: 'sm' | 'md';
+  /**
+   * `sm` tiles share the row equally rather than keeping one width with a
+   * void after the last: a row of figures over a `md` grid, capped at that
+   * grid's width so the two line up edge to edge.
+   */
+  readonly fill?: boolean;
 }
 
 const COLUMN = { sm: '13rem', md: '19rem' } as const;
 
 export function WidgetGrid({
   size = 'md',
+  fill = false,
   className,
   style,
   ...props
@@ -34,8 +41,9 @@ export function WidgetGrid({
     <div
       data-widget-grid={size}
       className={cn(
-        '@container/widgets grid grid-flow-row-dense items-start justify-start gap-4 touch:gap-3',
-        size === 'md' && 'max-w-[71rem]',
+        '@container/widgets grid grid-flow-row-dense gap-4 touch:gap-3',
+        fill ? 'items-stretch' : 'items-start justify-start',
+        (size === 'md' || fill) && 'max-w-[71rem]',
         className,
       )}
       style={{
@@ -43,7 +51,9 @@ export function WidgetGrid({
           size === 'md'
             ? // Each column at least half the row (less a gap), so a third never fits.
               `repeat(auto-fill, minmax(min(100%, max(${COLUMN.md}, calc((100% - 1.25rem) / 2))), 1fr))`
-            : `repeat(auto-fill, minmax(min(${COLUMN[size]}, 100%), ${COLUMN[size]}))`,
+            : fill
+              ? `repeat(auto-fit, minmax(min(${COLUMN[size]}, 100%), 1fr))`
+              : `repeat(auto-fill, minmax(min(${COLUMN[size]}, 100%), ${COLUMN[size]}))`,
         ...style,
       }}
       {...props}

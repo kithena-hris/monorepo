@@ -12,6 +12,7 @@ import {
   VirtualList,
   icons,
   usePages,
+  tallyFigures,
 } from '@reach/ui';
 import { useCallback, useState, useTransition, type JSX } from 'react';
 
@@ -130,6 +131,28 @@ export function Approvals({
           title: t('approvals.approvals.approvals', 'Approvals'),
           description: DESCRIPTION(),
         }}
+        {...(load.status === 'ready' && load.data.tab === 'waiting'
+          ? {
+              figures: tallyFigures(
+                {
+                  label: t('approvals.approvals.figure_waiting', 'waiting for you'),
+                  value: load.data.clear.length + load.data.lookCloser.length,
+                },
+                [
+                  {
+                    label: t('approvals.approvals.figure_clear', 'clear to approve'),
+                    value: load.data.clear.length,
+                    tone: 'success',
+                  },
+                  {
+                    label: t('approvals.approvals.figure_look_closer', 'to look at closer'),
+                    value: load.data.lookCloser.length,
+                    tone: 'warning',
+                  },
+                ],
+              ),
+            }
+          : {})}
       />
       <Loaded load={load} what="requests">
         {(data) =>

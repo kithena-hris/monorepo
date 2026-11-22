@@ -643,6 +643,10 @@
     "text": "Every module",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <ChipGroupItem>."
   },
+  "components.activity-log.figure_entries": {
+    "text": "entries",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <PageHeader>."
+  },
   "components.activity-log.for_reason": {
     "text": ", for: {{reason}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>. Filled in: {{reason}}."
@@ -2942,6 +2946,14 @@
   "components.inbox.screen.every_module": {
     "text": "Every module",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuRadioItem>."
+  },
+  "components.inbox.screen.figure_need_you": {
+    "text": "need you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the figures of <PageHeader>."
+  },
+  "components.inbox.screen.figure_new": {
+    "text": "new",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the figures of <PageHeader>."
   },
   "components.inbox.screen.filter": {
     "text": "Filter",

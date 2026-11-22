@@ -1105,6 +1105,7 @@
   "requests.requests.continue": "Doorgaan",
   "requests.requests.declined_by": "Afgewezen door {{role}}",
   "requests.requests.escalated_nobody_answered_in_time": "Geëscaleerd: niemand antwoordde op tijd.",
+  "requests.requests.figure_requests": "verzoeken",
   "requests.requests.give_back_days_you_dont_need": "Geef dagen terug die je niet nodig hebt. Inkorten wordt automatisch goedgekeurd.",
   "requests.requests.give_the_days_back": "Dagen teruggeven",
   "requests.requests.its_approved_so_moving_it_goes": "Het is goedgekeurd, dus verplaatsen gaat terug naar je goedkeurder. Je saldo wordt bijgewerkt als die ja zegt.",
