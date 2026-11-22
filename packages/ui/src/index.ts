@@ -447,6 +447,8 @@ export type {
 export { Input, Textarea } from './components/input/input';
 export type { InputProps, TextareaProps } from './components/input/input';
 
+export { Country, countryFlag } from './components/country/country';
+export type { CountryProps } from './components/country/country';
 export { Kbd, KbdShortcut, chordOf, keysOfChord } from './components/kbd/kbd';
 export type { KbdProps, KbdShortcutProps } from './components/kbd/kbd';
 
