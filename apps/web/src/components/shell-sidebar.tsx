@@ -15,7 +15,7 @@ import { t as tr } from '../lib/t';
  * page rather than beside it, so the page keeps its whole width.
  *
  * Nothing scrolls and nothing is cut short: the rail holds one icon per area
- * (named by its tooltip), and a flyout only ever holds one area's sections,
+ * (its name under it), and a flyout only ever holds one area's sections,
  * whose names wrap rather than truncate. Shortcuts are not on the rows (the
  * rail's tooltips, the palette and the help sheet carry them).
  */

@@ -554,6 +554,7 @@ export {
   tallyFigures,
   Toolbar,
   usePageHeaderFrame,
+  useRailCaptions,
   useRailCollapsed,
   useSidebarPanel,
 } from './components/page-layout/page-layout';

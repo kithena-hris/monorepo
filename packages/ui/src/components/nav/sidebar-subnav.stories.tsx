@@ -264,6 +264,40 @@ export const CollapsedRailWithAFlyout: Story = {
   ),
 };
 
+/** The rail naming its items: each icon over its word, so nobody has to learn the icons. */
+export const RailWithNames: Story = {
+  name: 'Rail with names',
+  render: () => (
+    <DeskOrPhone
+      desk={
+        <RailContext value={{ collapsed: true, captions: true }}>
+          <Nav label="Areas, named" className={`w-20 px-1.5 py-2.5 ${panel}`}>
+            <NavList className="gap-1">
+              <NavItem href="#home" icon={<icons.home />}>
+                Home
+              </NavItem>
+              <NavItem href="#people" icon={<icons.people />} current>
+                People
+              </NavItem>
+              <NavItem href="#performance" icon={<icons.goal />} badge={3}>
+                Performance
+              </NavItem>
+              <NavItem href="#settings" icon={<icons.settings />}>
+                Settings
+              </NavItem>
+            </NavList>
+          </Nav>
+        </RailContext>
+      }
+      phone={
+        <p className="text-base text-fg-muted">
+          On a phone there’s no rail. The tab bar names its tabs.
+        </p>
+      }
+    />
+  ),
+};
+
 export const AnUmbrellaPage: Story = {
   name: 'An umbrella page',
   render: () => {

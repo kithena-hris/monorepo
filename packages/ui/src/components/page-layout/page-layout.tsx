@@ -137,6 +137,8 @@ interface RailState {
    * The rail's items fly their sections out only when it is not.
    */
   panel?: boolean;
+  /** In a rail: each item's name is drawn under its icon rather than left to a tooltip. */
+  captions?: boolean;
 }
 
 /** The collapsed rail's width, and the width a drag has to pass to open it. */
@@ -199,6 +201,11 @@ function reducedMotion(): boolean {
 export const RailContext = createContext<RailState>({ collapsed: false });
 
 /** True when the surrounding rail is collapsed to icons. */
+/** Inside a rail whose items carry their names under their icons (`sidebarRailCaptions`). */
+export function useRailCaptions(): boolean {
+  return useContext(RailContext).captions === true;
+}
+
 export function useRailCollapsed(): boolean {
   return useContext(RailContext).collapsed;
 }
@@ -343,6 +350,12 @@ export interface PageLayoutProps
    * on hover, focus or a tap, over the page rather than beside it.
    */
   sidebarRail?: ReactNode;
+  /**
+   * Names under the rail's icons. An icon alone is a place only to somebody
+   * who has learnt it; with this the rail is a little wider and every
+   * `NavItem` in it says what it is, at the smallest text step.
+   */
+  sidebarRailCaptions?: boolean;
   /** Secondary rail: activity, help, a detail summary. Rendered as `<aside>`; hidden while the layout is narrower than 80rem (`@7xl/page`). */
   aside?: ReactNode;
   /** Status strip at the bottom of the page flow. Rendered as `<footer>`. */
@@ -393,6 +406,7 @@ export function PageLayout({
   sidebar,
   sidebarHeader,
   sidebarRail,
+  sidebarRailCaptions = false,
   aside,
   footer,
   bottomBar,
@@ -552,9 +566,19 @@ export function PageLayout({
                   items are icons whatever the panel does.
                 */}
                 <RailContext
-                  value={{ collapsed: true, panel: !railOnly && !sidebarState.collapsed }}
+                  value={{
+                    collapsed: true,
+                    panel: !railOnly && !sidebarState.collapsed,
+                    captions: sidebarRailCaptions,
+                  }}
                 >
-                  <div className="flex w-15 shrink-0 flex-col items-stretch gap-1 overflow-x-hidden px-2 pt-4 pb-3">
+                  <div
+                    className={cn(
+                      'flex shrink-0 flex-col items-stretch gap-1 overflow-x-hidden pt-4 pb-3',
+                      // Room for a word under each icon, not only the icon.
+                      sidebarRailCaptions ? 'w-20 px-1.5' : 'w-15 px-2',
+                    )}
+                  >
                     {sidebarHeader ? (
                       <div className="flex min-h-10 items-center justify-center">
                         {sidebarHeader}
