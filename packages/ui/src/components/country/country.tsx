@@ -29,7 +29,27 @@ export interface CountryProps extends Omit<ComponentPropsWithoutRef<'span'>, 'ch
    * alone, named for a screen reader.
    */
   display?: 'name' | 'code' | 'flag';
+  /**
+   * How the flag is drawn. `plain` is the flag as the system draws it.
+   * `rounded` crops it to a circle, the size of a small avatar beside a name.
+   * `boxed` sets it on a small tile, so flags of different outlines line up
+   * down a column.
+   */
+  shape?: 'plain' | 'rounded' | 'boxed';
 }
+
+/**
+ * The flag in its shape. Rounded, the emoji is drawn larger than its circle
+ * and cropped to its middle; where a system draws letters for a flag, they
+ * are kept at their own size so both stay inside it.
+ */
+const FLAG = {
+  plain: 'shrink-0 leading-none',
+  rounded:
+    'inline-flex size-[1.25em] shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-sunken leading-none [&>span]:text-[1.7em]',
+  boxed:
+    'inline-flex h-[1.375em] w-[1.75em] shrink-0 items-center justify-center rounded-sm border border-border bg-surface-sunken leading-none',
+} as const;
 
 /**
  * A country: its flag and its name in the reader's language.
@@ -40,6 +60,7 @@ export interface CountryProps extends Omit<ComponentPropsWithoutRef<'span'>, 'ch
 export function Country({
   code,
   display = 'name',
+  shape = 'plain',
   className,
   ...props
 }: CountryProps): JSX.Element {
@@ -49,16 +70,16 @@ export function Country({
   const flag = countryFlag(code);
   if (display === 'flag' && flag !== '') {
     return (
-      <span role="img" aria-label={name} className={cn('leading-none', className)} {...props}>
-        {flag}
+      <span role="img" aria-label={name} className={cn(FLAG[shape], className)} {...props}>
+        <span aria-hidden>{flag}</span>
       </span>
     );
   }
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-2', className)} {...props}>
       {flag === '' ? null : (
-        <span aria-hidden className="shrink-0 leading-none">
-          {flag}
+        <span aria-hidden className={FLAG[shape]}>
+          <span>{flag}</span>
         </span>
       )}
       {display === 'code' && known ? (

@@ -27,4 +27,9 @@ describe('Country', () => {
     expect(screen.getByText('United States')).toHaveClass('sr-only');
     expect(screen.getByText('Atlantis')).toBeInTheDocument();
   });
+
+  it('draws the flag in the shape asked for', () => {
+    render(<Country code="TW" display="flag" shape="rounded" />);
+    expect(screen.getByRole('img', { name: 'Taiwan' })).toHaveClass('rounded-full');
+  });
 });
