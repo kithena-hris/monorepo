@@ -2090,6 +2090,118 @@ function Body({
       ) : null}
     </>
   );
+  // One toolbar (C1): the question, the filters in force as chips, then
+  // the view and the export. Sort, group and columns are one View menu
+  // rather than three controls; after a question the chips are the
+  // question's, under this row, which says how many it found and what to
+  // do with them.
+  const controls = (
+    <Toolbar
+      {...(smart && coarse
+        ? {}
+        : {
+            // Without smart search the field searches names as they are typed; with it, Enter asks.
+            search: smart ? ask : <NameSearch search={search} onSearchChange={onSearchChange} />,
+          })}
+      filters={
+        fromQuestion ? (
+          coarse ? undefined : (
+            <p className="flex items-baseline gap-2.5 text-sm text-fg-muted">
+              <span className="text-base font-bold text-fg">{peopleCount(state.total)}</span>
+              {t(
+                'directory.directory.updates_as_you_edit_the_chips',
+                'Updates as you edit the chips',
+              )}
+            </p>
+          )
+        ) : (
+          <ChipRow
+            role="group"
+            aria-label={t('directory.directory.filters_in_force', 'Filters in force')}
+          >
+            {match === 'any' && conditions.length > 1 ? (
+              <span className="text-xs text-fg-muted">
+                {t('directory.directory.any_of', 'Any of:')}
+              </span>
+            ) : null}
+            {chips.map((chip) => (
+              <Chip
+                key={chip.key}
+                {...(chip.field === '' ? {} : { field: chip.field })}
+                onRemove={chip.remove}
+                removeLabel={t('directory.directory.remove', 'Remove {{value}}{{text}}', {
+                  value: chip.field === '' ? '' : `${chip.field} `,
+                  text: chip.text,
+                })}
+              >
+                {chip.text}
+              </Chip>
+            ))}
+            {onConditionsChange === undefined || fields.length === 0 ? null : (
+              <Chip
+                variant="dashed"
+                startIcon={<icons.add aria-hidden />}
+                onClick={() => {
+                  setFiltersOpen(true);
+                }}
+              >
+                {t('directory.directory.add_filter', 'Add filter')}
+              </Chip>
+            )}
+            {chips.length === 0 ? null : (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (conditions.length > 0) onConditionsChange?.([], 'all');
+                  if (Object.keys(filters).length > 0) onFiltersChange({});
+                }}
+              >
+                {t('directory.directory.clear_all', 'Clear all')}
+              </Button>
+            )}
+            {saveable ? <SaveSegment onSave={onSaveSegment} {...savePanel} /> : null}
+          </ChipRow>
+        )
+      }
+      actions={
+        coarse ? undefined : (
+          <span className="flex flex-wrap items-center gap-2">
+            {fromQuestion ? remindButton : null}
+            {fromQuestion && saveable ? (
+              <SaveSegment
+                onSave={onSaveSegment}
+                label={t('directory.directory.save_as_view', 'Save as view')}
+                {...savePanel}
+              />
+            ) : null}
+            <ViewMenu
+              columns={state.columns}
+              chosen={columnsChosen}
+              metrics={onSortChange === undefined ? [] : metrics}
+              sort={sort}
+              onSortChange={onSortChange}
+              groupable={onGroupChange === undefined || view !== 'list' ? [] : groupable}
+              group={grouping?.key ?? null}
+              onGroupChange={onGroupChange}
+            />
+            {onExport === undefined ? null : (
+              <Button
+                size="sm"
+                variant="ghost"
+                startIcon={<icons.download aria-hidden />}
+                onClick={onExport}
+              >
+                {t('directory.directory.export', 'Export')}
+              </Button>
+            )}
+          </span>
+        )
+      }
+    />
+  );
+  // At a desk the list is one surface: the controls are the head of the table they act on.
+  const joined = view === 'list' && !coarse;
   return (
     <Stack gap={4}>
       <Views
@@ -2112,117 +2224,8 @@ function Body({
           {remindButton === null ? null : <span className="ms-auto">{remindButton}</span>}
         </div>
       ) : null}
-      {/*
-        One toolbar (C1): the question, the filters in force as chips, then
-        the view and the export. Sort, group and columns are one View menu
-        rather than three controls; after a question the chips are the
-        question's, under this row, which says how many it found and what to
-        do with them.
-      */}
-      <Toolbar
-        {...(smart && coarse
-          ? {}
-          : {
-              // Without smart search the field searches names as they are typed; with it, Enter asks.
-              search: smart ? ask : <NameSearch search={search} onSearchChange={onSearchChange} />,
-            })}
-        filters={
-          fromQuestion ? (
-            coarse ? undefined : (
-              <p className="flex items-baseline gap-2.5 text-sm text-fg-muted">
-                <span className="text-base font-bold text-fg">{peopleCount(state.total)}</span>
-                {t(
-                  'directory.directory.updates_as_you_edit_the_chips',
-                  'Updates as you edit the chips',
-                )}
-              </p>
-            )
-          ) : (
-            <ChipRow
-              role="group"
-              aria-label={t('directory.directory.filters_in_force', 'Filters in force')}
-            >
-              {match === 'any' && conditions.length > 1 ? (
-                <span className="text-xs text-fg-muted">
-                  {t('directory.directory.any_of', 'Any of:')}
-                </span>
-              ) : null}
-              {chips.map((chip) => (
-                <Chip
-                  key={chip.key}
-                  {...(chip.field === '' ? {} : { field: chip.field })}
-                  onRemove={chip.remove}
-                  removeLabel={t('directory.directory.remove', 'Remove {{value}}{{text}}', {
-                    value: chip.field === '' ? '' : `${chip.field} `,
-                    text: chip.text,
-                  })}
-                >
-                  {chip.text}
-                </Chip>
-              ))}
-              {onConditionsChange === undefined || fields.length === 0 ? null : (
-                <Chip
-                  variant="dashed"
-                  startIcon={<icons.add aria-hidden />}
-                  onClick={() => {
-                    setFiltersOpen(true);
-                  }}
-                >
-                  {t('directory.directory.add_filter', 'Add filter')}
-                </Chip>
-              )}
-              {chips.length === 0 ? null : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    if (conditions.length > 0) onConditionsChange?.([], 'all');
-                    if (Object.keys(filters).length > 0) onFiltersChange({});
-                  }}
-                >
-                  {t('directory.directory.clear_all', 'Clear all')}
-                </Button>
-              )}
-              {saveable ? <SaveSegment onSave={onSaveSegment} {...savePanel} /> : null}
-            </ChipRow>
-          )
-        }
-        actions={
-          coarse ? undefined : (
-            <span className="flex flex-wrap items-center gap-2">
-              {fromQuestion ? remindButton : null}
-              {fromQuestion && saveable ? (
-                <SaveSegment
-                  onSave={onSaveSegment}
-                  label={t('directory.directory.save_as_view', 'Save as view')}
-                  {...savePanel}
-                />
-              ) : null}
-              <ViewMenu
-                columns={state.columns}
-                chosen={columnsChosen}
-                metrics={onSortChange === undefined ? [] : metrics}
-                sort={sort}
-                onSortChange={onSortChange}
-                groupable={onGroupChange === undefined || view !== 'list' ? [] : groupable}
-                group={grouping?.key ?? null}
-                onGroupChange={onGroupChange}
-              />
-              {onExport === undefined ? null : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  startIcon={<icons.download aria-hidden />}
-                  onClick={onExport}
-                >
-                  {t('directory.directory.export', 'Export')}
-                </Button>
-              )}
-            </span>
-          )
-        }
-      />
-      {smart && !coarse ? (
+      {joined ? null : controls}
+      {smart && !coarse && !joined ? (
         <div className="flex min-w-0 flex-col gap-3 empty:hidden">{heard}</div>
       ) : null}
       {onConditionsChange === undefined || fields.length === 0 ? null : (
@@ -2248,7 +2251,20 @@ function Body({
           One tree either way, so opening the card does not draw the table again.
         */}
         <div className={beside ? 'grid grid-cols-[minmax(0,1fr)_21.25rem] gap-4' : undefined}>
-          <div className="relative min-w-0">{table}</div>
+          <div className="relative min-w-0">
+            {joined ? (
+              // Clipped, not hidden: a hidden box would be what the table's pinned head sticks to.
+              <Card className="overflow-clip">
+                <div className="flex min-w-0 flex-col gap-3 border-b border-border px-4 py-3">
+                  {controls}
+                  {smart ? heard : null}
+                </div>
+                {table}
+              </Card>
+            ) : (
+              table
+            )}
+          </div>
           {peeked !== null && beside ? (
             <QuickLook
               className="sticky top-[calc(var(--reach-sticky-top,0px)+1rem)] self-start"
