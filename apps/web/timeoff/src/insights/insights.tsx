@@ -6,6 +6,7 @@ import {
   Button,
   ChartCard,
   dateFormat,
+  formatNumber,
   List,
   ListItem,
   PageSection,
@@ -122,7 +123,7 @@ const people = (count: number): string =>
     { count: count },
   );
 const hoursOf = (minutes: number): string =>
-  tr('insights.insights.h', '{{round}}h', { round: String(Math.round(minutes / 60)) });
+  tr('insights.insights.h', '{{round}}h', { round: formatNumber(Math.round(minutes / 60)) });
 
 /** Why a point is there in a word: the link that opens its people. */
 const BEHIND: Record<PointKind, string> = {
@@ -468,7 +469,7 @@ function Teams({
             <TableCell className="font-semibold">
               {t.teamName ?? tr('insights.insights.no_team', 'No team')}
             </TableCell>
-            <TableCell className="text-end tabular-nums">{t.people}</TableCell>
+            <TableCell className="text-end tabular-nums">{formatNumber(t.people)}</TableCell>
             <TableCell className="text-end tabular-nums">{of(t)}</TableCell>
           </TableRow>
         ))}
@@ -502,7 +503,7 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
       <PageSection title={tr('insights.insights.attendance_by_month', 'Attendance by month')}>
         <ChartCard
           title={tr('insights.insights.missed_clock_outs_by_month', 'Missed clock-outs by month')}
-          value={String(now?.missedClockOuts ?? 0)}
+          value={formatNumber(now?.missedClockOuts ?? 0)}
           action={
             <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
               <a href="/time-off/attendance/exceptions">
@@ -541,7 +542,7 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
               value: Math.round(m.overtimeMinutes / 60),
             }))}
             tone="chart-5"
-            format={(v) => tr('insights.insights.h_2', '{{v}}h', { v: String(v) })}
+            format={(v) => tr('insights.insights.h_2', '{{v}}h', { v: formatNumber(v) })}
             height={140}
           />
         </ChartCard>
@@ -605,7 +606,7 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
           />
           <Stat
             label={tr('insights.insights.would_lose_some', 'Would lose some')}
-            value={String(data.losingCount)}
+            value={formatNumber(data.losingCount)}
           />
         </div>
         <PageSection title={tr('insights.insights.days_left_by_team', 'Days left by team')} surface>
