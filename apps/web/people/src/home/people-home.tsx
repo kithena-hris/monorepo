@@ -758,11 +758,16 @@ function Way({
   href,
   label,
   icon,
+  over = false,
 }: {
   readonly href: string;
   readonly label: string;
   readonly icon?: ReactNode;
+  /** Something to do, not somewhere to go: opens over Home where the host can. */
+  readonly over?: boolean;
 }): JSX.Element {
+  const looks = useContext(PeekContext);
+  const open = over ? (looks?.open ?? null) : null;
   return (
     // Its own provider: Home can be drawn in a root no app provider reaches.
     <TooltipProvider>
@@ -774,7 +779,18 @@ function Way({
           aria-label={label}
           startIcon={icon ?? <icons.forward aria-hidden />}
         >
-          <a href={href} />
+          <a
+            href={href}
+            {...(open === null
+              ? {}
+              : {
+                  onClick: (event: MouseEvent) => {
+                    if (!plain(event)) return;
+                    event.preventDefault();
+                    open(href, label);
+                  },
+                })}
+          />
         </Button>
       </Tooltip>
     </TooltipProvider>
@@ -1228,6 +1244,14 @@ function Profile({
             className="relative tap-target h-auto p-0"
             aria-haspopup="dialog"
             onClick={() => {
+              // Where the host can, the fields themselves, to fill in and save there.
+              if (peek.open !== null) {
+                peek.open(
+                  `/people/${me.id}?fill=missing`,
+                  tr('home.people-home.missing_details', 'Missing details'),
+                );
+                return;
+              }
               peek.peek({
                 media: <Tile icon={<icons.missing aria-hidden />} name="Missing" tone="warning" />,
                 title: tr('home.people-home.missing_details', 'Missing details'),
@@ -1588,6 +1612,7 @@ function Leave({ leave }: { readonly leave: HostLeave }): JSX.Element {
             href={leave.requestHref}
             label={tr('home.people-home.request_time_off', 'Request time off')}
             icon={<icons.add aria-hidden />}
+            over
           />
           <Way
             href={leave.href}

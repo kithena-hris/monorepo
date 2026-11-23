@@ -802,7 +802,6 @@
   "overview.overview.public_holiday": "{{date}} · праздник",
   "overview.overview.remote": "Удалённо",
   "overview.overview.request": "Запрос",
-  "overview.overview.request_2": "Запросить {{bridgeDays}}",
   "overview.overview.since_left_of_your_day": "С {{clockTime}} · осталось {{left}} из дня в {{plannedMinutes}}",
   "overview.overview.start_break": "Начать перерыв",
   "overview.overview.take": "Возьмите {{bridgeDays}}",

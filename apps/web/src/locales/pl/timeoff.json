@@ -789,7 +789,6 @@
   "overview.overview.public_holiday": "{{date}} · święto",
   "overview.overview.remote": "Zdalnie",
   "overview.overview.request": "Wniosek",
-  "overview.overview.request_2": "Wnioskuj o {{bridgeDays}}",
   "overview.overview.since_left_of_your_day": "Od {{clockTime}} · zostało {{left}} z dnia {{plannedMinutes}}",
   "overview.overview.start_break": "Rozpocznij przerwę",
   "overview.overview.take": "Weź {{bridgeDays}}",

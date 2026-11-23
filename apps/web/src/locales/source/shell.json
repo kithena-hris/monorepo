@@ -1115,6 +1115,42 @@
     "text": "Requests, documents and approvals appear here as each module is switched on.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/home-dashboard.tsx, HomeDashboard: the description of <EmptyState>."
   },
+  "components.home-missing.count_to_save_one": {
+    "text": "{{count}} detail to save",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.home-missing.count_to_save_other": {
+    "text": "{{count}} details to save",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.home-missing.every_required_detail_you_can_fill": {
+    "text": "Every required detail you can fill in is on your record.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <Alert>."
+  },
+  "components.home-missing.fill_in_any_and_save": {
+    "text": "Fill in any of these and save. The rest can wait.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <p>."
+  },
+  "components.home-missing.nothing_is_missing": {
+    "text": "Nothing is missing",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: the title of <Alert>."
+  },
+  "components.home-missing.reading_your_record": {
+    "text": "Reading your record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: the label of <Spinner>."
+  },
+  "components.home-missing.save": {
+    "text": "Save",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <Button>."
+  },
+  "components.home-missing.saved_to_your_record_one": {
+    "text": "{{count}} detail saved to your record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: a \"title\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.home-missing.saved_to_your_record_other": {
+    "text": "{{count}} details saved to your record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: a \"title\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "components.home-modal.open_the_full_page": {
     "text": "Open the full page",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/home-modal.tsx, HomeModal: the actions of <a>."
@@ -1122,6 +1158,10 @@
   "components.home-modal.opening": {
     "text": "Opening",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/home-modal.tsx, HomeModal: the label of <Spinner>."
+  },
+  "components.home-modal.opening_label": {
+    "text": "Opening {{label}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-modal.tsx, KeptFrame: the label of <Spinner>. Filled in: {{label}}."
   },
   "components.inbox.bell.open": {
     "text": "Open",
