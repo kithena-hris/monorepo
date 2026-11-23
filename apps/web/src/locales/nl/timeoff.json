@@ -734,7 +734,6 @@
   "overview.overview.public_holiday": "{{date}} · feestdag",
   "overview.overview.remote": "Op afstand",
   "overview.overview.request": "Aanvraag",
-  "overview.overview.request_2": "{{bridgeDays}} aanvragen",
   "overview.overview.since_left_of_your_day": "Sinds {{clockTime}} · nog {{left}} van je dag van {{plannedMinutes}}",
   "overview.overview.start_break": "Pauze starten",
   "overview.overview.take": "Neem {{bridgeDays}}",
