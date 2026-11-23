@@ -755,7 +755,6 @@
   "overview.overview.planned": "Geplant",
   "overview.overview.public_holiday": "{{date}} · Feiertag",
   "overview.overview.request": "Antrag",
-  "overview.overview.request_2": "{{bridgeDays}} beantragen",
   "overview.overview.since_left_of_your_day": "Seit {{clockTime}} · noch {{left}} von Ihrem {{plannedMinutes}}-Tag",
   "overview.overview.start_break": "Pause beginnen",
   "overview.overview.take": "{{bridgeDays}} nehmen",

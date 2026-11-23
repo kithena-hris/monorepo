@@ -776,7 +776,6 @@
   "overview.overview.public_holiday": "{{date}} · feriado",
   "overview.overview.remote": "Remoto",
   "overview.overview.request": "Pedido",
-  "overview.overview.request_2": "Pedir {{bridgeDays}}",
   "overview.overview.since_left_of_your_day": "Desde as {{clockTime}} · faltam {{left}} do seu dia de {{plannedMinutes}}",
   "overview.overview.start_break": "Iniciar pausa",
   "overview.overview.take": "Tire {{bridgeDays}}",
