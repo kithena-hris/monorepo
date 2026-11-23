@@ -99,7 +99,8 @@ function park(): HTMLElement {
       if (k.drawn !== null && value !== k.drawn) {
         // A write here: every other kept page, and Home, may show what it changed.
         wrote = true;
-        for (const other of [...kept.keys()]) if (other !== href) forget(other);
+        // Deleting from a Map while walking it is safe: a deleted entry is not visited.
+        for (const other of kept.keys()) if (other !== href) forget(other);
       }
       k.drawn = value;
     });
