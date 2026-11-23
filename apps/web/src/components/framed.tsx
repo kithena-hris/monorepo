@@ -14,7 +14,7 @@ import { useEffect, useRef, useSyncExternalStore, type JSX, type ReactNode } fro
  */
 export interface FrameMessage {
   readonly kithena: 'frame';
-  readonly kind: 'height' | 'drawn';
+  readonly kind: 'height' | 'drawn' | 'escape';
   readonly value: number;
 }
 
@@ -29,6 +29,16 @@ export function useFramed(): boolean {
   );
 }
 
+/**
+ * On the frame element, by a holder that gives the page its whole box (Home's
+ * modal): the page then keeps a page's margins, scrolls itself to the box's
+ * edge, and says when Escape was pressed in it with nothing of its own to
+ * close, so the holder can close.
+ */
+export const ROOMY = 'data-roomy';
+
+const roomy = (): boolean => window.frameElement?.hasAttribute(ROOMY) === true;
+
 export function Framed({
   drawn,
   children,
@@ -38,9 +48,21 @@ export function Framed({
   readonly children: ReactNode;
 }): JSX.Element {
   const box = useRef<HTMLDivElement>(null);
+  const wide = useSyncExternalStore(subscribeNever, roomy, () => false);
   useEffect(() => {
     post('drawn', drawn);
   }, [drawn]);
+  useEffect(() => {
+    if (!wide) return;
+    // After the page's own layers: a dialog or a menu that took the key has prevented it.
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && !event.defaultPrevented) post('escape', 0);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [wide]);
   useEffect(() => {
     const el = box.current;
     if (el === null) return;
@@ -53,7 +75,11 @@ export function Framed({
     };
   }, []);
   return (
-    <div ref={box} data-framed="" className="@container/page px-1 pt-1 pb-6">
+    <div
+      ref={box}
+      data-framed=""
+      className={wide ? '@container/page p-5 pb-8 touch:p-3' : '@container/page px-1 pt-1 pb-6'}
+    >
       {children}
     </div>
   );

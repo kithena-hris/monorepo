@@ -303,6 +303,9 @@ describe('Home, as an employee (B1)', () => {
     expect(onOpen).toHaveBeenLastCalledWith(expect.stringMatching(/^\/people\//), 'Alan Turing');
     await user.click(screen.getByRole('link', { name: /Write your self review/ }));
     expect(onOpen).toHaveBeenLastCalledWith('/inbox/todo?item=t1', 'Write your self review');
+    // What is missing opens as the fields themselves, to fill in there.
+    await user.click(within(part('Your profile')).getByRole('button', { name: /missing/ }));
+    expect(onOpen).toHaveBeenLastCalledWith(`/people/${ADA}?fill=missing`, 'Missing details');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

@@ -148,7 +148,7 @@ const isMoney = (v: unknown): v is { amountMinor: string; currency: string } =>
  * line. A type with no control here (a file, an address) opens the profile in
  * the pane, at that field.
  */
-function FieldInput({
+export function FieldInput({
   field,
   value,
   onChange,
