@@ -562,6 +562,41 @@ describe('Home, with a host that knows who is away', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('shows five tasks and five people away, and opens everyone away in one list', async () => {
+    const people = Array.from({ length: 8 }, (_, i) => ({
+      id: `p${String(i)}`,
+      name: `Person ${String(i)}`,
+      when: 'Mon 5 Oct – Fri 9 Oct',
+      detail: 'In 8 days',
+      now: false,
+    }));
+    const tasks = Array.from({ length: 7 }, (_, i) => ({
+      id: `t${String(i)}`,
+      title: `Task ${String(i)}`,
+      description: 'People',
+      href: `/inbox/todo?item=t${String(i)}`,
+      icon: 'list',
+    }));
+    const user = fast();
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        away={{ ...away, people }}
+        toDo={{ href: '/inbox/todo', tasks, waiting: [] }}
+      />,
+    );
+    const todo = part('To do');
+    expect(within(todo).getByText('Task 4')).toBeInTheDocument();
+    expect(within(todo).queryByText('Task 5')).toBeNull();
+    const out = part('Who’s out');
+    expect(within(out).getByText('Person 4')).toBeInTheDocument();
+    expect(within(out).queryByText('Person 5')).toBeNull();
+    await user.click(within(out).getByText('3 more away'));
+    const all = await screen.findByRole('dialog', { name: 'Who’s out' });
+    expect(within(all).getByText('8 people away, today and next')).toBeInTheDocument();
+    expect(within(all).getByText('Person 7')).toBeInTheDocument();
+  });
+
   it('says so when nobody is away and nothing is booked, and draws neither without a host', () => {
     const { unmount } = render(
       <PeopleHome

@@ -1,12 +1,13 @@
 'use client';
 
 import { Alert, Button, Spinner, useToast } from '@reach/ui';
-import { useEffect, useState, useTransition, type JSX } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useTransition, type JSX } from 'react';
 
 import { saveOwnSection } from '../app/(app)/people/actions';
 import { t } from '../lib/t';
 import { FieldInput } from './inbox/detail-people';
-import { forgetGap, type Gaps, prefetchGaps } from './inbox/gaps-cache';
+import { gapsQuery } from './home-reads';
 
 const filled = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
 
@@ -17,8 +18,8 @@ const filled = (v: unknown): boolean => v !== undefined && v !== null && v !== '
  * Saving some and coming back for the rest is the point: what was saved
  * leaves the list, what was not stays.
  *
- * The gaps are kept for the visit (`gaps-cache.ts`), so opening this again is
- * at once; a save asks for them again.
+ * The gaps are a kept read (`home-reads.ts`), asked for ahead by Home's modal,
+ * so this opens at once; a save asks for them again.
  */
 export function MissingFields({
   personId,
@@ -29,19 +30,11 @@ export function MissingFields({
   readonly onSaved: () => void;
 }): JSX.Element {
   const { toast } = useToast();
-  const [gaps, setGaps] = useState<Gaps | undefined>(undefined);
+  const client = useQueryClient();
+  const { data: gaps } = useQuery(gapsQuery(personId));
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  useEffect(() => {
-    let live = true;
-    void prefetchGaps(personId).then((g) => {
-      if (live) setGaps(g);
-    });
-    return () => {
-      live = false;
-    };
-  }, [personId]);
 
   if (gaps === undefined) {
     return (
@@ -74,10 +67,9 @@ export function MissingFields({
         setError(saved.message);
         return;
       }
-      forgetGap(personId);
-      const next = await prefetchGaps(personId);
+      // What was saved leaves the list: the gaps are read again before the fields clear.
+      await client.invalidateQueries({ queryKey: gapsQuery(personId).queryKey });
       setValues({});
-      setGaps(next);
       onSaved();
       toast({
         title: t(
@@ -117,7 +109,7 @@ export function MissingFields({
         </section>
       ))}
       {error === null ? null : <Alert tone="danger" title={error} />}
-      <div className="sticky bottom-0 -mx-5 flex items-center justify-between gap-3 border-t border-border bg-surface px-5 py-3">
+      <div className="sticky bottom-0 -mx-5 flex rounded-b-2xl items-center justify-between gap-3 border-t border-border bg-surface px-5 py-3">
         <p className="text-sm text-fg-muted">
           {count === 0
             ? t(

@@ -236,6 +236,7 @@ export function InboxDetail({
   zone,
   onNext,
   screen,
+  titled = true,
 }: {
   readonly item: Shown;
   readonly now: string;
@@ -244,6 +245,8 @@ export function InboxDetail({
   readonly onNext: () => void;
   /** Its module's screen, read with the page, for a task the pane draws one for. */
   readonly screen?: TaskScreen | null;
+  /** False where what holds it already shows the title (a modal's header): kept for a screen reader only. */
+  readonly titled?: boolean;
 }): JSX.Element {
   const { toast } = useToast();
   const [pending, start] = useTransition();
@@ -523,7 +526,10 @@ export function InboxDetail({
     <article className="flex flex-col gap-5 p-5 touch:p-4" aria-labelledby="inbox-detail-title">
       <Head item={item} menu={menu} />
       <div className="flex flex-col gap-2">
-        <h2 id="inbox-detail-title" className="text-2xl font-bold tracking-tight text-pretty">
+        <h2
+          id="inbox-detail-title"
+          className={titled ? 'text-2xl font-bold tracking-tight text-pretty' : 'sr-only'}
+        >
           {item.title}
         </h2>
         <Who item={item} now={now} zone={zone} />

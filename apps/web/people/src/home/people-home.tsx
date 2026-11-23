@@ -41,6 +41,7 @@ import {
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   type ComponentType,
   type JSX,
@@ -570,9 +571,11 @@ const plain = (event: MouseEvent): boolean =>
 function opens(
   looks: Looks | null,
   peeked: Peeked,
-): { readonly onClick?: (event: MouseEvent) => void } {
+): { readonly onClick?: (event: MouseEvent) => void; readonly 'data-over'?: string } {
   if (looks === null) return {};
   return {
+    // What the host opens over Home, said in the markup so it can read it ahead.
+    ...(peeked.direct === true && looks.open !== null ? { 'data-over': peeked.href } : {}),
     onClick: (event) => {
       if (!plain(event)) return;
       event.preventDefault();
@@ -930,6 +933,9 @@ const sender = (t: HostTask): string | null => {
   return parts.length === 0 ? null : parts.join(' · ');
 };
 
+/** How many rows a list on Home shows before it says "and more". */
+const TOP = 5;
+
 /** The host's To do and what waits on others, in People's own rows. */
 function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
   const rows = (tasks: readonly HostTask[], label: string) => (
@@ -972,7 +978,8 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
             )}
           />
         ) : (
-          rows(toDo.tasks, tr('home.people-home.to_do', 'To do'))
+          // The first five; the count and the way to the Inbox say there are more.
+          rows(toDo.tasks.slice(0, TOP), tr('home.people-home.to_do', 'To do'))
         )}
       </Section>
       {toDo.waiting.length === 0 ? null : (
@@ -1243,6 +1250,7 @@ function Profile({
             variant="ghost"
             className="relative tap-target h-auto p-0"
             aria-haspopup="dialog"
+            {...(peek.open === null ? {} : { 'data-over': `/people/${me.id}?fill=missing` })}
             onClick={() => {
               // Where the host can, the fields themselves, to fill in and save there.
               if (peek.open !== null) {
@@ -1487,6 +1495,16 @@ function Profile({
 function Away({ away }: { readonly away: HostAway }): JSX.Element {
   const peek = useContext(PeekContext);
   const out = away.people.filter((p) => p.now).length;
+  // Five rows; the rest are faces that open everyone in one list.
+  const rest = away.people.slice(TOP);
+  const everyone = tr(
+    'home.people-home.count_people_away',
+    {
+      one: '{{count}} person away, today and next',
+      other: '{{count}} people away, today and next',
+    },
+    { count: away.people.length },
+  );
   return (
     <Section
       title={tr('home.people-home.whos_out', 'Who’s out')}
@@ -1517,7 +1535,7 @@ function Away({ away }: { readonly away: HostAway }): JSX.Element {
               : tr('home.people-home.away_today_and_next', 'Away today and next')
           }
         >
-          {away.people.map((p) => (
+          {away.people.slice(0, TOP).map((p) => (
             <ListItem
               key={p.id}
               asChild
@@ -1589,6 +1607,59 @@ function Away({ away }: { readonly away: HostAway }): JSX.Element {
               </a>
             </ListItem>
           ))}
+          {rest.length === 0 ? null : (
+            <ListItem
+              asChild
+              leading={
+                <AvatarGroup max={4} total={rest.length} aria-hidden>
+                  {rest.map((p) => (
+                    <Avatar key={p.id} size="sm" name={p.name} />
+                  ))}
+                </AvatarGroup>
+              }
+            >
+              <a
+                href={away.href}
+                aria-haspopup="dialog"
+                {...opens(peek, {
+                  media: <Tile icon={<icons.calendar aria-hidden />} name="Away" tone="info" />,
+                  title: tr('home.people-home.whos_out', 'Who’s out'),
+                  description: everyone,
+                  body: (
+                    <List aria-label={everyone} className="max-h-[60vh] overflow-y-auto">
+                      {away.people.map((p) => (
+                        <ListItem
+                          key={p.id}
+                          leading={
+                            <Avatar
+                              name={p.name}
+                              {...(p.now ? { status: 'warning' as const } : {})}
+                            />
+                          }
+                          description={[p.team, p.when].filter((x) => x !== undefined).join(' · ')}
+                          trailing={
+                            <Badge size="sm" tone={p.now ? 'warning' : 'neutral'}>
+                              {p.now ? tr('home.people-home.out_today', 'Out today') : p.detail}
+                            </Badge>
+                          }
+                        >
+                          {p.name}
+                        </ListItem>
+                      ))}
+                    </List>
+                  ),
+                  href: away.href,
+                  go: tr('home.people-home.open_the_team_calendar', 'Open the team calendar'),
+                })}
+              >
+                {tr(
+                  'home.people-home.count_more_away',
+                  { one: '{{count}} more away', other: '{{count}} more away' },
+                  { count: rest.length },
+                )}
+              </a>
+            </ListItem>
+          )}
         </List>
       )}
     </Section>
@@ -2559,6 +2630,28 @@ function Setup({
 }
 
 /**
+ * The time now, for what Home says about the clock: null until the browser
+ * has it (the server's page says when it was drawn, which a kept page shows
+ * long after), then again as each minute turns. A timer set for the turn of
+ * the minute, not a sweep: nothing runs between.
+ */
+function useMinute(): string | null {
+  const [now, setNow] = useState<string | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = (): void => {
+      setNow(new Date().toISOString());
+      timer = setTimeout(tick, 60_000 - (Date.now() % 60_000));
+    };
+    timer = setTimeout(tick, 0);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []);
+  return now;
+}
+
+/**
  * Home: today where they work over a greeting by the hour, in the middle of
  * a wash of colour; then the page for who they are: HR's (B2) or anybody's
  * (B1). Nothing here leads anywhere the sidebar does not: no shortcuts and no
@@ -2592,6 +2685,7 @@ export function PeopleHome({
             onOpen(href, label);
           },
   };
+  const minute = useMinute();
   return (
     <PeekContext.Provider value={looks}>
       <Peek
@@ -2607,8 +2701,10 @@ export function PeopleHome({
         {(state) => {
           const { me, reportingLine, hr } = state;
           const hrFigures = state.roles.hr ? (hr ?? null) : null;
-          const today = me === null ? '' : weekday(state.now, me.timeZone);
-          const time = me === null ? '' : localTime(state.now, me.timeZone);
+          // The clock's words follow the minute; what was counted when People answered does not.
+          const clock = minute ?? state.now;
+          const today = me === null ? '' : weekday(clock, me.timeZone);
+          const time = me === null ? '' : localTime(clock, me.timeZone);
           const where = me?.location ?? null;
           const when = [
             today,
@@ -2622,7 +2718,7 @@ export function PeopleHome({
           const around =
             me === null ? null : (
               <>
-                <Profile me={me} now={state.now} line={reportingLine} missing={state.missing} />
+                <Profile me={me} now={clock} line={reportingLine} missing={state.missing} />
                 {away === undefined ? null : <Away away={away} />}
                 {leave === undefined ? null : <Leave leave={leave} />}
               </>
@@ -2644,7 +2740,7 @@ export function PeopleHome({
                 title={
                   me === null
                     ? tr('home.people-home.home', 'Home')
-                    : greetingOf(state.now, me.timeZone, greeting ?? first(me.name))
+                    : greetingOf(clock, me.timeZone, greeting ?? first(me.name))
                 }
                 description={
                   me === null
