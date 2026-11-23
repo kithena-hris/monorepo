@@ -40,6 +40,6 @@
     "@kithena/testing": "workspace:*",
     "@temporalio/testing": "^1.24.0",
     "@types/pdfkit": "^0.17.7",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   }
 }

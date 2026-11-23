@@ -48,6 +48,6 @@
     "@types/pdfkit": "^0.17.7",
     "fast-formula-parser": "1.0.19",
     "jose": "^6.2.13",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   }
 }
