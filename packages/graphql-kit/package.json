@@ -18,13 +18,13 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@apollo/subgraph": "^2.15.1",
+    "@apollo/subgraph": "^2.16.0",
     "@escape.tech/graphql-armor": "^3.2.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
-    "@pothos/core": "^4.16.0",
+    "@pothos/core": "^4.17.0",
     "@pothos/plugin-directives": "^4.3.3",
     "@pothos/plugin-federation": "^4.5.4",
     "@pothos/plugin-zod": "^4.3.2",
