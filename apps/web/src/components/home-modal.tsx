@@ -23,7 +23,7 @@ import { OpenHereContext } from './inbox/pane';
 import { forgetTaskScreens, prefetchTaskScreen } from './inbox/task-screen-cache';
 
 // The Inbox's own detail and the missing fields: never part of Home's load,
-// fetched once Home is idle so the first open does not wait for them.
+// fetched ahead of the first open (`useAhead`) so it does not wait for them.
 const detailCode = () => import('./inbox/detail');
 const missingCode = () => import('./home-missing');
 const InboxDetail = lazy(() => detailCode().then((m) => ({ default: m.InboxDetail })));
@@ -210,20 +210,29 @@ function readAhead(client: QueryClient, href: string): void {
 }
 
 /**
- * While Home is on screen: once it is idle, the code this modal draws with and
- * every task and missing field Home links to are read ahead; a page (a person,
+ * While Home is on screen: once someone is there, the code this modal draws
+ * with and every task and missing field Home links to are read ahead; a page (a person,
  * Review, a request) is loaded ahead when the pointer rests on its link or the
  * keyboard reaches it, since each is a whole page and only a few are kept.
  */
 function useAhead(client: QueryClient): void {
   useEffect(() => {
-    const idle = setTimeout(() => {
+    // At the first sign of someone there (the pointer moves, a key, a touch),
+    // not on a timer: Home's own load stays what Home needs, and a page
+    // nobody touches reads nothing more.
+    const first = (): void => {
+      stop();
       void detailCode();
       void missingCode();
       for (const el of document.querySelectorAll<HTMLElement>(OVER)) {
         readAhead(client, el.dataset['over'] ?? '');
       }
-    }, 300);
+    };
+    const signs = ['pointermove', 'keydown', 'touchstart'] as const;
+    const stop = (): void => {
+      for (const sign of signs) window.removeEventListener(sign, first);
+    };
+    for (const sign of signs) window.addEventListener(sign, first, { passive: true });
     let rest: ReturnType<typeof setTimeout> | undefined;
     const onRest = (event: Event): void => {
       const el = event.target instanceof Element ? event.target.closest<HTMLElement>(OVER) : null;
@@ -238,7 +247,7 @@ function useAhead(client: QueryClient): void {
     document.addEventListener('pointerover', onRest);
     document.addEventListener('focusin', onRest);
     return () => {
-      clearTimeout(idle);
+      stop();
       clearTimeout(rest);
       document.removeEventListener('pointerover', onRest);
       document.removeEventListener('focusin', onRest);
