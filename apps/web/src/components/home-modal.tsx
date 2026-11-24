@@ -263,10 +263,14 @@ function useAhead(client: QueryClient): void {
     // At the first sign of someone there (the pointer moves, a key, a touch),
     // not on a timer: Home's own load stays what Home needs, and a page
     // nobody touches reads nothing more.
+    // How many marks Home had when they were last read: a widget that arrives
+    // later (its rows were still loading) brings more, read then.
+    let read = -1;
     const first = (): void => {
       stop();
       void detailCode();
       void missingCode();
+      read = document.querySelectorAll(OVER).length;
       readAllAhead(client);
     };
     const signs = ['pointermove', 'keydown', 'touchstart'] as const;
@@ -276,6 +280,11 @@ function useAhead(client: QueryClient): void {
     for (const sign of signs) window.addEventListener(sign, first, { passive: true });
     let rest: ReturnType<typeof setTimeout> | undefined;
     const onRest = (event: Event): void => {
+      const marks = document.querySelectorAll(OVER).length;
+      if (read !== -1 && marks !== read) {
+        read = marks;
+        readAllAhead(client);
+      }
       const el = event.target instanceof Element ? event.target.closest<HTMLElement>(OVER) : null;
       clearTimeout(rest);
       if (el === null) return;

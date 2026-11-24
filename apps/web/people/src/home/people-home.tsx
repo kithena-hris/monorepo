@@ -243,6 +243,11 @@ export interface PeopleHomeProps {
   readonly onOpen?: (href: string, label: string) => void;
   /** Who is away in another of the host's scopes; null when it will not say. */
   readonly onAway?: (scope: string) => Promise<HostAway | null>;
+  /**
+   * What the host is still reading: Home is drawn at once, and each of these
+   * says it is loading in its own widget until the host hands it over.
+   */
+  readonly pending?: { readonly toDo?: boolean; readonly time?: boolean };
 }
 
 /** Who is away, already worded by the host: People never learns what leave is. */
@@ -1283,6 +1288,27 @@ function Tasks({
         .map((t) => (
           <span key={t.id} hidden data-over={t.href} />
         ))}
+    </Widget>
+  );
+}
+
+/** A widget whose rows the host is still reading: its header as it will be, and a loader where they go. */
+function Waiting({
+  title,
+  icon,
+  tone,
+  span = 1,
+}: {
+  readonly title: string;
+  readonly icon: ReactNode;
+  readonly tone: 'accent' | 'chart-3' | 'chart-4';
+  readonly span?: 1 | 2;
+}): JSX.Element {
+  return (
+    <Widget title={title} icon={icon} tone={tone} span={span} aria-busy>
+      <div className="grid min-h-28 place-items-center">
+        <Spinner label={tr('home.people-home.loading_title', 'Loading {{title}}', { title })} />
+      </div>
     </Widget>
   );
 }
@@ -3065,6 +3091,7 @@ export function PeopleHome({
   onAsk,
   onOpen,
   onAway,
+  pending,
 }: PeopleHomeProps): JSX.Element {
   // The quick look: what was last pressed stays while it closes.
   const [peeked, setPeeked] = useState<Peeked | null>(null);
@@ -3112,13 +3139,39 @@ export function PeopleHome({
           ]
             .filter((x) => x !== '')
             .join(' · ');
+          // The host's To do, still being read: its widget, loading, where it will be.
+          const waitingToDo =
+            pending?.toDo === true ? (
+              <Waiting
+                title={tr('home.people-home.to_do', 'To do')}
+                icon={<icons.inbox aria-hidden />}
+                tone="accent"
+                span={2}
+              />
+            ) : undefined;
           // Who they are, who is away and their own time off, beside the lists.
           const around =
             me === null ? null : (
               <>
                 <Profile me={me} now={clock} line={reportingLine} missing={state.missing} />
-                {away === undefined ? null : <Away away={away} onAway={onAway} />}
-                {leave === undefined ? null : <Leave leave={leave} />}
+                {away !== undefined ? (
+                  <Away away={away} onAway={onAway} />
+                ) : pending?.time === true ? (
+                  <Waiting
+                    title={tr('home.people-home.whos_out', 'Who’s out')}
+                    icon={<icons.calendar aria-hidden />}
+                    tone="chart-4"
+                  />
+                ) : null}
+                {leave !== undefined ? (
+                  <Leave leave={leave} />
+                ) : pending?.time === true ? (
+                  <Waiting
+                    title={tr('home.people-home.your_time_off', 'Your time off')}
+                    icon={<icons.vacation aria-hidden />}
+                    tone="chart-3"
+                  />
+                ) : null}
               </>
             );
           return (
@@ -3166,7 +3219,9 @@ export function PeopleHome({
                     state={state}
                     around={around}
                     toDo={
-                      toDo === undefined || toDo.tasks.length === 0 ? undefined : (
+                      toDo === undefined ? (
+                        waitingToDo
+                      ) : toDo.tasks.length === 0 ? undefined : (
                         <HostList toDo={{ ...toDo, waiting: [] }} today={me?.today ?? ''} />
                       )
                     }
@@ -3176,7 +3231,7 @@ export function PeopleHome({
                 <Columns
                   main={
                     toDo === undefined ? (
-                      <ToDo state={state} me={me} />
+                      (waitingToDo ?? <ToDo state={state} me={me} />)
                     ) : (
                       <HostList toDo={toDo} today={me.today} />
                     )

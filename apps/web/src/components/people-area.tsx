@@ -310,15 +310,19 @@ export async function PeopleHome(
   const nav = await remoteNav(area);
   const component = nav?.slots.home;
   if (component === undefined) return null;
-  // Home's To do is the Inbox's (B1), read beside People's own data.
-  const [load, ssr, peek, time] = await Promise.all([
+  // Home's To do is the Inbox's (B1) and who is away is Time Off's: both are
+  // asked for now and not waited for. Home is sent as soon as People's own
+  // data is here, and each of them fills its widget when its service answers.
+  const toDoLater = inbox?.then(homeToDo);
+  const timeLater: Promise<{ away?: HomeAway; leave?: HomeLeave }> | undefined = withTimeOff
+    ? homeTimeOff().catch(() => ({}))
+    : undefined;
+  // A read nobody waited for must not fail the request it outlives.
+  toDoLater?.catch(() => undefined);
+  const [load, ssr] = await Promise.all([
     loadScreen(component, { params: {}, search: {} }),
     prepareRemoteSsr(remoteBase(area), area),
-    inbox,
-    withTimeOff ? homeTimeOff().catch(() => ({})) : {},
   ]);
-  const { away, leave }: { away?: HomeAway; leave?: HomeLeave } = time;
-  const toDo = peek === undefined ? undefined : homeToDo(peek);
   // People is asleep or still waking: Home asks again by itself.
   const waking = load.status === 'error' && load.unreachable === true;
   return (
@@ -335,10 +339,9 @@ export async function PeopleHome(
           params={{}}
           search={{}}
           today={today()}
-          {...(toDo === undefined ? {} : { toDo })}
+          {...(toDoLater === undefined ? {} : { toDoLater })}
           {...(greeting === undefined ? {} : { greeting })}
-          {...(away === undefined ? {} : { away })}
-          {...(leave === undefined ? {} : { leave })}
+          {...(timeLater === undefined ? {} : { timeLater })}
         />
       )}
     </Waking>

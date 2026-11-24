@@ -3559,6 +3559,10 @@
     "text": "less than a month",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code."
   },
+  "home.people-home.loading_title": {
+    "text": "Loading {{title}}",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Waiting: the label of <Spinner>. Filled in: {{title}}."
+  },
   "home.people-home.local_time": {
     "text": "Local time",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the items of <KeyValues>."

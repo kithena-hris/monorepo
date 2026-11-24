@@ -632,6 +632,16 @@ describe('Home, with a host that knows who is away', () => {
     expect(await within(out).findByText('Company Person')).toBeInTheDocument();
   });
 
+  it('is drawn before the host has its lists, each widget saying it is loading', () => {
+    render(<PeopleHome load={ready(employee())} pending={{ toDo: true, time: true }} />);
+    // Who they are is People's own, here at once.
+    expect(part('Your profile')).toBeInTheDocument();
+    for (const title of ['To do', 'Who’s out', 'Your time off']) {
+      expect(part(title)).toHaveAttribute('aria-busy', 'true');
+      expect(within(part(title)).getByText(`Loading ${title}`)).toBeInTheDocument();
+    }
+  });
+
   it('says so when nobody is away and nothing is booked, and draws neither without a host', () => {
     const { unmount } = render(
       <PeopleHome
