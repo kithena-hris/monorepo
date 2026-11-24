@@ -21,9 +21,10 @@ import { gapsQuery, STALE_MS, taskQuery } from './home-reads';
 import { OpenHereContext } from './inbox/pane';
 
 // The Inbox's own detail and the missing fields: never part of Home's load,
-// fetched once Home is idle so the first open does not wait for them.
+// fetched ahead of the first open (`useAhead`) so it does not wait for them.
 const detailCode = () => import('./inbox/detail');
 const missingCode = () => import('./home-missing');
+const screensCode = () => import('./inbox/task-screen-cache');
 const InboxDetail = lazy(() => detailCode().then((m) => ({ default: m.InboxDetail })));
 const MissingFields = lazy(() => missingCode().then((m) => ({ default: m.MissingFields })));
 
@@ -193,25 +194,50 @@ const REST_MS = 120;
 /** Read ahead what an address opens: a task or the missing fields, kept by the query client. */
 function readAhead(client: QueryClient, href: string): void {
   const what = kindOf(href);
-  if (what.is === 'task') void client.query(taskQuery(what.id)).catch(() => undefined);
+  if (what.is === 'task') {
+    void client
+      .query(taskQuery(what.id))
+      .then(async (task) => {
+        if (task === null) return;
+        // A task whose form is its module's screen: that screen and its code
+        // too, as the Inbox's list does. Fetched here, never with Home.
+        const [{ opensScreen }, { prefetchTaskScreen }] = await Promise.all([
+          import('../lib/inbox/opens-screen'),
+          screensCode(),
+        ]);
+        if (!opensScreen(task.item)) return;
+        void prefetchTaskScreen(task.item.link);
+        void import('./inbox/task-screen');
+      })
+      .catch(() => undefined);
+  }
   if (what.is === 'missing') void client.query(gapsQuery(what.personId)).catch(() => undefined);
 }
 
 /**
- * While Home is on screen: once it is idle, the code this modal draws with and
- * every task and missing field Home links to are read ahead; a page (a person,
+ * While Home is on screen: once someone is there, the code this modal draws
+ * with and every task and missing field Home links to are read ahead; a page (a person,
  * Review, a request) is loaded ahead when the pointer rests on its link or the
  * keyboard reaches it, since each is a whole page and only a few are kept.
  */
 function useAhead(client: QueryClient): void {
   useEffect(() => {
-    const idle = setTimeout(() => {
+    // At the first sign of someone there (the pointer moves, a key, a touch),
+    // not on a timer: Home's own load stays what Home needs, and a page
+    // nobody touches reads nothing more.
+    const first = (): void => {
+      stop();
       void detailCode();
       void missingCode();
       for (const el of document.querySelectorAll<HTMLElement>(OVER)) {
         readAhead(client, el.dataset['over'] ?? '');
       }
-    }, 300);
+    };
+    const signs = ['pointermove', 'keydown', 'touchstart'] as const;
+    const stop = (): void => {
+      for (const sign of signs) window.removeEventListener(sign, first);
+    };
+    for (const sign of signs) window.addEventListener(sign, first, { passive: true });
     let rest: ReturnType<typeof setTimeout> | undefined;
     const onRest = (event: Event): void => {
       const el = event.target instanceof Element ? event.target.closest<HTMLElement>(OVER) : null;
@@ -226,7 +252,7 @@ function useAhead(client: QueryClient): void {
     document.addEventListener('pointerover', onRest);
     document.addEventListener('focusin', onRest);
     return () => {
-      clearTimeout(idle);
+      stop();
       clearTimeout(rest);
       document.removeEventListener('pointerover', onRest);
       document.removeEventListener('focusin', onRest);
@@ -274,6 +300,9 @@ export function HomeModal(): JSX.Element {
     // What was done here shows on Home; nothing done, nothing read again.
     if (wrote) {
       void client.invalidateQueries({ queryKey: ['home'] });
+      void screensCode().then((m) => {
+        m.forgetTaskScreens();
+      });
       router.refresh();
     }
     wrote = false;
@@ -327,7 +356,8 @@ export function HomeModal(): JSX.Element {
                 <div className="mx-auto max-w-3xl">
                   <Suspense fallback={wait}>
                     {kind.is === 'missing' ? (
-                      <div className="my-4 rounded-2xl bg-surface px-5 pt-5 shadow-sm">
+                      // Clipped, not hidden: its corners cut the Save bar's, and the bar still pins.
+                      <div className="my-4 overflow-clip rounded-2xl bg-surface px-5 pt-5 shadow-sm">
                         {/* A field with no control here opens their record, in this modal. */}
                         <OpenHereContext
                           value={(href) => {

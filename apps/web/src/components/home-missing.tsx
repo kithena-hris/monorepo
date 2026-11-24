@@ -109,7 +109,7 @@ export function MissingFields({
         </section>
       ))}
       {error === null ? null : <Alert tone="danger" title={error} />}
-      <div className="sticky bottom-0 -mx-5 flex rounded-b-2xl items-center justify-between gap-3 border-t border-border bg-surface px-5 py-3">
+      <div className="sticky bottom-0 -mx-5 flex items-center justify-between gap-3 border-t border-border bg-surface px-5 py-3">
         <p className="text-sm text-fg-muted">
           {count === 0
             ? t(
