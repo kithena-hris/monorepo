@@ -1,7 +1,7 @@
 'use server';
 
-import { homeAwayIn } from '../../components/people-area';
 import type { AwayScope, HomeAway } from '../../lib/home-time-off';
+import { homeAwayIn } from '../../lib/home-time-off-read';
 
 /**
  * Who's out on Home, in another of Time Off's scopes: asked for when the

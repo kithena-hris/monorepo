@@ -5,15 +5,8 @@ import { homeToDo } from './inbox/format';
 import { PeopleScreen } from './people-screen';
 import { Waking, WakingHeader } from './waking';
 import type { InboxPeek } from '../lib/inbox/peek';
-import {
-  homeAway,
-  homeLeave,
-  type AwayScope,
-  type HomeAway,
-  type HomeLeave,
-  type OverviewAnswer,
-  type TimelineAnswer,
-} from '../lib/home-time-off';
+import { homeLeave, type HomeAway, type HomeLeave, type OverviewAnswer } from '../lib/home-time-off';
+import { homeAwayIn } from '../lib/home-time-off-read';
 import { accessToken, timeOff } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -268,25 +261,6 @@ export async function PeopleArea({
  * balances and requests, read as them. What Time Off refuses or cannot
  * answer is left out, not an error on Home.
  */
-/** Who is away in the next three weeks, in one of Time Off's scopes; null when Time Off refuses it. */
-export async function homeAwayIn(
-  scope: AwayScope,
-  /** The reader, left out of the list; asked of Time Off when not handed. */
-  me?: Promise<string | null>,
-): Promise<HomeAway | null> {
-  const day = today();
-  const to = new Date(Date.parse(`${day}T12:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
-  const [timeline, reader] = await Promise.all([
-    timeOff<TimelineAnswer>('TimeOffCalendarTimeline', { from: day, to, scope }),
-    me === undefined
-      ? timeOff<OverviewAnswer>('TimeOffOverview').then((o) =>
-          o.ok ? (o.data.member?.personId ?? null) : null,
-        )
-      : me,
-  ]);
-  return timeline.ok ? homeAway(timeline.data, day, reader, scope) : null;
-}
-
 async function homeTimeOff(): Promise<{ away?: HomeAway; leave?: HomeLeave }> {
   const day = today();
   const overview = timeOff<OverviewAnswer>('TimeOffOverview');
