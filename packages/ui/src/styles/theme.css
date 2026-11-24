@@ -502,6 +502,11 @@
 
   --animate-indeterminate: indeterminate 1.4s var(--ease-standard) infinite;
   --animate-pulse-ring: pulse-ring 2s var(--ease-standard) infinite;
+  /* A sign beside a greeting waving once, then still: a hand, from the wrist
+     (give it `origin-[70%_70%]`). It waits for the words to arrive first, and
+     never loops: a thing that keeps moving on a page somebody works on is
+     noise by the second minute. */
+  --animate-wave: wave 1.4s var(--ease-standard) 500ms backwards;
 
   @keyframes fade-in {
     from {
@@ -680,6 +685,24 @@
     }
   }
   /* `--pulse-color` lets a mark ring in its own tone; the accent wash otherwise. */
+  @keyframes wave {
+    0%,
+    60%,
+    100% {
+      transform: rotate(0deg);
+    }
+    10%,
+    30% {
+      transform: rotate(16deg);
+    }
+    20%,
+    40% {
+      transform: rotate(-10deg);
+    }
+    50% {
+      transform: rotate(12deg);
+    }
+  }
   @keyframes pulse-ring {
     0% {
       box-shadow: 0 0 0 0 var(--pulse-color, var(--reach-color-accent-subtle));
