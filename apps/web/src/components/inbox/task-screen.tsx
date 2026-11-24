@@ -81,7 +81,8 @@ export function TaskScreenPane({
   };
   const Screen = screen.area === 'documents' ? null : ACT_SCREENS[screen.area];
   return (
-    <div className="flex flex-col gap-4" data-task-screen="">
+    // The item's title is already above: the page's own, said again, is for a screen reader only.
+    <div className="flex flex-col gap-4 [&_h1]:sr-only" data-task-screen="">
       {Screen === null ? (
         <DocumentsScreen
           route={screen.route}

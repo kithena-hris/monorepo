@@ -10,22 +10,22 @@ import {
   Spinner,
   ToastProvider,
 } from '@reach/ui';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 
-import { inboxItem } from '../app/(app)/inbox/actions';
 import { OPEN_EVENT, type OpenDetail } from '../lib/ask-event';
 import { t } from '../lib/t';
 import { ROOMY, type FrameMessage } from './framed';
+import { gapsQuery, STALE_MS, taskQuery } from './home-reads';
 import { OpenHereContext } from './inbox/pane';
 
-// The Inbox's own detail and the missing fields, fetched when first opened: never part of Home's load.
-const InboxDetail = lazy(() => import('./inbox/detail').then((m) => ({ default: m.InboxDetail })));
-const MissingFields = lazy(() =>
-  import('./home-missing').then((m) => ({ default: m.MissingFields })),
-);
-
-type Task = Awaited<ReturnType<typeof inboxItem>>;
+// The Inbox's own detail and the missing fields: never part of Home's load,
+// fetched once Home is idle so the first open does not wait for them.
+const detailCode = () => import('./inbox/detail');
+const missingCode = () => import('./home-missing');
+const InboxDetail = lazy(() => detailCode().then((m) => ({ default: m.InboxDetail })));
+const MissingFields = lazy(() => missingCode().then((m) => ({ default: m.MissingFields })));
 
 /** What an address opens here: an Inbox item, their own missing fields, or the page itself. */
 type Kind =
@@ -50,9 +50,9 @@ function kindOf(href: string): Kind {
  * A page opened here stays loaded after the modal closes, so opening it again
  * is at once, where it was left: no second fetch. It is dropped when it is
  * stale: after `STALE_MS`, or when a write in any other frame may have changed
- * what it shows. Only the last few are kept.
+ * what it shows. Only the last few are kept. Resting on its link loads it
+ * ahead, so the first open is often at once too.
  */
-const STALE_MS = 5 * 60_000;
 const KEEP = 4;
 
 interface Kept {
@@ -122,7 +122,10 @@ function move(parent: Element, frame: HTMLIFrameElement): void {
 
 function frameFor(href: string, label: string): Kept {
   const had = kept.get(href);
-  if (had !== undefined && Date.now() - had.at < STALE_MS) return had;
+  if (had !== undefined && Date.now() - had.at < STALE_MS) {
+    had.frame.title = label;
+    return had;
+  }
   forget(href);
   const frame = document.createElement('iframe');
   frame.src = href;
@@ -180,6 +183,57 @@ function KeptFrame({
   );
 }
 
+/* ------------------------------------------------------------- ahead -- */
+
+/** What Home marks as opening here: `data-over` holds the address. */
+const OVER = '[data-over]';
+/** How long the pointer rests on a link before its page is loaded ahead. */
+const REST_MS = 120;
+
+/** Read ahead what an address opens: a task or the missing fields, kept by the query client. */
+function readAhead(client: QueryClient, href: string): void {
+  const what = kindOf(href);
+  if (what.is === 'task') void client.query(taskQuery(what.id)).catch(() => undefined);
+  if (what.is === 'missing') void client.query(gapsQuery(what.personId)).catch(() => undefined);
+}
+
+/**
+ * While Home is on screen: once it is idle, the code this modal draws with and
+ * every task and missing field Home links to are read ahead; a page (a person,
+ * Review, a request) is loaded ahead when the pointer rests on its link or the
+ * keyboard reaches it, since each is a whole page and only a few are kept.
+ */
+function useAhead(client: QueryClient): void {
+  useEffect(() => {
+    const idle = setTimeout(() => {
+      void detailCode();
+      void missingCode();
+      for (const el of document.querySelectorAll<HTMLElement>(OVER)) {
+        readAhead(client, el.dataset['over'] ?? '');
+      }
+    }, 300);
+    let rest: ReturnType<typeof setTimeout> | undefined;
+    const onRest = (event: Event): void => {
+      const el = event.target instanceof Element ? event.target.closest<HTMLElement>(OVER) : null;
+      clearTimeout(rest);
+      if (el === null) return;
+      const href = el.dataset['over'] ?? '';
+      rest = setTimeout(() => {
+        readAhead(client, href);
+        if (kindOf(href).is === 'page') frameFor(href, el.textContent.trim());
+      }, REST_MS);
+    };
+    document.addEventListener('pointerover', onRest);
+    document.addEventListener('focusin', onRest);
+    return () => {
+      clearTimeout(idle);
+      clearTimeout(rest);
+      document.removeEventListener('pointerover', onRest);
+      document.removeEventListener('focusin', onRest);
+    };
+  }, [client]);
+}
+
 /* -------------------------------------------------------------- modal -- */
 
 /**
@@ -196,22 +250,19 @@ function KeptFrame({
  */
 export function HomeModal(): JSX.Element {
   const router = useRouter();
+  const client = useQueryClient();
+  useAhead(client);
   const [opened, setOpened] = useState<OpenDetail | null>(null);
-  // Undefined while its item is read; null when it is gone.
-  const [task, setTask] = useState<Task | undefined>(undefined);
+  const kind = opened === null ? null : kindOf(opened.href);
+  const taskId = kind?.is === 'task' ? kind.id : null;
+  // Undefined while its item is read; null when it is gone. Kept, and often read ahead.
+  const { data: task } = useQuery({ ...taskQuery(taskId ?? ''), enabled: taskId !== null });
   useEffect(() => {
     const onOpen = (event: Event): void => {
       if (!(event instanceof CustomEvent)) return;
       const detail = event.detail as Partial<OpenDetail> | null;
       if (typeof detail?.href !== 'string' || typeof detail.label !== 'string') return;
-      const what = kindOf(detail.href);
-      setTask(undefined);
       setOpened({ href: detail.href, label: detail.label });
-      if (what.is === 'task') {
-        void inboxItem(what.id)
-          .catch(() => null)
-          .then(setTask);
-      }
     };
     window.addEventListener(OPEN_EVENT, onOpen);
     return () => {
@@ -221,7 +272,10 @@ export function HomeModal(): JSX.Element {
   const close = (): void => {
     setOpened(null);
     // What was done here shows on Home; nothing done, nothing read again.
-    if (wrote) router.refresh();
+    if (wrote) {
+      void client.invalidateQueries({ queryKey: ['home'] });
+      router.refresh();
+    }
     wrote = false;
   };
   useEffect(() => {
@@ -238,7 +292,6 @@ export function HomeModal(): JSX.Element {
       <Spinner label={t('components.home-modal.opening', 'Opening')} />
     </div>
   );
-  const kind = opened === null ? null : kindOf(opened.href);
   // A task that is gone, like any other address, is its page.
   const framed = kind !== null && (kind.is === 'page' || (kind.is === 'task' && task === null));
   return (
@@ -268,11 +321,13 @@ export function HomeModal(): JSX.Element {
                 <KeptFrame key={opened.href} href={opened.href} label={opened.label} />
               </ModalPageBody>
             ) : (
-              <ModalPageBody className="p-4 touch:p-3">
-                <div className="mx-auto max-w-3xl rounded-2xl bg-surface shadow-sm">
+              // No padding above or below: a bar the content pins (a form's summary,
+              // Save) pins to the modal's own edge, with nothing showing past it.
+              <ModalPageBody className="px-4 py-0 touch:px-3">
+                <div className="mx-auto max-w-3xl">
                   <Suspense fallback={wait}>
                     {kind.is === 'missing' ? (
-                      <div className="px-5 pt-5">
+                      <div className="my-4 rounded-2xl bg-surface px-5 pt-5 shadow-sm">
                         {/* A field with no control here opens their record, in this modal. */}
                         <OpenHereContext
                           value={(href) => {
@@ -285,8 +340,10 @@ export function HomeModal(): JSX.Element {
                     ) : task === undefined || task === null ? (
                       wait
                     ) : (
+                      // On the page's own colour, as in the Inbox: what its form pins is that colour.
                       <InboxDetail
                         key={task.item.id}
+                        titled={false}
                         item={task.item}
                         now={task.now}
                         zone={task.zone}

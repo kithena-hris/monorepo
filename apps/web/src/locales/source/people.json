@@ -3335,6 +3335,22 @@
     "text": "{{count}} months",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
+  "home.people-home.count_more_away_one": {
+    "text": "{{count}} more away",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: text inside <a>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.count_more_away_other": {
+    "text": "{{count}} more away",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: text inside <a>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.count_people_away_one": {
+    "text": "{{count}} person away, today and next",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.count_people_away_other": {
+    "text": "{{count}} people away, today and next",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Away: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "home.people-home.count_people_have_one": {
     "text": "{{count}} person has",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the title of <Todo>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
