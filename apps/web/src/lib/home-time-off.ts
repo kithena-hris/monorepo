@@ -138,7 +138,7 @@ function span({ from, to }: Span, today: string): string {
 /** Leave that is happening: agreed, taken, or agreed and being changed. */
 const AWAY = new Set(['approved', 'taken', 'change_pending']);
 
-/** How many Home is handed: its widget shows the first few and opens the rest in a list. */
+/** How many Home is handed at a time: its widget shows the first few, its list asks for the next. */
 const LIMIT = 50;
 
 /** Who is away today, then who is next, soonest first; never the reader. */
@@ -149,6 +149,8 @@ export function homeAway(
   scope: AwayScope = 'team',
   /** The departments that can be asked for, by name. */
   units: readonly AwayUnit[] = [],
+  /** How many of them to pass over: the list's next page. */
+  from = 0,
 ): HomeAway {
   const names = new Map(timeline.people.map((p) => [p.personId, p]));
   const unitName = new Map(units.map((u) => [u.teamKey, u.name]));
@@ -171,7 +173,7 @@ export function homeAway(
     total: first.size,
     people: [...first]
       .toSorted(([, a], [, b]) => a.from.localeCompare(b.from))
-      .slice(0, LIMIT)
+      .slice(from, from + LIMIT)
       .map(([id, s]) => {
         const person = names.get(id);
         const now = s.from <= today;

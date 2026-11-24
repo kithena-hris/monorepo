@@ -3251,10 +3251,6 @@
     "text": "All modules",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the options of <Pick>."
   },
-  "home.people-home.all_teams": {
-    "text": "All teams",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, useAway: the options of <Pick>."
-  },
   "home.people-home.any_time": {
     "text": "Any time",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the options of <Pick>."
@@ -3330,10 +3326,6 @@
   "home.people-home.count_direct_reports_other": {
     "text": "{{count}} direct reports",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
-  },
-  "home.people-home.count_first_of": {
-    "text": "{{count}} The first {{shown}} are listed.",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, AwayAll: text inside <p>. Filled in: {{count}}, {{shown}}."
   },
   "home.people-home.count_identifiers_to_check_one": {
     "text": "{{count}} identifier to check",
@@ -3458,10 +3450,6 @@
   "home.people-home.filter_by_module": {
     "text": "Filter by module",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the label of <Pick>."
-  },
-  "home.people-home.filter_by_team": {
-    "text": "Filter by team",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, useAway: the label of <Pick>."
   },
   "home.people-home.finish_setting_up_your_account": {
     "text": "Finish setting up your account",

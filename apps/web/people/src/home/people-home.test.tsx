@@ -634,6 +634,32 @@ describe('Home, with a host that knows who is away', () => {
     expect(await within(out).findByText('Company Person')).toBeInTheDocument();
   });
 
+  it('asks the host for the next page of who is out as the full list nears its end', async () => {
+    const user = fast();
+    const person = (i: number) => ({
+      id: `p${String(i)}`,
+      name: `Person ${String(i)}`,
+      when: 'Today',
+      detail: 'Back Fri',
+      now: true,
+    });
+    const base = { href: '/time-off/calendar/month', scope: 'team', total: 3 };
+    const onAway = vi.fn(() => Promise.resolve({ ...base, people: [person(2)] }));
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        away={{ ...base, people: [person(0), person(1)] }}
+        onAway={onAway}
+      />,
+    );
+    await user.click(within(part('Who’s out')).getByRole('link', { name: 'See everyone' }));
+    const all = await screen.findByRole('dialog', { name: 'Who’s out' });
+    // Two of three are loaded: the rest is asked for from where they end, and joins them.
+    expect(await within(all).findByText('Person 2')).toBeInTheDocument();
+    expect(onAway).toHaveBeenCalledWith('team', 2);
+    expect(onAway).toHaveBeenCalledTimes(1);
+  });
+
   it('is drawn before the host has its lists, each widget saying it is loading', () => {
     render(<PeopleHome load={ready(employee())} pending={{ toDo: true, time: true }} />);
     // Who they are is People's own, here at once.

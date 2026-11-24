@@ -32,11 +32,17 @@ async function units(): Promise<readonly AwayUnit[]> {
     : [];
 }
 
-/** Who is away in the next three weeks, in one of Time Off's scopes; null when Time Off refuses it. */
+/**
+ * Who is away in the next three weeks, in one of Time Off's scopes; null when Time Off refuses it.
+ * ponytail: Time Off answers the whole timeline, so each page reads it again
+ * and keeps fifty. Page in Time Off when a company's list is opened often.
+ */
 export async function homeAwayIn(
   scope: AwayScope,
   /** The reader, left out of the list; asked of Time Off when not handed. */
   me?: Promise<string | null>,
+  /** How many to pass over: a later page of the same list. */
+  from = 0,
 ): Promise<HomeAway | null> {
   const day = today();
   const to = new Date(Date.parse(`${day}T12:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
@@ -54,5 +60,5 @@ export async function homeAwayIn(
       : me,
     units().catch(() => []),
   ]);
-  return timeline.ok ? homeAway(timeline.data, day, reader, scope, named) : null;
+  return timeline.ok ? homeAway(timeline.data, day, reader, scope, named, from) : null;
 }

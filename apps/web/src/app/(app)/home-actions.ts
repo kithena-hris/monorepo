@@ -8,6 +8,7 @@ import { homeAwayIn } from '../../lib/home-time-off-read';
  * reader picks one. Null when Time Off refuses it (the whole company, to
  * somebody who may only see their team) or cannot answer.
  */
-export async function homeAway(scope: string): Promise<HomeAway | null> {
-  return homeAwayIn(awayScope(scope)).catch(() => null);
+export async function homeAway(scope: string, from = 0): Promise<HomeAway | null> {
+  const skip = Number.isSafeInteger(from) && from > 0 ? from : 0;
+  return homeAwayIn(awayScope(scope), undefined, skip).catch(() => null);
 }

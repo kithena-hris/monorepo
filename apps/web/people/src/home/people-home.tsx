@@ -45,6 +45,8 @@ import {
   Tooltip,
   TooltipProvider,
   type UploadedImage,
+  VirtualList,
+  type VirtualRowProps,
   Widget,
 } from '@reach/ui';
 import {
@@ -242,7 +244,7 @@ export interface PeopleHomeProps {
    */
   readonly onOpen?: (href: string, label: string) => void;
   /** Who is away in another of the host's scopes; null when it will not say. */
-  readonly onAway?: (scope: string) => Promise<HostAway | null>;
+  readonly onAway?: (scope: string, from?: number) => Promise<HostAway | null>;
   /**
    * What the host is still reading: Home is drawn at once, and each of these
    * says it is loading in its own widget until the host hands it over.
@@ -1858,12 +1860,24 @@ function Profile({
 }
 
 type AwayPerson = HostAway['people'][number];
+/** A row's height before it is measured: a face, a name and a line under it. */
+const AWAY_ROW_PX = 64;
+/** The list's height by how many rows it holds: a virtual list needs one, and a short list should not be a tall box. */
+const AWAY_HEIGHT: readonly (string | undefined)[] = [
+  undefined,
+  'h-16',
+  'h-32',
+  'h-48',
+  'h-64',
+  'h-80',
+  'h-96',
+];
 
 /**
- * Whose time off is shown, and which of them: the host's scope (their team,
- * the whole company), asked of the host when it changes, and one team of
- * those it answered. The widget and the full list each hold their own, the
- * list starting from what the widget shows.
+ * Whose time off is shown: the host's scope (their team, the whole company,
+ * a department), asked of the host when it changes, and the pages after the
+ * first, asked for as the full list nears its end. The widget and the full
+ * list each hold their own, the list starting from what the widget shows.
  */
 function useAway(
   first: HostAway,
@@ -1871,55 +1885,47 @@ function useAway(
 ): {
   readonly away: HostAway;
   readonly people: readonly AwayPerson[];
-  /** Every one away in this scope and team, drawn or not. */
+  /** Every one away in this scope, loaded or not. */
   readonly total: number;
-  /** The scope and team choices, for a toolbar; null when there is nothing to choose. */
+  /** The scope choices, for a toolbar; null when there is nothing to choose. */
   readonly choices: ReactNode;
   readonly busy: boolean;
+  /** Asks the host for the next page; undefined when every one is loaded. */
+  readonly more: (() => void) | undefined;
+  readonly loading: boolean;
 } {
   const [away, setAway] = useState(first);
-  const [team, setTeam] = useState('');
+  // The pages after the host's first, of the scope they were read in.
+  const [later, setLater] = useState<readonly AwayPerson[]>([]);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [refused, setRefused] = useState(false);
   const scopes = away.scopes ?? [];
-  const teams = [
-    ...new Set(away.people.flatMap((p) => (p.team === undefined ? [] : [p.team]))),
-  ].toSorted((a, b) => a.localeCompare(b));
-  const picked = teams.includes(team) ? team : '';
-  const people = picked === '' ? away.people : away.people.filter((p) => p.team === picked);
+  const people = later.length === 0 ? away.people : [...away.people, ...later];
+  const total = Math.max(away.total ?? 0, people.length);
   const choices =
-    (onAway === undefined || scopes.length < 2) && teams.length < 2 ? null : (
+    onAway === undefined || scopes.length < 2 ? null : (
       <>
-        {onAway === undefined || scopes.length < 2 ? null : (
-          <Pick
-            label={tr('home.people-home.whose_time_off', 'Whose time off')}
-            value={away.scope ?? ''}
-            options={scopes}
-            disabled={busy}
-            onChange={(scope) => {
-              setBusy(true);
-              setRefused(false);
-              void onAway(scope)
-                .catch(() => null)
-                .then((next) => {
-                  setBusy(false);
-                  if (next === null) setRefused(true);
-                  else setAway(next);
-                });
-            }}
-          />
-        )}
-        {teams.length < 2 ? null : (
-          <Pick
-            label={tr('home.people-home.filter_by_team', 'Filter by team')}
-            value={picked}
-            options={[
-              { key: '', label: tr('home.people-home.all_teams', 'All teams') },
-              ...teams.map((t) => ({ key: t, label: t })),
-            ]}
-            onChange={setTeam}
-          />
-        )}
+        <Pick
+          label={tr('home.people-home.whose_time_off', 'Whose time off')}
+          value={away.scope ?? ''}
+          options={scopes}
+          disabled={busy}
+          onChange={(scope) => {
+            setBusy(true);
+            setRefused(false);
+            void onAway(scope)
+              .catch(() => null)
+              .then((next) => {
+                setBusy(false);
+                if (next === null) setRefused(true);
+                else {
+                  setAway(next);
+                  setLater([]);
+                }
+              });
+          }}
+        />
         {busy ? <Spinner size="sm" label={tr('home.people-home.reading', 'Reading')} /> : null}
         {refused ? (
           <span role="status" className="text-sm text-fg-muted">
@@ -1931,19 +1937,40 @@ function useAway(
         ) : null}
       </>
     );
-  return {
-    away,
-    people,
-    total: picked === '' ? Math.max(away.total ?? 0, away.people.length) : people.length,
-    choices,
-    busy,
-  };
+  const scope = away.scope;
+  const more =
+    onAway === undefined || scope === undefined || people.length >= total || busy || loading
+      ? undefined
+      : (): void => {
+          setLoading(true);
+          void onAway(scope, people.length)
+            .catch(() => null)
+            .then((next) => {
+              setLoading(false);
+              // Nothing more to give (or refused): stop asking.
+              if (next === null || next.people.length === 0) {
+                setAway((had) => ({ ...had, total: people.length }));
+                return;
+              }
+              const had = new Set(people.map((p) => p.id));
+              setLater((old) => [...old, ...next.people.filter((p) => !had.has(p.id))]);
+            });
+        };
+  return { away, people, total, choices, busy, more, loading };
 }
 
 /** One person away, as a row: a face, when, and when they are back or how soon they go. */
-function AwayRow({ p }: { readonly p: AwayPerson }): JSX.Element {
+function AwayRow({
+  p,
+  row,
+}: {
+  readonly p: AwayPerson;
+  /** In a list that draws only the rows in view: where this one stands. */
+  readonly row?: VirtualRowProps;
+}): JSX.Element {
   return (
     <ListItem
+      {...row}
       leading={
         <Avatar size="lg" name={p.name} {...(p.now ? { status: 'warning' as const } : {})} />
       }
@@ -1974,7 +2001,7 @@ function AwayAll({
   readonly first: HostAway;
   readonly onAway: PeopleHomeProps['onAway'];
 }): JSX.Element {
-  const { people, total, choices, busy } = useAway(first, onAway);
+  const { people, total, choices, busy, more, loading } = useAway(first, onAway);
   const count = tr(
     'home.people-home.count_people_away',
     {
@@ -1987,12 +2014,7 @@ function AwayAll({
     <div className="flex flex-col gap-3">
       {choices === null ? null : <div className="flex flex-wrap items-center gap-2">{choices}</div>}
       <p className="text-sm text-fg-muted" aria-live="polite">
-        {people.length < total
-          ? tr('home.people-home.count_first_of', '{{count}} The first {{shown}} are listed.', {
-              count,
-              shown: String(people.length),
-            })
-          : count}
+        {count}
       </p>
       {people.length === 0 ? (
         <Done
@@ -2003,14 +2025,20 @@ function AwayAll({
           )}
         />
       ) : (
-        <List
-          aria-label={count}
-          className={`max-h-[55vh] overflow-y-auto ${busy ? 'opacity-60' : ''}`}
-        >
-          {people.map((p) => (
-            <AwayRow key={p.id} p={p} />
-          ))}
-        </List>
+        // Only the rows in view are drawn, and the next page is asked for near the end.
+        <VirtualList
+          label={count}
+          items={people}
+          itemKey={(p) => p.id}
+          listItems
+          estimateItemHeight={AWAY_ROW_PX}
+          total={total}
+          loadingMore={loading}
+          {...(more === undefined ? {} : { onEndReached: more })}
+          // As tall as a few rows are; a little over half the window for more.
+          className={`${AWAY_HEIGHT[people.length] ?? 'h-[55vh]'} ${busy ? 'opacity-60' : ''}`}
+          renderItem={(p, _i, row) => <AwayRow key={p.id} p={p} row={row} />}
+        />
       )}
     </div>
   );

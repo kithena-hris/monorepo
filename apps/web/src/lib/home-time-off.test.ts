@@ -31,6 +31,20 @@ describe('Time Off on Home', () => {
     expect(away.people[0]?.team).toBe('Research');
   });
 
+  it('answers a later page: the total is everyone, the people those after the ones passed over', () => {
+    const timeline = {
+      people: ['a', 'b', 'c'].map((id) => ({ personId: id, displayName: id, teamName: null })),
+      entries: ['a', 'b', 'c'].map((id, i) => ({
+        personId: id,
+        status: 'approved',
+        span: span(`2026-09-2${String(8 + (i > 1 ? 1 : 0))}`, '2026-09-30'),
+      })),
+    };
+    const page = homeAway(timeline, today, null, 'company', [], 2);
+    expect(page.total).toBe(3);
+    expect(page.people.map((p) => p.id)).toEqual(['c']);
+  });
+
   it('reads a scope a browser sent: anything it does not know is the reader’s team', () => {
     expect(awayScope('company')).toBe('company');
     expect(awayScope('unit:u_0a1b')).toBe('unit:u_0a1b');
