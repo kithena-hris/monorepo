@@ -1125,7 +1125,10 @@ function Tasks({
       {...(total === 0 ? {} : { meta: total })}
       span={2}
       flush={toDo.tasks.length > 0}
-      action={<Way href={all} label={tr('home.people-home.open_inbox', 'Open Inbox')} />}
+      // One way to the Inbox: the footer's when rows are held back, the header's when all show.
+      {...(shown < of
+        ? {}
+        : { action: <Way href={all} label={tr('home.people-home.open_inbox', 'Open Inbox')} /> })}
       {...(toDo.tasks.length === 0
         ? {}
         : {

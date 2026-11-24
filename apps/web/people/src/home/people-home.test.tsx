@@ -612,6 +612,8 @@ describe('Home, with a host that knows who is away', () => {
       'href',
       '/inbox/todo',
     );
+    // The footer is the one way to the Inbox: no second arrow in the header.
+    expect(within(todo).queryByRole('link', { name: 'Open Inbox' })).toBeNull();
     // A task not drawn is still named, for a host that reads ahead.
     expect(container.querySelector('[data-over="/inbox/todo?item=t6"]')).not.toBeNull();
 
