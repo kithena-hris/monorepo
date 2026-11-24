@@ -222,13 +222,15 @@ function readAhead(client: QueryClient, href: string): void {
 /**
  * Everything Home links to, read ahead in as few reads as it takes: the
  * browser sends its reads one after another, so every task comes in one, kept
- * under each task's own key; then the missing fields; then each task's screen.
+ * under each task's own key; then the missing fields; then each task's screen,
+ * the drawn tasks' first.
  */
 function readAllAhead(client: QueryClient): void {
   const marks = [...document.querySelectorAll<HTMLElement>(OVER)];
   const hrefs = marks.map((el) => el.dataset['over'] ?? '');
   // A task Home holds but does not draw (its list shows five) is named by a
-  // hidden mark: read with the rest, its screen left until its row shows.
+  // hidden mark: read with the rest, and its screen after the drawn ones',
+  // since a filter or a group brings it up and it is opened straight away.
   const drawn = new Set(marks.filter((el) => !el.hidden).map((el) => el.dataset['over'] ?? ''));
   const tasks = hrefs.flatMap((href) => {
     const what = kindOf(href);
@@ -239,12 +241,13 @@ function readAllAhead(client: QueryClient): void {
   if (tasks.length > 0) {
     void inboxItems(tasks.map((t) => t.id))
       .then((answers) => {
-        for (const { id, drawn: shown } of tasks) {
+        // The browser sends reads one at a time: the rows on screen go first.
+        for (const { id } of tasks.toSorted((a, b) => Number(b.drawn) - Number(a.drawn))) {
           // Past what one read answers: asked for when it is opened.
           if (!(id in answers)) continue;
           const task = answers[id] ?? null;
           client.setQueryData(taskQuery(id).queryKey, task);
-          if (shown) void screenAhead(task);
+          void screenAhead(task);
         }
       })
       .catch(() => undefined);
