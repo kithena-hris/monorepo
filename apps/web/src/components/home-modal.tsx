@@ -15,10 +15,12 @@ import { useRouter } from 'next/navigation';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 
 import { OPEN_EVENT, type OpenDetail } from '../lib/ask-event';
+import { opensScreen } from '../lib/inbox/opens-screen';
 import { t } from '../lib/t';
 import { ROOMY, type FrameMessage } from './framed';
 import { gapsQuery, STALE_MS, taskQuery } from './home-reads';
 import { OpenHereContext } from './inbox/pane';
+import { forgetTaskScreens, prefetchTaskScreen } from './inbox/task-screen-cache';
 
 // The Inbox's own detail and the missing fields: never part of Home's load,
 // fetched once Home is idle so the first open does not wait for them.
@@ -193,7 +195,17 @@ const REST_MS = 120;
 /** Read ahead what an address opens: a task or the missing fields, kept by the query client. */
 function readAhead(client: QueryClient, href: string): void {
   const what = kindOf(href);
-  if (what.is === 'task') void client.query(taskQuery(what.id)).catch(() => undefined);
+  if (what.is === 'task') {
+    void client
+      .query(taskQuery(what.id))
+      .then((task) => {
+        // A task whose form is its module's screen: that screen and its code too, as the Inbox's list does.
+        if (task === null || !opensScreen(task.item)) return;
+        void prefetchTaskScreen(task.item.link);
+        void import('./inbox/task-screen');
+      })
+      .catch(() => undefined);
+  }
   if (what.is === 'missing') void client.query(gapsQuery(what.personId)).catch(() => undefined);
 }
 
@@ -274,6 +286,7 @@ export function HomeModal(): JSX.Element {
     // What was done here shows on Home; nothing done, nothing read again.
     if (wrote) {
       void client.invalidateQueries({ queryKey: ['home'] });
+      forgetTaskScreens();
       router.refresh();
     }
     wrote = false;
@@ -327,7 +340,8 @@ export function HomeModal(): JSX.Element {
                 <div className="mx-auto max-w-3xl">
                   <Suspense fallback={wait}>
                     {kind.is === 'missing' ? (
-                      <div className="my-4 rounded-2xl bg-surface px-5 pt-5 shadow-sm">
+                      // Clipped, not hidden: its corners cut the Save bar's, and the bar still pins.
+                      <div className="my-4 overflow-clip rounded-2xl bg-surface px-5 pt-5 shadow-sm">
                         {/* A field with no control here opens their record, in this modal. */}
                         <OpenHereContext
                           value={(href) => {
