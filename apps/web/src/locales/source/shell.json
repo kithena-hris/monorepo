@@ -4003,6 +4003,10 @@
     "text": "In {{count}} days",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
+  "lib.home-time-off.my_team": {
+    "text": "My team",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"label\" value."
+  },
   "lib.home-time-off.new_dates_proposed": {
     "text": "New dates proposed",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts, STATUS: a \"label\" value."
@@ -4030,6 +4034,10 @@
   "lib.home-time-off.waiting_for_your_manager": {
     "text": "waiting for your manager",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"detail\" value."
+  },
+  "lib.home-time-off.whole_company": {
+    "text": "Whole company",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts: a \"label\" value."
   },
   "lib.home-time-off.working_days_one": {
     "text": "{{shown}} working day",

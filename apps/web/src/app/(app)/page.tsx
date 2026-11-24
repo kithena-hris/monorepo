@@ -6,7 +6,7 @@ import { HomeDashboard } from '../../components/home-dashboard';
 import { HomeModal } from '../../components/home-modal';
 import { HomeInbox } from '../../components/inbox/home-card';
 import { EMPTY_PEEK } from '../../lib/inbox/peek';
-import { inboxPeek } from '../../lib/inbox/server';
+import { inboxHome, inboxPeek } from '../../lib/inbox/server';
 import { PeopleHome } from '../../components/people-area';
 import { accessToken } from '../../lib/people';
 import { currentPerson, displayName } from '../../lib/session';
@@ -46,8 +46,10 @@ export default async function Home(): Promise<JSX.Element> {
   const account = <AccountSheet person={{ name, email: person.workEmail }} />;
   // Home's To do is the Inbox's first rows (B1). People's Home draws them
   // itself, so its server render has them; the shell's own Home streams them.
-  const inbox = inboxPeek().catch(() => EMPTY_PEEK);
-  const people = person.entitlements.includes('module.people')
+  const withPeople = person.entitlements.includes('module.people');
+  // People's Home filters and groups To do itself, so it is handed more rows.
+  const inbox = (withPeople ? inboxHome() : inboxPeek()).catch(() => EMPTY_PEEK);
+  const people = withPeople
     ? await PeopleHome(inbox, greeting, person.entitlements.includes('module.timeoff'))
     : null;
   if (people === null) {

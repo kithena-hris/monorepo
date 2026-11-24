@@ -225,22 +225,26 @@ function readAhead(client: QueryClient, href: string): void {
  * under each task's own key; then the missing fields; then each task's screen.
  */
 function readAllAhead(client: QueryClient): void {
-  const hrefs = [...document.querySelectorAll<HTMLElement>(OVER)].map(
-    (el) => el.dataset['over'] ?? '',
-  );
-  const ids = hrefs.flatMap((href) => {
+  const marks = [...document.querySelectorAll<HTMLElement>(OVER)];
+  const hrefs = marks.map((el) => el.dataset['over'] ?? '');
+  // A task Home holds but does not draw (its list shows five) is named by a
+  // hidden mark: read with the rest, its screen left until its row shows.
+  const drawn = new Set(marks.filter((el) => !el.hidden).map((el) => el.dataset['over'] ?? ''));
+  const tasks = hrefs.flatMap((href) => {
     const what = kindOf(href);
     return what.is === 'task' && client.getQueryData(taskQuery(what.id).queryKey) === undefined
-      ? [what.id]
+      ? [{ id: what.id, drawn: drawn.has(href) }]
       : [];
   });
-  if (ids.length > 0) {
-    void inboxItems(ids)
-      .then((tasks) => {
-        for (const id of ids) {
-          const task = tasks[id] ?? null;
+  if (tasks.length > 0) {
+    void inboxItems(tasks.map((t) => t.id))
+      .then((answers) => {
+        for (const { id, drawn: shown } of tasks) {
+          // Past what one read answers: asked for when it is opened.
+          if (!(id in answers)) continue;
+          const task = answers[id] ?? null;
           client.setQueryData(taskQuery(id).queryKey, task);
-          void screenAhead(task);
+          if (shown) void screenAhead(task);
         }
       })
       .catch(() => undefined);

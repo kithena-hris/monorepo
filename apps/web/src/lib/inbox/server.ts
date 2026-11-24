@@ -5,7 +5,7 @@ import { documents, onboarding, people, performance, recruiting, timeOff } from 
 import { readPreference, writePreference } from '../preferences';
 import { currentPerson } from '../session';
 import { prune, stateOf, type InboxState } from './model';
-import { peekOf, type InboxPeek } from './peek';
+import { HOME_TASKS, peekOf, type InboxPeek } from './peek';
 import { readInbox, type Run } from './sources';
 
 /**
@@ -54,6 +54,11 @@ export async function changeState(
   const [state, read] = await Promise.all([inboxState(), inboxNow()]);
   const next = prune(change(state), read.raw);
   return writePreference('inbox', next);
+}
+
+/** Home's part of the Inbox: the chrome's, with enough To do rows to filter and group. */
+export async function inboxHome(): Promise<InboxPeek> {
+  return peekOf(await inboxNow(), HOME_TASKS);
 }
 
 /** The chrome's part of the Inbox, for the layout to pass on as a promise. */

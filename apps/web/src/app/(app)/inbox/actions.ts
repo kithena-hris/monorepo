@@ -85,7 +85,7 @@ export async function inboxItems(
   const byId = new Map(read.items.map((i) => [i.id, i]));
   return Object.fromEntries(
     // No more than a page shows: a longer list is not this caller's.
-    ids.slice(0, 20).map((id) => {
+    ids.slice(0, 60).map((id) => {
       const item = byId.get(id);
       return [id, item === undefined ? null : { item, now: read.now, zone: read.zone }];
     }),

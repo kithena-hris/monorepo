@@ -26,6 +26,7 @@ vi.mock('../app/(app)/documents/actions', () => ({
   importableDocuments: vi.fn(() => Promise.resolve([])),
   importFromDocuments: vi.fn(),
 }));
+vi.mock('../app/(app)/home-actions', () => ({ homeAway: vi.fn() }));
 vi.mock('../app/(app)/inbox/actions', () => ({
   askForDetails: vi.fn(),
   documentsOf: vi.fn(() => Promise.resolve([])),

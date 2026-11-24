@@ -10,6 +10,7 @@ import {
   importFromDocuments,
   keepExport,
 } from '../app/(app)/documents/actions';
+import { homeAway } from '../app/(app)/home-actions';
 import * as inbox from '../app/(app)/inbox/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { useShellData } from './app-shell';
@@ -1210,6 +1211,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...(input.toDo === undefined ? {} : { toDo: input.toDo }),
           ...(input.greeting === undefined ? {} : { greeting: input.greeting }),
           ...(input.away === undefined ? {} : { away: input.away }),
+          // Who's out in another scope, kept so going back to one asks nobody.
+          onAway: cached('homeAway', homeAway),
           ...(input.leave === undefined ? {} : { leave: input.leave }),
           // A row's page opens over Home, to be done there (`home-modal.tsx`).
           onOpen: (href: string, label: string) => {

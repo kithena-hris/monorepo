@@ -8,6 +8,7 @@ import type { InboxPeek } from '../lib/inbox/peek';
 import {
   homeAway,
   homeLeave,
+  type AwayScope,
   type HomeAway,
   type HomeLeave,
   type OverviewAnswer,
@@ -267,20 +268,34 @@ export async function PeopleArea({
  * balances and requests, read as them. What Time Off refuses or cannot
  * answer is left out, not an error on Home.
  */
-async function homeTimeOff(): Promise<{ away?: HomeAway; leave?: HomeLeave }> {
+/** Who is away in the next three weeks, in one of Time Off's scopes; null when Time Off refuses it. */
+export async function homeAwayIn(
+  scope: AwayScope,
+  /** The reader, left out of the list; asked of Time Off when not handed. */
+  me?: Promise<string | null>,
+): Promise<HomeAway | null> {
   const day = today();
   const to = new Date(Date.parse(`${day}T12:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
-  const [overview, timeline] = await Promise.all([
-    timeOff<OverviewAnswer>('TimeOffOverview'),
-    timeOff<TimelineAnswer>('TimeOffCalendarTimeline', { from: day, to, scope: 'team' }),
+  const [timeline, reader] = await Promise.all([
+    timeOff<TimelineAnswer>('TimeOffCalendarTimeline', { from: day, to, scope }),
+    me === undefined
+      ? timeOff<OverviewAnswer>('TimeOffOverview').then((o) =>
+          o.ok ? (o.data.member?.personId ?? null) : null,
+        )
+      : me,
   ]);
-  const me = overview.ok ? (overview.data.member?.personId ?? null) : null;
+  return timeline.ok ? homeAway(timeline.data, day, reader, scope) : null;
+}
+
+async function homeTimeOff(): Promise<{ away?: HomeAway; leave?: HomeLeave }> {
+  const day = today();
+  const overview = timeOff<OverviewAnswer>('TimeOffOverview');
+  const me = overview.then((o) => (o.ok ? (o.data.member?.personId ?? null) : null));
+  const [away, read] = await Promise.all([homeAwayIn('team', me), overview]);
   return {
-    ...(timeline.ok ? { away: homeAway(timeline.data, day, me) } : {}),
+    ...(away === null ? {} : { away }),
     // An account that is not a member has no time off of its own.
-    ...(overview.ok && overview.data.member !== null
-      ? { leave: homeLeave(overview.data, day) }
-      : {}),
+    ...(read.ok && read.data.member !== null ? { leave: homeLeave(read.data, day) } : {}),
   };
 }
 
