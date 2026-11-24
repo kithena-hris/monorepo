@@ -58,7 +58,7 @@ export async function changeState(
 
 /** Home's part of the Inbox: the chrome's, with enough To do rows to filter and group. */
 export async function inboxHome(): Promise<InboxPeek> {
-  return peekOf(await inboxNow(), HOME_TASKS);
+  return peekOf(await inboxNow(), HOME_TASKS, true);
 }
 
 /** The chrome's part of the Inbox, for the layout to pass on as a promise. */

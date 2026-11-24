@@ -5,7 +5,12 @@ import { homeToDo } from './inbox/format';
 import { PeopleScreen } from './people-screen';
 import { Waking, WakingHeader } from './waking';
 import type { InboxPeek } from '../lib/inbox/peek';
-import { homeLeave, type HomeAway, type HomeLeave, type OverviewAnswer } from '../lib/home-time-off';
+import {
+  homeLeave,
+  type HomeAway,
+  type HomeLeave,
+  type OverviewAnswer,
+} from '../lib/home-time-off';
 import { homeAwayIn } from '../lib/home-time-off-read';
 import { accessToken, timeOff } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
@@ -287,7 +292,12 @@ export async function PeopleHome(
   // Home's To do is the Inbox's (B1) and who is away is Time Off's: both are
   // asked for now and not waited for. Home is sent as soon as People's own
   // data is here, and each of them fills its widget when its service answers.
-  const toDoLater = inbox?.then(homeToDo);
+  // With its rows, the tasks themselves as the Inbox read them: Home's modal
+  // opens one from what is held, without reading the Inbox again.
+  const toDoLater = inbox?.then((peek) => ({
+    toDo: homeToDo(peek),
+    held: { items: peek.todo, now: peek.now, zone: peek.zone },
+  }));
   const timeLater: Promise<{ away?: HomeAway; leave?: HomeLeave }> | undefined = withTimeOff
     ? homeTimeOff().catch(() => ({}))
     : undefined;
