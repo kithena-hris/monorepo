@@ -16,6 +16,8 @@ export interface InboxPeek {
 }
 
 const PEEK = 6;
+/** Home's To do filters, groups and sorts its own rows, so it is handed more of them. */
+export const HOME_TASKS = 50;
 
 const light = (i: Shown): Shown => ({ ...i, detail: null, message: null });
 
@@ -28,18 +30,22 @@ const byDue = (a: Shown, b: Shown): number =>
         ? 1
         : -1;
 
-export function peekOf(read: {
-  readonly items: readonly Shown[];
-  readonly counts: Counts;
-  readonly now: string;
-  readonly zone: string;
-}): InboxPeek {
+export function peekOf(
+  read: {
+    readonly items: readonly Shown[];
+    readonly counts: Counts;
+    readonly now: string;
+    readonly zone: string;
+  },
+  /** How many To do rows: the chrome's few, or Home's (`HOME_TASKS`). */
+  tasks = PEEK,
+): InboxPeek {
   return {
     counts: read.counts,
     todo: read.items
       .filter((i) => i.counted)
       .toSorted(byDue)
-      .slice(0, PEEK)
+      .slice(0, tasks)
       .map(light),
     updates: read.items
       .filter((i) => i.lane === 'update')

@@ -5,14 +5,8 @@ import { homeToDo } from './inbox/format';
 import { PeopleScreen } from './people-screen';
 import { Waking, WakingHeader } from './waking';
 import type { InboxPeek } from '../lib/inbox/peek';
-import {
-  homeAway,
-  homeLeave,
-  type HomeAway,
-  type HomeLeave,
-  type OverviewAnswer,
-  type TimelineAnswer,
-} from '../lib/home-time-off';
+import { homeLeave, type HomeAway, type HomeLeave, type OverviewAnswer } from '../lib/home-time-off';
+import { homeAwayIn } from '../lib/home-time-off-read';
 import { accessToken, timeOff } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -269,18 +263,13 @@ export async function PeopleArea({
  */
 async function homeTimeOff(): Promise<{ away?: HomeAway; leave?: HomeLeave }> {
   const day = today();
-  const to = new Date(Date.parse(`${day}T12:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
-  const [overview, timeline] = await Promise.all([
-    timeOff<OverviewAnswer>('TimeOffOverview'),
-    timeOff<TimelineAnswer>('TimeOffCalendarTimeline', { from: day, to, scope: 'team' }),
-  ]);
-  const me = overview.ok ? (overview.data.member?.personId ?? null) : null;
+  const overview = timeOff<OverviewAnswer>('TimeOffOverview');
+  const me = overview.then((o) => (o.ok ? (o.data.member?.personId ?? null) : null));
+  const [away, read] = await Promise.all([homeAwayIn('team', me), overview]);
   return {
-    ...(timeline.ok ? { away: homeAway(timeline.data, day, me) } : {}),
+    ...(away === null ? {} : { away }),
     // An account that is not a member has no time off of its own.
-    ...(overview.ok && overview.data.member !== null
-      ? { leave: homeLeave(overview.data, day) }
-      : {}),
+    ...(read.ok && read.data.member !== null ? { leave: homeLeave(read.data, day) } : {}),
   };
 }
 
@@ -295,15 +284,19 @@ export async function PeopleHome(
   const nav = await remoteNav(area);
   const component = nav?.slots.home;
   if (component === undefined) return null;
-  // Home's To do is the Inbox's (B1), read beside People's own data.
-  const [load, ssr, peek, time] = await Promise.all([
+  // Home's To do is the Inbox's (B1) and who is away is Time Off's: both are
+  // asked for now and not waited for. Home is sent as soon as People's own
+  // data is here, and each of them fills its widget when its service answers.
+  const toDoLater = inbox?.then(homeToDo);
+  const timeLater: Promise<{ away?: HomeAway; leave?: HomeLeave }> | undefined = withTimeOff
+    ? homeTimeOff().catch(() => ({}))
+    : undefined;
+  // A read nobody waited for must not fail the request it outlives.
+  toDoLater?.catch(() => undefined);
+  const [load, ssr] = await Promise.all([
     loadScreen(component, { params: {}, search: {} }),
     prepareRemoteSsr(remoteBase(area), area),
-    inbox,
-    withTimeOff ? homeTimeOff().catch(() => ({})) : {},
   ]);
-  const { away, leave }: { away?: HomeAway; leave?: HomeLeave } = time;
-  const toDo = peek === undefined ? undefined : homeToDo(peek);
   // People is asleep or still waking: Home asks again by itself.
   const waking = load.status === 'error' && load.unreachable === true;
   return (
@@ -320,10 +313,9 @@ export async function PeopleHome(
           params={{}}
           search={{}}
           today={today()}
-          {...(toDo === undefined ? {} : { toDo })}
+          {...(toDoLater === undefined ? {} : { toDoLater })}
           {...(greeting === undefined ? {} : { greeting })}
-          {...(away === undefined ? {} : { away })}
-          {...(leave === undefined ? {} : { leave })}
+          {...(timeLater === undefined ? {} : { timeLater })}
         />
       )}
     </Waking>

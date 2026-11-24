@@ -562,7 +562,8 @@ describe('Home, with a host that knows who is away', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('shows five tasks and five people away, and opens everyone away in one list', async () => {
+  it('shows five of each list, says how many there are, and opens everyone away in one list', async () => {
+    const user = fast();
     const people = Array.from({ length: 8 }, (_, i) => ({
       id: `p${String(i)}`,
       name: `Person ${String(i)}`,
@@ -576,25 +577,69 @@ describe('Home, with a host that knows who is away', () => {
       description: 'People',
       href: `/inbox/todo?item=t${String(i)}`,
       icon: 'list',
+      module: i < 4 ? 'People' : 'Performance',
     }));
-    const user = fast();
-    render(
+    const scopes = [
+      { key: 'team', label: 'My team' },
+      { key: 'company', label: 'Whole company' },
+    ];
+    const onAway = vi.fn(() =>
+      Promise.resolve({
+        ...away,
+        scope: 'company',
+        scopes,
+        people: [
+          { id: 'c1', name: 'Company Person', when: 'Today', detail: 'Back Fri', now: true },
+        ],
+      }),
+    );
+    const { container } = render(
       <PeopleHome
         load={ready(employee())}
-        away={{ ...away, people }}
-        toDo={{ href: '/inbox/todo', tasks, waiting: [] }}
+        away={{ ...away, scope: 'team', scopes, people }}
+        onAway={onAway}
+        // The Inbox holds more than Home was handed.
+        toDo={{ href: '/inbox/todo', tasks, waiting: [], total: 23 }}
       />,
     );
     const todo = part('To do');
     expect(within(todo).getByText('Task 4')).toBeInTheDocument();
     expect(within(todo).queryByText('Task 5')).toBeNull();
+    // The count is every task; the footer says how many of them show.
+    expect(within(todo).getByText('23')).toBeInTheDocument();
+    expect(within(todo).getByText('Showing 5 of 23')).toBeInTheDocument();
+    expect(within(todo).getByRole('link', { name: 'See all 23 in the Inbox' })).toHaveAttribute(
+      'href',
+      '/inbox/todo',
+    );
+    // A task not drawn is still named, for a host that reads ahead.
+    expect(container.querySelector('[data-over="/inbox/todo?item=t6"]')).not.toBeNull();
+
     const out = part('Who’s out');
     expect(within(out).getByText('Person 4')).toBeInTheDocument();
     expect(within(out).queryByText('Person 5')).toBeNull();
-    await user.click(within(out).getByText('3 more away'));
+    expect(within(out).getByText('Showing 5 of 8')).toBeInTheDocument();
+    await user.click(within(out).getByRole('link', { name: 'See everyone' }));
     const all = await screen.findByRole('dialog', { name: 'Who’s out' });
     expect(within(all).getByText('8 people away, today and next')).toBeInTheDocument();
     expect(within(all).getByText('Person 7')).toBeInTheDocument();
+    await user.click(within(all).getByRole('button', { name: 'Close' }));
+
+    // Another scope is asked of the host, and its answer takes the list's place.
+    await user.click(within(out).getByRole('combobox', { name: 'Whose time off' }));
+    await user.click(await screen.findByRole('option', { name: 'Whole company' }));
+    expect(onAway).toHaveBeenCalledWith('company');
+    expect(await within(out).findByText('Company Person')).toBeInTheDocument();
+  });
+
+  it('is drawn before the host has its lists, each widget saying it is loading', () => {
+    render(<PeopleHome load={ready(employee())} pending={{ toDo: true, time: true }} />);
+    // Who they are is People's own, here at once.
+    expect(part('Your profile')).toBeInTheDocument();
+    for (const title of ['To do', 'Who’s out', 'Your time off']) {
+      expect(part(title)).toHaveAttribute('aria-busy', 'true');
+      expect(within(part(title)).getByText(`Loading ${title}`)).toBeInTheDocument();
+    }
   });
 
   it('says so when nobody is away and nothing is booked, and draws neither without a host', () => {

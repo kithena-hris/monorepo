@@ -54,9 +54,17 @@ export interface TimelineAnswer {
   }[];
 }
 
+/** Whose time off Home's widget can show: Time Off's own calendar scopes. */
+export type AwayScope = 'team' | 'company';
+
 export interface HomeAway {
   /** The team's calendar. */
   readonly href: string;
+  /** Whose time off this is, and what else can be asked for, in words. */
+  readonly scope: AwayScope;
+  readonly scopes: readonly { readonly key: AwayScope; readonly label: string }[];
+  /** How many are away in all: `people` may be the first of them. */
+  readonly total: number;
   readonly people: readonly {
     readonly id: string;
     readonly name: string;
@@ -112,11 +120,16 @@ function span({ from, to }: Span, today: string): string {
 /** Leave that is happening: agreed, taken, or agreed and being changed. */
 const AWAY = new Set(['approved', 'taken', 'change_pending']);
 
-/** How many rows a Home widget shows. */
-const LIMIT = 5;
+/** How many Home is handed: its widget shows the first few and opens the rest in a list. */
+const LIMIT = 50;
 
-/** Who of the team is away today, then who is next, soonest first; never the reader. */
-export function homeAway(timeline: TimelineAnswer, today: string, me: string | null): HomeAway {
+/** Who is away today, then who is next, soonest first; never the reader. */
+export function homeAway(
+  timeline: TimelineAnswer,
+  today: string,
+  me: string | null,
+  scope: AwayScope = 'team',
+): HomeAway {
   const names = new Map(timeline.people.map((p) => [p.personId, p]));
   // One row a person: what they are on now, else what starts first.
   const first = new Map<string, Span>();
@@ -126,6 +139,12 @@ export function homeAway(timeline: TimelineAnswer, today: string, me: string | n
   }
   return {
     href: '/time-off/calendar/month',
+    scope,
+    scopes: [
+      { key: 'team', label: t('lib.home-time-off.my_team', 'My team') },
+      { key: 'company', label: t('lib.home-time-off.whole_company', 'Whole company') },
+    ],
+    total: first.size,
     people: [...first]
       .toSorted(([, a], [, b]) => a.from.localeCompare(b.from))
       .slice(0, LIMIT)

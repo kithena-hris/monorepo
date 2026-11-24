@@ -137,6 +137,15 @@ export interface HomeTask {
   readonly href: string;
   readonly icon: string;
   readonly tone?: 'warning' | 'danger';
+  /** Which module it is from, in words: what Home filters and groups by. */
+  readonly module: string;
+  /** Where in the module, when the module names somewhere of its own. */
+  readonly area?: string;
+  /** The day it is due, as a calendar date: what Home sorts by. */
+  readonly dueDay?: string;
+  /** When it arrived, as an instant. */
+  readonly at: string;
+  readonly overdue: boolean;
 }
 
 /**
@@ -148,6 +157,8 @@ export function homeToDo(peek: InboxPeek): {
   readonly href: string;
   readonly tasks: readonly HomeTask[];
   readonly waiting: readonly HomeTask[];
+  /** Every task that is theirs to do: the Inbox's own count, which `tasks` may be the first of. */
+  readonly total: number;
 } {
   const row = (i: Shown, lane: string): HomeTask => {
     const due = i.due === null ? null : dueOf(i.due, i.dueVerb, peek.now, peek.zone);
@@ -171,11 +182,17 @@ export function homeToDo(peek: InboxPeek): {
       href: `/inbox/${lane}?item=${encodeURIComponent(i.id)}`,
       icon: i.icon,
       ...(due === null || due.tone === 'neutral' || i.lane !== 'task' ? {} : { tone: due.tone }),
+      module: moduleName(i.module),
+      ...(i.area === null || i.area === moduleName(i.module) ? {} : { area: i.area }),
+      ...(i.due === null ? {} : { dueDay: i.due }),
+      at: i.at,
+      overdue: due?.tone === 'danger',
     };
   };
   return {
     href: '/inbox',
     tasks: peek.todo.map((i) => row(i, 'todo')),
     waiting: peek.requests.map((i) => row(i, 'requests')),
+    total: Math.max(peek.counts.todo, peek.todo.length),
   };
 }

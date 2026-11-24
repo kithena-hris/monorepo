@@ -10,6 +10,7 @@ import {
   importFromDocuments,
   keepExport,
 } from '../app/(app)/documents/actions';
+import { homeAway } from '../app/(app)/home-actions';
 import * as inbox from '../app/(app)/inbox/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { useShellData } from './app-shell';
@@ -81,6 +82,14 @@ export interface PeopleScreenProps {
   /** Who of the team is away and the reader's own time off, worded by the shell from Time Off. */
   readonly away?: HomeAway;
   readonly leave?: HomeLeave;
+  /**
+   * Home's To do and Time Off's part, still on their way when Home is sent:
+   * Home is drawn without them, each widget saying it is loading, and they
+   * arrive on the same response as each service answers. A part a service
+   * does not answer resolves without it.
+   */
+  readonly toDoLater?: Promise<ReturnType<typeof homeToDo> | undefined>;
+  readonly timeLater?: Promise<{ readonly away?: HomeAway; readonly leave?: HomeLeave }>;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
    * the actions, for the screen's own header (`headerFrame`): the remote's
@@ -402,9 +411,41 @@ function download(
   return { ok: true };
 }
 
+/** What a promise from the server came to; undefined until it has (and on the server's own draw). */
+function useLater<T>(later: Promise<T> | undefined): {
+  readonly value: T | undefined;
+  readonly pending: boolean;
+} {
+  const [settled, setSettled] = useState<{
+    readonly of: Promise<T>;
+    readonly value: T | undefined;
+  } | null>(null);
+  useEffect(() => {
+    if (later === undefined) return;
+    let live = true;
+    const done = (value: T | undefined): void => {
+      if (live) setSettled({ of: later, value });
+    };
+    // A read that failed is a part Home goes without.
+    later.then(done, () => {
+      done(undefined);
+    });
+    return () => {
+      live = false;
+    };
+  }, [later]);
+  const mine = later !== undefined && settled?.of === later;
+  return { value: mine ? settled.value : undefined, pending: later !== undefined && !mine };
+}
+
 export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const { route, path, params, search, today, frame } = input;
   const { load } = input;
+  const toDoLater = useLater(input.toDoLater);
+  const timeLater = useLater(input.timeLater);
+  const toDo = input.toDo ?? toDoLater.value;
+  const away = input.away ?? timeLater.value?.away;
+  const leave = input.leave ?? timeLater.value?.leave;
   const shell = useShellData();
   // The company has the Document center: People's screens offer to keep files there.
   const documents = shell.remotes?.['documents'] !== undefined;
@@ -1207,10 +1248,16 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       case 'PeopleHome':
         return {
           load: loadable,
-          ...(input.toDo === undefined ? {} : { toDo: input.toDo }),
+          ...(toDo === undefined ? {} : { toDo }),
           ...(input.greeting === undefined ? {} : { greeting: input.greeting }),
-          ...(input.away === undefined ? {} : { away: input.away }),
-          ...(input.leave === undefined ? {} : { leave: input.leave }),
+          // What is still on its way: each widget says so in its own place.
+          ...(toDoLater.pending || timeLater.pending
+            ? { pending: { toDo: toDoLater.pending, time: timeLater.pending } }
+            : {}),
+          ...(away === undefined ? {} : { away }),
+          // Who's out in another scope, kept so going back to one asks nobody.
+          onAway: cached('homeAway', homeAway),
+          ...(leave === undefined ? {} : { leave }),
           // A row's page opens over Home, to be done there (`home-modal.tsx`).
           onOpen: (href: string, label: string) => {
             window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { href, label } }));

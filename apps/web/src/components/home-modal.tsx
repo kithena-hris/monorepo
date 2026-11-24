@@ -225,22 +225,26 @@ function readAhead(client: QueryClient, href: string): void {
  * under each task's own key; then the missing fields; then each task's screen.
  */
 function readAllAhead(client: QueryClient): void {
-  const hrefs = [...document.querySelectorAll<HTMLElement>(OVER)].map(
-    (el) => el.dataset['over'] ?? '',
-  );
-  const ids = hrefs.flatMap((href) => {
+  const marks = [...document.querySelectorAll<HTMLElement>(OVER)];
+  const hrefs = marks.map((el) => el.dataset['over'] ?? '');
+  // A task Home holds but does not draw (its list shows five) is named by a
+  // hidden mark: read with the rest, its screen left until its row shows.
+  const drawn = new Set(marks.filter((el) => !el.hidden).map((el) => el.dataset['over'] ?? ''));
+  const tasks = hrefs.flatMap((href) => {
     const what = kindOf(href);
     return what.is === 'task' && client.getQueryData(taskQuery(what.id).queryKey) === undefined
-      ? [what.id]
+      ? [{ id: what.id, drawn: drawn.has(href) }]
       : [];
   });
-  if (ids.length > 0) {
-    void inboxItems(ids)
-      .then((tasks) => {
-        for (const id of ids) {
-          const task = tasks[id] ?? null;
+  if (tasks.length > 0) {
+    void inboxItems(tasks.map((t) => t.id))
+      .then((answers) => {
+        for (const { id, drawn: shown } of tasks) {
+          // Past what one read answers: asked for when it is opened.
+          if (!(id in answers)) continue;
+          const task = answers[id] ?? null;
           client.setQueryData(taskQuery(id).queryKey, task);
-          void screenAhead(task);
+          if (shown) void screenAhead(task);
         }
       })
       .catch(() => undefined);
@@ -259,10 +263,14 @@ function useAhead(client: QueryClient): void {
     // At the first sign of someone there (the pointer moves, a key, a touch),
     // not on a timer: Home's own load stays what Home needs, and a page
     // nobody touches reads nothing more.
+    // How many marks Home had when they were last read: a widget that arrives
+    // later (its rows were still loading) brings more, read then.
+    let read = -1;
     const first = (): void => {
       stop();
       void detailCode();
       void missingCode();
+      read = document.querySelectorAll(OVER).length;
       readAllAhead(client);
     };
     const signs = ['pointermove', 'keydown', 'touchstart'] as const;
@@ -272,6 +280,11 @@ function useAhead(client: QueryClient): void {
     for (const sign of signs) window.addEventListener(sign, first, { passive: true });
     let rest: ReturnType<typeof setTimeout> | undefined;
     const onRest = (event: Event): void => {
+      const marks = document.querySelectorAll(OVER).length;
+      if (read !== -1 && marks !== read) {
+        read = marks;
+        readAllAhead(client);
+      }
       const el = event.target instanceof Element ? event.target.closest<HTMLElement>(OVER) : null;
       clearTimeout(rest);
       if (el === null) return;

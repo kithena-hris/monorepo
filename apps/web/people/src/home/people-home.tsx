@@ -30,6 +30,15 @@ import {
   locale,
   PageHeader,
   PersonCard,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
   Stack,
   TrendChart,
   Stat,
@@ -54,6 +63,7 @@ import { Loaded, type Loadable } from '../load';
 import { FieldFiles, FileInput, type UploadOutcome } from '../record/files';
 import { localTime } from '../record/display';
 import { MissingMark } from '../record/missing';
+import { cut, type Grouping, type TaskView, viewOf } from './task-view';
 import { t as tr } from '../i18n';
 
 /**
@@ -231,12 +241,24 @@ export interface PeopleHomeProps {
    * request is then done there, and closing it is back on Home.
    */
   readonly onOpen?: (href: string, label: string) => void;
+  /** Who is away in another of the host's scopes; null when it will not say. */
+  readonly onAway?: (scope: string) => Promise<HostAway | null>;
+  /**
+   * What the host is still reading: Home is drawn at once, and each of these
+   * says it is loading in its own widget until the host hands it over.
+   */
+  readonly pending?: { readonly toDo?: boolean; readonly time?: boolean };
 }
 
 /** Who is away, already worded by the host: People never learns what leave is. */
 export interface HostAway {
   /** Where the whole calendar lives. */
   readonly href: string;
+  /** Whose time off this is, and what else the host can be asked for, in words. */
+  readonly scope?: string;
+  readonly scopes?: readonly { readonly key: string; readonly label: string }[];
+  /** How many are away in all: `people` may be the first of them. */
+  readonly total?: number;
   readonly people: readonly {
     readonly id: string;
     readonly name: string;
@@ -291,12 +313,23 @@ export interface HostTask {
   /** A Reach icon name; an unknown one draws as the Inbox's. */
   readonly icon: string;
   readonly tone?: 'warning' | 'danger' | 'info' | 'accent';
+  /** Which module it is from, in words: what To do filters and groups by. */
+  readonly module?: string;
+  /** Where in the module, when the module names somewhere of its own. */
+  readonly area?: string;
+  /** The day it is due, as a calendar date. */
+  readonly dueDay?: string;
+  /** When it arrived, as an instant. */
+  readonly at?: string;
+  readonly overdue?: boolean;
 }
 
 export interface HostToDo {
   /** Where the whole list lives: "Open Inbox". */
   readonly href: string;
   readonly tasks: readonly HostTask[];
+  /** Every task that is theirs: `tasks` may be the first of them. */
+  readonly total?: number;
   /** What of theirs waits on somebody else. */
   readonly waiting: readonly HostTask[];
 }
@@ -936,8 +969,359 @@ const sender = (t: HostTask): string | null => {
 /** How many rows a list on Home shows before it says "and more". */
 const TOP = 5;
 
+/** One small choice in a widget's toolbar: what it is for is its label, read out and shown on the trigger. */
+function Pick({
+  label,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  className,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly options: readonly { readonly key: string; readonly label: string }[];
+  readonly onChange: (key: string) => void;
+  readonly disabled?: boolean;
+  readonly className?: string;
+}): JSX.Element {
+  // A Select has no empty value: "every one of them" travels as a word.
+  const ALL = 'all';
+  return (
+    <Select
+      value={value === '' ? ALL : value}
+      disabled={disabled}
+      onValueChange={(v) => {
+        onChange(v === ALL ? '' : v);
+      }}
+    >
+      <SelectTrigger size="sm" aria-label={label} className={className ?? 'w-auto'}>
+        <SelectValue>{options.find((o) => o.key === value)?.label ?? label}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.key} value={o.key === '' ? ALL : o.key}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/**
+ * A choice kept in this browser for the next visit: the default on the
+ * server and until the browser has been read, so the two agree.
+ * ponytail: per browser, not per account; move it to the person's
+ * preferences if a view should follow them between devices.
+ */
+function useKept<T>(key: string, read: (raw: unknown) => T): [T, (next: T) => void] {
+  const [value, setValue] = useState(() => read(null));
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw !== null) setValue(read(JSON.parse(raw)));
+    } catch {
+      // No storage, or not ours: the default stands.
+    }
+    // `read` is pure and the same every draw: only the key says what to read.
+  }, [key]);
+  return [
+    value,
+    (next) => {
+      setValue(next);
+      try {
+        window.localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        // Not kept: it still holds for this visit.
+      }
+    },
+  ];
+}
+
+/** "Showing 5 of 23", and the way to the rest: said whenever a widget holds back rows. */
+function Showing({
+  shown,
+  of,
+  children,
+}: {
+  readonly shown: number;
+  readonly of: number;
+  readonly children: ReactNode;
+}): JSX.Element {
+  return (
+    <>
+      <span className="text-fg-muted tabular-nums">
+        {tr('home.people-home.showing_of', 'Showing {{shown}} of {{of}}', {
+          shown: String(shown),
+          of: String(of),
+        })}
+      </span>
+      <span className="ms-auto">{children}</span>
+    </>
+  );
+}
+
+/**
+ * The host's To do: the first five as the reader cuts them (a module, when
+ * they are due), in groups and inside groups if they ask, in the order they
+ * choose. The count is every task that is theirs; the footer says how many
+ * of them show and leads to the rest.
+ */
+function Tasks({
+  toDo,
+  today,
+  rows,
+}: {
+  readonly toDo: HostToDo;
+  readonly today: string;
+  readonly rows: (tasks: readonly HostTask[], label: string) => ReactNode;
+}): JSX.Element {
+  const [kept, setView] = useKept('kithena.home.todo', viewOf);
+  const modules = [
+    ...new Set(toDo.tasks.flatMap((t) => (t.module === undefined ? [] : [t.module]))),
+  ].toSorted((a, b) => a.localeCompare(b));
+  // A module kept from another day that has no task today is every module.
+  const view: TaskView = modules.includes(kept.module) ? kept : { ...kept, module: '' };
+  const words = {
+    overdue: tr('home.people-home.overdue', 'Overdue'),
+    week: tr('home.people-home.due_this_week', 'Due this week'),
+    later: tr('home.people-home.due_later', 'Due later'),
+    noDue: tr('home.people-home.no_due_date', 'No due date'),
+    noArea: tr('home.people-home.general', 'General'),
+    noSender: tr('home.people-home.no_sender', 'From nobody in particular'),
+    noModule: tr('home.people-home.other', 'Other'),
+  };
+  const { sections, matched } = cut(toDo.tasks, view, today, words, TOP);
+  const shown = sections.reduce((n, s) => n + s.tasks.length, 0);
+  const total = Math.max(toDo.total ?? 0, toDo.tasks.length);
+  const filtered = view.module !== '' || view.due !== 'any';
+  // What the footer counts against: the tasks that match, or all of theirs.
+  const of = filtered ? matched : total;
+  const drawn = new Set(sections.flatMap((s) => s.tasks.map((t) => t.id)));
+  const GROUPS: Readonly<Record<Grouping, string>> = {
+    none: tr('home.people-home.no_grouping', 'No grouping'),
+    module: tr('home.people-home.module', 'Module'),
+    area: tr('home.people-home.area', 'Area in the module'),
+    due: tr('home.people-home.when_due', 'When it is due'),
+    from: tr('home.people-home.sender', 'Who it is from'),
+  };
+  const groupOptions = (Object.keys(GROUPS) as Grouping[]).map((key) => ({
+    key,
+    label: GROUPS[key],
+  }));
+  const set = (change: Partial<TaskView>): void => {
+    setView(viewOf({ ...view, ...change }));
+  };
+  const label = 'text-xs font-semibold text-fg-subtle';
+  const all = toDo.href;
+  return (
+    <Widget
+      title={tr('home.people-home.to_do', 'To do')}
+      icon={<icons.inbox aria-hidden />}
+      tone="accent"
+      {...(total === 0 ? {} : { meta: total })}
+      span={2}
+      flush={toDo.tasks.length > 0}
+      action={<Way href={all} label={tr('home.people-home.open_inbox', 'Open Inbox')} />}
+      {...(toDo.tasks.length === 0
+        ? {}
+        : {
+            toolbar: (
+              <>
+                {modules.length < 2 ? null : (
+                  <Pick
+                    label={tr('home.people-home.filter_by_module', 'Filter by module')}
+                    value={view.module}
+                    options={[
+                      { key: '', label: tr('home.people-home.all_modules', 'All modules') },
+                      ...modules.map((m) => ({ key: m, label: m })),
+                    ]}
+                    onChange={(module) => {
+                      set({ module });
+                    }}
+                  />
+                )}
+                <Pick
+                  label={tr('home.people-home.filter_by_due', 'Filter by when it is due')}
+                  value={view.due}
+                  options={[
+                    { key: 'any', label: tr('home.people-home.any_time', 'Any time') },
+                    { key: 'overdue', label: words.overdue },
+                    {
+                      key: 'week',
+                      label: tr('home.people-home.overdue_or_this_week', 'Overdue or this week'),
+                    },
+                  ]}
+                  onChange={(due) => {
+                    set({ due: due as TaskView['due'] });
+                  }}
+                />
+                {/* Grouping and order are how it is laid out, not which tasks: one menu, at the end. */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ms-auto"
+                      startIcon={<icons.adjust aria-hidden />}
+                    >
+                      {tr('home.people-home.view', 'View')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
+                    <Stack gap={3}>
+                      <div className="flex flex-col gap-1.5">
+                        <span className={label}>{tr('home.people-home.group_by', 'Group by')}</span>
+                        <Pick
+                          label={tr('home.people-home.group_by', 'Group by')}
+                          value={view.group}
+                          options={groupOptions}
+                          className="w-full"
+                          onChange={(group) => {
+                            set({ group: group as Grouping });
+                          }}
+                        />
+                      </div>
+                      {view.group === 'none' ? null : (
+                        <div className="flex flex-col gap-1.5">
+                          <span className={label}>
+                            {tr('home.people-home.then_by', 'Then, inside each group, by')}
+                          </span>
+                          <Pick
+                            label={tr('home.people-home.then_by', 'Then, inside each group, by')}
+                            value={view.inside}
+                            options={groupOptions.filter((o) => o.key !== view.group)}
+                            className="w-full"
+                            onChange={(inside) => {
+                              set({ inside: inside as Grouping });
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-1.5">
+                        <span className={label}>{tr('home.people-home.sort_by', 'Sort by')}</span>
+                        <Pick
+                          label={tr('home.people-home.sort_by', 'Sort by')}
+                          value={view.sort}
+                          options={[
+                            { key: 'due', label: tr('home.people-home.due_first', 'Due first') },
+                            {
+                              key: 'newest',
+                              label: tr('home.people-home.newest_first', 'Newest first'),
+                            },
+                            {
+                              key: 'oldest',
+                              label: tr('home.people-home.oldest_first', 'Oldest first'),
+                            },
+                          ]}
+                          className="w-full"
+                          onChange={(sort) => {
+                            set({ sort: sort as TaskView['sort'] });
+                          }}
+                        />
+                      </div>
+                    </Stack>
+                  </PopoverContent>
+                </Popover>
+              </>
+            ),
+          })}
+      {...(shown >= of
+        ? {}
+        : {
+            footer: (
+              <Showing shown={shown} of={of}>
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href={all}>
+                    {tr(
+                      'home.people-home.see_all_count_in_the_inbox',
+                      'See all {{count}} in the Inbox',
+                      { count: String(total) },
+                    )}
+                  </a>
+                </Button>
+              </Showing>
+            ),
+          })}
+    >
+      {toDo.tasks.length === 0 ? (
+        <Done
+          title={tr('home.people-home.nothing_needs_you', 'Nothing needs you')}
+          detail={tr(
+            'home.people-home.new_tasks_from_every_part_of',
+            'New tasks from every part of the app show up here.',
+          )}
+        />
+      ) : shown === 0 ? (
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-sm text-fg-muted touch:px-4">
+          {tr('home.people-home.no_task_matches', 'No task matches these filters.')}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              set({ module: '', due: 'any' });
+            }}
+          >
+            {tr('home.people-home.clear_filters', 'Clear filters')}
+          </Button>
+        </div>
+      ) : (
+        sections.map((section) => {
+          const name = [section.group, section.sub].filter((x) => x !== null).join(' › ');
+          return (
+            <section key={name} aria-label={name === '' ? undefined : name}>
+              {name === '' ? null : (
+                <h3 className="flex items-center gap-2 bg-surface-sunken px-5 py-1.5 text-xs font-semibold text-fg-muted touch:px-4">
+                  {name}
+                  <span className="font-medium tabular-nums">{section.count}</span>
+                </h3>
+              )}
+              {rows(section.tasks, name === '' ? tr('home.people-home.to_do', 'To do') : name)}
+            </section>
+          );
+        })
+      )}
+      {/* The tasks not drawn, named for a host that reads ahead what a row opens. */}
+      {toDo.tasks
+        .filter((t) => !drawn.has(t.id))
+        .map((t) => (
+          <span key={t.id} hidden data-over={t.href} />
+        ))}
+    </Widget>
+  );
+}
+
+/** A widget whose rows the host is still reading: its header as it will be, and a loader where they go. */
+function Waiting({
+  title,
+  icon,
+  tone,
+  span = 1,
+}: {
+  readonly title: string;
+  readonly icon: ReactNode;
+  readonly tone: 'accent' | 'chart-3' | 'chart-4';
+  readonly span?: 1 | 2;
+}): JSX.Element {
+  return (
+    <Widget title={title} icon={icon} tone={tone} span={span} aria-busy>
+      <div className="grid min-h-28 place-items-center">
+        <Spinner label={tr('home.people-home.loading_title', 'Loading {{title}}', { title })} />
+      </div>
+    </Widget>
+  );
+}
+
 /** The host's To do and what waits on others, in People's own rows. */
-function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
+function HostList({
+  toDo,
+  today,
+}: {
+  readonly toDo: HostToDo;
+  /** Today where they work, as a calendar date: what "overdue" and "this week" are read against. */
+  readonly today: string;
+}): JSX.Element {
   const rows = (tasks: readonly HostTask[], label: string) => (
     <List aria-label={label}>
       {tasks.map((t) => {
@@ -960,28 +1344,7 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
   );
   return (
     <>
-      <Section
-        title={tr('home.people-home.to_do', 'To do')}
-        icon={<icons.inbox aria-hidden />}
-        tone="accent"
-        {...(toDo.tasks.length === 0 ? {} : { meta: toDo.tasks.length })}
-        span={2}
-        flush={toDo.tasks.length > 0}
-        action={<Way href={toDo.href} label={tr('home.people-home.open_inbox', 'Open Inbox')} />}
-      >
-        {toDo.tasks.length === 0 ? (
-          <Done
-            title={tr('home.people-home.nothing_needs_you', 'Nothing needs you')}
-            detail={tr(
-              'home.people-home.new_tasks_from_every_part_of',
-              'New tasks from every part of the app show up here.',
-            )}
-          />
-        ) : (
-          // The first five; the count and the way to the Inbox say there are more.
-          rows(toDo.tasks.slice(0, TOP), tr('home.people-home.to_do', 'To do'))
-        )}
-      </Section>
+      <Tasks toDo={toDo} today={today} rows={rows} />
       {toDo.waiting.length === 0 ? null : (
         <Section
           title={tr('home.people-home.waiting_on_others', 'Waiting on others')}
@@ -1488,43 +1851,224 @@ function Profile({
   );
 }
 
+type AwayPerson = HostAway['people'][number];
+
 /**
- * Who of the team is away, today first and then who is next, from a host
- * that knows: a face, when, and when they are back or how soon they go.
+ * Whose time off is shown, and which of them: the host's scope (their team,
+ * the whole company), asked of the host when it changes, and one team of
+ * those it answered. The widget and the full list each hold their own, the
+ * list starting from what the widget shows.
  */
-function Away({ away }: { readonly away: HostAway }): JSX.Element {
-  const peek = useContext(PeekContext);
-  const out = away.people.filter((p) => p.now).length;
-  // Five rows; the rest are faces that open everyone in one list.
-  const rest = away.people.slice(TOP);
-  const everyone = tr(
+function useAway(
+  first: HostAway,
+  onAway: PeopleHomeProps['onAway'],
+): {
+  readonly away: HostAway;
+  readonly people: readonly AwayPerson[];
+  /** Every one away in this scope and team, drawn or not. */
+  readonly total: number;
+  /** The scope and team choices, for a toolbar; null when there is nothing to choose. */
+  readonly choices: ReactNode;
+  readonly busy: boolean;
+} {
+  const [away, setAway] = useState(first);
+  const [team, setTeam] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState(false);
+  const scopes = away.scopes ?? [];
+  const teams = [
+    ...new Set(away.people.flatMap((p) => (p.team === undefined ? [] : [p.team]))),
+  ].toSorted((a, b) => a.localeCompare(b));
+  const picked = teams.includes(team) ? team : '';
+  const people = picked === '' ? away.people : away.people.filter((p) => p.team === picked);
+  const choices =
+    (onAway === undefined || scopes.length < 2) && teams.length < 2 ? null : (
+      <>
+        {onAway === undefined || scopes.length < 2 ? null : (
+          <Pick
+            label={tr('home.people-home.whose_time_off', 'Whose time off')}
+            value={away.scope ?? ''}
+            options={scopes}
+            disabled={busy}
+            onChange={(scope) => {
+              setBusy(true);
+              setRefused(false);
+              void onAway(scope)
+                .catch(() => null)
+                .then((next) => {
+                  setBusy(false);
+                  if (next === null) setRefused(true);
+                  else setAway(next);
+                });
+            }}
+          />
+        )}
+        {teams.length < 2 ? null : (
+          <Pick
+            label={tr('home.people-home.filter_by_team', 'Filter by team')}
+            value={picked}
+            options={[
+              { key: '', label: tr('home.people-home.all_teams', 'All teams') },
+              ...teams.map((t) => ({ key: t, label: t })),
+            ]}
+            onChange={setTeam}
+          />
+        )}
+        {busy ? <Spinner size="sm" label={tr('home.people-home.reading', 'Reading')} /> : null}
+        {refused ? (
+          <span role="status" className="text-sm text-fg-muted">
+            {tr(
+              'home.people-home.time_off_does_not_show_you_that',
+              'Time Off does not show you that.',
+            )}
+          </span>
+        ) : null}
+      </>
+    );
+  return {
+    away,
+    people,
+    total: picked === '' ? Math.max(away.total ?? 0, away.people.length) : people.length,
+    choices,
+    busy,
+  };
+}
+
+/** One person away, as a row: a face, when, and when they are back or how soon they go. */
+function AwayRow({ p }: { readonly p: AwayPerson }): JSX.Element {
+  return (
+    <ListItem
+      leading={
+        <Avatar size="lg" name={p.name} {...(p.now ? { status: 'warning' as const } : {})} />
+      }
+      description={[p.team, p.when].filter((x) => x !== undefined).join(' · ')}
+      trailing={
+        <span className="flex items-center gap-3">
+          <Badge size="sm" tone={p.now ? 'warning' : 'neutral'}>
+            {p.now ? tr('home.people-home.out_today', 'Out today') : p.detail}
+          </Badge>
+          {p.now ? (
+            <span className="hidden text-sm whitespace-nowrap text-fg-muted @md/col:inline">
+              {p.detail}
+            </span>
+          ) : null}
+        </span>
+      }
+    >
+      {p.name}
+    </ListItem>
+  );
+}
+
+/** Everyone away, in the quick look: the same choices as the widget, and every row. */
+function AwayAll({
+  first,
+  onAway,
+}: {
+  readonly first: HostAway;
+  readonly onAway: PeopleHomeProps['onAway'];
+}): JSX.Element {
+  const { people, total, choices, busy } = useAway(first, onAway);
+  const count = tr(
     'home.people-home.count_people_away',
     {
       one: '{{count}} person away, today and next',
       other: '{{count}} people away, today and next',
     },
-    { count: away.people.length },
+    { count: total },
   );
   return (
-    <Section
-      title={tr('home.people-home.whos_out', 'Who’s out')}
+    <div className="flex flex-col gap-3">
+      {choices === null ? null : <div className="flex flex-wrap items-center gap-2">{choices}</div>}
+      <p className="text-sm text-fg-muted" aria-live="polite">
+        {people.length < total
+          ? tr('home.people-home.count_first_of', '{{count}} The first {{shown}} are listed.', {
+              count,
+              shown: String(people.length),
+            })
+          : count}
+      </p>
+      {people.length === 0 ? (
+        <Done
+          title={tr('home.people-home.everyone_is_in', 'Everyone is in')}
+          detail={tr(
+            'home.people-home.nobody_here_is_away',
+            'Nobody here is away in the next three weeks.',
+          )}
+        />
+      ) : (
+        <List
+          aria-label={count}
+          className={`max-h-[55vh] overflow-y-auto ${busy ? 'opacity-60' : ''}`}
+        >
+          {people.map((p) => (
+            <AwayRow key={p.id} p={p} />
+          ))}
+        </List>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Who is away, today first and then who is next, from a host that knows:
+ * the first five of the reader's team, or of whoever they choose, and the
+ * rest in one list over Home.
+ */
+function Away({
+  away: first,
+  onAway,
+}: {
+  readonly away: HostAway;
+  readonly onAway: PeopleHomeProps['onAway'];
+}): JSX.Element {
+  const peek = useContext(PeekContext);
+  const { away, people, total, choices, busy } = useAway(first, onAway);
+  const out = people.filter((p) => p.now).length;
+  const shown = people.slice(0, TOP);
+  const title = tr('home.people-home.whos_out', 'Who’s out');
+  const everyone = {
+    media: <Tile icon={<icons.calendar aria-hidden />} name="Away" tone="info" />,
+    title,
+    // Starts from what the widget shows, and is drawn again when that changes.
+    body: <AwayAll key={`${away.scope ?? ''}:${String(total)}`} first={away} onAway={onAway} />,
+    href: away.href,
+    go: tr('home.people-home.open_the_team_calendar', 'Open the team calendar'),
+  };
+  return (
+    <Widget
+      title={title}
       icon={<icons.calendar aria-hidden />}
       tone="chart-4"
-      {...(away.people.length === 0 ? {} : { meta: away.people.length })}
-      flush={away.people.length > 0}
+      {...(total === 0 ? {} : { meta: total })}
+      flush={people.length > 0}
       action={
         <Way
           href={away.href}
           label={tr('home.people-home.open_the_team_calendar', 'Open the team calendar')}
         />
       }
+      {...(choices === null ? {} : { toolbar: choices })}
+      {...(shown.length >= total
+        ? {}
+        : {
+            footer: (
+              <Showing shown={shown.length} of={total}>
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href={away.href} aria-haspopup="dialog" {...opens(peek, everyone)}>
+                    {tr('home.people-home.see_everyone', 'See everyone')}
+                  </a>
+                </Button>
+              </Showing>
+            ),
+          })}
     >
-      {away.people.length === 0 ? (
+      {people.length === 0 ? (
         <Done
           title={tr('home.people-home.everyone_is_in', 'Everyone is in')}
           detail={tr(
-            'home.people-home.nobody_on_your_team_is_away',
-            'Nobody on your team is away in the next three weeks.',
+            'home.people-home.nobody_here_is_away',
+            'Nobody here is away in the next three weeks.',
           )}
         />
       ) : (
@@ -1534,135 +2078,14 @@ function Away({ away }: { readonly away: HostAway }): JSX.Element {
               ? tr('home.people-home.away_next', 'Away next')
               : tr('home.people-home.away_today_and_next', 'Away today and next')
           }
+          className={busy ? 'opacity-60' : undefined}
         >
-          {away.people.slice(0, TOP).map((p) => (
-            <ListItem
-              key={p.id}
-              asChild
-              leading={
-                <Avatar
-                  size="lg"
-                  name={p.name}
-                  {...(p.now ? { status: 'warning' as const } : {})}
-                />
-              }
-              description={p.when}
-              trailing={
-                <span className="flex items-center gap-3">
-                  {p.team === undefined ? null : (
-                    <span className="hidden text-sm whitespace-nowrap text-fg-muted @2xl/col:inline">
-                      {p.team}
-                    </span>
-                  )}
-                  <Badge size="sm" tone={p.now ? 'warning' : 'neutral'}>
-                    {p.now ? tr('home.people-home.out_today', 'Out today') : p.detail}
-                  </Badge>
-                  {p.now ? (
-                    <span className="hidden text-sm whitespace-nowrap text-fg-muted @md/col:inline">
-                      {p.detail}
-                    </span>
-                  ) : null}
-                </span>
-              }
-            >
-              <a
-                href={away.href}
-                {...opens(peek, {
-                  media: (
-                    <Avatar
-                      size="xl"
-                      name={p.name}
-                      {...(p.now ? { status: 'warning' as const } : {})}
-                    />
-                  ),
-                  title: p.name,
-                  ...(p.team === undefined ? {} : { description: p.team }),
-                  body: (
-                    <>
-                      <div>
-                        <Badge size="sm" tone={p.now ? 'warning' : 'neutral'}>
-                          {p.now
-                            ? tr('home.people-home.out_today', 'Out today')
-                            : tr('home.people-home.away_soon', 'Away soon')}
-                        </Badge>
-                      </div>
-                      <Facts
-                        items={[
-                          { label: tr('home.people-home.away', 'Away'), value: p.when },
-                          {
-                            label: p.now
-                              ? tr('home.people-home.returns', 'Returns')
-                              : tr('home.people-home.starts', 'Starts'),
-                            value: p.detail,
-                          },
-                        ]}
-                      />
-                    </>
-                  ),
-                  href: away.href,
-                  go: tr('home.people-home.open_the_team_calendar', 'Open the team calendar'),
-                })}
-              >
-                {p.name}
-              </a>
-            </ListItem>
+          {shown.map((p) => (
+            <AwayRow key={p.id} p={p} />
           ))}
-          {rest.length === 0 ? null : (
-            <ListItem
-              asChild
-              leading={
-                <AvatarGroup max={4} total={rest.length} aria-hidden>
-                  {rest.map((p) => (
-                    <Avatar key={p.id} size="sm" name={p.name} />
-                  ))}
-                </AvatarGroup>
-              }
-            >
-              <a
-                href={away.href}
-                aria-haspopup="dialog"
-                {...opens(peek, {
-                  media: <Tile icon={<icons.calendar aria-hidden />} name="Away" tone="info" />,
-                  title: tr('home.people-home.whos_out', 'Who’s out'),
-                  description: everyone,
-                  body: (
-                    <List aria-label={everyone} className="max-h-[60vh] overflow-y-auto">
-                      {away.people.map((p) => (
-                        <ListItem
-                          key={p.id}
-                          leading={
-                            <Avatar
-                              name={p.name}
-                              {...(p.now ? { status: 'warning' as const } : {})}
-                            />
-                          }
-                          description={[p.team, p.when].filter((x) => x !== undefined).join(' · ')}
-                          trailing={
-                            <Badge size="sm" tone={p.now ? 'warning' : 'neutral'}>
-                              {p.now ? tr('home.people-home.out_today', 'Out today') : p.detail}
-                            </Badge>
-                          }
-                        >
-                          {p.name}
-                        </ListItem>
-                      ))}
-                    </List>
-                  ),
-                  href: away.href,
-                  go: tr('home.people-home.open_the_team_calendar', 'Open the team calendar'),
-                })}
-              >
-                {tr(
-                  'home.people-home.count_more_away',
-                  { one: '{{count}} more away', other: '{{count}} more away' },
-                  { count: rest.length },
-                )}
-              </a>
-            </ListItem>
-          )}
         </List>
       )}
-    </Section>
+    </Widget>
   );
 }
 
@@ -2667,6 +3090,8 @@ export function PeopleHome({
   leave,
   onAsk,
   onOpen,
+  onAway,
+  pending,
 }: PeopleHomeProps): JSX.Element {
   // The quick look: what was last pressed stays while it closes.
   const [peeked, setPeeked] = useState<Peeked | null>(null);
@@ -2714,13 +3139,39 @@ export function PeopleHome({
           ]
             .filter((x) => x !== '')
             .join(' · ');
+          // The host's To do, still being read: its widget, loading, where it will be.
+          const waitingToDo =
+            pending?.toDo === true ? (
+              <Waiting
+                title={tr('home.people-home.to_do', 'To do')}
+                icon={<icons.inbox aria-hidden />}
+                tone="accent"
+                span={2}
+              />
+            ) : undefined;
           // Who they are, who is away and their own time off, beside the lists.
           const around =
             me === null ? null : (
               <>
                 <Profile me={me} now={clock} line={reportingLine} missing={state.missing} />
-                {away === undefined ? null : <Away away={away} />}
-                {leave === undefined ? null : <Leave leave={leave} />}
+                {away !== undefined ? (
+                  <Away away={away} onAway={onAway} />
+                ) : pending?.time === true ? (
+                  <Waiting
+                    title={tr('home.people-home.whos_out', 'Who’s out')}
+                    icon={<icons.calendar aria-hidden />}
+                    tone="chart-4"
+                  />
+                ) : null}
+                {leave !== undefined ? (
+                  <Leave leave={leave} />
+                ) : pending?.time === true ? (
+                  <Waiting
+                    title={tr('home.people-home.your_time_off', 'Your time off')}
+                    icon={<icons.vacation aria-hidden />}
+                    tone="chart-3"
+                  />
+                ) : null}
               </>
             );
           return (
@@ -2768,8 +3219,10 @@ export function PeopleHome({
                     state={state}
                     around={around}
                     toDo={
-                      toDo === undefined || toDo.tasks.length === 0 ? undefined : (
-                        <HostList toDo={{ ...toDo, waiting: [] }} />
+                      toDo === undefined ? (
+                        waitingToDo
+                      ) : toDo.tasks.length === 0 ? undefined : (
+                        <HostList toDo={{ ...toDo, waiting: [] }} today={me?.today ?? ''} />
                       )
                     }
                   />
@@ -2777,7 +3230,11 @@ export function PeopleHome({
               ) : me === null ? null : (
                 <Columns
                   main={
-                    toDo === undefined ? <ToDo state={state} me={me} /> : <HostList toDo={toDo} />
+                    toDo === undefined ? (
+                      (waitingToDo ?? <ToDo state={state} me={me} />)
+                    ) : (
+                      <HostList toDo={toDo} today={me.today} />
+                    )
                   }
                   side={around}
                 />
