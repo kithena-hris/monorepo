@@ -301,19 +301,21 @@ function Screen({
 
   /*
    * What an item opens to is fetched before it is opened: as a pointer rests
-   * on its row, and the first few that need you while the browser is idle.
+   * on its row, and every task the list shows while the browser is idle.
    * A write reads the Inbox again, and with it every kept screen.
    */
   const ahead = useMemo(() => {
     const byId = new Map(read.items.map((i) => [i.id, i]));
-    return (id: string): void => {
+    return (id: string): Promise<unknown> => {
       const i = byId.get(id);
-      if (i === undefined) return;
+      if (i === undefined) return Promise.resolve();
       if (opensScreen(i)) {
-        void prefetchTaskScreen(i.link);
         // And the pane's own code, fetched now rather than on the press.
         void import('./task-screen');
-      } else if (i.kind === 'people.setup') void prefetchGaps(i.id.replace(/^people:setup:/u, ''));
+        return prefetchTaskScreen(i.link);
+      }
+      if (i.kind === 'people.setup') return prefetchGaps(i.id.replace(/^people:setup:/u, ''));
+      return Promise.resolve();
     };
   }, [read.items]);
   // Before the pane reads again (its effects run before this list's): a read
@@ -325,25 +327,35 @@ function Screen({
     forgetGaps();
   }
   useEffect(() => {
-    const first = ordered
-      .filter((i) => i.lane === 'task')
-      .slice(0, 3)
-      .map((i) => i.id);
-    const run = (): void => {
+    const tasks = ordered.filter((i) => i.lane === 'task').map((i) => i.id);
+    let live = true;
+    // ponytail: one read at a time, in the list's order. The browser sends
+    // these reads one after another anyway, so a row that is pressed waits
+    // for one read at most, not for the whole list; a read for many rows in
+    // one answer if a long list is still slow to come in.
+    const run = async (): Promise<void> => {
       void detail();
-      for (const id of first) ahead(id);
+      for (const id of tasks) {
+        if (!live) return;
+        await ahead(id).catch(() => undefined);
+      }
+    };
+    const begin = (): void => {
+      void run();
     };
     if (typeof window.requestIdleCallback === 'function') {
-      const handle = window.requestIdleCallback(run, { timeout: 2000 });
+      const handle = window.requestIdleCallback(begin, { timeout: 2000 });
       return () => {
+        live = false;
         window.cancelIdleCallback(handle);
       };
     }
-    const timer = setTimeout(run, 500);
+    const timer = setTimeout(begin, 500);
     return () => {
+      live = false;
       clearTimeout(timer);
     };
-    // The first rows of this read; not again as the selection moves.
+    // The rows of this read; not again as the selection moves.
   }, [ahead]);
 
   // The address follows what is open and what the list shows, without a fetch.
@@ -908,7 +920,7 @@ function Screen({
         onPointerOver={(event) => {
           const href = (event.target as HTMLElement).closest('a')?.getAttribute('href');
           const id = href == null ? null : new URL(href, 'http://inbox').searchParams.get('item');
-          if (id !== null) ahead(id);
+          if (id !== null) void ahead(id);
         }}
         onKeyDown={(event) => {
           // D5: X selects the row in focus, as in Review.

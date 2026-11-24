@@ -78,7 +78,14 @@ export function Framed({
     <div
       ref={box}
       data-framed=""
-      className={wide ? '@container/page p-5 pb-8 touch:p-3' : '@container/page px-1 pt-1 pb-6'}
+      className={
+        wide
+          ? // Over Home the modal's own bar says what is open and closes it: no
+            // trail back through pages that are not behind it. Under a finger
+            // the trail's bar also carries the page's actions, so it stays.
+            '@container/page p-5 pb-8 touch:p-3 pointer-fine:[&_[data-breadcrumb]]:hidden'
+          : '@container/page px-1 pt-1 pb-6'
+      }
     >
       {children}
     </div>

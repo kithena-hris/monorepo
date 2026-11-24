@@ -17,7 +17,14 @@ import { REPORTS_TO, type Asking } from '../person/person-access.js';
 import { readerLocale, t } from '../reader-words.js';
 import { run } from '../person/service.js';
 import { actors, ownDecidedView, ownRecord } from '../screens/people.js';
-import { formValues, nameOf, toForm, type ScreenDeps, type Tx } from '../screens/record.js';
+import {
+  formValues,
+  hrToFill,
+  nameOf,
+  toForm,
+  type ScreenDeps,
+  type Tx,
+} from '../screens/record.js';
 import type { RecordField } from '../screens/model.js';
 import type { WaitingView } from '../screens/waiting.js';
 import type { TransferHistory } from '../screens/transfers.js';
@@ -1173,13 +1180,35 @@ export async function peopleInbox(
     const queues = waiting === undefined ? null : await waiting(tx);
     if (queues?.ok === true) {
       const q = queues.value;
-      const rows = QUEUES().flatMap((d) => {
+      const rows: {
+        readonly key: string;
+        readonly label: string;
+        readonly link: string;
+        readonly count: number;
+        readonly by: string[];
+      }[] = QUEUES().flatMap((d) => {
         const count = q[d.key];
         const byKey = QUEUE_BY[d.key];
         return count === null || count === 0
           ? []
           : [{ ...d, count, by: byKey === null ? [] : [...(q[byKey] ?? [])].slice(0, 3) }];
       });
+      // What only HR keeps and nobody has filled in: Review's Missing details,
+      // counted as Home's figure and that page count it. Home had a card of its
+      // own for these; they are a task here instead.
+      if (asking.viewer.roles.has('hr')) {
+        const version = await deps.service.schemas.current(tx, asking.tenantId);
+        const toFill = version ? hrToFill(await deps.gapTotals(tx, asking.tenantId), version) : 0;
+        if (toFill > 0) {
+          rows.push({
+            key: 'missing',
+            label: t('inbox.inbox.details_to_fill_in', 'Details to fill in'),
+            link: '/people/review/missing',
+            count: toFill,
+            by: [],
+          });
+        }
+      }
       const total = rows.reduce((n, r) => n + r.count, 0);
       if (total > 0) {
         const detail: Plain<PeopleReviewDetail> = {

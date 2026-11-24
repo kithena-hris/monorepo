@@ -197,6 +197,12 @@ type Task = Awaited<ReturnType<ReturnType<typeof taskQuery>['queryFn']>>;
 /** A task whose form is its module's screen: that screen and its code too, as the Inbox's list does. */
 async function screenAhead(task: Task): Promise<void> {
   if (task === null) return;
+  // A hire to set up draws the record's missing fields: read ahead, as the Inbox's list does.
+  if (task.item.kind === 'people.setup') {
+    const { prefetchGaps } = await import('./inbox/gaps-cache');
+    void prefetchGaps(task.item.id.replace(/^people:setup:/u, ''));
+    return;
+  }
   // Fetched here, never with Home.
   const [{ opensScreen }, { prefetchTaskScreen }] = await Promise.all([
     import('../lib/inbox/opens-screen'),
