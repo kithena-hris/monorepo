@@ -14,6 +14,7 @@ import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-quer
 import { useRouter } from 'next/navigation';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 
+import { inboxItems } from '../app/(app)/inbox/actions';
 import { OPEN_EVENT, type OpenDetail } from '../lib/ask-event';
 import { t } from '../lib/t';
 import { ROOMY, type FrameMessage } from './framed';
@@ -191,27 +192,60 @@ const OVER = '[data-over]';
 /** How long the pointer rests on a link before its page is loaded ahead. */
 const REST_MS = 120;
 
+type Task = Awaited<ReturnType<ReturnType<typeof taskQuery>['queryFn']>>;
+
+/** A task whose form is its module's screen: that screen and its code too, as the Inbox's list does. */
+async function screenAhead(task: Task): Promise<void> {
+  if (task === null) return;
+  // Fetched here, never with Home.
+  const [{ opensScreen }, { prefetchTaskScreen }] = await Promise.all([
+    import('../lib/inbox/opens-screen'),
+    screensCode(),
+  ]);
+  if (!opensScreen(task.item)) return;
+  void prefetchTaskScreen(task.item.link);
+  void import('./inbox/task-screen');
+}
+
 /** Read ahead what an address opens: a task or the missing fields, kept by the query client. */
 function readAhead(client: QueryClient, href: string): void {
   const what = kindOf(href);
   if (what.is === 'task') {
     void client
       .query(taskQuery(what.id))
-      .then(async (task) => {
-        if (task === null) return;
-        // A task whose form is its module's screen: that screen and its code
-        // too, as the Inbox's list does. Fetched here, never with Home.
-        const [{ opensScreen }, { prefetchTaskScreen }] = await Promise.all([
-          import('../lib/inbox/opens-screen'),
-          screensCode(),
-        ]);
-        if (!opensScreen(task.item)) return;
-        void prefetchTaskScreen(task.item.link);
-        void import('./inbox/task-screen');
-      })
+      .then(screenAhead)
       .catch(() => undefined);
   }
   if (what.is === 'missing') void client.query(gapsQuery(what.personId)).catch(() => undefined);
+}
+
+/**
+ * Everything Home links to, read ahead in as few reads as it takes: the
+ * browser sends its reads one after another, so every task comes in one, kept
+ * under each task's own key; then the missing fields; then each task's screen.
+ */
+function readAllAhead(client: QueryClient): void {
+  const hrefs = [...document.querySelectorAll<HTMLElement>(OVER)].map(
+    (el) => el.dataset['over'] ?? '',
+  );
+  const ids = hrefs.flatMap((href) => {
+    const what = kindOf(href);
+    return what.is === 'task' && client.getQueryData(taskQuery(what.id).queryKey) === undefined
+      ? [what.id]
+      : [];
+  });
+  if (ids.length > 0) {
+    void inboxItems(ids)
+      .then((tasks) => {
+        for (const id of ids) {
+          const task = tasks[id] ?? null;
+          client.setQueryData(taskQuery(id).queryKey, task);
+          void screenAhead(task);
+        }
+      })
+      .catch(() => undefined);
+  }
+  for (const href of hrefs) if (kindOf(href).is === 'missing') readAhead(client, href);
 }
 
 /**
@@ -229,9 +263,7 @@ function useAhead(client: QueryClient): void {
       stop();
       void detailCode();
       void missingCode();
-      for (const el of document.querySelectorAll<HTMLElement>(OVER)) {
-        readAhead(client, el.dataset['over'] ?? '');
-      }
+      readAllAhead(client);
     };
     const signs = ['pointermove', 'keydown', 'touchstart'] as const;
     const stop = (): void => {
