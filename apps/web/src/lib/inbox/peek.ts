@@ -45,6 +45,13 @@ export function peekOf(
   },
   /** How many To do rows: the chrome's few, or Home's (`HOME_TASKS`). */
   tasks = PEEK,
+  /**
+   * To do's rows whole, with what each opens to: Home opens a task over
+   * itself, and holding it already is what makes that open at once.
+   * ponytail: every row's detail is sent with the page; send the first
+   * rows' only if somebody's two hundred tasks make Home slow to arrive.
+   */
+  whole = false,
 ): InboxPeek {
   return {
     counts: read.counts,
@@ -52,7 +59,7 @@ export function peekOf(
       .filter((i) => i.counted)
       .toSorted(byDue)
       .slice(0, tasks)
-      .map(light),
+      .map(whole ? (i) => i : light),
     updates: read.items
       .filter((i) => i.lane === 'update')
       .toSorted((a, b) => (a.at < b.at ? 1 : -1))

@@ -2,7 +2,15 @@
 
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, useTransition, type JSX } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type JSX,
+} from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import {
@@ -26,7 +34,8 @@ import {
 import { useCachedRead } from '../lib/query';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
-import { ASK_EVENT, OPEN_EVENT } from '../lib/ask-event';
+import { ASK_EVENT, HELD_EVENT, OPEN_EVENT } from '../lib/ask-event';
+import type { Shown } from '../lib/inbox/model';
 import type { homeToDo } from './inbox/format';
 import type { HomeAway, HomeLeave } from '../lib/home-time-off';
 import {
@@ -88,7 +97,18 @@ export interface PeopleScreenProps {
    * arrive on the same response as each service answers. A part a service
    * does not answer resolves without it.
    */
-  readonly toDoLater?: Promise<ReturnType<typeof homeToDo> | undefined>;
+  readonly toDoLater?: Promise<
+    | {
+        readonly toDo: ReturnType<typeof homeToDo>;
+        /** The tasks those rows are of, whole: what Home's modal opens them from. */
+        readonly held: {
+          readonly items: readonly Shown[];
+          readonly now: string;
+          readonly zone: string;
+        };
+      }
+    | undefined
+  >;
   readonly timeLater?: Promise<{ readonly away?: HomeAway; readonly leave?: HomeLeave }>;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
@@ -443,7 +463,14 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const { load } = input;
   const toDoLater = useLater(input.toDoLater);
   const timeLater = useLater(input.timeLater);
-  const toDo = input.toDo ?? toDoLater.value;
+  const toDo = input.toDo ?? toDoLater.value?.toDo;
+  // Handed to Home's modal (`home-modal.tsx`), which keeps each as it reads a
+  // task, before the rows are read ahead from: opening one asks nobody. By an
+  // event, as a row is opened, so no page but Home carries the modal's reads.
+  const held = toDoLater.value?.held;
+  useLayoutEffect(() => {
+    if (held !== undefined) window.dispatchEvent(new CustomEvent(HELD_EVENT, { detail: held }));
+  }, [held]);
   const away = input.away ?? timeLater.value?.away;
   const leave = input.leave ?? timeLater.value?.leave;
   const shell = useShellData();

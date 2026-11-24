@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 
 import { inboxItems } from '../app/(app)/inbox/actions';
-import { OPEN_EVENT, type OpenDetail } from '../lib/ask-event';
+import { HELD_EVENT, OPEN_EVENT, type HeldDetail, type OpenDetail } from '../lib/ask-event';
 import { t } from '../lib/t';
 import { ROOMY, type FrameMessage } from './framed';
 import { gapsQuery, STALE_MS, taskQuery } from './home-reads';
@@ -373,6 +373,23 @@ export function HomeModal(): JSX.Element {
   const router = useRouter();
   const client = useQueryClient();
   useAhead(client);
+  // The tasks Home's rows are of, handed over whole as the rows arrive: kept
+  // as a read of each would be, so opening one asks nobody.
+  useLayoutEffect(() => {
+    const onHeld = (event: Event): void => {
+      const held = (event as CustomEvent<HeldDetail>).detail;
+      for (const item of held.items) {
+        const key = taskQuery(item.id).queryKey;
+        if (client.getQueryData(key) === undefined) {
+          client.setQueryData(key, { item, now: held.now, zone: held.zone });
+        }
+      }
+    };
+    window.addEventListener(HELD_EVENT, onHeld);
+    return () => {
+      window.removeEventListener(HELD_EVENT, onHeld);
+    };
+  }, [client]);
   const [opened, setOpened] = useState<OpenDetail | null>(null);
   const kind = opened === null ? null : kindOf(opened.href);
   const taskId = kind?.is === 'task' ? kind.id : null;
