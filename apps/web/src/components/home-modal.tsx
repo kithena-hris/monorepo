@@ -231,8 +231,8 @@ function readAhead(client: QueryClient, href: string): void {
  * browser sends its reads one after another, so every task comes in one, kept
  * under each task's own key; then the missing fields and each hire's record.
  * With `screens`, each task's own screen and its code too, the drawn tasks'
- * first: that is JavaScript, so it waits for somebody to be there and Home's
- * first load stays what Home needs.
+ * first: that is JavaScript, so it waits for the page's own code to be in
+ * and Home's first load stays what Home needs.
  */
 function readAllAhead(client: QueryClient, screens: boolean): void {
   const marks = [...document.querySelectorAll<HTMLElement>(OVER)];
@@ -280,9 +280,10 @@ function readAllAhead(client: QueryClient, screens: boolean): void {
  * While Home is on screen: as soon as it has drawn and the browser is idle,
  * every task, missing field and hire's record Home links to is read ahead, so
  * the first press finds them there. The code this modal draws with and each
- * task's own screen follow at the first sign of someone there (the pointer
- * moves, a key, a touch): they are JavaScript, and a page nobody touches
- * loads none beyond its own. A page (a person, Review, a request) is loaded
+ * task's own screen follow once the page's own code is in (`kithena:warm`,
+ * as the assistant's window does), so they are never part of a first load,
+ * or at the first sign of someone there (the pointer moves, a key, a touch)
+ * if that comes sooner. A page (a person, Review, a request) is loaded
  * ahead when the pointer rests on its link or the keyboard reaches it, since
  * each is a whole page and only a few are kept.
  */
@@ -318,7 +319,15 @@ function useAhead(client: QueryClient): void {
       readAllAhead(client, true);
     };
     for (const sign of signs) window.addEventListener(sign, first, { passive: true });
+    // The page's own code is in: what a press will need can come now.
+    const warm = new PerformanceObserver((list) => {
+      if (list.getEntriesByName('kithena:warm').length === 0) return;
+      warm.disconnect();
+      if (!someone) first();
+    });
+    warm.observe({ type: 'mark', buffered: true });
     const stop = (): void => {
+      warm.disconnect();
       for (const sign of signs) window.removeEventListener(sign, first);
       if (idle) window.cancelIdleCallback(handle);
       else window.clearTimeout(handle);
