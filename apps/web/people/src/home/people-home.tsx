@@ -60,7 +60,6 @@ import {
   type ReactNode,
 } from 'react';
 
-import { whoOf } from '../export/words';
 import { Loaded, type Loadable } from '../load';
 import { FieldFiles, FileInput, type UploadOutcome } from '../record/files';
 import { localTime } from '../record/display';
@@ -1731,7 +1730,10 @@ function Profile({
             ? []
             : [
                 since === null
-                  ? { label: tr('home.people-home.joined', 'Joined'), value: longDate(me.startedOn) }
+                  ? {
+                      label: tr('home.people-home.joined', 'Joined'),
+                      value: longDate(me.startedOn),
+                    }
                   : {
                       label: tr('home.people-home.time_at_the_company', 'Time at the company'),
                       value: tr('home.people-home.tenure_since', '{{tenure}} (since {{date}})', {
@@ -2405,9 +2407,6 @@ export function headcountSays(headcount: {
   ];
 }
 
-/** A name after "by": "you" rather than "You". */
-const byWhom = (who: string): string => who.replace(/^You\b/u, 'you');
-
 /** "1 looks unusual: a 38% raise", from what People's checks flag (B2); null for nothing flagged. */
 export function unusual(approvals: PeopleHomeState['approvals']): string | null {
   const n = approvals?.flagged ?? 0;
@@ -2436,186 +2435,21 @@ function HrHome({
   hr,
   state,
   toDo,
+  out,
   around,
 }: {
   readonly hr: NonNullable<PeopleHomeState['hr']>;
   readonly state: PeopleHomeState;
   /** The host's To do, first in the grid beside what needs HR. */
   readonly toDo?: ReactNode;
-  /** Who they are, who is away and their own time off: first beside the lists. */
+  /** Who is away: a list, so under To do where it has the width. */
+  readonly out?: ReactNode;
+  /** Who they are and their own time off: first beside the lists. */
   readonly around?: ReactNode;
 }): JSX.Element {
   const peek = useContext(PeekContext);
   const approvals = state.approvals;
   const team = state.team;
-  const changes = approvals?.total ?? 0;
-  const needs: JSX.Element[] = [];
-  if (changes > 0) {
-    const oldest = approvals?.items.at(-1);
-    const askers = whoOf(
-      [...new Set(approvals?.items.map((i) => i.requestedBy))],
-      (approvals?.items.length ?? 0) < changes,
-    );
-    needs.push(
-      <Todo
-        key="changes"
-        icon={<icons.edit aria-hidden />}
-        title={tr(
-          'home.people-home.count_changes_to_approve',
-          { one: '{{count}} change to approve', other: '{{count}} changes to approve' },
-          { count: changes },
-        )}
-        description={[
-          unusual(approvals) ??
-            (oldest === undefined
-              ? tr('home.people-home.waiting_for_your_decision', 'Waiting for your decision')
-              : tr('home.people-home.oldest_asked_when', 'Oldest asked {{when}}', {
-                  when: waited(oldest.requestedAt, state.now),
-                })),
-          askers === null
-            ? null
-            : tr('home.people-home.asked_by', 'asked by {{who}}', { who: byWhom(askers) }),
-        ]
-          .filter((x) => x !== null)
-          .join(' · ')}
-        go={inReviewWord()}
-        href={review('changes')}
-      />,
-    );
-  }
-  if ((hr.identifiers ?? 0) > 0) {
-    needs.push(
-      <Todo
-        key="ids"
-        icon={<icons.identifier aria-hidden />}
-        title={tr(
-          'home.people-home.count_identifiers_to_check',
-          { one: '{{count}} identifier to check', other: '{{count}} identifiers to check' },
-          { count: hr.identifiers ?? 0 },
-        )}
-        description={[
-          tr(
-            'home.people-home.failed_a_check_or_couldnt_be',
-            'Failed a check, or couldn’t be verified',
-          ),
-          ((by) =>
-            by === null
-              ? null
-              : tr('home.people-home.entered_by', 'entered by {{who}}', { who: byWhom(by) }))(
-            whoOf(hr.identifiersBy ?? []),
-          ),
-        ]
-          .filter((x) => x !== null)
-          .join(' · ')}
-        go={inReviewWord()}
-        href={review('ids')}
-      />,
-    );
-  }
-  if ((hr.duplicates ?? 0) > 0) {
-    needs.push(
-      <Todo
-        key="duplicates"
-        icon={<icons.merge aria-hidden />}
-        title={tr(
-          'home.people-home.count_possible_duplicates',
-          { one: '{{count}} possible duplicate', other: '{{count}} possible duplicates' },
-          { count: hr.duplicates ?? 0 },
-        )}
-        description={[
-          tr(
-            'home.people-home.same_work_email_or_name_and',
-            'Same work email, or name and birth date',
-          ),
-          (hr.duplicatesBy ?? []).length === 0
-            ? null
-            : tr('home.people-home.flagged_by', 'flagged by {{who}}', {
-                who: formatList(hr.duplicatesBy ?? []),
-              }),
-        ]
-          .filter((x) => x !== null)
-          .join(' · ')}
-        go={inReviewWord()}
-        href={review('duplicates')}
-      />,
-    );
-  }
-  if ((hr.accessRequests ?? 0) > 0) {
-    needs.push(
-      <Todo
-        key="access"
-        icon={<icons.sensitive aria-hidden />}
-        title={tr(
-          'home.people-home.count_requests_for_full_values',
-          { one: '{{count}} request for full values', other: '{{count}} requests for full values' },
-          { count: hr.accessRequests ?? 0 },
-        )}
-        description={
-          whoOf(hr.accessRequestsBy ?? []) === null
-            ? tr(
-                'home.people-home.somebody_asked_to_see_unmasked',
-                'Somebody asked to see unmasked values',
-              )
-            : tr(
-                'home.people-home.asked_to_see_unmasked_values',
-                '{{value}} asked to see unmasked values',
-                {
-                  value: whoOf(hr.accessRequestsBy ?? []) ?? '',
-                },
-              )
-        }
-        go={inReviewWord()}
-        href={review('access')}
-      />,
-    );
-  }
-  if (team !== null && team.toFill > 0) {
-    needs.push(
-      <Todo
-        key="fill"
-        icon={<icons.missing aria-hidden />}
-        title={tr(
-          'home.people-home.count_details_for_hr_to_fill_in',
-          {
-            one: '{{count}} detail for HR to fill in',
-            other: '{{count}} details for HR to fill in',
-          },
-          { count: team.toFill },
-        )}
-        description={tr(
-          'home.people-home.missing_details_only_hr_keeps',
-          'Missing details only HR keeps',
-        )}
-        go={inReviewWord()}
-        href={review('missing')}
-      />,
-    );
-  }
-  if (team !== null && team.waiting > 0) {
-    needs.push(
-      <Todo
-        key="remind"
-        icon={<icons.notifications aria-hidden />}
-        title={tr(
-          'home.people-home.details_of_their_own_to_add',
-          '{{counted}} details of their own to add',
-          {
-            counted: tr(
-              'home.people-home.count_people_have',
-              { one: '{{count}} person has', other: '{{count}} people have' },
-              { count: team.waiting },
-            ),
-          },
-        )}
-        description={tr(
-          'home.people-home.reminded_by_email_once_a_week',
-          'Reminded by email once a week',
-        )}
-        go={inReviewWord()}
-        href={review('missing')}
-      />,
-    );
-  }
   const headcount = hr.headcount;
   const oldest = approvals?.items.at(-1);
   const insights = tr('home.people-home.open_workforce_insights', 'Open workforce insights');
@@ -2624,33 +2458,7 @@ function HrHome({
       main={
         <>
           {toDo}
-          <Section
-            title={tr('home.people-home.hr_review_queue', 'HR review queue')}
-            icon={<icons.review aria-hidden />}
-            tone="warning"
-            {...(needs.length === 0 ? {} : { meta: needs.length })}
-            flush={needs.length > 0}
-            action={
-              <Way
-                href="/people/review/waiting"
-                label={tr('home.people-home.open_review', 'Open Review')}
-              />
-            }
-          >
-            {needs.length === 0 ? (
-              <Done
-                title={tr('home.people-home.the_queue_is_clear', 'The queue is clear')}
-                detail={tr(
-                  'home.people-home.records_are_complete_and_nothing_is',
-                  'Records are complete and nothing is flagged.',
-                )}
-              />
-            ) : (
-              <List aria-label={tr('home.people-home.hr_review_queue', 'HR review queue')}>
-                {needs}
-              </List>
-            )}
-          </Section>
+          {out}
           {/* The records' figures in one card, over how headcount has moved. */}
           <Section
             title={tr('home.people-home.workforce', 'Workforce')}
@@ -3215,20 +3023,24 @@ export function PeopleHome({
                 span={2}
               />
             ) : undefined;
-          // Who they are, who is away and their own time off, beside the lists.
+          // Who is away, under To do: the profile beside them is the tallest
+          // card on the page, so the lists share the wide column and the two
+          // columns end near each other.
+          const out =
+            me === null ? null : away !== undefined ? (
+              <Away away={away} onAway={onAway} />
+            ) : pending?.time === true ? (
+              <Waiting
+                title={tr('home.people-home.whos_out', 'Who’s out')}
+                icon={<icons.calendar aria-hidden />}
+                tone="chart-4"
+              />
+            ) : null;
+          // Who they are and their own time off, beside the lists.
           const around =
             me === null ? null : (
               <>
                 <Profile me={me} now={clock} line={reportingLine} missing={state.missing} />
-                {away !== undefined ? (
-                  <Away away={away} onAway={onAway} />
-                ) : pending?.time === true ? (
-                  <Waiting
-                    title={tr('home.people-home.whos_out', 'Who’s out')}
-                    icon={<icons.calendar aria-hidden />}
-                    tone="chart-4"
-                  />
-                ) : null}
                 {leave !== undefined ? (
                   <Leave leave={leave} />
                 ) : pending?.time === true ? (
@@ -3283,6 +3095,7 @@ export function PeopleHome({
                   <HrHome
                     hr={hrFigures}
                     state={state}
+                    out={out}
                     around={around}
                     toDo={
                       toDo === undefined ? (
@@ -3296,11 +3109,14 @@ export function PeopleHome({
               ) : me === null ? null : (
                 <Columns
                   main={
-                    toDo === undefined ? (
-                      (waitingToDo ?? <ToDo state={state} me={me} />)
-                    ) : (
-                      <HostList toDo={toDo} today={me.today} />
-                    )
+                    <>
+                      {toDo === undefined ? (
+                        (waitingToDo ?? <ToDo state={state} me={me} />)
+                      ) : (
+                        <HostList toDo={toDo} today={me.today} />
+                      )}
+                      {out}
+                    </>
                   }
                   side={around}
                 />

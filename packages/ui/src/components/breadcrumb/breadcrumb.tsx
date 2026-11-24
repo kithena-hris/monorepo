@@ -58,6 +58,8 @@ import { t } from '../../lib/i18n';
 export function Breadcrumb({ className, ...props }: ComponentPropsWithoutRef<'nav'>): JSX.Element {
   return (
     <nav
+      // What a holder that needs no trail hides it by: the label is translated.
+      data-breadcrumb=""
       aria-label={t('components.breadcrumb.breadcrumb.breadcrumb', 'Breadcrumb')}
       className={cn('@container min-w-0', className)}
       {...props}

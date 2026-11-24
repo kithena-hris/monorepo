@@ -160,13 +160,13 @@ describe('People overview: who you are here, what needs you, what is missing', (
         .getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / })
         .waitFor({ timeout: 30_000 });
       await page.waitForLoadState('networkidle');
-      const needs = titled(page, 'HR review queue');
-      const changes = needs.getByRole('link', { name: /changes? to approve/ }).first();
-      await changes.waitFor();
-      expect(await changes.getAttribute('href')).toBe('/people/review/waiting?kind=changes');
-      expect(await needs.getByRole('link', { name: 'Open Review' }).getAttribute('href')).toBe(
-        '/people/review/waiting',
-      );
+      // What waits in Review is the Inbox's one task, so a row of To do: Home
+      // has no queue of its own beside it.
+      await titled(page, 'To do')
+        .getByText(/waiting for you in Review/)
+        .first()
+        .waitFor();
+      expect(await titled(page, 'HR review queue').count()).toBe(0);
       await shot(page, name);
       await context.close();
     }

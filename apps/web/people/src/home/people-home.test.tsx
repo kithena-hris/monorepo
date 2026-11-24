@@ -393,7 +393,7 @@ describe('Home, as HR (B2)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('gives HR the four figures and one review queue, each row opening Review pre-filtered', async () => {
+  it('gives HR the four figures, and no review queue of its own', async () => {
     const hr = render(<PeopleHome load={ready({ ...overview(), hr: figures })} />, {
       wrapper: TooltipProvider,
     });
@@ -407,32 +407,8 @@ describe('Home, as HR (B2)', () => {
       'Expiring in 90 days',
     ])
       expect(screen.getByText(label)).toBeInTheDocument();
-    const needs = part('HR review queue');
-    // A row is named by the words on it, so its title is how the name starts.
-    const href = (name: string) =>
-      within(needs)
-        .getAllByRole('link', { name: (n) => n.startsWith(name) })[0]
-        ?.getAttribute('href');
-    // No word at the row's end: the row is the way on.
-    expect(within(needs).queryByText('Fill in')).toBeNull();
-    expect(href('7 changes to approve')).toBe('/people/review/waiting?kind=changes');
-    expect(href('3 identifiers to check')).toBe('/people/review/waiting?kind=ids');
-    expect(href('2 possible duplicates')).toBe('/people/review/waiting?kind=duplicates');
-    // What flagged the pairs, as they were found: both, here.
-    expect(
-      within(needs).getByText(
-        'Same work email, or name and birth date · flagged by Kithena’s duplicate check and SCIM provisioning',
-      ),
-    ).toBeInTheDocument();
-    expect(href('1 request for full values')).toBe('/people/review/waiting?kind=access');
-    expect(href('11 details for HR to fill in')).toBe('/people/review/waiting?kind=missing');
-    expect(href('4 people have details of their own to add')).toBe(
-      '/people/review/waiting?kind=missing',
-    );
-    expect(within(needs).getByRole('link', { name: 'Open Review' })).toHaveAttribute(
-      'href',
-      '/people/review/waiting',
-    );
+    // What waits in Review is a task in the Inbox, so in To do: no card of its own.
+    expect(maybe('HR review queue')).toBeNull();
     expect(part('Starting soon')).toHaveTextContent('Mei Tanaka');
     expect(part('Joiners by month')).toBeInTheDocument();
     // HR's own record, which the old overview left out.
@@ -442,54 +418,6 @@ describe('Home, as HR (B2)', () => {
     hr.unmount();
     render(<PeopleHome load={ready(employee())} />);
     expect(maybe('HR review queue')).toBeNull();
-  });
-
-  it('says how many changes look unusual, and why the newest does (B2)', () => {
-    const base = overview();
-    render(
-      <PeopleHome
-        load={ready({
-          ...base,
-          approvals: base.approvals && { ...base.approvals, flagged: 1, flagReason: 'A 38% raise' },
-          hr: figures,
-        })}
-      />,
-      { wrapper: TooltipProvider },
-    );
-    expect(
-      within(part('HR review queue')).getByText(
-        '1 looks unusual: a 38% raise · asked by Tim Berners-Lee and others',
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it('names who asked on every row of the review queue (B2)', () => {
-    render(<PeopleHome load={ready({ ...overview(), hr: figures })} />, {
-      wrapper: TooltipProvider,
-    });
-    const needs = within(part('HR review queue'));
-    expect(
-      needs.getByText(
-        'Failed a check, or couldn’t be verified · entered by Adam Novak and 2 others',
-      ),
-    ).toBeInTheDocument();
-    expect(needs.getByText('Sofia Lindqvist asked to see unmasked values')).toBeInTheDocument();
-  });
-
-  it('says the queue is clear when every queue is empty', () => {
-    render(
-      <PeopleHome
-        load={ready({
-          ...overview({
-            approvals: { isHr: true, total: 0, items: [] },
-            team: { waiting: 0, toFill: 0 },
-          }),
-          hr: { ...figures, identifiers: 0, duplicates: 0, accessRequests: 0 },
-        })}
-      />,
-      { wrapper: TooltipProvider },
-    );
-    expect(screen.getByText('The queue is clear.')).toBeInTheDocument();
   });
 });
 
