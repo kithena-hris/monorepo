@@ -1,3 +1,5 @@
+import type { Shown } from './inbox/model';
+
 /**
  * The window event a screen asks the assistant with: its detail is the
  * question. Apart from the assistant itself, so a screen that only asks does
@@ -16,4 +18,12 @@ export interface OpenDetail {
   readonly href: string;
   /** What it is, for the modal's title: "Jen Davis", "Request time off". */
   readonly label: string;
+}
+
+/** Home's tasks, whole, for the modal that opens them: sent as To do's rows arrive. */
+export const HELD_EVENT = 'kithena:held';
+export interface HeldDetail {
+  readonly items: readonly Shown[];
+  readonly now: string;
+  readonly zone: string;
 }

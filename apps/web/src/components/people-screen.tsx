@@ -1,6 +1,5 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -35,9 +34,8 @@ import {
 import { useCachedRead } from '../lib/query';
 import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
-import { ASK_EVENT, OPEN_EVENT } from '../lib/ask-event';
+import { ASK_EVENT, HELD_EVENT, OPEN_EVENT } from '../lib/ask-event';
 import type { Shown } from '../lib/inbox/model';
-import { taskQuery } from './home-reads';
 import type { homeToDo } from './inbox/format';
 import type { HomeAway, HomeLeave } from '../lib/home-time-off';
 import {
@@ -466,19 +464,13 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const toDoLater = useLater(input.toDoLater);
   const timeLater = useLater(input.timeLater);
   const toDo = input.toDo ?? toDoLater.value?.toDo;
-  // Kept as Home's modal reads a task (`home-reads.ts`), before the rows are
-  // drawn and read ahead from: opening one asks nobody.
-  const client = useQueryClient();
+  // Handed to Home's modal (`home-modal.tsx`), which keeps each as it reads a
+  // task, before the rows are read ahead from: opening one asks nobody. By an
+  // event, as a row is opened, so no page but Home carries the modal's reads.
   const held = toDoLater.value?.held;
   useLayoutEffect(() => {
-    if (held === undefined) return;
-    for (const item of held.items) {
-      const key = taskQuery(item.id).queryKey;
-      if (client.getQueryData(key) === undefined) {
-        client.setQueryData(key, { item, now: held.now, zone: held.zone });
-      }
-    }
-  }, [client, held]);
+    if (held !== undefined) window.dispatchEvent(new CustomEvent(HELD_EVENT, { detail: held }));
+  }, [held]);
   const away = input.away ?? timeLater.value?.away;
   const leave = input.leave ?? timeLater.value?.leave;
   const shell = useShellData();
