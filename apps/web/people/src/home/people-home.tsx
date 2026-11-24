@@ -12,7 +12,7 @@ import {
   CardTitle,
   type ChartPoint,
   CircularProgress,
-  Progress,
+  cn,
   dateFormat,
   Dialog,
   DialogBody,
@@ -33,6 +33,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Progress,
   Select,
   SelectContent,
   SelectItem,
@@ -40,10 +41,10 @@ import {
   SelectValue,
   Spinner,
   Stack,
-  TrendChart,
   Stat,
   Tooltip,
   TooltipProvider,
+  TrendChart,
   type UploadedImage,
   VirtualList,
   type VirtualRowProps,
@@ -1355,7 +1356,7 @@ function HostList({
   readonly today: string;
 }): JSX.Element {
   const rows = (tasks: readonly HostTask[], label: string) => (
-    <List aria-label={label}>
+    <List aria-label={label} className={ROWS_IN}>
       {tasks.map((t) => {
         const Icon = iconOf(t.icon);
         return (
@@ -1485,7 +1486,10 @@ function ToDo({
           }
         />
       ) : (
-        <List aria-label={tr('home.people-home.to_do', 'To do')} className="-mx-5 touch:-mx-4">
+        <List
+          aria-label={tr('home.people-home.to_do', 'To do')}
+          className={cn('-mx-5 touch:-mx-4', ROWS_IN)}
+        >
           {corrections.map((c) => (
             <Todo
               key={`correct-${c.key}`}
@@ -2146,7 +2150,7 @@ function Away({
               ? tr('home.people-home.away_next', 'Away next')
               : tr('home.people-home.away_today_and_next', 'Away today and next')
           }
-          className={busy ? 'opacity-60' : undefined}
+          className={cn(ROWS_IN, busy && 'opacity-60')}
         >
           {shown.map((p) => (
             <AwayRow key={p.id} p={p} />
@@ -2263,6 +2267,35 @@ function Leave({ leave }: { readonly leave: HostLeave }): JSX.Element {
   );
 }
 
+/*
+ * How Home comes in. Each widget arrives (Reach's `arrive`: a short rise out
+ * of a soft blur), the wide column's a step ahead of the one beside it, down
+ * the page, so the eye is led from To do across and down rather than handed
+ * everything at once. A widget whose rows come later arrives again when they
+ * do. A list's first rows follow their widget, a step apart. Nothing moves
+ * for somebody who asked for less motion.
+ */
+const ARRIVE = 'motion-safe:*:animate-arrive';
+const MAIN_AFTER =
+  '*:nth-2:[animation-delay:90ms] *:nth-3:[animation-delay:180ms] *:nth-[n+4]:[animation-delay:270ms]';
+const SIDE_AFTER =
+  '*:nth-1:[animation-delay:45ms] *:nth-2:[animation-delay:135ms] *:nth-[n+3]:[animation-delay:225ms]';
+const ROWS_IN =
+  'motion-safe:*:animate-enter *:[animation-delay:180ms] *:nth-2:[animation-delay:210ms] *:nth-3:[animation-delay:240ms] *:nth-4:[animation-delay:270ms] *:nth-[n+5]:[animation-delay:300ms]';
+
+/** A greeting's sign (the hand, a festival's) apart from its words, to wave once. */
+function Greeting({ words }: { readonly words: string }): JSX.Element {
+  const at = words.lastIndexOf(' ');
+  const sign = words.slice(at + 1);
+  if (at === -1 || !/\p{Extended_Pictographic}/u.test(sign)) return <>{words}</>;
+  return (
+    <>
+      {words.slice(0, at)}{' '}
+      <span className="inline-block origin-[70%_70%] motion-safe:animate-wave">{sign}</span>
+    </>
+  );
+}
+
 /**
  * Home's two columns, the width of the page: what to act on, wide, and who
  * and what is around it beside it. One column where the page is not wide
@@ -2278,8 +2311,16 @@ function Columns({
 }): JSX.Element {
   return (
     <div className="grid items-start gap-4 touch:gap-3 @5xl/page:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      <div className="@container/col flex min-w-0 flex-col gap-4 touch:gap-3">{main}</div>
-      <div className="@container/col flex min-w-0 flex-col gap-4 touch:gap-3">{side}</div>
+      <div
+        className={cn('@container/col flex min-w-0 flex-col gap-4 touch:gap-3', ARRIVE, MAIN_AFTER)}
+      >
+        {main}
+      </div>
+      <div
+        className={cn('@container/col flex min-w-0 flex-col gap-4 touch:gap-3', ARRIVE, SIDE_AFTER)}
+      >
+        {side}
+      </div>
     </div>
   );
 }
@@ -2722,7 +2763,10 @@ function HrHome({
                 />
               }
             >
-              <List aria-label={tr('home.people-home.starting_soon', 'Starting soon')}>
+              <List
+                aria-label={tr('home.people-home.starting_soon', 'Starting soon')}
+                className={ROWS_IN}
+              >
                 {hr.starting.map((p) => (
                   <ListItem
                     key={p.id}
@@ -3066,10 +3110,13 @@ export function PeopleHome({
                         <p className="text-center text-sm font-medium text-fg-muted">{when}</p>
                       ),
                     })}
+                className="motion-safe:animate-arrive"
                 title={
-                  me === null
-                    ? tr('home.people-home.home', 'Home')
-                    : greetingOf(clock, me.timeZone, greeting ?? first(me.name))
+                  me === null ? (
+                    tr('home.people-home.home', 'Home')
+                  ) : (
+                    <Greeting words={greetingOf(clock, me.timeZone, greeting ?? first(me.name))} />
+                  )
                 }
                 description={
                   me === null
