@@ -107,7 +107,9 @@ function keyOf(t: ViewTask, by: Grouping, today: string, words: GroupWords): str
  * The tasks the view keeps, sorted, in their sections, with at most `limit`
  * rows drawn in all: a filter or a group changes which rows show, never how
  * many. Sections come in the order of their first task, so the most pressing
- * group leads; groups by when they are due come soonest first.
+ * group leads; groups by when they are due come soonest first. The rows are
+ * dealt a section at a time, one each until they run out, so grouping shows
+ * as many groups as there are rows for rather than five of the first.
  */
 export function cut<T extends ViewTask>(
   tasks: readonly T[],
@@ -153,15 +155,26 @@ export function cut<T extends ViewTask>(
       (first.get(a.group) ?? 0) - (first.get(b.group) ?? 0) ||
       (view.inside === 'due' ? dueRank(a.sub) - dueRank(b.sub) : 0),
   );
-  let left = limit;
+  const drawn = ordered.map(() => 0);
+  let left = Math.min(limit, kept.length);
+  while (left > 0) {
+    for (const [i, s] of ordered.entries()) {
+      if (left === 0) break;
+      if ((drawn[i] ?? 0) < s.all.length) {
+        drawn[i] = (drawn[i] ?? 0) + 1;
+        left -= 1;
+      }
+    }
+  }
   return {
     matched: kept.length,
     sections: ordered
-      .map((s) => {
-        const drawn = s.all.slice(0, Math.max(0, left));
-        left -= drawn.length;
-        return { group: s.group, sub: s.sub, tasks: drawn, count: s.all.length };
-      })
+      .map((s, i) => ({
+        group: s.group,
+        sub: s.sub,
+        tasks: s.all.slice(0, drawn[i]),
+        count: s.all.length,
+      }))
       .filter((s) => s.tasks.length > 0),
   };
 }

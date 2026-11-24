@@ -16,8 +16,14 @@ export interface InboxPeek {
 }
 
 const PEEK = 6;
-/** Home's To do filters, groups and sorts its own rows, so it is handed more of them. */
-export const HOME_TASKS = 50;
+/**
+ * Home's To do filters, groups and sorts its own rows, and counts each
+ * group, so it is handed them all.
+ * ponytail: a cap, not a page; past 200 a group's count is of the first 200
+ * (the header's total stays the Inbox's own). Count per group on the server
+ * if anybody holds more.
+ */
+export const HOME_TASKS = 200;
 
 const light = (i: Shown): Shown => ({ ...i, detail: null, message: null });
 

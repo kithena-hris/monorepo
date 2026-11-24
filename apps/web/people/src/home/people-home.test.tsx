@@ -143,7 +143,9 @@ describe('Home, as an employee (B1)', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Your profile' })).toBeInTheDocument();
     expect(within(part('Your profile')).getAllByText('Ada Lovelace')).not.toHaveLength(0);
     expect(screen.getByText('Engineer · Research · Madrid office')).toBeInTheDocument();
-    expect(screen.getByText(/4 Mar 2024 · 2 years, 6 months/)).toBeInTheDocument();
+    // How long they have been here, counted from the clock, and since when.
+    expect(screen.getByText('Time at the company')).toBeInTheDocument();
+    expect(screen.getByText(/^\d+ years?, .*\(since 4 Mar 2024\)$/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open your profile' })).toHaveAttribute(
       'href',
       '/people/me',
@@ -612,6 +614,8 @@ describe('Home, with a host that knows who is away', () => {
       'href',
       '/inbox/todo',
     );
+    // The footer is the one way to the Inbox: no second arrow in the header.
+    expect(within(todo).queryByRole('link', { name: 'Open Inbox' })).toBeNull();
     // A task not drawn is still named, for a host that reads ahead.
     expect(container.querySelector('[data-over="/inbox/todo?item=t6"]')).not.toBeNull();
 
@@ -630,6 +634,32 @@ describe('Home, with a host that knows who is away', () => {
     await user.click(await screen.findByRole('option', { name: 'Whole company' }));
     expect(onAway).toHaveBeenCalledWith('company');
     expect(await within(out).findByText('Company Person')).toBeInTheDocument();
+  });
+
+  it('asks the host for the next page of who is out as the full list nears its end', async () => {
+    const user = fast();
+    const person = (i: number) => ({
+      id: `p${String(i)}`,
+      name: `Person ${String(i)}`,
+      when: 'Today',
+      detail: 'Back Fri',
+      now: true,
+    });
+    const base = { href: '/time-off/calendar/month', scope: 'team', total: 3 };
+    const onAway = vi.fn(() => Promise.resolve({ ...base, people: [person(2)] }));
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        away={{ ...base, people: [person(0), person(1)] }}
+        onAway={onAway}
+      />,
+    );
+    await user.click(within(part('Who’s out')).getByRole('link', { name: 'See everyone' }));
+    const all = await screen.findByRole('dialog', { name: 'Who’s out' });
+    // Two of three are loaded: the rest is asked for from where they end, and joins them.
+    expect(await within(all).findByText('Person 2')).toBeInTheDocument();
+    expect(onAway).toHaveBeenCalledWith('team', 2);
+    expect(onAway).toHaveBeenCalledTimes(1);
   });
 
   it('is drawn before the host has its lists, each widget saying it is loading', () => {
@@ -661,9 +691,14 @@ describe('Home, with a host that knows who is away', () => {
 
 describe('the words', () => {
   it('counts tenure in whole months between two calendar dates', () => {
-    expect(tenure('2024-03-04', '2026-09-27')).toBe('2 years, 6 months');
-    expect(tenure('2026-09-01', '2026-09-27')).toBe('less than a month');
+    expect(tenure('2024-03-04', '2026-09-27')).toBe('2 years, 6 months, 23 days');
+    expect(tenure('2026-09-01', '2026-09-27')).toBe('26 days');
     expect(tenure('2025-09-27', '2026-09-27')).toBe('1 year');
+    // A day more at each midnight, across a month's end too.
+    expect(tenure('2026-01-31', '2026-03-01')).toBe('1 month, 1 day');
+    expect(tenure('2026-08-28', '2026-09-27')).toBe('30 days');
+    expect(tenure('2026-08-28', '2026-09-28')).toBe('1 month');
+    expect(tenure('2026-09-27', '2026-09-27')).toBe('first day');
     expect(tenure('2026-10-01', '2026-09-27')).toBeNull();
   });
 

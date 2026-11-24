@@ -52,7 +52,19 @@ describe('how Home cuts To do', () => {
 
   it('puts groups by when they are due soonest first, and says how many each holds', () => {
     const r = cut(TASKS, { ...DEFAULT_VIEW, group: 'due', sort: 'newest' }, TODAY, WORDS, 2);
-    expect(r.sections.map((s) => [s.group, s.tasks.length, s.count])).toEqual([['Overdue', 2, 2]]);
+    expect(r.sections.map((s) => [s.group, s.tasks.length, s.count])).toEqual([
+      ['Overdue', 1, 2],
+      ['This week', 1, 1],
+    ]);
+  });
+
+  it('deals the rows a group at a time, so one group does not take them all', () => {
+    const r = cut(TASKS, { ...DEFAULT_VIEW, group: 'module' }, TODAY, WORDS, 4);
+    expect(r.sections.map((s) => [s.group, s.tasks.length, s.count])).toEqual([
+      ['Recruiting', 2, 2],
+      ['Performance', 1, 2],
+      ['People', 1, 1],
+    ]);
   });
 
   it('reads a kept view back safely', () => {

@@ -3251,10 +3251,6 @@
     "text": "All modules",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the options of <Pick>."
   },
-  "home.people-home.all_teams": {
-    "text": "All teams",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, useAway: the options of <Pick>."
-  },
   "home.people-home.any_time": {
     "text": "Any time",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the options of <Pick>."
@@ -3315,6 +3311,14 @@
     "text": "{{count}} changes to approve",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the title of <Todo>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
+  "home.people-home.count_days_one": {
+    "text": "{{count}} day",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "home.people-home.count_days_other": {
+    "text": "{{count}} days",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "home.people-home.count_details_for_hr_to_fill_in_one": {
     "text": "{{count}} detail for HR to fill in",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the title of <Todo>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
@@ -3330,10 +3334,6 @@
   "home.people-home.count_direct_reports_other": {
     "text": "{{count}} direct reports",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
-  },
-  "home.people-home.count_first_of": {
-    "text": "{{count}} The first {{shown}} are listed.",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, AwayAll: text inside <p>. Filled in: {{count}}, {{shown}}."
   },
   "home.people-home.count_identifiers_to_check_one": {
     "text": "{{count}} identifier to check",
@@ -3459,13 +3459,13 @@
     "text": "Filter by module",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the label of <Pick>."
   },
-  "home.people-home.filter_by_team": {
-    "text": "Filter by team",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, useAway: the label of <Pick>."
-  },
   "home.people-home.finish_setting_up_your_account": {
     "text": "Finish setting up your account",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: text inside <CardTitle>."
+  },
+  "home.people-home.first_day": {
+    "text": "first day",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code."
   },
   "home.people-home.flagged_by": {
     "text": "flagged by {{who}}",
@@ -3554,10 +3554,6 @@
   "home.people-home.later": {
     "text": "Later",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Setup: text inside <Button>."
-  },
-  "home.people-home.less_than_a_month": {
-    "text": "less than a month",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code."
   },
   "home.people-home.loading_title": {
     "text": "Loading {{title}}",
@@ -3939,6 +3935,10 @@
     "text": "Summary",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Figure: the aria-label of <ul>."
   },
+  "home.people-home.tenure_since": {
+    "text": "{{tenure}} (since {{date}})",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the items of <KeyValues>. Filled in: {{tenure}}, {{date}}."
+  },
   "home.people-home.text_4": {
     "text": "{{what}}: {{charAt}}{{slice}}",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{what}}, {{charAt}}, {{slice}}."
@@ -3958,6 +3958,10 @@
   "home.people-home.then_by": {
     "text": "Then, inside each group, by",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: text inside <span>."
+  },
+  "home.people-home.time_at_the_company": {
+    "text": "Time at the company",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Profile: the items of <KeyValues>."
   },
   "home.people-home.time_off_does_not_show_you_that": {
     "text": "Time Off does not show you that.",
