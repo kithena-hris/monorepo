@@ -358,15 +358,23 @@ export function waited(since: string, now: string): string {
   );
 }
 
-/** "2 years, 3 months": whole months from a start date to today, both calendar dates. */
+/**
+ * "2 years, 3 months, 5 days": from a start date to today, both calendar
+ * dates. The days are those since the start's day of the month last came
+ * round, so the count goes up by one at each midnight.
+ */
 export function tenure(startedOn: string, today: string): string | null {
   const [y1, m1, d1] = startedOn.split('-').map(Number);
   const [y2, m2, d2] = today.split('-').map(Number);
   if ([y1, m1, d1, y2, m2, d2].some((n) => n === undefined || Number.isNaN(n))) return null;
-  const months =
-    ((y2 ?? 0) - (y1 ?? 0)) * 12 + ((m2 ?? 0) - (m1 ?? 0)) - ((d2 ?? 0) < (d1 ?? 0) ? 1 : 0);
+  const before = (d2 ?? 0) < (d1 ?? 0);
+  const months = ((y2 ?? 0) - (y1 ?? 0)) * 12 + ((m2 ?? 0) - (m1 ?? 0)) - (before ? 1 : 0);
   if (months < 0) return null;
-  if (months === 0) return tr('home.people-home.less_than_a_month', 'less than a month');
+  // Day 0 of this month is the last day of the one before: how long that month was.
+  const lastMonth = new Date(Date.UTC(y2 ?? 0, (m2 ?? 1) - 1, 0)).getUTCDate();
+  // A start on the 31st comes round on a shorter month's last day.
+  const days = before ? (d2 ?? 0) + Math.max(0, lastMonth - (d1 ?? 0)) : (d2 ?? 0) - (d1 ?? 0);
+  if (months === 0 && days === 0) return tr('home.people-home.first_day', 'first day');
   const years = Math.floor(months / 12);
   const rest = months % 12;
   return [
@@ -384,9 +392,26 @@ export function tenure(startedOn: string, today: string): string | null {
           { count: rest },
         )
       : null,
+    days > 0
+      ? tr(
+          'home.people-home.count_days',
+          { one: '{{count}} day', other: '{{count}} days' },
+          { count: days },
+        )
+      : null,
   ]
     .filter((x) => x !== null)
     .join(', ');
+}
+
+/** Today's calendar date where they work, from the clock: it turns over at their midnight. */
+function dayIn(now: string, timeZone: string, or: string): string {
+  try {
+    // Sweden writes a date as the calendar does: 2026-11-24.
+    return new Intl.DateTimeFormat('sv-SE', { dateStyle: 'short', timeZone }).format(new Date(now));
+  } catch {
+    return or;
+  }
 }
 
 const longDate = (date: string): string =>
@@ -1570,7 +1595,9 @@ function Profile({
   const role = [me.title, me.department, me.location].filter((x) => x !== null).join(' · ');
   const status = me.status === null ? undefined : STATUS[me.status];
   const time = localTime(now, me.timeZone);
-  const since = me.startedOn === null ? null : tenure(me.startedOn, me.today);
+  // Counted from the clock, so it is a day more at their midnight without a reload.
+  const since =
+    me.startedOn === null ? null : tenure(me.startedOn, dayIn(now, me.timeZone, me.today));
   // Top of the chart first, as an org chart reads.
   const above = line === null ? [] : line.managers.toReversed();
   const manager = line?.managers[0];
@@ -1703,10 +1730,15 @@ function Profile({
           ...(me.startedOn === null
             ? []
             : [
-                {
-                  label: tr('home.people-home.joined', 'Joined'),
-                  value: `${longDate(me.startedOn)}${since === null ? '' : ` · ${since}`}`,
-                },
+                since === null
+                  ? { label: tr('home.people-home.joined', 'Joined'), value: longDate(me.startedOn) }
+                  : {
+                      label: tr('home.people-home.time_at_the_company', 'Time at the company'),
+                      value: tr('home.people-home.tenure_since', '{{tenure}} (since {{date}})', {
+                        tenure: since,
+                        date: longDate(me.startedOn),
+                      }),
+                    },
               ]),
           ...(me.email === null
             ? []
