@@ -15,17 +15,16 @@ import { useRouter } from 'next/navigation';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
 
 import { OPEN_EVENT, type OpenDetail } from '../lib/ask-event';
-import { opensScreen } from '../lib/inbox/opens-screen';
 import { t } from '../lib/t';
 import { ROOMY, type FrameMessage } from './framed';
 import { gapsQuery, STALE_MS, taskQuery } from './home-reads';
 import { OpenHereContext } from './inbox/pane';
-import { forgetTaskScreens, prefetchTaskScreen } from './inbox/task-screen-cache';
 
 // The Inbox's own detail and the missing fields: never part of Home's load,
 // fetched ahead of the first open (`useAhead`) so it does not wait for them.
 const detailCode = () => import('./inbox/detail');
 const missingCode = () => import('./home-missing');
+const screensCode = () => import('./inbox/task-screen-cache');
 const InboxDetail = lazy(() => detailCode().then((m) => ({ default: m.InboxDetail })));
 const MissingFields = lazy(() => missingCode().then((m) => ({ default: m.MissingFields })));
 
@@ -198,9 +197,15 @@ function readAhead(client: QueryClient, href: string): void {
   if (what.is === 'task') {
     void client
       .query(taskQuery(what.id))
-      .then((task) => {
-        // A task whose form is its module's screen: that screen and its code too, as the Inbox's list does.
-        if (task === null || !opensScreen(task.item)) return;
+      .then(async (task) => {
+        if (task === null) return;
+        // A task whose form is its module's screen: that screen and its code
+        // too, as the Inbox's list does. Fetched here, never with Home.
+        const [{ opensScreen }, { prefetchTaskScreen }] = await Promise.all([
+          import('../lib/inbox/opens-screen'),
+          screensCode(),
+        ]);
+        if (!opensScreen(task.item)) return;
         void prefetchTaskScreen(task.item.link);
         void import('./inbox/task-screen');
       })
@@ -295,7 +300,9 @@ export function HomeModal(): JSX.Element {
     // What was done here shows on Home; nothing done, nothing read again.
     if (wrote) {
       void client.invalidateQueries({ queryKey: ['home'] });
-      forgetTaskScreens();
+      void screensCode().then((m) => {
+        m.forgetTaskScreens();
+      });
       router.refresh();
     }
     wrote = false;
