@@ -196,13 +196,7 @@ type Task = Awaited<ReturnType<ReturnType<typeof taskQuery>['queryFn']>>;
 
 /** A task whose form is its module's screen: that screen and its code too, as the Inbox's list does. */
 async function screenAhead(task: Task): Promise<void> {
-  if (task === null) return;
-  // A hire to set up draws the record's missing fields: read ahead, as the Inbox's list does.
-  if (task.item.kind === 'people.setup') {
-    const { prefetchGaps } = await import('./inbox/gaps-cache');
-    void prefetchGaps(task.item.id.replace(/^people:setup:/u, ''));
-    return;
-  }
+  if (task === null || task.item.kind === 'people.setup') return;
   // Fetched here, never with Home.
   const [{ opensScreen }, { prefetchTaskScreen }] = await Promise.all([
     import('../lib/inbox/opens-screen'),
@@ -213,13 +207,20 @@ async function screenAhead(task: Task): Promise<void> {
   void import('./inbox/task-screen');
 }
 
+/** A hire to set up draws the record's missing fields: read ahead, as the Inbox's list does. */
+async function recordAhead(task: Task): Promise<void> {
+  if (task?.item.kind !== 'people.setup') return;
+  const { prefetchGaps } = await import('./inbox/gaps-cache');
+  void prefetchGaps(task.item.id.replace(/^people:setup:/u, ''));
+}
+
 /** Read ahead what an address opens: a task or the missing fields, kept by the query client. */
 function readAhead(client: QueryClient, href: string): void {
   const what = kindOf(href);
   if (what.is === 'task') {
     void client
       .query(taskQuery(what.id))
-      .then(screenAhead)
+      .then((task) => Promise.all([recordAhead(task), screenAhead(task)]))
       .catch(() => undefined);
   }
   if (what.is === 'missing') void client.query(gapsQuery(what.personId)).catch(() => undefined);
@@ -228,32 +229,46 @@ function readAhead(client: QueryClient, href: string): void {
 /**
  * Everything Home links to, read ahead in as few reads as it takes: the
  * browser sends its reads one after another, so every task comes in one, kept
- * under each task's own key; then the missing fields; then each task's screen,
- * the drawn tasks' first.
+ * under each task's own key; then the missing fields and each hire's record.
+ * With `screens`, each task's own screen and its code too, the drawn tasks'
+ * first: that is JavaScript, so it waits for somebody to be there and Home's
+ * first load stays what Home needs.
  */
-function readAllAhead(client: QueryClient): void {
+function readAllAhead(client: QueryClient, screens: boolean): void {
   const marks = [...document.querySelectorAll<HTMLElement>(OVER)];
   const hrefs = marks.map((el) => el.dataset['over'] ?? '');
   // A task Home holds but does not draw (its list shows five) is named by a
   // hidden mark: read with the rest, and its screen after the drawn ones',
   // since a filter or a group brings it up and it is opened straight away.
   const drawn = new Set(marks.filter((el) => !el.hidden).map((el) => el.dataset['over'] ?? ''));
-  const tasks = hrefs.flatMap((href) => {
-    const what = kindOf(href);
-    return what.is === 'task' && client.getQueryData(taskQuery(what.id).queryKey) === undefined
-      ? [{ id: what.id, drawn: drawn.has(href) }]
-      : [];
-  });
-  if (tasks.length > 0) {
-    void inboxItems(tasks.map((t) => t.id))
+  const tasks = hrefs
+    .flatMap((href) => {
+      const what = kindOf(href);
+      return what.is === 'task' ? [{ id: what.id, drawn: drawn.has(href) }] : [];
+    })
+    // The browser sends reads one at a time: the rows on screen go first.
+    .toSorted((a, b) => Number(b.drawn) - Number(a.drawn));
+  const after = (task: Task): void => {
+    void recordAhead(task);
+    if (screens) void screenAhead(task);
+  };
+  const held = (id: string): Task | undefined => client.getQueryData(taskQuery(id).queryKey);
+  // What an earlier read brought: only what follows it is asked for again,
+  // and each of those keeps its own answer.
+  for (const { id } of tasks) {
+    const task = held(id);
+    if (task !== undefined) after(task);
+  }
+  const unread = tasks.filter(({ id }) => held(id) === undefined);
+  if (unread.length > 0) {
+    void inboxItems(unread.map((t) => t.id))
       .then((answers) => {
-        // The browser sends reads one at a time: the rows on screen go first.
-        for (const { id } of tasks.toSorted((a, b) => Number(b.drawn) - Number(a.drawn))) {
+        for (const { id } of unread) {
           // Past what one read answers: asked for when it is opened.
           if (!(id in answers)) continue;
           const task = answers[id] ?? null;
           client.setQueryData(taskQuery(id).queryKey, task);
-          void screenAhead(task);
+          after(task);
         }
       })
       .catch(() => undefined);
@@ -262,38 +277,55 @@ function readAllAhead(client: QueryClient): void {
 }
 
 /**
- * While Home is on screen: once someone is there, the code this modal draws
- * with and every task and missing field Home links to are read ahead; a page (a person,
- * Review, a request) is loaded ahead when the pointer rests on its link or the
- * keyboard reaches it, since each is a whole page and only a few are kept.
+ * While Home is on screen: as soon as it has drawn and the browser is idle,
+ * every task, missing field and hire's record Home links to is read ahead, so
+ * the first press finds them there. The code this modal draws with and each
+ * task's own screen follow at the first sign of someone there (the pointer
+ * moves, a key, a touch): they are JavaScript, and a page nobody touches
+ * loads none beyond its own. A page (a person, Review, a request) is loaded
+ * ahead when the pointer rests on its link or the keyboard reaches it, since
+ * each is a whole page and only a few are kept.
  */
 function useAhead(client: QueryClient): void {
   useEffect(() => {
-    // At the first sign of someone there (the pointer moves, a key, a touch),
-    // not on a timer: Home's own load stays what Home needs, and a page
-    // nobody touches reads nothing more.
     // How many marks Home had when they were last read: a widget that arrives
-    // later (its rows were still loading) brings more, read then.
+    // later (its rows were still loading) brings more, read then. Told by the
+    // document changing, never by a timer.
     let read = -1;
+    let someone = false;
+    const all = (): void => {
+      const marks = document.querySelectorAll(OVER).length;
+      if (marks === read) return;
+      read = marks;
+      readAllAhead(client, someone);
+    };
+    const arrivals = new MutationObserver(all);
+    const begin = (): void => {
+      all();
+      arrivals.observe(document.body, { childList: true, subtree: true });
+    };
+    // After Home's own load, not beside it: what Home needs to draw goes first.
+    const idle = typeof window.requestIdleCallback === 'function';
+    const handle = idle
+      ? window.requestIdleCallback(begin, { timeout: 2000 })
+      : window.setTimeout(begin, 500);
+    const signs = ['pointermove', 'keydown', 'touchstart'] as const;
     const first = (): void => {
-      stop();
+      for (const sign of signs) window.removeEventListener(sign, first);
+      someone = true;
       void detailCode();
       void missingCode();
-      read = document.querySelectorAll(OVER).length;
-      readAllAhead(client);
-    };
-    const signs = ['pointermove', 'keydown', 'touchstart'] as const;
-    const stop = (): void => {
-      for (const sign of signs) window.removeEventListener(sign, first);
+      readAllAhead(client, true);
     };
     for (const sign of signs) window.addEventListener(sign, first, { passive: true });
+    const stop = (): void => {
+      for (const sign of signs) window.removeEventListener(sign, first);
+      if (idle) window.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+      arrivals.disconnect();
+    };
     let rest: ReturnType<typeof setTimeout> | undefined;
     const onRest = (event: Event): void => {
-      const marks = document.querySelectorAll(OVER).length;
-      if (read !== -1 && marks !== read) {
-        read = marks;
-        readAllAhead(client);
-      }
       const el = event.target instanceof Element ? event.target.closest<HTMLElement>(OVER) : null;
       clearTimeout(rest);
       if (el === null) return;
