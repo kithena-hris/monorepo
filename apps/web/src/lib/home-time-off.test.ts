@@ -1,11 +1,42 @@
 import { describe, expect, it } from 'vitest';
 
-import { homeAway, homeLeave } from './home-time-off';
+import { awayScope, homeAway, homeLeave } from './home-time-off';
 
 const span = (from: string, to: string) => ({ from, to });
 
 describe('Time Off on Home', () => {
   const today = '2026-09-28';
+
+  it('offers the reader’s team, the whole company and each department by name, and names a team People knows', () => {
+    const away = homeAway(
+      {
+        people: [{ personId: 'a', displayName: 'Ada Lovelace', teamKey: 'u_1', teamName: null }],
+        entries: [{ personId: 'a', status: 'approved', span: span('2026-09-28', '2026-09-28') }],
+      },
+      today,
+      null,
+      'unit:u_1',
+      [
+        { teamKey: 'u_2', name: 'Sales' },
+        { teamKey: 'u_1', name: 'Research' },
+      ],
+    );
+    expect(away.scope).toBe('unit:u_1');
+    expect(away.scopes.map((s) => [s.key, s.label])).toEqual([
+      ['team', 'My team'],
+      ['company', 'Whole company'],
+      ['unit:u_1', 'Research'],
+      ['unit:u_2', 'Sales'],
+    ]);
+    expect(away.people[0]?.team).toBe('Research');
+  });
+
+  it('reads a scope a browser sent: anything it does not know is the reader’s team', () => {
+    expect(awayScope('company')).toBe('company');
+    expect(awayScope('unit:u_0a1b')).toBe('unit:u_0a1b');
+    expect(awayScope('unit:../x')).toBe('team');
+    expect(awayScope(undefined)).toBe('team');
+  });
 
   it('lists who is away today first, then who is next, one row a person, never the reader', () => {
     const away = homeAway(

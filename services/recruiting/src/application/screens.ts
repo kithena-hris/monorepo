@@ -916,6 +916,9 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     message: null,
     detail: null,
   } as const;
+  /** Where in Recruiting a task lives: the job, by title (60 is the item's limit). */
+  const within = (job: string | undefined): string =>
+    job === undefined || job === '' ? base.area : job.slice(0, 60);
   for (const a of await ctx.tx.approvals.waitingOn(person)) {
     const detail = await approvalDetail(ctx, a);
     const title =
@@ -933,6 +936,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     items.push({
       ...base,
       detail,
+      area: within(detail?.kind === 'offer' ? detail.job : detail?.title),
       id: `recruiting:${a.subject.kind === 'requisition' ? 'requisition-approval' : 'offer-approval'}:${a.id}`,
       lane: 'task',
       kind:
@@ -977,6 +981,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     items.push({
       ...base,
       detail: scorecard,
+      area: within(scorecard?.job),
       id: `recruiting:scorecard:${i.id}`,
       lane: 'task',
       kind: RECRUITING_INBOX_KINDS.scorecard,
@@ -1007,6 +1012,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     items.push({
       ...base,
       id: `recruiting:create-contract:${offer.id}`,
+      area: within(job?.title),
       lane: 'task',
       kind: RECRUITING_INBOX_KINDS.createContract,
       module: 'recruiting',
@@ -1036,6 +1042,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
     items.push({
       ...base,
       id: `recruiting:choose-time:${ask.id}`,
+      area: within(job?.title),
       lane: 'task',
       kind: RECRUITING_INBOX_KINDS.chooseTime,
       module: 'recruiting',

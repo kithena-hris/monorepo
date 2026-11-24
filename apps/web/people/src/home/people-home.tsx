@@ -968,6 +968,8 @@ const sender = (t: HostTask): string | null => {
 
 /** How many rows a list on Home shows before it says "and more". */
 const TOP = 5;
+/** How many tasks past the rows drawn a host is told of, to read ahead: what a filter is likeliest to bring up. */
+const AHEAD = 15;
 
 /** One small choice in a widget's toolbar: what it is for is its label, read out and shown on the trigger. */
 function Pick({
@@ -1282,9 +1284,10 @@ function Tasks({
           );
         })
       )}
-      {/* The tasks not drawn, named for a host that reads ahead what a row opens. */}
+      {/* The next tasks not drawn, named for a host that reads ahead what a row opens. */}
       {toDo.tasks
         .filter((t) => !drawn.has(t.id))
+        .slice(0, AHEAD)
         .map((t) => (
           <span key={t.id} hidden data-over={t.href} />
         ))}

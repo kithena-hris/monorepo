@@ -3,12 +3,34 @@ import 'server-only';
 import {
   homeAway,
   type AwayScope,
+  type AwayUnit,
   type HomeAway,
   type OverviewAnswer,
   type TimelineAnswer,
 } from './home-time-off';
-import { timeOff } from './people';
+import { people, timeOff } from './people';
 import { today } from './people-screens';
+
+/**
+ * The departments somebody can ask about, from People, which names them.
+ * Time Off keys a team by the department's id (`teamKeyOf` in its People
+ * consumer); the same key is made here, so a department nobody in Time Off
+ * has named yet can still be asked for. None when People cannot say.
+ */
+async function units(): Promise<readonly AwayUnit[]> {
+  const org = await people<{
+    readonly orgUnits: readonly {
+      readonly id: string;
+      readonly name: string;
+      readonly archived: boolean;
+    }[];
+  }>('Organisation');
+  return org.ok
+    ? org.data.orgUnits
+        .filter((u) => !u.archived)
+        .map((u) => ({ teamKey: `u_${u.id.replaceAll('-', '')}`, name: u.name }))
+    : [];
+}
 
 /** Who is away in the next three weeks, in one of Time Off's scopes; null when Time Off refuses it. */
 export async function homeAwayIn(
@@ -18,13 +40,19 @@ export async function homeAwayIn(
 ): Promise<HomeAway | null> {
   const day = today();
   const to = new Date(Date.parse(`${day}T12:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
-  const [timeline, reader] = await Promise.all([
-    timeOff<TimelineAnswer>('TimeOffCalendarTimeline', { from: day, to, scope }),
+  const [timeline, reader, named] = await Promise.all([
+    timeOff<TimelineAnswer>(
+      'TimeOffCalendarTimeline',
+      scope.startsWith('unit:')
+        ? { from: day, to, scope: 'team', teamKey: scope.slice('unit:'.length) }
+        : { from: day, to, scope },
+    ),
     me === undefined
       ? timeOff<OverviewAnswer>('TimeOffOverview').then((o) =>
           o.ok ? (o.data.member?.personId ?? null) : null,
         )
       : me,
+    units().catch(() => []),
   ]);
-  return timeline.ok ? homeAway(timeline.data, day, reader, scope) : null;
+  return timeline.ok ? homeAway(timeline.data, day, reader, scope, named) : null;
 }

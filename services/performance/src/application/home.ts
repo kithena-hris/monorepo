@@ -194,6 +194,9 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
     message: null,
     detail: null,
   };
+  /** Where in Performance a cycle's work lives: the cycle, by name (60 is the item's limit). */
+  const within = (cycleName: string | undefined): string =>
+    cycleName === undefined || cycleName === '' ? base.area : cycleName.slice(0, 60);
   if (personId !== null) {
     for (const r of await ctx.tx.reviews.find({ ownerId: personId })) {
       const c = r.cycleId === null ? undefined : cycles.get(r.cycleId);
@@ -205,6 +208,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         items.push({
           ...base,
           id: `performance:manager-changed:${r.id}`,
+          area: within(c.name),
           lane: 'update',
           kind: PERFORMANCE_INBOX_KINDS.managerChanged,
           icon: 'people',
@@ -245,6 +249,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
       items.push({
         ...base,
         id: `performance:review:${r.id}`,
+        area: within(c.name),
         lane: 'task',
         kind: PERFORMANCE_INBOX_KINDS.review,
         icon: 'edit',
@@ -266,6 +271,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         items.push({
           ...base,
           id: `performance:nominate:${n.id}`,
+          area: within(c.name),
           lane: 'task',
           kind: PERFORMANCE_INBOX_KINDS.nominate,
           icon: 'people',
@@ -285,6 +291,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         items.push({
           ...base,
           id: `performance:approve:${n.id}`,
+          area: within(c.name),
           lane: 'task',
           kind: PERFORMANCE_INBOX_KINDS.approveNominations,
           icon: 'people',
@@ -344,6 +351,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         items.push({
           ...base,
           id: `performance:released:${r.id}`,
+          area: within(cycles.get(r.cycleId ?? '')?.name),
           lane: r.acknowledged === null ? 'update' : 'done',
           kind: PERFORMANCE_INBOX_KINDS.released,
           icon: 'document',

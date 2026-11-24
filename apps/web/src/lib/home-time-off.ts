@@ -50,12 +50,30 @@ export interface TimelineAnswer {
   readonly people: readonly {
     readonly personId: string;
     readonly displayName: string;
+    readonly teamKey?: string | null;
     readonly teamName: string | null;
   }[];
 }
 
-/** Whose time off Home's widget can show: Time Off's own calendar scopes. */
-export type AwayScope = 'team' | 'company';
+/**
+ * Whose time off Home's widget can show: the reader's own team, the whole
+ * company, or one department (`unit:<team key>`), which Time Off calls a team.
+ */
+export type AwayScope = 'team' | 'company' | `unit:${string}`;
+
+/** A department to choose: Time Off's key for it, and People's name. */
+export interface AwayUnit {
+  readonly teamKey: string;
+  readonly name: string;
+}
+
+/** The scope a browser asked for, when it is one: anything else is the reader's team. */
+export function awayScope(raw: unknown): AwayScope {
+  if (raw === 'company') return 'company';
+  return typeof raw === 'string' && /^unit:[a-z][a-z0-9_]{0,80}$/u.test(raw)
+    ? (raw as AwayScope)
+    : 'team';
+}
 
 export interface HomeAway {
   /** The team's calendar. */
@@ -129,8 +147,11 @@ export function homeAway(
   today: string,
   me: string | null,
   scope: AwayScope = 'team',
+  /** The departments that can be asked for, by name. */
+  units: readonly AwayUnit[] = [],
 ): HomeAway {
   const names = new Map(timeline.people.map((p) => [p.personId, p]));
+  const unitName = new Map(units.map((u) => [u.teamKey, u.name]));
   // One row a person: what they are on now, else what starts first.
   const first = new Map<string, Span>();
   for (const e of timeline.entries.toSorted((a, b) => a.span.from.localeCompare(b.span.from))) {
@@ -143,6 +164,9 @@ export function homeAway(
     scopes: [
       { key: 'team', label: t('lib.home-time-off.my_team', 'My team') },
       { key: 'company', label: t('lib.home-time-off.whole_company', 'Whole company') },
+      ...units
+        .toSorted((a, b) => a.name.localeCompare(b.name))
+        .map((u) => ({ key: `unit:${u.teamKey}` as const, label: u.name })),
     ],
     total: first.size,
     people: [...first]
@@ -154,7 +178,10 @@ export function homeAway(
         return {
           id,
           name: person?.displayName ?? t('lib.home-time-off.somebody', 'Somebody'),
-          ...(person?.teamName == null ? {} : { team: person.teamName }),
+          // Time Off's name for the team, else People's for the department it is.
+          ...((person?.teamName ?? unitName.get(person?.teamKey ?? '')) === undefined
+            ? {}
+            : { team: person?.teamName ?? unitName.get(person?.teamKey ?? '') ?? '' }),
           when: span(s, today),
           detail: now
             ? t('lib.home-time-off.back_day', 'Back {{day}}', { day: day(shift(s.to, 1)) })
