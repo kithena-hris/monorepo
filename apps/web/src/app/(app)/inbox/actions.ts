@@ -69,6 +69,29 @@ export async function inboxItem(
   return item === undefined ? null : { item, now: read.now, zone: read.zone };
 }
 
+/**
+ * Several items in one read of the Inbox, for a page that asks ahead: the
+ * browser sends its reads one after another, so one for each item would hold
+ * up whatever the person does next. An id that is gone answers null.
+ */
+export async function inboxItems(
+  ids: readonly string[],
+): Promise<
+  Readonly<
+    Record<string, { readonly item: Shown; readonly now: string; readonly zone: string } | null>
+  >
+> {
+  const read = await inboxNow();
+  const byId = new Map(read.items.map((i) => [i.id, i]));
+  return Object.fromEntries(
+    // No more than a page shows: a longer list is not this caller's.
+    ids.slice(0, 20).map((id) => {
+      const item = byId.get(id);
+      return [id, item === undefined ? null : { item, now: read.now, zone: read.zone }];
+    }),
+  );
+}
+
 /* ------------------------------------------------------- your state -- */
 
 /** Opening an update reads it (D1); marked unread again, it is not (D5). */
