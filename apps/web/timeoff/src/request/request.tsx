@@ -453,7 +453,10 @@ function Panel({
           </div>
         </div>
       </DialogBody>
-      <DialogFooter className={step === 'type' ? 'touch:hidden' : undefined}>
+      <DialogFooter
+        // Filling a modal, the footer is that modal's: ruled off as its other footers are.
+        className={`${roomy ? 'border-t border-border bg-surface' : ''} ${step === 'type' ? 'touch:hidden' : ''}`}
+      >
         {/* At a desk: leave, or send. */}
         {/* Filling a modal, that modal's own close is the way out. */}
         <Button className={roomy ? 'hidden' : 'touch:hidden'} onClick={() => onNavigate?.(CLOSE)}>
