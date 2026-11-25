@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useTransition, type JSX } from 'react';
+import { useMemo, useRef, useTransition, type JSX } from 'react';
 
 import {
   attachNewNote,
@@ -68,6 +68,20 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
               : { retry: refresh }),
           }
         : { status: 'loading' as const };
+  /*
+   * A change to what the address asks, on top of the last one still on its
+   * way: the address does not move until its page is in, so a second change
+   * made meanwhile (the dates, straight after the type) would be built on the
+   * old one and drop the first.
+   */
+  const heading = useRef<{ readonly from: string; readonly search: string } | null>(null);
+  const ask = (patch: Readonly<Record<string, string | null>>, mode: HistoryMode): void => {
+    const here = window.location.search;
+    const base = heading.current?.from === here ? heading.current.search : here;
+    const to = withQuery(window.location.pathname, base, patch);
+    heading.current = { from: here, search: to.includes('?') ? to.slice(to.indexOf('?')) : '' };
+    go(to, mode);
+  };
   /** Another view in the address (a path, a query patch), followed client-side so the server reads it. */
   const goTo = (patch: Readonly<Record<string, string | null>>, path?: string): void => {
     startTransition(() => {
@@ -145,9 +159,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return {
           load: loadable,
           // What is asked lives in the address; the server asks Time Off again.
-          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
-            go(withQuery(window.location.pathname, window.location.search, patch), mode);
-          },
+          onAsk: ask,
           onSend: actions.sendRequest,
           onNavigate: go,
         };
@@ -155,9 +167,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return {
           load: loadable,
           // The sentence and every choice changed are the address; Time Off reads them again.
-          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
-            go(withQuery(window.location.pathname, window.location.search, patch), mode);
-          },
+          onAsk: ask,
           onNavigate: go,
         };
       case 'MyRequests':
@@ -251,9 +261,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return {
           load: loadable,
           // The text, every rule changed and every answer are the address; Time Off reads them again.
-          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
-            go(withQuery(window.location.pathname, window.location.search, patch), mode);
-          },
+          onAsk: ask,
           onCreate: settings.createPolicyDraft,
           onNavigate: go,
         };
