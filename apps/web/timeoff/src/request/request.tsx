@@ -31,19 +31,11 @@ import {
   Textarea,
   useCoarsePointer,
 } from '@reach/ui';
-import { useState, useTransition, type JSX, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, useTransition, type JSX, type ReactNode } from 'react';
 
 import type { Loadable } from '../load';
 import { Overview, OverviewSkeleton, type OverviewData } from '../overview/overview';
-import {
-  addDays,
-  amount,
-  chartTone,
-  days,
-  leaveIcon,
-  shortDate,
-  spanLabel,
-} from '../words';
+import { addDays, amount, chartTone, days, leaveIcon, shortDate, spanLabel } from '../words';
 import { t as tr } from '../i18n';
 
 /**
@@ -172,6 +164,20 @@ export interface RequestProps {
 
 const CLOSE = '/time-off/overview';
 
+/*
+ * Held by a page that already is a modal with a title and a close of its own
+ * (Home's, which marks the frame `data-roomy`): the panel then fills it, edge
+ * to edge, with its footer at the modal's foot, not a dialog inside a modal.
+ */
+const never = (): (() => void) => () => undefined;
+const useRoomy = (): boolean =>
+  useSyncExternalStore(
+    never,
+    () => window.frameElement?.hasAttribute('data-roomy') === true,
+    () => false,
+  );
+const FILLS = 'h-full max-h-none w-full max-w-none rounded-none shadow-none';
+
 export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps): JSX.Element {
   const close = (): void => {
     onNavigate?.(CLOSE);
@@ -266,7 +272,7 @@ const columns =
   'grid gap-6 @min-[44rem]/panel:grid-cols-[17rem_minmax(0,1fr)] @min-[44rem]/panel:items-start';
 
 function Panel({
-  data,
+  data: answered,
   onAsk,
   onSend,
   onNavigate,
@@ -274,19 +280,49 @@ function Panel({
   readonly data: RequestData;
 } & Omit<RequestProps, 'load'>): JSX.Element {
   const touch = useCoarsePointer();
-  const { asked, preview } = data;
+  const roomy = useRoomy() && !touch;
+  /*
+   * What was just chosen shows at once; what it costs follows when Time Off
+   * answers. The address is the record and the host asks again on every
+   * change, so without this a type, a month or a pair of dates stood as it
+   * was for the length of that read and then jumped.
+   * ponytail: dropped when any answer arrives. A newer ask replaces an older
+   * one's read, so that answer is the latest's; keep each key until its own
+   * answer if two reads ever land out of turn.
+   */
+  const [chosen, setChosen] = useState<{ readonly of: RequestData; readonly patch: Ask }>({
+    of: answered,
+    patch: {},
+  });
+  const patch = chosen.of === answered ? chosen.patch : {};
+  const waiting = Object.keys(patch).length > 0;
+  const asked: RequestData['asked'] = {
+    ...answered.asked,
+    ...('type' in patch ? { type: patch.type ?? null } : {}),
+    ...('from' in patch ? { from: patch.from ?? null } : {}),
+    ...('to' in patch ? { to: patch.to ?? null } : {}),
+    ...('half' in patch ? { half: patch.half === '1' } : {}),
+    ...(typeof patch.month === 'string' ? { month: patch.month } : {}),
+    ...('step' in patch ? { step: (patch.step ?? null) as Step | null } : {}),
+  };
+  const data: RequestData = waiting ? { ...answered, asked } : answered;
+  const { preview } = data;
   const type = data.leaveTypes.find((t) => t.key === asked.type) ?? null;
   const step: Step = asked.step ?? (type === null ? 'type' : 'dates');
   /** Under a finger, only this step's part; at a desk, every part. */
   const shown = (s: Step): string | undefined => (step === s ? undefined : 'touch:hidden');
-  const ask = (patch: Ask, mode: 'push' | 'replace' = 'replace'): void => {
-    onAsk?.(patch, mode);
+  const ask = (next: Ask, mode: 'push' | 'replace' = 'replace'): void => {
+    if (onAsk === undefined) return;
+    setChosen({ of: answered, patch: { ...patch, ...next } });
+    onAsk(next, mode);
   };
 
   const [note, setNote] = useState('');
   const [failed, setFailed] = useState<string | null>(null);
   const [sending, start] = useTransition();
-  const ready = type !== null && preview !== null && asked.from !== null && asked.to !== null;
+  // Sent only once what it costs is of these dates, not of the ones before.
+  const ready =
+    !waiting && type !== null && preview !== null && asked.from !== null && asked.to !== null;
   const refused = preview !== null && (preview.blocked || preview.negative.kind === 'refused');
   const send = (): void => {
     if (!ready || onSend === undefined) return;
@@ -313,8 +349,9 @@ function Panel({
   return (
     <DialogContent
       sheetOnTouch
+      showCloseButton={!roomy}
       // Past the type, a phone's steps are the whole screen (MT6, MT7).
-      className={`${WIDE} ${step === 'type' ? '' : 'touch:h-full touch:max-h-full touch:rounded-none'}`}
+      className={`${roomy ? FILLS : WIDE} ${step === 'type' ? '' : 'touch:h-full touch:max-h-full touch:rounded-none'}`}
     >
       <DialogHeader>
         {step === 'type' ? null : (
@@ -329,7 +366,10 @@ function Panel({
               : tr('request.request.type', 'Type')}
           </AppBarBack>
         )}
-        <DialogTitle>{tr('request.request.request_time_off', 'Request time off')}</DialogTitle>
+        {/* The modal holding it already says so. */}
+        <DialogTitle className={roomy ? 'sr-only' : undefined}>
+          {tr('request.request.request_time_off', 'Request time off')}
+        </DialogTitle>
         <DialogDescription>
           {preview?.approver == null
             ? tr(
@@ -363,7 +403,11 @@ function Panel({
           />
           <div className="flex min-w-0 flex-col gap-5">
             <DatePicker data={data} className={shown('dates')} ask={ask} />
-            <div className={`flex flex-col gap-4 ${shown('review') ?? ''}`}>
+            <div
+              // What it costs is of the last answer until the next is in.
+              aria-busy={waiting}
+              className={`flex flex-col gap-4 transition-opacity ${waiting ? 'opacity-60' : ''} ${shown('review') ?? ''}`}
+            >
               {data.problem === null ? null : (
                 <Alert
                   tone="danger"
@@ -411,7 +455,8 @@ function Panel({
       </DialogBody>
       <DialogFooter className={step === 'type' ? 'touch:hidden' : undefined}>
         {/* At a desk: leave, or send. */}
-        <Button className="touch:hidden" onClick={() => onNavigate?.(CLOSE)}>
+        {/* Filling a modal, that modal's own close is the way out. */}
+        <Button className={roomy ? 'hidden' : 'touch:hidden'} onClick={() => onNavigate?.(CLOSE)}>
           {tr('request.request.cancel', 'Cancel')}
         </Button>
         <Button

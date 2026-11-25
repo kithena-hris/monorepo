@@ -1,5 +1,6 @@
 import { Button, type ButtonProps } from '@reach/ui';
 import { createContext, use, type JSX, type MouseEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import type { Shown } from '../../lib/inbox/model';
 import type { Outcome } from '../../app/(app)/inbox/actions';
@@ -41,7 +42,18 @@ export interface BodyProps {
   readonly setSendingBack: (on: boolean) => void;
 }
 
-/** The action row at the foot of a body: the primary first, a hint at the end. */
+/**
+ * Where a holder with a footer of its own (Home's modal) wants a body's
+ * actions drawn: its footer. Without one, the row pins itself.
+ */
+export const ActionsSlotContext = createContext<HTMLElement | null>(null);
+
+/**
+ * A body's actions, always in reach: a footer fixed to the foot of whatever
+ * holds the body, so sending, approving or declining never has to be scrolled
+ * to. The primary is written first and drawn last, at the footer's end, where
+ * a dialog's confirming button sits; a hint takes the other end.
+ */
 export function Actions({
   children,
   hint,
@@ -49,10 +61,23 @@ export function Actions({
   readonly children: ReactNode;
   readonly hint?: ReactNode;
 }): JSX.Element {
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+  const slot = use(ActionsSlotContext);
+  const row = (
+    <>
       {children}
-      {hint === undefined ? null : <span className="ms-auto text-sm text-fg-subtle">{hint}</span>}
+      {hint === undefined ? null : <span className="me-auto text-sm text-fg-subtle">{hint}</span>}
+    </>
+  );
+  if (slot !== null) {
+    return createPortal(
+      <div className="flex w-full flex-row-reverse flex-wrap items-center gap-2">{row}</div>,
+      slot,
+    );
+  }
+  return (
+    // The Inbox's pane: pinned to the foot of what scrolls, edge to edge of the card.
+    <div className="sticky bottom-0 z-10 -mx-5 flex flex-row-reverse flex-wrap items-center gap-2 border-t border-border bg-surface px-5 py-3 touch:-mx-4 touch:px-4">
+      {row}
     </div>
   );
 }

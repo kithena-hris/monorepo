@@ -6,6 +6,7 @@ import {
   ModalPage,
   ModalPageBody,
   ModalPageContent,
+  ModalPageFooter,
   ModalPageHeader,
   Spinner,
   ToastProvider,
@@ -19,7 +20,7 @@ import { HELD_EVENT, OPEN_EVENT, type HeldDetail, type OpenDetail } from '../lib
 import { t } from '../lib/t';
 import { ROOMY, type FrameMessage } from './framed';
 import { gapsQuery, STALE_MS, taskQuery } from './home-reads';
-import { OpenHereContext } from './inbox/pane';
+import { ActionsSlotContext, OpenHereContext } from './inbox/pane';
 
 // The Inbox's own detail and the missing fields: never part of Home's load,
 // fetched ahead of the first open (`useAhead`) so it does not wait for them.
@@ -274,6 +275,16 @@ function readAllAhead(client: QueryClient, screens: boolean): void {
       .catch(() => undefined);
   }
   for (const href of hrefs) if (kindOf(href).is === 'missing') readAhead(client, href);
+  // A page Home marks as worth having ready (asking for time off): loaded in
+  // its frame now, with the rest of what a press needs.
+  if (screens) {
+    for (const el of document.querySelectorAll<HTMLElement>(`${OVER}[data-ahead]`)) {
+      const href = el.dataset['over'] ?? '';
+      if (kindOf(href).is === 'page') {
+        frameFor(href, el.getAttribute('aria-label') ?? el.textContent.trim());
+      }
+    }
+  }
 }
 
 /**
@@ -341,7 +352,9 @@ function useAhead(client: QueryClient): void {
       const href = el.dataset['over'] ?? '';
       rest = setTimeout(() => {
         readAhead(client, href);
-        if (kindOf(href).is === 'page') frameFor(href, el.textContent.trim());
+        if (kindOf(href).is === 'page') {
+          frameFor(href, el.getAttribute('aria-label') ?? el.textContent.trim());
+        }
       }, REST_MS);
     };
     document.addEventListener('pointerover', onRest);
@@ -391,6 +404,7 @@ export function HomeModal(): JSX.Element {
     };
   }, [client]);
   const [opened, setOpened] = useState<OpenDetail | null>(null);
+  const [footer, setFooter] = useState<HTMLElement | null>(null);
   const kind = opened === null ? null : kindOf(opened.href);
   const taskId = kind?.is === 'task' ? kind.id : null;
   // Undefined while its item is read; null when it is gone. Kept, and often read ahead.
@@ -483,21 +497,30 @@ export function HomeModal(): JSX.Element {
                       wait
                     ) : (
                       // On the page's own colour, as in the Inbox: what its form pins is that colour.
-                      <InboxDetail
-                        key={task.item.id}
-                        titled={false}
-                        item={task.item}
-                        now={task.now}
-                        zone={task.zone}
-                        onNext={() => {
-                          done();
-                          close();
-                        }}
-                      />
+                      // Its actions are drawn in the modal's footer below.
+                      <ActionsSlotContext value={footer}>
+                        <InboxDetail
+                          key={task.item.id}
+                          titled={false}
+                          item={task.item}
+                          now={task.now}
+                          zone={task.zone}
+                          onNext={() => {
+                            done();
+                            close();
+                          }}
+                        />
+                      </ActionsSlotContext>
                     )}
                   </Suspense>
                 </div>
               </ModalPageBody>
+            )}
+            {framed || kind.is === 'missing' ? null : (
+              // A task's actions (`Actions`), fixed under what scrolls; gone while it has none.
+              <ModalPageFooter className="has-[[data-slot=actions]:empty]:hidden @2xl:*:w-full">
+                <div ref={setFooter} data-slot="actions" />
+              </ModalPageFooter>
             )}
           </ModalPageContent>
         )}

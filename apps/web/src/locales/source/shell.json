@@ -1011,14 +1011,6 @@
     "text": "Your companies",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuLabel>."
   },
-  "components.app-shell.your_profile": {
-    "text": "Your profile",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
-  },
-  "components.app-shell.your_time_off": {
-    "text": "Your time off",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: a \"label\" value."
-  },
   "components.assistant-panel.answers_with_only_what_you_can": {
     "text": "Answers with only what you can see",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the subtitle of <AssistantPanel>."

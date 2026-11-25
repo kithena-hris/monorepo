@@ -304,8 +304,6 @@ function shellAreas({
   here,
   inbox,
   hint,
-  people,
-  timeOff,
   foot,
 }: {
   readonly areas: typeof AREAS;
@@ -313,8 +311,6 @@ function shellAreas({
   readonly here: string;
   readonly inbox: JSX.Element;
   readonly hint: (path: string) => JSX.Element | undefined;
-  readonly people: boolean;
-  readonly timeOff: boolean;
   /** What a module's remote pins in the chrome, by its name: Time Off's clock. */
   readonly foot: (remote: string) => ReactNode;
 }): { readonly areas: ShellArea[]; readonly settings: ShellArea } {
@@ -347,35 +343,8 @@ function shellAreas({
         current: isCurrent(a.href, here),
         shortcut: hint(a.href),
       };
-      if (a.href === '/') {
-        return {
-          ...base,
-          href: '/',
-          sections: [
-            { path: '/', label: a.label, icon: <icons.home aria-hidden />, current: exact('/') },
-            ...(people
-              ? [
-                  {
-                    path: '/people/me',
-                    label: tr('components.app-shell.your_profile', 'Your profile'),
-                    icon: <icons.person aria-hidden />,
-                    current: exact('/people/me'),
-                  },
-                ]
-              : []),
-            ...(timeOff
-              ? [
-                  {
-                    path: '/time-off/overview',
-                    label: tr('components.app-shell.your_time_off', 'Your time off'),
-                    icon: <icons.leave aria-hidden />,
-                    current: exact('/time-off/overview'),
-                  },
-                ]
-              : []),
-          ],
-        };
-      }
+      // One place: their profile and their time off are widgets on it, not pages beside it.
+      if (a.href === '/') return { ...base, href: '/', sections: [] };
       // One place: what it shows (needs you, waiting, done) is chosen on the page itself.
       if (a.href === '/inbox') return { ...base, href: '/inbox', badge: inbox, sections: [] };
       const isPeople = a.href === '/people';
@@ -810,8 +779,6 @@ export function AppShell({
     here,
     inbox: <InboxCount inbox={inbox} />,
     hint,
-    people: entitlements.includes('module.people'),
-    timeOff: areas.some((a) => a.href === '/time-off' && a.built),
     foot: (remote) => {
       const pinned = slots.filter((s) => s.area === remote);
       return pinned.length === 0 ? null : (
