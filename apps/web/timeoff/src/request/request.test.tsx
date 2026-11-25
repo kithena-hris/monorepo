@@ -152,7 +152,8 @@ describe('going below zero', () => {
     expect(instead.getByRole('radio', { name: 'Make 1.5 days unpaid' })).toBeDisabled();
     fireEvent.click(instead.getByRole('radio', { name: /Shorten to 14–22 Dec/ }));
     expect(onAsk).toHaveBeenLastCalledWith({ to: '2026-12-22', half: '1' }, 'replace');
-    expect(panel().getByRole('button', { name: 'Send to Marco and HR' })).toBeEnabled();
+    // The shorter dates show at once; they are sent once Time Off has said what they cost.
+    expect(panel().getByRole('button', { name: 'Send to Marco and HR' })).toBeDisabled();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 

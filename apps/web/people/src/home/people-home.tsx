@@ -847,6 +847,10 @@ function Way({
             {...(open === null
               ? {}
               : {
+                  // Marked for the host: this page is loaded ahead, since it is
+                  // what the button is for and a press should find it there.
+                  'data-over': href,
+                  'data-ahead': '',
                   onClick: (event: MouseEvent) => {
                     if (!plain(event)) return;
                     event.preventDefault();
