@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Ellipsis } from 'lucide-react';
+import { Ellipsis, FileUp, PenLine, Sparkles } from 'lucide-react';
 
 import { Alert } from '../feedback/feedback';
 import { Avatar } from '../avatar/avatar';
@@ -8,6 +8,7 @@ import { Button } from '../button/button';
 import { Money } from '../money/money';
 import { Stat } from '../stat/stat';
 import {
+  ActionCard,
   Card,
   CardContent,
   CardDescription,
@@ -350,5 +351,46 @@ export const PressToEdit: Story = {
         Edit pay
       </Button>
     </Card>
+  ),
+};
+
+export const WaysToBegin: Story = {
+  name: 'A row of ways to begin',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`ActionCard`: one thing to start, the whole card the target. A link when it has an `href`, a button when it opens something here. The accent tile marks the one the page is for.',
+      },
+    },
+  },
+  render: () => (
+    <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+      <ActionCard
+        tone="accent"
+        icon={<FileUp />}
+        title="Add a document"
+        description="Upload a file and say whose it is."
+        onClick={() => undefined}
+      />
+      <ActionCard
+        icon={<Sparkles />}
+        title="Draft one"
+        description="Describe it and review the draft."
+        onClick={() => undefined}
+      />
+      <ActionCard
+        icon={<PenLine />}
+        title="Signatures"
+        description="What you sign and what you sent."
+        href="#signatures"
+      />
+      <ActionCard
+        icon={<FileUp />}
+        title="Split a scan"
+        description="Not available on this plan."
+        disabled
+      />
+    </div>
   ),
 };

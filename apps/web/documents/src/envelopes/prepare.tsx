@@ -166,8 +166,10 @@ export function WhereTheySign({
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
+    // The boxes to add and who they are for stay beside the pages they go on,
+    // as a palette; in a narrow page they come first, then the document.
+    <div className="grid gap-6 @5xl/page:grid-cols-[20rem_minmax(0,1fr)] @5xl/page:items-start">
+      <div className="flex flex-col gap-4 motion-safe:animate-arrive @5xl/page:sticky @5xl/page:top-4">
         <Card>
           <CardHeader>
             <CardTitle level={2}>{t('envelopes.prepare.add_a_box', 'Add a box')}</CardTitle>
@@ -307,7 +309,7 @@ export function WhereTheySign({
           </Alert>
         )}
       </div>
-      <Card variant="fill" padded>
+      <Card variant="fill" padded className="min-w-0 motion-safe:animate-arrive">
         {failed !== null ? (
           <Alert
             tone="danger"

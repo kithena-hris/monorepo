@@ -1144,7 +1144,7 @@ function Record({
                           <dl
                             // Two abreast in a wide section; the last row's left field
                             // drops its rule as the last field does.
-                            className="-mt-1 flex flex-col @5xl:grid @5xl:grid-cols-2 @5xl:gap-x-10 @5xl:[&>*:nth-last-child(2):nth-child(odd)]:border-b-0"
+                            className="-mt-1 flex flex-col @4xl:grid @4xl:grid-cols-2 @4xl:gap-x-10 @4xl:[&>*:nth-last-child(2):nth-child(odd)]:border-b-0"
                           >
                             {section.fields.map((field) => (
                               <FieldRow

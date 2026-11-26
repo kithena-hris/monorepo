@@ -12,7 +12,7 @@ import {
   SendForSignature as SendScreen,
 } from './envelopes/envelopes';
 import { framed } from './frame';
-import { Library as LibraryScreen } from './library/library';
+import { Library as LibraryScreen, Overview as OverviewScreen } from './library/library';
 import { PersonFile as PersonFileScreen } from './people/person-file';
 import {
   AccessSettings as AccessScreen,
@@ -21,6 +21,7 @@ import {
   RetentionSettings as RetentionScreen,
 } from './settings/settings';
 
+export const Overview = framed(OverviewScreen);
 export const Library = framed(LibraryScreen);
 export const DocumentView = framed(DocumentScreen);
 export const PersonFile = framed(PersonFileScreen);

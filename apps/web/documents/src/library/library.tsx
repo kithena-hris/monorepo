@@ -1,5 +1,10 @@
 import {
+  ActionCard,
   Alert,
+  AssistantCard,
+  AssistantComposer,
+  AssistantSuggestion,
+  AssistantSuggestions,
   Avatar,
   Badge,
   Button,
@@ -40,6 +45,8 @@ import {
   SelectValue,
   Skeleton,
   Spinner,
+  staggerStyle,
+  Widget,
   WidgetGrid,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
@@ -69,10 +76,14 @@ import { SplitDialog, type SplitProps } from './split';
 import { t as tr } from '../i18n';
 
 /**
- * The Documents screen (B1, B2, B6, H1, H3; MD1, MH1, MH6): one item, one
- * screen. Search, what needs you, HR's four queues as tiles that filter in
- * place, one dropdown for what the list shows, then every document this
- * person can open, each saying who can see it. Every filter is the address.
+ * Documents' two front pages, from one read (B1, B2, B6, H1, H3; MD1, MH1, MH6).
+ *
+ * `Overview` is where Documents opens: ways to begin, a question to ask
+ * across what this person may open, what needs them, what is out for
+ * signature, HR's follow-up as figures that lead to each queue, and what
+ * changed last. `Library` is the list itself: search, one dropdown for what
+ * it shows, then every document, each saying who can see it; at a queue's
+ * address it is that queue. Every filter is the address.
  */
 
 export interface LibraryProps {
@@ -133,6 +144,16 @@ export interface LibraryProps {
 }
 
 export function Library(props: LibraryProps): JSX.Element {
+  return <Screen view="library" {...props} />;
+}
+
+export function Overview(props: LibraryProps): JSX.Element {
+  return <Screen view="overview" {...props} />;
+}
+
+type View = 'overview' | 'library';
+
+function Screen({ view, ...props }: LibraryProps & { readonly view: View }): JSX.Element {
   const { load } = props;
   if (load.status === 'loading') {
     return (
@@ -148,7 +169,7 @@ export function Library(props: LibraryProps): JSX.Element {
         <PageHeader title={tr('library.library.documents', 'Documents')} />
       ) : null}
       <Loaded load={load} what={tr('library.library.your_documents', 'your documents')}>
-        {(data) => <Ready data={data} {...props} />}
+        {(data) => <Ready data={data} view={view} {...props} />}
       </Loaded>
     </div>
   );
@@ -158,8 +179,9 @@ const href = (id: string) => `/documents/d/${id}`;
 
 function Ready({
   data,
+  view,
   ...props
-}: { readonly data: LibraryData } & Omit<LibraryProps, 'load'>): JSX.Element {
+}: { readonly data: LibraryData; readonly view: View } & Omit<LibraryProps, 'load'>): JSX.Element {
   const [uploading, setUploading] = useState<UploadPreset | null>(null);
   const [asking, setAsking] = useState<{ id: string; title: string } | null>(null);
   const [sharing, setSharing] = useState<{ id: string; title: string } | null>(null);
@@ -173,8 +195,8 @@ function Ready({
   );
   // A search that reads as a question is offered to Kithena; a word or two stays a search.
   const question = query.trim().endsWith('?') || query.trim().split(/\s+/u).length >= 4;
-  const askAcross = (): void => {
-    const q = query.trim();
+  const askAcross = (asked: string = query): void => {
+    const q = asked.trim();
     if (props.onAskAcross === undefined || q === '') return;
     setAnswer({ q, a: null });
     void props.onAskAcross(q).then((r) => {
@@ -212,7 +234,11 @@ function Ready({
         title={
           data.deleted
             ? tr('library.library.deleted', 'Deleted')
-            : tr('library.library.documents', 'Documents')
+            : view === 'overview'
+              ? tr('library.library.overview', 'Overview')
+              : data.queue !== null
+                ? QUEUE_TITLES[data.queue]
+                : tr('library.library.documents', 'Documents')
         }
         figures={tallyFigures(
           {
@@ -298,200 +324,126 @@ function Ready({
                     {tr('library.library.split_a_scan', 'Split a scan')}
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => {
-                    props.onFilter?.({ deleted: data.deleted ? null : 'true', queue: null });
-                  }}
-                >
-                  {data.deleted
-                    ? tr('library.library.back_to_documents', 'Back to documents')
-                    : tr('library.library.deleted', 'Deleted')}
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </>
         }
       />
 
-      <Input
-        aria-label={tr('library.library.search_documents', 'Search documents')}
-        placeholder={tr('library.library.search_documents', 'Search documents')}
-        startAdornment={<icons.search aria-hidden />}
-        value={query}
-        onChange={(e) => {
-          type(e.target.value);
-        }}
-        className="max-w-xl"
-      />
-      {question &&
-      props.onAskAcross !== undefined &&
-      !data.deleted &&
-      answer?.q !== query.trim() ? (
-        <Button
-          variant="secondary"
-          className="self-start"
-          startIcon={<icons.assistant aria-hidden />}
-          onClick={askAcross}
-        >
-          {tr('library.library.ask_kithena', 'Ask Kithena')}
-        </Button>
-      ) : null}
-      {answer === null ? null : answer.a === null ? (
-        answer.error === undefined ? (
-          <Spinner
-            size="sm"
-            label={tr(
-              'library.library.kithena_is_reading_your_documents',
-              'Kithena is reading your documents',
-            )}
-          />
-        ) : (
-          <Alert tone="danger">{answer.error}</Alert>
-        )
-      ) : (
-        <AcrossAnswer question={answer.q} answer={answer.a} onNavigate={props.onNavigate} />
-      )}
-
-      {data.deleted || data.queue !== null || data.q !== '' ? null : (
-        <Answers
-          documentIds={data.rows
-            .filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical')
-            .slice(0, 5)
-            .map((r) => r.id)}
-          titles={Object.fromEntries(data.rows.map((r) => [r.id, r.title]))}
-          onWaitingFor={props.onWaitingFor}
-          onLookFor={props.onLookFor}
-          onAnswer={props.onAnswer}
+      {view === 'overview' ? (
+        <OverviewBody
+          data={data}
+          props={props}
+          answer={answer}
+          onAsk={(q) => {
+            type(q);
+            askAcross(q);
+          }}
+          onUpload={upload}
+          onDraft={() => {
+            setDrafting(true);
+          }}
+          onLetters={() => {
+            setLettering(true);
+          }}
         />
-      )}
-      {data.needsYou.length > 0 && !data.deleted ? (
-        <section className="flex flex-col gap-3" aria-labelledby="needs-you">
-          <h2 id="needs-you" className="text-md font-semibold">
-            {tr('library.library.needs_you', 'Needs you')}{' '}
-            <Badge tone="accent" size="sm">
-              {data.needsYou.length}
-            </Badge>
-          </h2>
-          <List>
-            {data.needsYou.map((n) => (
-              <ListItem
-                key={n.id}
-                icon={
-                  n.kind === 'request' ? (
-                    <icons.upload />
-                  ) : n.kind === 'sign' ? (
-                    <icons.edit />
-                  ) : n.kind === 'acknowledge' ? (
-                    <icons.document />
-                  ) : (
-                    <icons.locked />
-                  )
-                }
-                iconTone="accent"
-                description={[
-                  n.detail,
-                  n.dueOn === null
-                    ? null
-                    : tr('library.library.due', 'Due {{dueOn}}', { dueOn: shortDate(n.dueOn) }),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                trailing={
-                  n.kind === 'request' ? (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={() => {
-                        upload({
-                          typeKey: n.typeKey,
-                          subjectPersonId: data.viewer.personId,
-                          requestId: n.id,
-                        });
-                      }}
-                    >
-                      {tr('library.library.add_it', 'Add it')}
-                    </Button>
-                  ) : n.kind === 'sign' || n.kind === 'acknowledge' ? (
-                    <Button size="sm" variant="primary" asChild>
-                      <a
-                        href={
-                          n.kind === 'sign'
-                            ? `/documents/envelopes/${n.id}`
-                            : href(n.documentId ?? '')
-                        }
-                      >
-                        {n.kind === 'sign'
-                          ? tr('library.library.review_and_sign', 'Review and sign')
-                          : tr('library.library.read_it', 'Read it')}
-                      </a>
-                    </Button>
-                  ) : (
-                    <AccessDecision id={n.id} onDecide={props.onDecideAccess} />
-                  )
-                }
-              >
-                {n.title}
-              </ListItem>
-            ))}
-          </List>
-        </section>
-      ) : null}
-
-      {data.viewer.hr && !data.deleted ? <Tiles data={data} onFilter={props.onFilter} /> : null}
-
-      {data.queue !== null && !data.deleted ? (
-        <QueueList data={data} {...props} />
       ) : (
-        <section
-          className="flex flex-col gap-3"
-          aria-label={tr('library.library.every_document', 'Every document')}
-        >
-          {/* One surface: what narrows the list is the head of the list. */}
-          <Card>
-            <CardToolbar className="flex-row flex-wrap items-center">
-              <ShowPicker
-                data={data}
-                onShow={(show) => props.onFilter?.({ show: show === 'all' ? null : show })}
-                onNew={() => {
-                  setNewSection(true);
-                }}
-              />
-            </CardToolbar>
-            {data.rows.length === 0 ? (
-              <EmptyState
-                icon={<icons.folder />}
-                title={
-                  data.q === ''
-                    ? tr('library.library.nothing_here_yet', 'Nothing here yet')
-                    : tr('library.library.nothing_matches', 'Nothing matches “{{q}}”', {
-                        q: data.q,
-                      })
-                }
-                description={
-                  data.deleted
-                    ? tr(
-                        'library.library.nothing_has_been_deleted_in_the',
-                        'Nothing has been deleted in the last 30 days.',
-                      )
-                    : tr(
-                        'library.library.add_a_document_or_choose_another',
-                        'Add a document, or choose another section.',
-                      )
-                }
+        <>
+          <Input
+            aria-label={tr('library.library.search_documents', 'Search documents')}
+            placeholder={tr('library.library.search_documents', 'Search documents')}
+            startAdornment={<icons.search aria-hidden />}
+            value={query}
+            onChange={(e) => {
+              type(e.target.value);
+            }}
+            className="max-w-xl"
+          />
+          {question &&
+          props.onAskAcross !== undefined &&
+          !data.deleted &&
+          answer?.q !== query.trim() ? (
+            <Button
+              variant="secondary"
+              className="self-start"
+              startIcon={<icons.assistant aria-hidden />}
+              onClick={() => {
+                askAcross();
+              }}
+            >
+              {tr('library.library.ask_kithena', 'Ask Kithena')}
+            </Button>
+          ) : null}
+          {answer === null ? null : answer.a === null ? (
+            answer.error === undefined ? (
+              <Spinner
+                size="sm"
+                label={tr(
+                  'library.library.kithena_is_reading_your_documents',
+                  'Kithena is reading your documents',
+                )}
               />
             ) : (
-              <DataTable<Row>
-                label={tr('library.library.documents', 'Documents')}
-                rows={data.rows}
-                rowId={rowId}
-                describeRow={rowTitle}
-                fill
-                columns={columns}
-              />
-            )}
-          </Card>
-        </section>
+              <Alert tone="danger">{answer.error}</Alert>
+            )
+          ) : (
+            <AcrossAnswer question={answer.q} answer={answer.a} onNavigate={props.onNavigate} />
+          )}
+
+          {data.queue !== null && !data.deleted ? (
+            <QueueList data={data} {...props} />
+          ) : (
+            <section
+              className="flex flex-col gap-3"
+              aria-label={tr('library.library.every_document', 'Every document')}
+            >
+              {/* One surface: what narrows the list is the head of the list. */}
+              <Card>
+                <CardToolbar className="flex-row flex-wrap items-center">
+                  <ShowPicker
+                    data={data}
+                    onShow={(show) => props.onFilter?.({ show: show === 'all' ? null : show })}
+                    onNew={() => {
+                      setNewSection(true);
+                    }}
+                  />
+                </CardToolbar>
+                {data.rows.length === 0 ? (
+                  <EmptyState
+                    icon={<icons.folder />}
+                    title={
+                      data.q === ''
+                        ? tr('library.library.nothing_here_yet', 'Nothing here yet')
+                        : tr('library.library.nothing_matches', 'Nothing matches “{{q}}”', {
+                            q: data.q,
+                          })
+                    }
+                    description={
+                      data.deleted
+                        ? tr(
+                            'library.library.nothing_has_been_deleted_in_the',
+                            'Nothing has been deleted in the last 30 days.',
+                          )
+                        : tr(
+                            'library.library.add_a_document_or_choose_another',
+                            'Add a document, or choose another section.',
+                          )
+                    }
+                  />
+                ) : (
+                  <DataTable<Row>
+                    label={tr('library.library.documents', 'Documents')}
+                    rows={data.rows}
+                    rowId={rowId}
+                    describeRow={rowTitle}
+                    fill
+                    columns={columns}
+                  />
+                )}
+              </Card>
+            </section>
+          )}
+        </>
       )}
 
       {uploading === null ? null : (
@@ -594,6 +546,415 @@ function Ready({
   );
 }
 
+/** How many rows a widget names before it offers the rest (the list itself is one press away). */
+const TOP = 5;
+/** A page's parts come in one after another, a step apart. */
+const ARRIVE = 'motion-safe:animate-arrive';
+
+/**
+ * Where Documents opens. Top to bottom, in the order a visit needs them:
+ * ways to begin; a question for Kithena, with a few to start from; what the
+ * record is still waiting for, found in their own documents; what needs them
+ * beside what is out for signature; HR's follow-up as figures; and what
+ * changed last, with the whole list one press away.
+ */
+function OverviewBody({
+  data,
+  props,
+  answer,
+  onAsk,
+  onUpload,
+  onDraft,
+  onLetters,
+}: {
+  readonly data: LibraryData;
+  readonly props: Omit<LibraryProps, 'load'>;
+  readonly answer: { q: string; a: Answer | null; error?: string } | null;
+  readonly onAsk: (question: string) => void;
+  readonly onUpload: (preset?: Partial<UploadPreset>) => void;
+  readonly onDraft: () => void;
+  readonly onLetters: () => void;
+}): JSX.Element {
+  const [asked, setAsked] = useState('');
+  const [allNeeds, setAllNeeds] = useState(false);
+  const go = (to: string) => (event: { preventDefault: () => void }) => {
+    if (props.onNavigate === undefined) return;
+    event.preventDefault();
+    props.onNavigate(to);
+  };
+  const out = data.rows.filter((r) => r.signing?.status === 'sent');
+  const needs = allNeeds ? data.needsYou : data.needsYou.slice(0, TOP);
+  const starters = [
+    tr('library.library.starter_expiring', 'What expires in the next three months?'),
+    tr('library.library.starter_notice', 'What is my notice period?'),
+    tr('library.library.starter_unsigned', 'Which documents are still waiting for a signature?'),
+  ];
+  const ask = (q: string): void => {
+    if (q.trim() === '') return;
+    setAsked('');
+    onAsk(q);
+  };
+  return (
+    <>
+      <section
+        aria-label={tr('library.library.ways_to_begin', 'Ways to begin')}
+        className="grid gap-3 @2xl/page:grid-cols-2"
+      >
+        <ActionCard
+          tone="accent"
+          className={ARRIVE}
+          icon={<icons.upload />}
+          title={tr('library.library.add_a_document', 'Add a document')}
+          description={tr(
+            'library.library.upload_a_file_and_say_whose',
+            'Upload a file. Kithena suggests where it belongs.',
+          )}
+          onClick={() => {
+            onUpload();
+          }}
+        />
+        <ActionCard
+          className={ARRIVE}
+          icon={<icons.edit />}
+          title={tr('library.library.signatures', 'Signatures')}
+          description={tr(
+            'library.library.what_you_sign_and_what_you_sent',
+            'What is waiting for you to sign, and what you sent.',
+          )}
+          href="/documents/envelopes"
+          onClick={() => undefined}
+        />
+        {data.viewer.hr && props.onDraftDocument !== undefined ? (
+          <ActionCard
+            className={ARRIVE}
+            icon={<icons.assistant />}
+            title={tr('library.library.draft_with_kithena', 'Draft with Kithena')}
+            description={tr(
+              'library.library.describe_it_review_the_draft',
+              'Describe the document, review the draft, send it to sign.',
+            )}
+            onClick={onDraft}
+          />
+        ) : null}
+        {data.viewer.hr && props.onGenerateLetters !== undefined ? (
+          <ActionCard
+            className={ARRIVE}
+            icon={<icons.document />}
+            title={tr('library.library.generate_letters', 'Generate letters')}
+            description={tr(
+              'library.library.one_letter_per_person_from_a_template',
+              'One letter per person, from a template.',
+            )}
+            onClick={onLetters}
+          />
+        ) : null}
+      </section>
+
+      {props.onAskAcross === undefined ? null : (
+        // Kithena's own card, as inside a document: a few questions to start
+        // from, the answer with where it is from, and the box to ask the next.
+        <AssistantCard
+          level={2}
+          className={ARRIVE}
+          title={tr('library.library.ask_your_documents', 'Ask your documents')}
+        >
+          {answer === null ? (
+            <AssistantSuggestions>
+              {starters.map((q) => (
+                <AssistantSuggestion
+                  key={q}
+                  icon={<icons.assistant aria-hidden />}
+                  onClick={() => {
+                    ask(q);
+                  }}
+                >
+                  {q}
+                </AssistantSuggestion>
+              ))}
+            </AssistantSuggestions>
+          ) : answer.a === null ? (
+            answer.error === undefined ? (
+              <Spinner
+                size="sm"
+                label={tr(
+                  'library.library.kithena_is_reading_your_documents',
+                  'Kithena is reading your documents',
+                )}
+              />
+            ) : (
+              <Alert tone="danger">{answer.error}</Alert>
+            )
+          ) : (
+            <div className="motion-safe:animate-enter">
+              <AcrossAnswer question={answer.q} answer={answer.a} onNavigate={props.onNavigate} />
+            </div>
+          )}
+          <AssistantComposer
+            className="px-0 pb-0"
+            aria-label={tr('library.library.ask_a_question', 'Ask a question')}
+            value={asked}
+            onValueChange={setAsked}
+            onSubmit={ask}
+            streaming={answer !== null && answer.a === null && answer.error === undefined}
+            placeholder={tr(
+              'library.library.ask_anything_your_documents_can_answer',
+              'Ask anything your documents can answer…',
+            )}
+            disclaimer={tr(
+              'library.library.kithena_reads_only_what_you_may_open',
+              'Kithena reads only what you may open, and says which document each answer is from.',
+            )}
+          />
+        </AssistantCard>
+      )}
+
+      <Answers
+        documentIds={data.rows
+          .filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical')
+          .slice(0, 5)
+          .map((r) => r.id)}
+        titles={Object.fromEntries(data.rows.map((r) => [r.id, r.title]))}
+        onWaitingFor={props.onWaitingFor}
+        onLookFor={props.onLookFor}
+        onAnswer={props.onAnswer}
+      />
+
+      <WidgetGrid>
+        <Widget
+          flush
+          className={ARRIVE}
+          icon={<icons.inbox aria-hidden />}
+          title={tr('library.library.needs_you', 'Needs you')}
+          {...(data.needsYou.length === 0
+            ? {}
+            : {
+                meta: (
+                  <Badge tone="accent" size="sm">
+                    {data.needsYou.length}
+                  </Badge>
+                ),
+              })}
+          {...(data.needsYou.length <= TOP
+            ? {}
+            : {
+                footer: (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-expanded={allNeeds}
+                    onClick={() => {
+                      setAllNeeds(!allNeeds);
+                    }}
+                  >
+                    {allNeeds
+                      ? tr('library.library.show_fewer', 'Show fewer')
+                      : tr('library.library.show_all_count', 'Show all {{count}}', {
+                          count: String(data.needsYou.length),
+                        })}
+                  </Button>
+                ),
+              })}
+        >
+          {data.needsYou.length === 0 ? (
+            <EmptyState
+              icon={<icons.approve />}
+              title={tr('library.library.nothing_needs_you', 'Nothing needs you')}
+              description={tr(
+                'library.library.requests_and_signatures_show_here',
+                'A document asked of you, or one to sign or read, shows here.',
+              )}
+            />
+          ) : (
+            <List>
+              {needs.map((n) => (
+                <ListItem
+                  key={n.id}
+                  icon={
+                    n.kind === 'request' ? (
+                      <icons.upload />
+                    ) : n.kind === 'sign' ? (
+                      <icons.edit />
+                    ) : n.kind === 'acknowledge' ? (
+                      <icons.document />
+                    ) : (
+                      <icons.locked />
+                    )
+                  }
+                  iconTone="accent"
+                  description={[
+                    n.detail,
+                    n.dueOn === null
+                      ? null
+                      : tr('library.library.due', 'Due {{dueOn}}', { dueOn: shortDate(n.dueOn) }),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  trailing={
+                    n.kind === 'request' ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          onUpload({
+                            typeKey: n.typeKey,
+                            subjectPersonId: data.viewer.personId,
+                            requestId: n.id,
+                          });
+                        }}
+                      >
+                        {tr('library.library.add_it', 'Add it')}
+                      </Button>
+                    ) : n.kind === 'sign' || n.kind === 'acknowledge' ? (
+                      <Button size="sm" variant="primary" asChild>
+                        <a
+                          href={
+                            n.kind === 'sign'
+                              ? `/documents/envelopes/${n.id}`
+                              : href(n.documentId ?? '')
+                          }
+                        >
+                          {n.kind === 'sign'
+                            ? tr('library.library.review_and_sign', 'Review and sign')
+                            : tr('library.library.read_it', 'Read it')}
+                        </a>
+                      </Button>
+                    ) : (
+                      <AccessDecision id={n.id} onDecide={props.onDecideAccess} />
+                    )
+                  }
+                >
+                  {n.title}
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Widget>
+
+        <Widget
+          flush
+          className={ARRIVE}
+          icon={<icons.edit aria-hidden />}
+          title={tr('library.library.out_for_signature', 'Out for signature')}
+          {...(out.length === 0
+            ? {}
+            : {
+                meta: (
+                  <Badge tone="warning" size="sm">
+                    {out.length}
+                  </Badge>
+                ),
+              })}
+          action={
+            <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+              <a href="/documents/envelopes" onClick={go('/documents/envelopes')}>
+                {tr('library.library.all_signatures', 'All signatures')}
+              </a>
+            </Button>
+          }
+        >
+          {out.length === 0 ? (
+            <EmptyState
+              icon={<icons.edit />}
+              title={tr(
+                'library.library.nothing_is_out_for_signature',
+                'Nothing is out for signature',
+              )}
+              description={tr(
+                'library.library.open_a_document_to_send_it',
+                'Open a document and choose Send for signature.',
+              )}
+            />
+          ) : (
+            <List>
+              {out.slice(0, TOP).map((r) => (
+                <ListItem
+                  key={r.id}
+                  asChild
+                  leading={<DocIcon kind={r.kind} />}
+                  description={
+                    r.signing === undefined ||
+                    r.signing === null ||
+                    r.signing.waitingOn.length === 0
+                      ? meta(r)
+                      : tr('library.library.waiting_for', 'Waiting for {{names}}', {
+                          names: formatList(r.signing.waitingOn),
+                        })
+                  }
+                  trailing={
+                    r.signing === undefined || r.signing === null ? undefined : (
+                      <SigningBadge signing={r.signing} />
+                    )
+                  }
+                >
+                  <a
+                    href={`/documents/envelopes/${r.signing?.envelopeId ?? ''}`}
+                    onClick={go(`/documents/envelopes/${r.signing?.envelopeId ?? ''}`)}
+                  >
+                    {r.title}
+                  </a>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Widget>
+      </WidgetGrid>
+
+      {data.viewer.hr ? (
+        <section className="flex flex-col gap-3" aria-labelledby="follow-up">
+          <h2 id="follow-up" className="text-md font-semibold">
+            {tr('library.library.to_follow_up', 'To follow up')}
+          </h2>
+          <Tiles data={data} onNavigate={props.onNavigate} />
+        </section>
+      ) : null}
+
+      <Widget
+        flush
+        className={ARRIVE}
+        icon={<icons.folder aria-hidden />}
+        title={tr('library.library.recently_updated', 'Recently updated')}
+        action={
+          <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+            <a href="/documents/all" onClick={go('/documents/all')}>
+              {tr('library.library.all_documents_count', 'All {{count}} documents', {
+                count: String(data.total),
+              })}
+            </a>
+          </Button>
+        }
+      >
+        {data.rows.length === 0 ? (
+          <EmptyState
+            icon={<icons.folder />}
+            title={tr('library.library.nothing_here_yet', 'Nothing here yet')}
+            description={tr(
+              'library.library.add_your_first_document',
+              'Add your first document to see it here.',
+            )}
+          />
+        ) : (
+          <List>
+            {data.rows.slice(0, TOP).map((r) => (
+              <ListItem
+                key={r.id}
+                asChild
+                leading={<DocIcon kind={r.kind} />}
+                description={meta(r)}
+                meta={shortDate(r.updatedAt)}
+                trailing={<AccessBadge row={r} />}
+              >
+                <a href={href(r.id)} onClick={go(href(r.id))}>
+                  {r.title}
+                </a>
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </Widget>
+    </>
+  );
+}
+
 function AccessDecision({
   id,
   onDecide,
@@ -628,45 +989,49 @@ function AccessDecision({
   );
 }
 
-/** HR's four queues (H1): each tile filters the list below; the open one says so. */
+/** Where each of HR's queues lives: its own address, so the sidebar and a link both open it. */
+const QUEUE_HREF: Record<QueueKey, string> = {
+  to_sign: '/documents/envelopes',
+  expiring: '/documents/queues/expiring',
+  missing: '/documents/queues/missing',
+  to_delete: '/documents/queues/to-delete',
+};
+
+/** HR's four queues (H1) as figures: each leads to its queue. */
 function Tiles({
   data,
-  onFilter,
+  onNavigate,
 }: {
   readonly data: LibraryData;
-  readonly onFilter: LibraryProps['onFilter'];
+  readonly onNavigate: LibraryProps['onNavigate'];
 }): JSX.Element {
   return (
     // Tiles of one size, never stretched to the row.
     <WidgetGrid size="sm" fill role="list" aria-label={tr('library.library.queues', 'Queues')}>
-      {data.tiles.map((t) => {
-        const on = data.queue === t.key;
-        return (
-          <div role="listitem" key={t.key}>
-            <Card
-              interactive
-              padded
-              variant={on ? 'outline' : 'raised'}
-              className="relative h-full"
+      {data.tiles.map((t, i) => (
+        <div
+          role="listitem"
+          key={t.key}
+          className="motion-safe:animate-arrive"
+          style={staggerStyle(i, 'animation')}
+        >
+          <Card interactive padded className="relative h-full">
+            <a
+              href={QUEUE_HREF[t.key]}
+              className="flex flex-col gap-1 after:absolute after:inset-0"
+              onClick={(e) => {
+                if (onNavigate === undefined) return;
+                e.preventDefault();
+                onNavigate(QUEUE_HREF[t.key]);
+              }}
             >
-              <a
-                href={`/documents/all?queue=${t.key}`}
-                aria-current={on ? 'true' : undefined}
-                className="flex flex-col gap-1 after:absolute after:inset-0"
-                onClick={(e) => {
-                  if (onFilter === undefined) return;
-                  e.preventDefault();
-                  onFilter({ queue: on ? null : t.key });
-                }}
-              >
-                <span className="text-sm text-fg-muted">{t.label}</span>
-                <span className="text-2xl font-semibold tabular-nums">{t.count}</span>
-                <span className="text-sm text-fg-muted">{t.detail}</span>
-              </a>
-            </Card>
-          </div>
-        );
-      })}
+              <span className="text-sm text-fg-muted">{t.label}</span>
+              <span className="text-2xl font-semibold tabular-nums">{t.count}</span>
+              <span className="text-sm text-fg-muted">{t.detail}</span>
+            </a>
+          </Card>
+        </div>
+      ))}
     </WidgetGrid>
   );
 }

@@ -30,6 +30,8 @@ export interface SignaturePadProps {
   /** What a screen reader hears: "Draw your signature". */
   readonly label: string;
   readonly clearLabel?: string;
+  /** Takes back the last stroke. */
+  readonly undoLabel?: string;
   readonly disabled?: boolean;
   readonly className?: string;
 }
@@ -42,6 +44,7 @@ export function SignaturePad({
   onValueChange,
   label,
   clearLabel = t('components.signature-pad.signature-pad.clear', 'Clear'),
+  undoLabel = t('components.signature-pad.signature-pad.undo', 'Undo'),
   disabled = false,
   className,
 }: SignaturePadProps): JSX.Element {
@@ -116,17 +119,39 @@ export function SignaturePad({
           strokeLinejoin="round"
         />
       </svg>
-      <div className="flex justify-end">
-        <Button
-          variant="ghost"
-          size="xs"
-          disabled={disabled || value === ''}
-          onClick={() => {
-            onValueChange('');
-          }}
-        >
-          {clearLabel}
-        </Button>
+      <div className="flex items-center justify-between gap-2">
+        {/* Said until there is ink: where to draw, and with what. */}
+        <p className="text-xs text-fg-muted" aria-hidden={value !== ''}>
+          {value === ''
+            ? t(
+                'components.signature-pad.signature-pad.draw_on_the_line',
+                'Draw on the line with a mouse, a finger or a pen.',
+              )
+            : null}
+        </p>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            disabled={disabled || value === ''}
+            onClick={() => {
+              // A stroke starts at its M: the last one is taken back.
+              onValueChange(value.slice(0, value.lastIndexOf('M')).trim());
+            }}
+          >
+            {undoLabel}
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            disabled={disabled || value === ''}
+            onClick={() => {
+              onValueChange('');
+            }}
+          >
+            {clearLabel}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import {
+  AdoptSignatureDialog,
   Alert,
   Avatar,
   Badge,
@@ -7,6 +8,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardToolbar,
   Checkbox,
   Combobox,
   DatePicker,
@@ -29,10 +31,13 @@ import {
   List,
   ListItem,
   PageHeader,
+  SegmentedControl,
+  SegmentedControlItem,
   tallyFigures,
   Signature,
   Skeleton,
   Spinner,
+  staggerStyle,
   Stepper,
   icons,
   isFilled,
@@ -89,13 +94,50 @@ const ENVELOPE = () =>
 
 /* ------------------------------------------------------------- K10 list -- */
 
+type EnvelopeRow = EnvelopesData['rows'][number];
+type Show = 'all' | 'yours' | 'out' | 'signed' | 'closed';
+
+/** Which of the list's cuts a request falls in: yours to sign first, whatever its state. */
+const cutOf = (r: EnvelopeRow): Exclude<Show, 'all'> =>
+  r.needsYou
+    ? 'yours'
+    : r.status === 'sent'
+      ? 'out'
+      : r.status === 'completed'
+        ? 'signed'
+        : 'closed';
+
+const CUTS = () =>
+  ({
+    all: tr('envelopes.envelopes.show_all', 'All'),
+    yours: tr('envelopes.envelopes.show_yours', 'Needs you'),
+    out: tr('envelopes.envelopes.show_out', 'Out for signature'),
+    signed: tr('envelopes.envelopes.show_signed', 'Signed'),
+    closed: tr('envelopes.envelopes.show_closed', 'Declined or cancelled'),
+  }) as const;
+
+/**
+ * Every request this person signs or follows (K10). What is theirs to sign
+ * comes first, each with the one thing to do; the rest is one list, cut by
+ * where each request stands. The cut is the address's `show`, so a link opens
+ * the same list.
+ */
 export function Envelopes({
   load,
+  show: asked,
+  onShow,
   onNavigate,
+  onSetSignature,
 }: {
   readonly load: Loadable<EnvelopesData>;
+  /** The cut on show, from the address; absent, the screen keeps its own. */
+  readonly show?: string | null | undefined;
+  readonly onShow?: ((show: string | null) => void) | undefined;
   readonly onNavigate?: ((href: string) => void) | undefined;
+  /** Keep the signature they made or changed here on their record. */
+  readonly onSetSignature?: ((mark: Mark) => Promise<Outcome>) | undefined;
 }): JSX.Element {
+  const [own, setOwn] = useState<string | null>(null);
   if (load.status === 'loading')
     return (
       <Skeleton
@@ -103,6 +145,19 @@ export function Envelopes({
         label={tr('envelopes.envelopes.loading_signature_requests', 'Loading signature requests')}
       />
     );
+  const cuts = CUTS();
+  const wanted = (onShow === undefined ? own : asked) ?? 'all';
+  const show: Show = wanted in cuts ? (wanted as Show) : 'all';
+  const pick = (next: string): void => {
+    const value = next === 'all' ? null : next;
+    if (onShow === undefined) setOwn(value);
+    else onShow(value);
+  };
+  const open = (id: string) => (e: { preventDefault: () => void }) => {
+    if (onNavigate === undefined) return;
+    e.preventDefault();
+    onNavigate(`/documents/envelopes/${id}`);
+  };
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -140,70 +195,279 @@ export function Envelopes({
         )}
       />
       <Loaded load={load} what={tr('envelopes.envelopes.signature_requests', 'signature requests')}>
-        {(data) =>
-          data.rows.length === 0 ? (
-            <EmptyState
-              icon={<icons.edit />}
-              title={tr('envelopes.envelopes.no_signature_requests', 'No signature requests')}
-              description={tr(
-                'envelopes.envelopes.send_one_from_a_document',
-                'Send one from a document.',
-              )}
-            />
-          ) : (
-            <List>
-              {data.rows.map((r) => (
-                <ListItem
-                  key={r.id}
+        {(data) => {
+          const mine =
+            data.signature === undefined ? null : (
+              <YourSignature signature={data.signature} onSet={onSetSignature} />
+            );
+          if (data.rows.length === 0)
+            return (
+              <>
+                {mine}
+                <EmptyState
                   icon={<icons.edit />}
-                  iconTone={r.needsYou ? 'accent' : 'neutral'}
-                  description={[
-                    tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
-                      signed: r.signed,
-                      of: r.of,
-                    }),
-                    ...(r.waitingOn === null
-                      ? []
-                      : [
-                          tr('envelopes.envelopes.waiting_for', 'waiting for {{who}}', {
-                            who: r.waitingOn,
-                          }),
-                        ]),
-                    ...(r.dueOn === null
-                      ? []
-                      : [
-                          tr('envelopes.envelopes.due', 'due {{date}}', {
-                            date: shortDate(r.dueOn),
-                          }),
-                        ]),
-                  ].join(' · ')}
-                  meta={
-                    <Badge tone={r.needsYou ? 'accent' : ENVELOPE()[r.status][1]} size="sm" dot>
-                      {r.needsYou
-                        ? tr('envelopes.envelopes.your_signature', 'Your signature')
-                        : ENVELOPE()[r.status][0]}
-                    </Badge>
-                  }
-                  chevron
-                  asChild
-                >
-                  <a
-                    href={`/documents/envelopes/${r.id}`}
-                    onClick={(e) => {
-                      if (onNavigate === undefined) return;
-                      e.preventDefault();
-                      onNavigate(`/documents/envelopes/${r.id}`);
-                    }}
+                  title={tr('envelopes.envelopes.no_signature_requests', 'No signature requests')}
+                  description={tr(
+                    'envelopes.envelopes.send_one_from_a_document',
+                    'Send one from a document.',
+                  )}
+                />
+              </>
+            );
+          const count = (cut: Show): number =>
+            cut === 'all' ? data.rows.length : data.rows.filter((r) => cutOf(r) === cut).length;
+          const yours = data.rows.filter((r) => r.needsYou);
+          // On All, what is theirs is said above the list, so the list is the rest.
+          const listed = data.rows.filter((r) =>
+            show === 'all' ? !r.needsYou : cutOf(r) === show,
+          );
+          return (
+            <>
+              {mine}
+              {show !== 'all' || yours.length === 0 ? null : (
+                <section className="flex flex-col gap-3" aria-labelledby="yours-to-sign">
+                  <h2 id="yours-to-sign" className="text-md font-semibold">
+                    {tr(
+                      'envelopes.envelopes.waiting_for_your_signature',
+                      'Waiting for your signature',
+                    )}
+                  </h2>
+                  <div className="grid gap-3 @3xl/page:grid-cols-2">
+                    {yours.map((r, i) => (
+                      <Card
+                        key={r.id}
+                        padded
+                        tone="attention"
+                        className="flex items-center gap-3 motion-safe:animate-arrive"
+                        style={staggerStyle(i, 'animation')}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold">{r.title}</p>
+                          <p className="text-sm text-fg-muted">
+                            {[
+                              tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
+                                signed: r.signed,
+                                of: r.of,
+                              }),
+                              ...(r.dueOn === null
+                                ? []
+                                : [
+                                    tr('envelopes.envelopes.due', 'due {{date}}', {
+                                      date: shortDate(r.dueOn),
+                                    }),
+                                  ]),
+                            ].join(' · ')}
+                          </p>
+                        </div>
+                        <Button asChild variant="primary" startIcon={<icons.edit aria-hidden />}>
+                          <a href={`/documents/envelopes/${r.id}`} onClick={open(r.id)}>
+                            {tr('envelopes.envelopes.review_and_sign', 'Review and sign')}
+                          </a>
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <Card>
+                <CardToolbar className="flex-row flex-wrap items-center">
+                  <SegmentedControl
+                    size="sm"
+                    aria-label={tr('envelopes.envelopes.which_requests', 'Which requests')}
+                    value={show}
+                    onValueChange={pick}
                   >
-                    {r.title}
-                  </a>
-                </ListItem>
-              ))}
-            </List>
-          )
-        }
+                    {(Object.keys(cuts) as Show[])
+                      // A cut with nothing in it is not offered; the one on show always is.
+                      .filter((cut) => cut === 'all' || cut === show || count(cut) > 0)
+                      .map((cut) => (
+                        <SegmentedControlItem key={cut} value={cut}>
+                          {cuts[cut]} · {count(cut)}
+                        </SegmentedControlItem>
+                      ))}
+                  </SegmentedControl>
+                </CardToolbar>
+                {listed.length === 0 ? (
+                  <EmptyState
+                    icon={<icons.edit />}
+                    title={
+                      show === 'all'
+                        ? tr('envelopes.envelopes.nothing_else', 'Nothing else')
+                        : tr('envelopes.envelopes.nothing_here', 'Nothing here')
+                    }
+                    description={
+                      show === 'all'
+                        ? tr(
+                            'envelopes.envelopes.every_request_is_waiting_for_you',
+                            'Every request here is waiting for your signature, above.',
+                          )
+                        : tr(
+                            'envelopes.envelopes.no_request_stands_here',
+                            'No request stands here now.',
+                          )
+                    }
+                  />
+                ) : (
+                  <List>
+                    {listed.map((r, i) => (
+                      <ListItem
+                        key={r.id}
+                        className="motion-safe:animate-arrive"
+                        style={staggerStyle(i, 'animation')}
+                        icon={<icons.edit />}
+                        iconTone={r.needsYou ? 'accent' : 'neutral'}
+                        description={[
+                          tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
+                            signed: r.signed,
+                            of: r.of,
+                          }),
+                          ...(r.waitingOn === null
+                            ? []
+                            : [
+                                tr('envelopes.envelopes.waiting_for', 'waiting for {{who}}', {
+                                  who: r.waitingOn,
+                                }),
+                              ]),
+                          ...(r.dueOn === null
+                            ? []
+                            : [
+                                tr('envelopes.envelopes.due', 'due {{date}}', {
+                                  date: shortDate(r.dueOn),
+                                }),
+                              ]),
+                        ].join(' · ')}
+                        meta={
+                          <Badge
+                            tone={r.needsYou ? 'accent' : ENVELOPE()[r.status][1]}
+                            size="sm"
+                            dot
+                          >
+                            {r.needsYou
+                              ? tr('envelopes.envelopes.your_signature', 'Your signature')
+                              : ENVELOPE()[r.status][0]}
+                          </Badge>
+                        }
+                        chevron
+                        asChild
+                      >
+                        <a href={`/documents/envelopes/${r.id}`} onClick={open(r.id)}>
+                          {r.title}
+                        </a>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Card>
+            </>
+          );
+        }}
       </Loaded>
     </div>
+  );
+}
+
+/**
+ * The signature this person signs with, where their company keeps one: shown
+ * as it will be drawn on a document, and made or changed here, in the same
+ * dialog signing uses. It is kept on their record as their own change, so
+ * where that needs approval the new one waits and the old one still signs.
+ */
+function YourSignature({
+  signature,
+  onSet,
+}: {
+  readonly signature: NonNullable<EnvelopesData['signature']>;
+  readonly onSet: ((mark: Mark) => Promise<Outcome>) | undefined;
+}): JSX.Element {
+  const [adopting, setAdopting] = useState(false);
+  // What was just made here, shown at once; the record's own arrives with the next read.
+  const [made, setMade] = useState<Mark | null>(null);
+  const write = useWrite();
+  const mark = made ?? signature.mark;
+  return (
+    <Card padded className="flex flex-wrap items-center gap-4 motion-safe:animate-arrive">
+      <div
+        className="grid h-20 w-64 max-w-full shrink-0 place-items-center rounded-md bg-surface-sunken px-4"
+        aria-hidden={mark === null}
+      >
+        {mark === null ? (
+          <span className="w-full border-b border-border-strong pb-1 text-xs text-fg-muted">
+            {tr('envelopes.envelopes.no_signature_yet', 'No signature yet')}
+          </span>
+        ) : (
+          <span className="block h-14 w-full motion-safe:animate-enter">
+            <Signature
+              value={mark}
+              label={tr('envelopes.envelopes.persons_signature', '{{name}}’s signature', {
+                name: signature.name,
+              })}
+            />
+          </span>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <h2 className="text-md font-semibold">
+          {tr('envelopes.envelopes.your_signature_title', 'Your signature')}
+        </h2>
+        <p className="text-sm text-fg-muted">
+          {made !== null
+            ? tr(
+                'envelopes.envelopes.saved_to_your_record',
+                'Saved to your record. If your company approves changes, it signs once HR has.',
+              )
+            : signature.pending
+              ? tr(
+                  'envelopes.envelopes.a_change_is_waiting_for_hr',
+                  'A change is waiting for HR’s approval. Until then this one signs.',
+                )
+              : mark === null
+                ? tr(
+                    'envelopes.envelopes.make_one_now_to_sign_in_a_press',
+                    'Make one now, and signing a document is one press.',
+                  )
+                : tr(
+                    'envelopes.envelopes.what_you_sign_documents_with',
+                    'What you sign documents with, in your legal name.',
+                  )}
+        </p>
+        {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
+      </div>
+      {signature.canSet && onSet !== undefined ? (
+        <Button
+          variant={mark === null ? 'primary' : 'secondary'}
+          startIcon={<icons.edit aria-hidden />}
+          loading={write.pending}
+          onClick={() => {
+            setAdopting(true);
+          }}
+        >
+          {mark === null
+            ? tr('envelopes.envelopes.create_your_signature', 'Create your signature')
+            : tr('envelopes.envelopes.change_it', 'Change')}
+        </Button>
+      ) : null}
+      <AdoptSignatureDialog
+        open={adopting}
+        name={signature.name}
+        value={mark}
+        title={
+          mark === null
+            ? tr('envelopes.envelopes.create_your_signature', 'Create your signature')
+            : tr('envelopes.envelopes.change_your_signature', 'Change your signature')
+        }
+        action={tr('envelopes.envelopes.save_signature', 'Save signature')}
+        onOpenChange={setAdopting}
+        onAdopt={(next) => {
+          setAdopting(false);
+          write.run(
+            () => onSet?.(next) ?? Promise.resolve({ ok: true }),
+            () => {
+              setMade(next);
+            },
+          );
+        }}
+      />
+    </Card>
   );
 }
 
@@ -365,150 +629,174 @@ function SendSteps({
         }}
       />
       {step === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle level={2}>
-              {tr('envelopes.envelopes.who_signs_in_order', 'Who signs, in order')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {signers.length === 0 ? (
-              <p className="text-sm text-fg-muted">
-                {tr('envelopes.envelopes.nobody_yet', 'Nobody yet.')}
-              </p>
-            ) : null}
-            <List>
-              {signers.map((s, i) => (
-                <ListItem
-                  key={s.key}
-                  leading={<Avatar name={s.name} size="md" />}
-                  description={
-                    s.personId === null
-                      ? tr(
-                          'envelopes.envelopes.confirms_with_a_code_by_email',
-                          '{{email}} · confirms with a code by email',
-                          { email: s.email },
-                        )
-                      : tr(
-                          'envelopes.envelopes.signs_with_their_kithena_login',
-                          'Signs with their Kithena login',
-                        )
-                  }
-                  meta={
-                    <Badge size="sm">
-                      {i === 0
-                        ? tr('envelopes.envelopes.signs_first', 'Signs first')
-                        : i === 1
-                          ? tr('envelopes.envelopes.signs_second', 'Signs second')
-                          : tr('envelopes.envelopes.signs_in_position', 'Signs in position {{n}}', {
-                              n: i + 1,
-                            })}
-                    </Badge>
-                  }
-                  trailing={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={tr('envelopes.envelopes.remove', 'Remove {{name}}', {
-                        name: s.name,
-                      })}
-                      startIcon={<icons.close aria-hidden />}
-                      onClick={() => {
-                        setSigners(signers.filter((x) => x.key !== s.key));
-                      }}
-                    />
-                  }
-                >
-                  {s.name}
-                </ListItem>
-              ))}
-            </List>
-            <Field>
-              <FieldLabel>
-                {tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
-              </FieldLabel>
-              <FieldControl>
-                <Combobox
-                  label={tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
-                  options={doc.people
-                    .filter((p) => !named.has(p.personId))
-                    .map((p) => ({
-                      value: p.personId,
-                      label: p.name,
-                      ...(p.teamName === null ? {} : { description: p.teamName }),
-                    }))}
-                  value={null}
-                  onChange={(v) => {
-                    const p = doc.people.find((x) => x.personId === v);
-                    if (p !== undefined) add({ personId: p.personId, email: '', name: p.name });
-                  }}
-                  placeholder={tr('envelopes.envelopes.find_a_colleague', 'Find a colleague')}
-                  searchPlaceholder={tr('envelopes.envelopes.find_someone', 'Find someone')}
-                  emptyMessage={tr(
-                    'envelopes.envelopes.nobody_by_that_name',
-                    'Nobody by that name',
+        // Who is on it beside how to add one: the order builds as people are added.
+        <div className="grid gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_24rem] @4xl/page:items-start">
+          <Card className="motion-safe:animate-arrive">
+            <CardHeader>
+              <CardTitle level={2}>
+                {tr('envelopes.envelopes.who_signs_in_order', 'Who signs, in order')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {signers.length === 0 ? (
+                <EmptyState
+                  icon={<icons.edit />}
+                  title={tr('envelopes.envelopes.nobody_signs_yet', 'Nobody signs yet')}
+                  description={tr(
+                    'envelopes.envelopes.add_who_signs_first',
+                    'Add whoever signs first. Each person is asked when the one before has signed.',
                   )}
                 />
-              </FieldControl>
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              ) : (
+                <List>
+                  {signers.map((s, i) => (
+                    <ListItem
+                      key={s.key}
+                      leading={<Avatar name={s.name} size="md" />}
+                      description={
+                        s.personId === null
+                          ? tr(
+                              'envelopes.envelopes.confirms_with_a_code_by_email',
+                              '{{email}} · confirms with a code by email',
+                              { email: s.email },
+                            )
+                          : tr(
+                              'envelopes.envelopes.signs_with_their_kithena_login',
+                              'Signs with their Kithena login',
+                            )
+                      }
+                      meta={
+                        <Badge size="sm">
+                          {i === 0
+                            ? tr('envelopes.envelopes.signs_first', 'Signs first')
+                            : i === 1
+                              ? tr('envelopes.envelopes.signs_second', 'Signs second')
+                              : tr(
+                                  'envelopes.envelopes.signs_in_position',
+                                  'Signs in position {{n}}',
+                                  {
+                                    n: i + 1,
+                                  },
+                                )}
+                        </Badge>
+                      }
+                      trailing={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={tr('envelopes.envelopes.remove', 'Remove {{name}}', {
+                            name: s.name,
+                          })}
+                          startIcon={<icons.close aria-hidden />}
+                          onClick={() => {
+                            setSigners(signers.filter((x) => x.key !== s.key));
+                          }}
+                        />
+                      }
+                    >
+                      {s.name}
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+              <Button
+                variant="primary"
+                className="self-end"
+                endIcon={<icons.forward aria-hidden />}
+                disabled={signers.length === 0}
+                onClick={toPlacing}
+              >
+                {tr('envelopes.envelopes.next_where_they_sign', 'Next: where they sign')}
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="motion-safe:animate-arrive">
+            <CardHeader>
+              <CardTitle level={2}>
+                {tr('envelopes.envelopes.add_a_signer', 'Add a signer')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
               <Field>
                 <FieldLabel>
-                  {tr('envelopes.envelopes.somebody_outside', 'Somebody outside')}
+                  {tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
                 </FieldLabel>
                 <FieldControl>
-                  <Input
-                    placeholder={tr('envelopes.envelopes.their_email', 'Their email')}
-                    type="email"
-                    value={outside.email}
-                    onChange={(e) => {
-                      setOutside({ ...outside, email: e.target.value });
+                  <Combobox
+                    label={tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
+                    options={doc.people
+                      .filter((p) => !named.has(p.personId))
+                      .map((p) => ({
+                        value: p.personId,
+                        label: p.name,
+                        ...(p.teamName === null ? {} : { description: p.teamName }),
+                      }))}
+                    value={null}
+                    onChange={(v) => {
+                      const p = doc.people.find((x) => x.personId === v);
+                      if (p !== undefined) add({ personId: p.personId, email: '', name: p.name });
                     }}
+                    placeholder={tr('envelopes.envelopes.find_a_colleague', 'Find a colleague')}
+                    searchPlaceholder={tr('envelopes.envelopes.find_someone', 'Find someone')}
+                    emptyMessage={tr(
+                      'envelopes.envelopes.nobody_by_that_name',
+                      'Nobody by that name',
+                    )}
                   />
                 </FieldControl>
               </Field>
-              <Field>
-                <FieldLabel>{tr('envelopes.envelopes.their_name', 'Their name')}</FieldLabel>
-                <FieldControl>
-                  <Input
-                    value={outside.name}
-                    onChange={(e) => {
-                      setOutside({ ...outside, name: e.target.value });
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-              <Button
-                variant="secondary"
-                disabled={!outside.email.includes('@') || named.has(outside.email)}
-                onClick={() => {
-                  add({
-                    personId: null,
-                    email: outside.email.trim(),
-                    name: outside.name.trim() || outside.email.trim(),
-                  });
-                  setOutside({ email: '', name: '' });
-                }}
-              >
-                {tr('envelopes.envelopes.add', 'Add')}
-              </Button>
-            </div>
-            <p className="text-sm text-fg-muted">
-              {tr(
-                'envelopes.envelopes.people_outside_confirm_it_is_them',
-                'People outside confirm it is them with a code we email them.',
-              )}
-            </p>
-            <Button
-              variant="primary"
-              className="self-end"
-              disabled={signers.length === 0}
-              onClick={toPlacing}
-            >
-              {tr('envelopes.envelopes.next', 'Next')}
-            </Button>
-          </CardContent>
-        </Card>
+              <div className="flex flex-col gap-3 border-t border-border pt-4">
+                <Field>
+                  <FieldLabel>
+                    {tr('envelopes.envelopes.somebody_outside', 'Somebody outside')}
+                  </FieldLabel>
+                  <FieldControl>
+                    <Input
+                      placeholder={tr('envelopes.envelopes.their_email', 'Their email')}
+                      type="email"
+                      value={outside.email}
+                      onChange={(e) => {
+                        setOutside({ ...outside, email: e.target.value });
+                      }}
+                    />
+                  </FieldControl>
+                </Field>
+                <Field>
+                  <FieldLabel>{tr('envelopes.envelopes.their_name', 'Their name')}</FieldLabel>
+                  <FieldControl>
+                    <Input
+                      value={outside.name}
+                      onChange={(e) => {
+                        setOutside({ ...outside, name: e.target.value });
+                      }}
+                    />
+                  </FieldControl>
+                </Field>
+                <Button
+                  variant="secondary"
+                  className="self-start"
+                  disabled={!outside.email.includes('@') || named.has(outside.email)}
+                  onClick={() => {
+                    add({
+                      personId: null,
+                      email: outside.email.trim(),
+                      name: outside.name.trim() || outside.email.trim(),
+                    });
+                    setOutside({ email: '', name: '' });
+                  }}
+                >
+                  {tr('envelopes.envelopes.add', 'Add')}
+                </Button>
+              </div>
+              <p className="text-sm text-fg-muted">
+                {tr(
+                  'envelopes.envelopes.people_outside_confirm_it_is_them',
+                  'People outside confirm it is them with a code we email them.',
+                )}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       ) : step === 1 ? (
         <div className="flex flex-col gap-4">
           <WhereTheySign
@@ -844,13 +1132,14 @@ function EnvelopePage({
           {env.voidReason}
         </Alert>
       )}
-      {/* One column, top to bottom: the signer's part, the document, who signs, what happened. */}
-      <div className="flex flex-col gap-6">
-        {signingNow ? (
-          <SignPanel env={env} signing={signing} name={myName} problem={finish.error} {...props} />
-        ) : null}
+      {/*
+        The document beside what stands around it: the signer's part, who
+        signs and what happened stay in view while the pages scroll. In a
+        narrow page it is one column: their part, the document, then the rest.
+      */}
+      <div className="grid gap-6 @6xl/page:grid-cols-[minmax(0,1fr)_24rem] @6xl/page:items-start">
         {/* No overflow clipping: the step bar sticks to the bottom of the page through it. */}
-        <Card variant="fill">
+        <Card variant="fill" className="min-w-0 motion-safe:animate-arrive">
           {link === null ? (
             <div className="grid min-h-[36rem] place-items-center">
               <Spinner
@@ -871,7 +1160,19 @@ function EnvelopePage({
             </div>
           )}
         </Card>
-        <div className="flex flex-col gap-4">
+        {/* In one column its parts are the grid's own, so the signer's part goes first. */}
+        <div className="contents @6xl/page:sticky @6xl/page:top-4 @6xl/page:flex @6xl/page:flex-col @6xl/page:gap-4">
+          {signingNow ? (
+            <div className="order-first motion-safe:animate-arrive @6xl/page:order-none">
+              <SignPanel
+                env={env}
+                signing={signing}
+                name={myName}
+                problem={finish.error}
+                {...props}
+              />
+            </div>
+          ) : null}
           <Card>
             <CardHeader>
               <CardTitle level={2}>{tr('envelopes.envelopes.signers', 'Signers')}</CardTitle>

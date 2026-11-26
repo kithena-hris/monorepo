@@ -6,6 +6,7 @@ import './styles.css';
 
 import { split } from './split';
 
+export const Overview = split(() => import('./library/library'), 'Overview');
 export const Library = split(() => import('./library/library'), 'Library');
 export const DocumentView = split(() => import('./document/document'), 'DocumentView');
 export const PersonFile = split(() => import('./people/person-file'), 'PersonFile');
