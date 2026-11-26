@@ -1015,13 +1015,14 @@ function EnvelopePage({
           {env.voidReason}
         </Alert>
       )}
-      {/* One column, top to bottom: the signer's part, the document, who signs, what happened. */}
-      <div className="flex flex-col gap-6">
-        {signingNow ? (
-          <SignPanel env={env} signing={signing} name={myName} problem={finish.error} {...props} />
-        ) : null}
+      {/*
+        The document beside what stands around it: the signer's part, who
+        signs and what happened stay in view while the pages scroll. In a
+        narrow page it is one column: their part, the document, then the rest.
+      */}
+      <div className="grid gap-6 @6xl/page:grid-cols-[minmax(0,1fr)_24rem] @6xl/page:items-start">
         {/* No overflow clipping: the step bar sticks to the bottom of the page through it. */}
-        <Card variant="fill">
+        <Card variant="fill" className="min-w-0 motion-safe:animate-arrive">
           {link === null ? (
             <div className="grid min-h-[36rem] place-items-center">
               <Spinner
@@ -1042,7 +1043,19 @@ function EnvelopePage({
             </div>
           )}
         </Card>
-        <div className="flex flex-col gap-4">
+        {/* In one column its parts are the grid's own, so the signer's part goes first. */}
+        <div className="contents @6xl/page:sticky @6xl/page:top-4 @6xl/page:flex @6xl/page:flex-col @6xl/page:gap-4">
+          {signingNow ? (
+            <div className="order-first motion-safe:animate-arrive @6xl/page:order-none">
+              <SignPanel
+                env={env}
+                signing={signing}
+                name={myName}
+                problem={finish.error}
+                {...props}
+              />
+            </div>
+          ) : null}
           <Card>
             <CardHeader>
               <CardTitle level={2}>{tr('envelopes.envelopes.signers', 'Signers')}</CardTitle>
