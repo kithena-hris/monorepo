@@ -40,7 +40,7 @@ export function MissingFields({
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   /** Why People refused a field, by its key: said under it. */
-  const [refused, setRefused] = useState<Record<string, string>>({});
+  const [refused, setRefused] = useState<ReadonlyMap<string, string>>(new Map());
   const [pending, start] = useTransition();
   // The first field refused takes the focus, once it is drawn as refused.
   useEffect(() => {
@@ -75,17 +75,15 @@ export function MissingFields({
   const save = (): void => {
     setError(null);
     start(async () => {
-      let answers: Record<string, string | null>;
+      let answers: Awaited<ReturnType<typeof saveOwnFields>>;
       try {
         answers = await saveOwnFields(changed);
       } catch {
         setError(t('components.home-missing.not_saved_try_again', 'Not saved. Try again.'));
         return;
       }
-      const refused = Object.fromEntries(
-        Object.entries(answers).flatMap(([key, why]) => (why === null ? [] : [[key, why]])),
-      );
-      const done = new Set(Object.keys(answers).filter((key) => answers[key] === null));
+      const refused = new Map(answers.flatMap(([key, why]) => (why === null ? [] : [[key, why]])));
+      const done = new Set(answers.flatMap(([key, why]) => (why === null ? [key] : [])));
       // What was saved leaves the list where it stands: nothing is read again,
       // so the fields still to fill in do not blink.
       client.setQueryData<typeof gaps>(gapsQuery(personId).queryKey, (was) =>
@@ -133,12 +131,12 @@ export function MissingFields({
               field={field}
               value={values[field.key]}
               disabled={pending}
-              error={refused[field.key]}
+              error={refused.get(field.key)}
               onChange={(v) => {
                 setValues((was) => ({ ...was, [field.key]: v }));
                 // Changed since it was refused: the reason no longer applies.
-                if (field.key in refused) {
-                  setRefused(({ [field.key]: _gone, ...rest }) => rest);
+                if (refused.has(field.key)) {
+                  setRefused((was) => new Map([...was].filter(([key]) => key !== field.key)));
                 }
               }}
             />

@@ -27,7 +27,12 @@ vi.mock('../app/(app)/inbox/pane-actions', () => ({ recordGaps }));
 vi.mock('../app/(app)/inbox/actions', () => ({ inboxItem: vi.fn() }));
 vi.mock('../app/(app)/people/actions', () => ({
   // One field saved, one refused.
-  saveOwnFields: vi.fn(() => Promise.resolve({ bank: null, iban: 'That is not an IBAN.' })),
+  saveOwnFields: vi.fn(() =>
+    Promise.resolve([
+      ['bank', null],
+      ['iban', 'That is not an IBAN.'],
+    ]),
+  ),
   invitePerson: vi.fn(),
   savePersonSection: vi.fn(),
 }));
