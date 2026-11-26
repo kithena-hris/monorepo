@@ -158,8 +158,10 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       case 'RequestTimeOff':
         return {
           load: loadable,
-          // What is asked lives in the address; the server asks Time Off again.
-          onAsk: ask,
+          // What is asked is noted in the address, where a reload or a link finds it;
+          // Time Off answers the change alone, without the page (`requestAnswer`).
+          onAsk: noteInAddress,
+          onRead: actions.requestAnswer,
           onSend: actions.sendRequest,
           onNavigate: go,
         };

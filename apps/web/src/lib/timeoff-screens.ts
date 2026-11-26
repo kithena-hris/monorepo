@@ -608,7 +608,11 @@ const todayUtc = (): string => new Date().toISOString().slice(0, 10);
  * holidays to strike through. Dates Time Off refuses (the end before the
  * start) are said in the panel, which is drawn without them.
  */
-async function requestPanel(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+async function requestPanel(
+  search: Readonly<Record<string, string>>,
+  /** The overview behind the panel: read with the page, never with a change to what is asked. */
+  withOverview = true,
+): Promise<ScreenLoad> {
   const today = todayUtc();
   const type = search['type'] === undefined || search['type'] === '' ? null : search['type'];
   const from = dayIn(search['from']);
@@ -625,7 +629,7 @@ async function requestPanel(search: Readonly<Record<string, string>>): Promise<S
       ? {}
       : { leaveTypeKey: type };
   const [behind, first, team, year] = await Promise.all([
-    overview(),
+    withOverview ? overview() : null,
     read('TimeOffRequestPanel', asked),
     timeOff<unknown>('TimeOffCalendarMonth', { month, scope: 'team' }),
     timeOff<{ holidays: Holiday[] }>('TimeOffHolidays', { year: Number(month.slice(0, 4)) }),
@@ -641,7 +645,7 @@ async function requestPanel(search: Readonly<Record<string, string>>): Promise<S
     status: 'ready',
     data: {
       ...(panel.data as object),
-      overview: behind.status === 'ready' ? behind.data : null,
+      overview: behind?.status === 'ready' ? behind.data : null,
       asked: { type, from, to, half, step, month },
       team: team.ok ? team.data : null,
       holidays: year.ok ? year.data.holidays : [],
@@ -649,6 +653,46 @@ async function requestPanel(search: Readonly<Record<string, string>>): Promise<S
       problem,
     },
   };
+}
+
+/** What the same dates would mean as another type: its preview, or why Time Off refuses them. */
+export interface OtherType {
+  readonly preview: unknown;
+  readonly problem: string | null;
+}
+
+/**
+ * The request panel asked again as its choices change, without the page: what
+ * the dates cost, the month's team and holidays, and never the overview
+ * behind. `also` are the other types, read beside it for the same dates, so
+ * changing the type afterwards asks nobody.
+ */
+export async function requestAnswer(
+  search: Readonly<Record<string, string>>,
+  also: readonly string[],
+): Promise<{ readonly answer: ScreenLoad; readonly others: Readonly<Record<string, OtherType>> }> {
+  const from = dayIn(search['from']);
+  const to = dayIn(search['to']) ?? from;
+  const [answer, ...others] = await Promise.all([
+    requestPanel(search, false),
+    // ponytail: at most eight types read ahead; a ninth is read when it is picked.
+    ...(from === null ? [] : also.slice(0, 8)).map(async (key) => {
+      const one = await timeOff<{ preview: unknown }>('TimeOffRequestPanel', {
+        leaveTypeKey: key,
+        from,
+        to,
+        endsHalfDay: search['half'] === '1',
+      });
+      if (one.ok) return [key, { preview: one.data.preview, problem: null }] as const;
+      // Not reached is not an answer: asked again when it is picked.
+      return one.code === 'UNREACHABLE'
+        ? null
+        : ([key, { preview: null, problem: one.message }] as const);
+    }),
+  ]);
+  const said: Record<string, OtherType> = {};
+  for (const other of others) if (other !== null) said[other[0]] = other[1];
+  return { answer, others: said };
 }
 
 const LIVE = new Set(['pending', 'approved', 'counter_proposed', 'change_pending']);

@@ -4501,7 +4501,7 @@
   },
   "request.request.off": {
     "text": "Off",
-    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Consequences: the trailing of <Badge>."
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, WhoElse: the trailing of <Badge>."
   },
   "request.request.one_approval": {
     "text": "One approval",
@@ -4559,13 +4559,29 @@
     "text": "Shorten to {{spanLabel}}",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: text inside <RadioCard>. Filled in: {{spanLabel}}."
   },
+  "request.request.show_all": {
+    "text": "Show all {{count}}",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, WhoElse: text inside <Button>. Filled in: {{count}}."
+  },
+  "request.request.show_fewer": {
+    "text": "Show fewer",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, WhoElse: text inside <Button>."
+  },
   "request.request.someone": {
     "text": "Someone",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, DatePicker: text built in code."
   },
+  "request.request.sorry_youre_not_feeling_well": {
+    "text": "Sorry you’re not feeling well",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Panel: the title of <Alert>."
+  },
   "request.request.suggested": {
     "text": "Suggested",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: the badge of <Badge>."
+  },
+  "request.request.take_the_time_you_need": {
+    "text": "Take the time you need to rest and get better. Work can wait; your health comes first.",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Panel: text inside <Alert>."
   },
   "request.request.the_days_come_out_of_your": {
     "text": "The {{amount}} days come out of your final pay.",
@@ -4617,7 +4633,7 @@
   },
   "request.request.who_else_is_off": {
     "text": "Who else is off",
-    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Consequences: text inside <h3>."
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, WhoElse: text inside <h3>."
   },
   "request.request.you_can_borrow_up_to_the": {
     "text": "You can borrow up to the company’s limit from next year’s allowance. {{who}} need to approve it.",

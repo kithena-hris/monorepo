@@ -72,7 +72,7 @@ import {
 import { Actions, type BodyProps, Inline, OpenHere, useOpenHereClick } from './pane';
 import { ConfirmDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';
-import { forgetGap, type Gaps, prefetchGaps } from './gaps-cache';
+import { forgetGap, gapsNow, type Gaps, prefetchGaps } from './gaps-cache';
 import { t } from '../../lib/t';
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
@@ -1582,7 +1582,8 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
  */
 function SetUp({ item, act }: BodyProps): JSX.Element {
   const personId = item.id.replace(/^people:setup:/u, '');
-  const [gaps, setGaps] = useState<Gaps | undefined>(undefined);
+  // Read ahead by the list that showed the task: drawn with at once when it is in.
+  const [gaps, setGaps] = useState<Gaps | undefined>(() => gapsNow(personId));
   const [values, setValues] = useState<Values>({});
   useEffect(() => {
     let live = true;

@@ -2,6 +2,7 @@ import {
   Alert,
   AppBarBack,
   Avatar,
+  AvatarGroup,
   Badge,
   Button,
   Calendar,
@@ -31,7 +32,15 @@ import {
   Textarea,
   useCoarsePointer,
 } from '@reach/ui';
-import { useState, useSyncExternalStore, useTransition, type JSX, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import type { Loadable } from '../load';
 import { Overview, OverviewSkeleton, type OverviewData } from '../overview/overview';
@@ -47,9 +56,10 @@ import { t as tr } from '../i18n';
  * shorten (PRD §7.4, §8.2).
  *
  * Nothing here computes a number. What is asked (type, dates, half day, the
- * month on show and a phone's step) lives in the address, so every change is
- * the host asking Time Off's request panel again and the screen drawing its
- * answer (`onAsk`). Sending is the host's (`onSend`).
+ * month on show and a phone's step) is noted in the address (`onAsk`), and
+ * what it costs is Time Off's answer: read without the page when the host can
+ * (`onRead`) and kept, so an answer already had is drawn at once; otherwise
+ * the page's own next answer. Sending is the host's (`onSend`).
  *
  * At a desk it is a side panel, everything at once. Under a finger it is
  * MT5's sheet of types, then MT6's dates full screen with a bar at the
@@ -147,10 +157,31 @@ export type Sent =
   | { readonly ok: true; readonly requestId: string }
   | { readonly ok: false; readonly message: string };
 
+/** What the same dates cost as one type: Time Off's preview, or why it refuses them. */
+type Cost = Pick<RequestData, 'preview' | 'problem'>;
+/** A month's team and holidays. */
+type Month = Pick<RequestData, 'team' | 'holidays'>;
+
 export interface RequestProps {
   readonly load: Loadable<RequestData>;
-  /** Put a change in the address; the host asks Time Off again. `push` is a step Back undoes. */
+  /** Put a change in the address. `push` is a step Back undoes. */
   readonly onAsk?: ((patch: Ask, mode: 'push' | 'replace') => void) | undefined;
+  /**
+   * Time Off's answer to what is asked, without the page: the address's
+   * query, and the other types to answer for the same dates. Without it the
+   * host answers `onAsk` with the page again.
+   */
+  readonly onRead?:
+    | ((
+        asked: Readonly<Record<string, string>>,
+        also: readonly string[],
+      ) => Promise<{
+        readonly answer:
+          | { readonly status: 'ready'; readonly data: unknown }
+          | { readonly status: 'error'; readonly message: string };
+        readonly others: Readonly<Record<string, Cost>>;
+      }>)
+    | undefined;
   readonly onSend?:
     | ((input: {
         readonly leaveTypeKey: string;
@@ -178,7 +209,13 @@ const useRoomy = (): boolean =>
   );
 const FILLS = 'h-full max-h-none w-full max-w-none rounded-none shadow-none';
 
-export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps): JSX.Element {
+export function RequestTimeOff({
+  load,
+  onAsk,
+  onRead,
+  onSend,
+  onNavigate,
+}: RequestProps): JSX.Element {
   const close = (): void => {
     onNavigate?.(CLOSE);
   };
@@ -201,7 +238,13 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
         }}
       >
         {load.status === 'ready' ? (
-          <Panel data={load.data} onAsk={onAsk} onSend={onSend} onNavigate={onNavigate} />
+          <Panel
+            data={load.data}
+            onAsk={onAsk}
+            onRead={onRead}
+            onSend={onSend}
+            onNavigate={onNavigate}
+          />
         ) : (
           <DialogContent className={WIDE} sheetOnTouch>
             <DialogHeader>
@@ -271,9 +314,60 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
 const columns =
   'grid gap-6 @min-[44rem]/panel:grid-cols-[17rem_minmax(0,1fr)] @min-[44rem]/panel:items-start';
 
+type Asked = RequestData['asked'];
+
+/** The dates as one type, as the key their cost is kept under; null until all three are chosen. */
+const costKey = (a: Asked): string | null =>
+  a.type === null || a.from === null || a.to === null
+    ? null
+    : [a.type, a.from, a.to, a.half ? 'half' : 'full'].join('|');
+
+const NO_COST: Cost = { preview: null, problem: null };
+
+/** What the panel holds of one page: what is asked now, and every answer had since. */
+interface Held {
+  readonly of: RequestData;
+  readonly asked: Asked;
+  readonly costs: ReadonlyMap<string, Cost>;
+  readonly months: ReadonlyMap<string, Month>;
+  /** The cost last drawn: stays, dimmed, while the next is on its way. */
+  readonly last: Cost;
+  /** An ask Time Off did not answer; asking it again reads again. */
+  readonly failed: { readonly key: string; readonly message: string } | null;
+}
+
+function hold(of: RequestData): Held {
+  const key = costKey(of.asked);
+  const cost = { preview: of.preview, problem: of.problem };
+  return {
+    of,
+    asked: of.asked,
+    costs: new Map(key === null ? [] : [[key, cost]]),
+    months: new Map([[of.asked.month, { team: of.team, holidays: of.holidays }]]),
+    last: cost,
+    failed: null,
+  };
+}
+
+/** What the address asks, as the host reads it (`requestPanel`): for Back, which only moves the address. */
+function askedIn(search: string, today: string): Asked {
+  const q = new URLSearchParams(search);
+  const from = q.get('from');
+  const step = q.get('step');
+  return {
+    type: q.get('type'),
+    from,
+    to: q.get('to') ?? from,
+    half: q.get('half') === '1',
+    step: step === 'type' || step === 'dates' || step === 'review' ? step : null,
+    month: q.get('month') ?? (from ?? today).slice(0, 7),
+  };
+}
+
 function Panel({
   data: answered,
   onAsk,
+  onRead,
   onSend,
   onNavigate,
 }: {
@@ -282,40 +376,122 @@ function Panel({
   const touch = useCoarsePointer();
   const roomy = useRoomy() && !touch;
   /*
-   * What was just chosen shows at once; what it costs follows when Time Off
-   * answers. The address is the record and the host asks again on every
-   * change, so without this a type, a month or a pair of dates stood as it
-   * was for the length of that read and then jumped.
-   * ponytail: dropped when any answer arrives. A newer ask replaces an older
-   * one's read, so that answer is the latest's; keep each key until its own
-   * answer if two reads ever land out of turn.
+   * What is chosen shows at once, and so does what it costs when Time Off
+   * has said so before: every answer is kept under what was asked. Choosing
+   * the dates brings each other type's cost with it, so changing the type
+   * afterwards asks nobody; a type with no dates costs nothing to say.
    */
-  const [chosen, setChosen] = useState<{ readonly of: RequestData; readonly patch: Ask }>({
-    of: answered,
-    patch: {},
-  });
-  const patch = chosen.of === answered ? chosen.patch : {};
-  const waiting = Object.keys(patch).length > 0;
-  const asked: RequestData['asked'] = {
-    ...answered.asked,
-    ...('type' in patch ? { type: patch.type ?? null } : {}),
-    ...('from' in patch ? { from: patch.from ?? null } : {}),
-    ...('to' in patch ? { to: patch.to ?? null } : {}),
-    ...('half' in patch ? { half: patch.half === '1' } : {}),
-    ...(typeof patch.month === 'string' ? { month: patch.month } : {}),
-    ...('step' in patch ? { step: (patch.step ?? null) as Step | null } : {}),
+  const [state, setState] = useState(() => hold(answered));
+  // The page itself answered again (opened anew, or a host without `onRead`): that is what is held.
+  if (state.of !== answered) setState(hold(answered));
+  const held = state.of === answered ? state : hold(answered);
+  const { asked } = held;
+  const key = costKey(asked);
+  const had =
+    key === null
+      ? NO_COST
+      : (held.costs.get(key) ??
+        (held.failed?.key === key ? { preview: null, problem: held.failed.message } : undefined));
+  const waiting = had === undefined;
+  const data: RequestData = {
+    ...answered,
+    asked,
+    ...(had ?? held.last),
+    ...held.months.get(asked.month),
   };
-  const data: RequestData = waiting ? { ...answered, asked } : answered;
   const { preview } = data;
   const type = data.leaveTypes.find((t) => t.key === asked.type) ?? null;
   const step: Step = asked.step ?? (type === null ? 'type' : 'dates');
   /** Under a finger, only this step's part; at a desk, every part. */
   const shown = (s: Step): string | undefined => (step === s ? undefined : 'touch:hidden');
+
+  // One read at a time, and after it the latest one wanted: the browser sends
+  // them in turn, so a month flicked past is never waited for.
+  const flying = useRef(false);
+  const wanted = useRef<Asked | null>(null);
+  const read = (to: Asked): void => {
+    if (onRead === undefined) return;
+    const k = costKey(to);
+    if ((k === null || held.costs.has(k)) && held.months.has(to.month)) return;
+    wanted.current = to;
+    if (flying.current) return;
+    flying.current = true;
+    const others =
+      k === null
+        ? []
+        : answered.leaveTypes
+            .filter((t) => t.key !== to.type && t.category !== 'parental_leave')
+            .filter((t) => !held.costs.has(costKey({ ...to, type: t.key }) ?? ''))
+            .map((t) => t.key);
+    const search = {
+      ...(to.type === null ? {} : { type: to.type }),
+      ...(to.from === null ? {} : { from: to.from }),
+      ...(to.to === null ? {} : { to: to.to }),
+      ...(to.half ? { half: '1' } : {}),
+      month: to.month,
+    };
+    const fail = (message: string): void => {
+      if (k !== null) setState((was) => ({ ...was, failed: { key: k, message } }));
+    };
+    onRead(search, others)
+      .then((got) => {
+        if (got.answer.status !== 'ready') {
+          fail(got.answer.message);
+          return;
+        }
+        const answer = got.answer.data as RequestData;
+        setState((was) => {
+          const costs = new Map(was.costs);
+          if (k !== null) costs.set(k, { preview: answer.preview, problem: answer.problem });
+          for (const [other, cost] of Object.entries(got.others)) {
+            costs.set(costKey({ ...to, type: other }) ?? '', cost);
+          }
+          const months = new Map(was.months);
+          months.set(to.month, { team: answer.team, holidays: answer.holidays });
+          return { ...was, costs, months };
+        });
+      })
+      .catch(() => {
+        fail(tr('request.request.time_off_did_not_answer', 'Time Off did not answer.'));
+      })
+      .finally(() => {
+        flying.current = false;
+        const next = wanted.current;
+        if (next !== null && next !== to) read(next);
+      });
+  };
   const ask = (next: Ask, mode: 'push' | 'replace' = 'replace'): void => {
     if (onAsk === undefined) return;
-    setChosen({ of: answered, patch: { ...patch, ...next } });
+    const to: Asked = {
+      ...asked,
+      ...('type' in next ? { type: next.type ?? null } : {}),
+      ...('from' in next ? { from: next.from ?? null } : {}),
+      ...('to' in next ? { to: next.to ?? null } : {}),
+      ...('half' in next ? { half: next.half === '1' } : {}),
+      ...(typeof next.month === 'string' ? { month: next.month } : {}),
+      ...('step' in next ? { step: (next.step ?? null) as Step | null } : {}),
+    };
+    setState((was) => ({ ...was, asked: to, last: had ?? was.last, failed: null }));
     onAsk(next, mode);
+    read(to);
   };
+  // Back (a phone's steps) moves the address and nothing else: what it asks is drawn.
+  const follow = useRef(read);
+  useEffect(() => {
+    follow.current = read;
+  });
+  useEffect(() => {
+    if (onRead === undefined) return;
+    const onBack = (): void => {
+      const to = askedIn(window.location.search, answered.today);
+      setState((was) => ({ ...was, asked: to, failed: null }));
+      follow.current(to);
+    };
+    window.addEventListener('popstate', onBack);
+    return () => {
+      window.removeEventListener('popstate', onBack);
+    };
+  }, [onRead, answered.today]);
 
   const [note, setNote] = useState('');
   const [failed, setFailed] = useState<string | null>(null);
@@ -397,8 +573,8 @@ function Panel({
           <TypePicker
             data={data}
             className={shown('type')}
-            onPick={(key) => {
-              ask({ type: key, step: touch ? 'dates' : null }, touch ? 'push' : 'replace');
+            onPick={(picked) => {
+              ask({ type: picked, step: touch ? 'dates' : null }, touch ? 'push' : 'replace');
             }}
           />
           <div className="flex min-w-0 flex-col gap-5">
@@ -408,6 +584,21 @@ function Panel({
               aria-busy={waiting}
               className={`flex flex-col gap-4 transition-opacity ${waiting ? 'opacity-60' : ''} ${shown('review') ?? ''}`}
             >
+              {type?.category !== 'sick_leave' ? null : (
+                <Alert
+                  tone="info"
+                  icon={<icons.health aria-hidden />}
+                  title={tr(
+                    'request.request.sorry_youre_not_feeling_well',
+                    'Sorry you’re not feeling well',
+                  )}
+                >
+                  {tr(
+                    'request.request.take_the_time_you_need',
+                    'Take the time you need to rest and get better. Work can wait; your health comes first.',
+                  )}
+                </Alert>
+              )}
               {data.problem === null ? null : (
                 <Alert
                   tone="danger"
@@ -763,25 +954,7 @@ function Consequences({
                 })}
         </Alert>
       ))}
-      {others.length === 0 ? null : (
-        <section aria-labelledby="request-others" className="flex flex-col gap-2">
-          <h3 id="request-others" className="text-sm font-semibold text-fg-muted">
-            {tr('request.request.who_else_is_off', 'Who else is off')}
-          </h3>
-          <List>
-            {others.map((o) => (
-              <ListItem
-                key={`${o.personId}${o.span.from}`}
-                leading={<Avatar name={o.name} />}
-                description={spanLabel(o.span.from, o.span.to)}
-                trailing={<Badge size="sm">{o.type ?? tr('request.request.off', 'Off')}</Badge>}
-              >
-                {o.name}
-              </ListItem>
-            ))}
-          </List>
-        </section>
-      )}
+      <WhoElse others={others} />
       {preview.approvers.length === 0 ? null : (
         <Field>
           <FieldLabel>
@@ -816,20 +989,92 @@ function Consequences({
   );
 }
 
-/** Teammates off at some point in `span`, from the team's month. */
+/** How many teammates the list names before it folds the rest. */
+const NAMED = 5;
+
+/**
+ * Who else is off in these dates: the first five, each once with their days,
+ * and the rest folded into one row of faces until they are asked for, so a
+ * busy week never pushes the note and the send out of sight.
+ */
+function WhoElse({ others }: { readonly others: ReturnType<typeof whoElse> }): JSX.Element | null {
+  const [all, setAll] = useState(false);
+  if (others.length === 0) return null;
+  const named = all ? others : others.slice(0, NAMED);
+  const rest = others.slice(named.length);
+  return (
+    <section aria-labelledby="request-others" className="flex flex-col gap-2">
+      <h3 id="request-others" className="text-sm font-semibold text-fg-muted">
+        {tr('request.request.who_else_is_off', 'Who else is off')}
+        {others.length > NAMED ? ` · ${String(others.length)}` : null}
+      </h3>
+      <List>
+        {named.map((o) => (
+          <ListItem
+            key={o.personId}
+            leading={<Avatar name={o.name} />}
+            description={o.spans.map((s) => spanLabel(s.from, s.to)).join(', ')}
+            trailing={<Badge size="sm">{o.type ?? tr('request.request.off', 'Off')}</Badge>}
+          >
+            {o.name}
+          </ListItem>
+        ))}
+      </List>
+      {others.length <= NAMED ? null : (
+        <div className="flex items-center justify-between gap-3">
+          {rest.length === 0 ? (
+            <span />
+          ) : (
+            <AvatarGroup size="sm" max={NAMED} total={rest.length}>
+              {rest.slice(0, NAMED).map((o) => (
+                <Avatar key={o.personId} name={o.name} size="sm" />
+              ))}
+            </AvatarGroup>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={all}
+            onClick={() => {
+              setAll(!all);
+            }}
+          >
+            {all
+              ? tr('request.request.show_fewer', 'Show fewer')
+              : tr('request.request.show_all', 'Show all {{count}}', {
+                  count: String(others.length),
+                })}
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Teammates off at some point in `span`, from the team's month: each once, the earliest first. */
 function whoElse(
   data: RequestData,
   span: Span,
-): { personId: string; name: string; type: string | null; span: Span }[] {
+): { personId: string; name: string; type: string | null; spans: Span[] }[] {
   const me = data.overview?.member?.personId;
-  return (data.team?.entries ?? [])
-    .filter((e) => e.personId !== me && e.span.from <= span.to && e.span.to >= span.from)
-    .map((e) => ({
-      personId: e.personId,
-      name: data.team?.people.find((p) => p.personId === e.personId)?.displayName ?? 'Someone',
+  const byPerson = new Map<string, { type: string | null; spans: Span[] }>();
+  for (const e of data.team?.entries ?? []) {
+    if (e.personId === me || e.span.from > span.to || e.span.to < span.from) continue;
+    const one = byPerson.get(e.personId) ?? {
       type: data.leaveTypes.find((t) => t.key === e.leaveTypeKey)?.name ?? null,
-      span: e.span,
-    }));
+      spans: [],
+    };
+    one.spans.push(e.span);
+    byPerson.set(e.personId, one);
+  }
+  return [...byPerson]
+    .map(([personId, one]) => ({
+      personId,
+      name: data.team?.people.find((p) => p.personId === personId)?.displayName ?? 'Someone',
+      type: one.type,
+      spans: one.spans.toSorted((x, y) => (x.from < y.from ? -1 : 1)),
+    }))
+    .toSorted((x, y) => ((x.spans[0]?.from ?? '') < (y.spans[0]?.from ?? '') ? -1 : 1));
 }
 
 /** "Omar and Yuki are already off that day. " */

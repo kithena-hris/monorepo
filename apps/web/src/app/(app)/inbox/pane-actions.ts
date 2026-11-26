@@ -70,3 +70,19 @@ export async function recordGaps(personId: string): Promise<
     }),
   };
 }
+
+/** How many hires one read answers. */
+const TOGETHER = 12;
+
+/**
+ * Several hires' gaps in one read, side by side: what a list of tasks reads
+ * ahead. The first twelve are answered; the rest are asked for when opened.
+ */
+export async function recordGapsOf(
+  personIds: readonly string[],
+): Promise<Record<string, Awaited<ReturnType<typeof recordGaps>>>> {
+  const ids = [...new Set(personIds)].slice(0, TOGETHER);
+  const all = await Promise.all(ids.map(async (id) => [id, await recordGaps(id)] as const));
+  // One that failed is left out: asked for again, alone, when it is opened.
+  return Object.fromEntries(all.filter(([, gaps]) => gaps.ok));
+}
