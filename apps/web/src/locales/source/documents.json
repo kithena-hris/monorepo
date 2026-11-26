@@ -111,13 +111,17 @@
     "text": "A watermark, no download or print, and every open logged.",
     "context": "Documents: files, e-signatures, letters. document/document.tsx, ProtectSwitch: text inside <p>."
   },
+  "document.document.about_this_document": {
+    "text": "About this document",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the aria-label of <TabsList>."
+  },
   "document.document.acknowledged_by_of": {
     "text": "Acknowledged by {{done}} of {{of}}",
     "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <span>. Filled in: {{done}}, {{of}}."
   },
   "document.document.activity": {
     "text": "Activity",
-    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <CardTitle>."
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <TabsTrigger>."
   },
   "document.document.add_version": {
     "text": "Add version",
@@ -154,6 +158,10 @@
   "document.document.delete": {
     "text": "Delete",
     "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <Button>."
+  },
+  "document.document.details": {
+    "text": "Details",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <TabsTrigger>."
   },
   "document.document.document": {
     "text": "Document",
@@ -194,6 +202,10 @@
   "document.document.ive_read_it": {
     "text": "I’ve read it",
     "context": "Documents: files, e-signatures, letters. document/document.tsx, Acknowledge: text inside <Button>."
+  },
+  "document.document.kithena": {
+    "text": "Kithena",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <TabsTrigger>."
   },
   "document.document.legal_hold": {
     "text": "Legal hold",
@@ -282,6 +294,10 @@
   "document.document.signature_request": {
     "text": "Signature request {{status}}",
     "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <span>. Filled in: {{status}}."
+  },
+  "document.document.signatures": {
+    "text": "Signatures",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <TabsTrigger>."
   },
   "document.document.signed_and_sealed": {
     "text": "Signed and sealed",

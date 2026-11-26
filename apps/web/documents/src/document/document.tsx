@@ -26,6 +26,10 @@ import {
   Skeleton,
   Spinner,
   Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   icons,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
@@ -180,6 +184,9 @@ function Closed({
 
 type Doc = NonNullable<DocumentData['document']>;
 
+/** A panel of the tabs beside the document: its cards one under another; out of the way while another shows. */
+const PANEL = 'flex flex-col gap-4 data-[state=inactive]:hidden';
+
 function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX.Element {
   const { row } = doc;
   const [sharing, setSharing] = useState(false);
@@ -198,6 +205,17 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
       return { ok: true };
     });
   };
+  // What the panel beside the document holds, and which of it opens first:
+  // what is asked of this person, then what Kithena can say, then the facts.
+  const mineOrAboutMe = row.mine || row.aboutMe;
+  const hasKithena = !deleted && (doc.pdf || mineOrAboutMe);
+  const policy = doc.may.share && !deleted && row.typeKey !== null && row.subject === null;
+  const hasSigning = doc.signing !== null || doc.campaigns.length > 0 || policy;
+  const hasActivity = doc.views.length + doc.activity.length > 0;
+  const asksMe =
+    (doc.signing?.mine === true && doc.signing.status === 'sent') ||
+    doc.campaigns.some((c) => c.asked && !c.acknowledged);
+  const first = asksMe ? 'signing' : hasKithena ? 'kithena' : 'details';
   return (
     <>
       <PageHeader
@@ -274,257 +292,304 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
         ) : null}
       </div>
       {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
-      {/* One column, top to bottom: the document, then everything about it. */}
-      <div className="flex flex-col gap-6">
-        <Preview doc={doc} onFileLink={props.onFileLink} />
-        <div className="flex flex-col gap-4">
-          {deleted || !(row.mine || row.aboutMe) || row.typeKey !== 'certificate' ? null : (
-            <Certificate
-              documentId={row.id}
-              onCertificateLeave={props.onCertificateLeave}
-              onNavigate={props.onNavigate}
-            />
-          )}
-          {deleted || !(row.mine || row.aboutMe) ? null : (
-            <Answers
-              documentIds={[row.id]}
-              onWaitingFor={props.onWaitingFor}
-              onLookFor={props.onLookFor}
-              onAnswer={props.onAnswer}
-            />
-          )}
-          {deleted || row.kind !== 'Letter' || row.subject === null || !doc.may.share ? null : (
-            <ActOnLetter
-              documentId={row.id}
-              onReadLetter={props.onReadLetter}
-              onGiveNotice={props.onGiveNotice}
-            />
-          )}
-          {deleted || !doc.pdf || row.subject === null || !doc.may.share ? null : (
-            <FillRecord
-              documentId={row.id}
-              onReadRecord={props.onReadRecord}
-              onApplyRecord={props.onApplyRecord}
-            />
-          )}
-          {deleted || !doc.pdf ? null : (
-            <Reading
-              documentId={row.id}
-              current={doc.current.n}
-              onSummarize={props.onSummarize}
-              onAsk={props.onAskDocument}
-              onCompare={props.onCompare}
-            />
-          )}
-          {row.confidential ? (
-            <Alert
-              tone="warning"
-              title={t('document.document.confidential', 'Confidential')}
-              icon={<icons.sensitive />}
-            >
-              {doc.may.download
-                ? t(
-                    'document.document.your_name_is_on_every_page_you',
-                    'Your name is on every page you view. You can download it; most people cannot.',
-                  )
-                : t(
-                    'document.document.your_name_is_on_every_page',
-                    'Your name is on every page. It cannot be downloaded or printed, and every open is logged.',
-                  )}
-            </Alert>
+      {/*
+        The document beside everything about it: it stays in view while the
+        panel's tabs change, so reading and acting never take turns. In a
+        narrow page the panel follows the document.
+      */}
+      <div className="grid gap-6 @6xl/page:grid-cols-[minmax(0,1fr)_25rem] @6xl/page:items-start">
+        <div className="motion-safe:animate-arrive @6xl/page:sticky @6xl/page:top-4">
+          <Preview doc={doc} onFileLink={props.onFileLink} />
+        </div>
+        <Tabs
+          defaultValue={first}
+          className="flex min-w-0 flex-col gap-4 motion-safe:animate-arrive"
+        >
+          <TabsList aria-label={t('document.document.about_this_document', 'About this document')}>
+            {hasKithena ? (
+              <TabsTrigger value="kithena">
+                <icons.assistant aria-hidden />
+                {t('document.document.kithena', 'Kithena')}
+              </TabsTrigger>
+            ) : null}
+            {hasSigning ? (
+              <TabsTrigger value="signing">
+                {t('document.document.signatures', 'Signatures')}
+              </TabsTrigger>
+            ) : null}
+            <TabsTrigger value="details">{t('document.document.details', 'Details')}</TabsTrigger>
+            {hasActivity ? (
+              <TabsTrigger value="activity">
+                {t('document.document.activity', 'Activity')}
+              </TabsTrigger>
+            ) : null}
+          </TabsList>
+          {/* Kept drawn while another tab shows: a summary or an answer is not asked for twice. */}
+          {hasKithena ? (
+            <TabsContent value="kithena" forceMount className={PANEL}>
+              {!(row.mine || row.aboutMe) || row.typeKey !== 'certificate' ? null : (
+                <Certificate
+                  documentId={row.id}
+                  onCertificateLeave={props.onCertificateLeave}
+                  onNavigate={props.onNavigate}
+                />
+              )}
+              {!(row.mine || row.aboutMe) ? null : (
+                <Answers
+                  documentIds={[row.id]}
+                  onWaitingFor={props.onWaitingFor}
+                  onLookFor={props.onLookFor}
+                  onAnswer={props.onAnswer}
+                />
+              )}
+              {row.kind !== 'Letter' || row.subject === null || !doc.may.share ? null : (
+                <ActOnLetter
+                  documentId={row.id}
+                  onReadLetter={props.onReadLetter}
+                  onGiveNotice={props.onGiveNotice}
+                />
+              )}
+              {!doc.pdf || row.subject === null || !doc.may.share ? null : (
+                <FillRecord
+                  documentId={row.id}
+                  onReadRecord={props.onReadRecord}
+                  onApplyRecord={props.onApplyRecord}
+                />
+              )}
+              {!doc.pdf ? null : (
+                <Reading
+                  documentId={row.id}
+                  current={doc.current.n}
+                  onSummarize={props.onSummarize}
+                  onAsk={props.onAskDocument}
+                  onCompare={props.onCompare}
+                />
+              )}
+            </TabsContent>
           ) : null}
-          <Card padded>
-            <KeyValues
-              layout="split"
-              items={[
-                {
-                  label: t('document.document.who_can_see_it', 'Who can see it'),
-                  value: row.who.label,
-                },
-                { label: t('document.document.owner', 'Owner'), value: doc.owner },
-                {
-                  label: t('document.document.version', 'Version'),
-                  value: `${String(doc.current.n)} of ${String(doc.versions.length)} · ${shortDate(doc.current.uploadedAt)}`,
-                },
-                ...(row.expiresOn === null
-                  ? []
-                  : [
-                      {
-                        label: t('document.document.expires', 'Expires'),
-                        value: shortDate(row.expiresOn),
-                      },
-                    ]),
-              ]}
-            />
-          </Card>
-          {doc.signing === null ? null : (
+          {hasSigning ? (
+            <TabsContent value="signing" forceMount className={PANEL}>
+              {doc.signing === null ? null : (
+                <Card padded>
+                  <div className="flex flex-col gap-2">
+                    <span className="font-semibold">
+                      {doc.signing.status === 'sent'
+                        ? t(
+                            'document.document.out_for_signature_of_signed',
+                            'Out for signature · {{signed}} of {{of}} signed',
+                            { signed: String(doc.signing.signed), of: String(doc.signing.of) },
+                          )
+                        : doc.signing.status === 'completed'
+                          ? t('document.document.signed_and_sealed', 'Signed and sealed')
+                          : t(
+                              'document.document.signature_request',
+                              'Signature request {{status}}',
+                              {
+                                status: doc.signing.status,
+                              },
+                            )}
+                    </span>
+                    <Button
+                      asChild
+                      size="sm"
+                      variant={
+                        doc.signing.mine && doc.signing.status === 'sent' ? 'primary' : 'secondary'
+                      }
+                      className="self-start"
+                    >
+                      <a href={`/documents/envelopes/${doc.signing.id}`}>
+                        {doc.signing.mine && doc.signing.status === 'sent'
+                          ? t('document.document.review_and_sign', 'Review and sign')
+                          : t('document.document.open_the_request', 'Open the request')}
+                      </a>
+                    </Button>
+                  </div>
+                </Card>
+              )}
+              {doc.campaigns.map((c) => (
+                <Card padded key={c.id}>
+                  <div className="flex flex-col gap-2">
+                    <span className="font-semibold">
+                      {c.asked && !c.acknowledged
+                        ? t(
+                            'document.document.read_it_then_acknowledge_it',
+                            'Read it, then acknowledge it',
+                          )
+                        : t(
+                            'document.document.acknowledged_by_of',
+                            'Acknowledged by {{done}} of {{of}}',
+                            { done: String(c.done), of: String(c.of) },
+                          )}
+                    </span>
+                    {c.asked && !c.acknowledged ? (
+                      <Acknowledge id={c.id} onAcknowledge={props.onAcknowledge} />
+                    ) : c.asked ? (
+                      <Badge tone="success" size="sm">
+                        {t('document.document.you_acknowledged_it', 'You acknowledged it')}
+                      </Badge>
+                    ) : (
+                      <Button asChild size="sm" variant="secondary" className="self-start">
+                        <a href={`/documents/campaigns/${c.id}`}>
+                          {t('document.document.see_who_is_left', 'See who is left')}
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              ))}
+              {doc.may.share && !deleted && doc.row.typeKey !== null && doc.row.subject === null ? (
+                <SendAsPolicy id={row.id} onSend={props.onSendForAcknowledgement} />
+              ) : null}
+            </TabsContent>
+          ) : null}
+          <TabsContent value="details" forceMount className={PANEL}>
+            {row.confidential ? (
+              <Alert
+                tone="warning"
+                title={t('document.document.confidential', 'Confidential')}
+                icon={<icons.sensitive />}
+              >
+                {doc.may.download
+                  ? t(
+                      'document.document.your_name_is_on_every_page_you',
+                      'Your name is on every page you view. You can download it; most people cannot.',
+                    )
+                  : t(
+                      'document.document.your_name_is_on_every_page',
+                      'Your name is on every page. It cannot be downloaded or printed, and every open is logged.',
+                    )}
+              </Alert>
+            ) : null}
             <Card padded>
-              <div className="flex flex-col gap-2">
-                <span className="font-semibold">
-                  {doc.signing.status === 'sent'
-                    ? t(
-                        'document.document.out_for_signature_of_signed',
-                        'Out for signature · {{signed}} of {{of}} signed',
-                        { signed: String(doc.signing.signed), of: String(doc.signing.of) },
-                      )
-                    : doc.signing.status === 'completed'
-                      ? t('document.document.signed_and_sealed', 'Signed and sealed')
-                      : t('document.document.signature_request', 'Signature request {{status}}', {
-                          status: doc.signing.status,
-                        })}
-                </span>
-                <Button
-                  asChild
-                  size="sm"
-                  variant={
-                    doc.signing.mine && doc.signing.status === 'sent' ? 'primary' : 'secondary'
-                  }
-                  className="self-start"
-                >
-                  <a href={`/documents/envelopes/${doc.signing.id}`}>
-                    {doc.signing.mine && doc.signing.status === 'sent'
-                      ? t('document.document.review_and_sign', 'Review and sign')
-                      : t('document.document.open_the_request', 'Open the request')}
-                  </a>
-                </Button>
-              </div>
+              <KeyValues
+                layout="split"
+                items={[
+                  {
+                    label: t('document.document.who_can_see_it', 'Who can see it'),
+                    value: row.who.label,
+                  },
+                  { label: t('document.document.owner', 'Owner'), value: doc.owner },
+                  {
+                    label: t('document.document.version', 'Version'),
+                    value: `${String(doc.current.n)} of ${String(doc.versions.length)} · ${shortDate(doc.current.uploadedAt)}`,
+                  },
+                  ...(row.expiresOn === null
+                    ? []
+                    : [
+                        {
+                          label: t('document.document.expires', 'Expires'),
+                          value: shortDate(row.expiresOn),
+                        },
+                      ]),
+                ]}
+              />
             </Card>
-          )}
-          {doc.campaigns.map((c) => (
-            <Card padded key={c.id}>
-              <div className="flex flex-col gap-2">
-                <span className="font-semibold">
-                  {c.asked && !c.acknowledged
-                    ? t(
-                        'document.document.read_it_then_acknowledge_it',
-                        'Read it, then acknowledge it',
-                      )
-                    : t(
-                        'document.document.acknowledged_by_of',
-                        'Acknowledged by {{done}} of {{of}}',
-                        { done: String(c.done), of: String(c.of) },
-                      )}
-                </span>
-                {c.asked && !c.acknowledged ? (
-                  <Acknowledge id={c.id} onAcknowledge={props.onAcknowledge} />
-                ) : c.asked ? (
-                  <Badge tone="success" size="sm">
-                    {t('document.document.you_acknowledged_it', 'You acknowledged it')}
-                  </Badge>
-                ) : (
-                  <Button asChild size="sm" variant="secondary" className="self-start">
-                    <a href={`/documents/campaigns/${c.id}`}>
-                      {t('document.document.see_who_is_left', 'See who is left')}
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ))}
-          {doc.may.share && !deleted && doc.row.typeKey !== null && doc.row.subject === null ? (
-            <SendAsPolicy id={row.id} onSend={props.onSendForAcknowledgement} />
-          ) : null}
-          {!deleted && (doc.may.protect || doc.may.unprotect) ? (
-            <Card padded>
-              <ProtectSwitch doc={doc} onConfidential={props.onConfidential} />
-            </Card>
-          ) : null}
-          {doc.accessRequests.length === 0 ? null : (
+            {!deleted && (doc.may.protect || doc.may.unprotect) ? (
+              <Card padded>
+                <ProtectSwitch doc={doc} onConfidential={props.onConfidential} />
+              </Card>
+            ) : null}
+            {doc.accessRequests.length === 0 ? null : (
+              <Card>
+                <CardHeader>
+                  <CardTitle level={2}>
+                    {t('document.document.asked_to_open_it', 'Asked to open it')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <List>
+                    {doc.accessRequests.map((r) => (
+                      <ListItem
+                        key={r.id}
+                        description={r.reason}
+                        trailing={<Decide id={r.id} onDecide={props.onDecideAccess} />}
+                      >
+                        {r.who}
+                      </ListItem>
+                    ))}
+                  </List>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader>
-                <CardTitle level={2}>
-                  {t('document.document.asked_to_open_it', 'Asked to open it')}
-                </CardTitle>
+                <CardTitle level={2}>{t('document.document.versions', 'Versions')}</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-col gap-3">
                 <List>
-                  {doc.accessRequests.map((r) => (
+                  {doc.versions.map((v) => (
                     <ListItem
-                      key={r.id}
-                      description={r.reason}
-                      trailing={<Decide id={r.id} onDecide={props.onDecideAccess} />}
+                      key={v.n}
+                      description={[shortDate(v.uploadedAt), v.uploadedBy, v.note]
+                        .filter(Boolean)
+                        .join(' · ')}
                     >
-                      {r.who}
+                      {t('document.document.version', 'Version')} {v.n}
                     </ListItem>
                   ))}
                 </List>
-              </CardContent>
-            </Card>
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>{t('document.document.versions', 'Versions')}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <List>
-                {doc.versions.map((v) => (
-                  <ListItem
-                    key={v.n}
-                    description={[shortDate(v.uploadedAt), v.uploadedBy, v.note]
-                      .filter(Boolean)
-                      .join(' · ')}
+                {doc.may.edit && !deleted ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="self-start"
+                    startIcon={<icons.upload aria-hidden />}
+                    onClick={() => {
+                      setVersioning(true);
+                    }}
                   >
-                    {t('document.document.version', 'Version')} {v.n}
-                  </ListItem>
-                ))}
-              </List>
-              {doc.may.edit && !deleted ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="self-start"
-                  startIcon={<icons.upload aria-hidden />}
-                  onClick={() => {
-                    setVersioning(true);
-                  }}
-                >
-                  {t('document.document.new_version', 'New version')}
-                </Button>
-              ) : null}
-            </CardContent>
-          </Card>
-          {doc.views.length + doc.activity.length === 0 ? null : (
-            <Card>
-              <CardHeader>
-                <CardTitle level={2}>{t('document.document.activity', 'Activity')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <List>
-                  {[
-                    ...doc.views.map((v) => ({
-                      ...v,
-                      action: v.action === 'view' ? 'viewed' : 'downloaded',
-                    })),
-                    ...doc.activity,
-                  ]
-                    .toSorted((a, b) => b.at.localeCompare(a.at))
-                    .slice(0, 12)
-                    .map((a, i) => (
-                      <ListItem key={`${a.at}-${String(i)}`} description={shortDate(a.at)}>
-                        {a.who} {a.action.replaceAll('_', ' ')}
-                      </ListItem>
-                    ))}
-                </List>
+                    {t('document.document.new_version', 'New version')}
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
-          )}
-          {doc.may.delete && !deleted ? (
-            <Button
-              variant="ghost"
-              className="self-start"
-              startIcon={<icons.delete aria-hidden />}
-              disabled={doc.held || write.pending}
-              onClick={() => {
-                write.run(
-                  () => props.onDelete?.(row.id) ?? Promise.resolve({ ok: true }),
-                  () => props.onNavigate?.('/documents/all'),
-                );
-              }}
-            >
-              {t('document.document.delete', 'Delete')}
-            </Button>
+            {doc.may.delete && !deleted ? (
+              <Button
+                variant="ghost"
+                className="self-start"
+                startIcon={<icons.delete aria-hidden />}
+                disabled={doc.held || write.pending}
+                onClick={() => {
+                  write.run(
+                    () => props.onDelete?.(row.id) ?? Promise.resolve({ ok: true }),
+                    () => props.onNavigate?.('/documents/all'),
+                  );
+                }}
+              >
+                {t('document.document.delete', 'Delete')}
+              </Button>
+            ) : null}
+          </TabsContent>
+          {hasActivity ? (
+            <TabsContent value="activity" forceMount className={PANEL}>
+              {doc.views.length + doc.activity.length === 0 ? null : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle level={2}>{t('document.document.activity', 'Activity')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <List>
+                      {[
+                        ...doc.views.map((v) => ({
+                          ...v,
+                          action: v.action === 'view' ? 'viewed' : 'downloaded',
+                        })),
+                        ...doc.activity,
+                      ]
+                        .toSorted((a, b) => b.at.localeCompare(a.at))
+                        .slice(0, 12)
+                        .map((a, i) => (
+                          <ListItem key={`${a.at}-${String(i)}`} description={shortDate(a.at)}>
+                            {a.who} {a.action.replaceAll('_', ' ')}
+                          </ListItem>
+                        ))}
+                    </List>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
           ) : null}
-        </div>
+        </Tabs>
       </div>
       {sharing ? (
         <ShareDialog
@@ -611,7 +676,12 @@ function Preview({
   if (link.mediaType === 'application/pdf') {
     return (
       <Card variant="fill" className="overflow-hidden">
-        <iframe title={doc.row.title} src={link.url} className="h-[48rem] w-full" />
+        <iframe
+          title={doc.row.title}
+          src={link.url}
+          // Beside the panel it fills the window under the header; alone, a tall page.
+          className="h-[48rem] w-full @6xl/page:h-[calc(100dvh-13rem)] @6xl/page:min-h-[32rem]"
+        />
       </Card>
     );
   }
