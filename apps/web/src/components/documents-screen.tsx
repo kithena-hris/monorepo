@@ -90,6 +90,7 @@ export function DocumentsScreen({
 
   const props = ((): Record<string, unknown> => {
     switch (route?.component) {
+      case 'Overview':
       case 'Library':
         return {
           load: loadable,

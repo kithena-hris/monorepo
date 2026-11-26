@@ -34,10 +34,24 @@ describe('routes.json', () => {
 });
 
 describe('the library (B1, B2)', () => {
-  it('shows what needs Adam, then each document with who can see it', async () => {
+  it('opens on an overview: ways to begin, what needs Adam, and what changed last', async () => {
+    const { container } = render(<screens.Overview load={ready(adamLibrary())} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Add a document/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Signatures/ }).getAttribute('href')).toBe(
+      '/documents/envelopes',
+    );
+    expect(screen.getByText('Add your Bank details form')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Remote-work addendum/ }).getAttribute('href')).toBe(
+      '/documents/d/d-add',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('lists each document with who can see it', async () => {
     const { container } = render(<screens.Library load={ready(adamLibrary())} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy();
-    expect(screen.getByText('Add your Bank details form')).toBeTruthy();
+    expect(screen.queryByText('Add your Bank details form')).toBeNull();
     expect(screen.getByRole('link', { name: 'Remote-work addendum' }).getAttribute('href')).toBe(
       '/documents/d/d-add',
     );
@@ -46,11 +60,22 @@ describe('the library (B1, B2)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('gives HR the four queues, one open in place', async () => {
-    const { container } = render(<screens.Library load={ready(adaLibrary())} />);
-    expect(screen.getByRole('link', { name: /Expiring/ }).getAttribute('aria-current')).toBe(
-      'true',
+  it('gives HR the four queues on the overview, each at its own address', async () => {
+    const { container } = render(
+      <screens.Overview load={ready({ ...adaLibrary(), queue: null })} />,
     );
+    expect(screen.getByRole('link', { name: /Expiring/ }).getAttribute('href')).toBe(
+      '/documents/queues/expiring',
+    );
+    expect(screen.getByRole('link', { name: /Missing/ }).getAttribute('href')).toBe(
+      '/documents/queues/missing',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('is the queue itself at a queue’s address', async () => {
+    const { container } = render(<screens.Library load={ready(adaLibrary())} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Expiring in 60 days' })).toBeTruthy();
     expect(screen.getByText('Work permit · Omar')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });

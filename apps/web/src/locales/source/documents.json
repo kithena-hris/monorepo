@@ -1527,21 +1527,37 @@
     "text": "Add",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <Button>."
   },
+  "library.library.add_a_document": {
+    "text": "Add a document",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <ActionCard>."
+  },
   "library.library.add_a_document_or_choose_another": {
     "text": "Add a document, or choose another section.",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <EmptyState>."
   },
   "library.library.add_it": {
     "text": "Add it",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the trailing of <Button>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the trailing of <Button>."
   },
   "library.library.add_to": {
     "text": "Add to {{name}}",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <DropdownMenuItem>. Filled in: {{name}}."
   },
+  "library.library.add_your_first_document": {
+    "text": "Add your first document to see it here.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <EmptyState>."
+  },
   "library.library.all_documents": {
     "text": "All documents",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.all_documents_count": {
+    "text": "All {{count}} documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the action of <a>. Filled in: {{count}}."
+  },
+  "library.library.all_signatures": {
+    "text": "All signatures",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the action of <a>."
   },
   "library.library.all_signed": {
     "text": "All {{of}} signed",
@@ -1549,7 +1565,15 @@
   },
   "library.library.ask": {
     "text": "Ask",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <Button>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <Button>."
+  },
+  "library.library.ask_a_question": {
+    "text": "Ask a question",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the aria-label of <Input>."
+  },
+  "library.library.ask_anything_your_documents_can_answer": {
+    "text": "Ask anything your documents can answer",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the placeholder of <Input>."
   },
   "library.library.ask_for_a_document": {
     "text": "Ask {{first}} for a document",
@@ -1559,9 +1583,9 @@
     "text": "Ask Kithena",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <Button>."
   },
-  "library.library.back_to_documents": {
-    "text": "Back to documents",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
+  "library.library.ask_your_documents": {
+    "text": "Ask your documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <h2>."
   },
   "library.library.cancel": {
     "text": "Cancel",
@@ -1591,6 +1615,10 @@
     "text": "Deleted documents wait 30 days, then are gone. A legal hold keeps them.",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>."
   },
+  "library.library.describe_it_review_the_draft": {
+    "text": "Describe the document, review the draft, send it to sign.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <ActionCard>."
+  },
   "library.library.document": {
     "text": "Document",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <FieldLabel>."
@@ -1605,7 +1633,7 @@
   },
   "library.library.documents": {
     "text": "Documents",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Library: the title of <PageHeader>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Screen: the title of <PageHeader>."
   },
   "library.library.draft_with_kithena": {
     "text": "Draft with Kithena",
@@ -1613,7 +1641,7 @@
   },
   "library.library.due": {
     "text": "Due {{dueOn}}",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <ListItem>. Filled in: {{dueOn}}."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <ListItem>. Filled in: {{dueOn}}."
   },
   "library.library.due_2": {
     "text": "Due",
@@ -1663,9 +1691,13 @@
     "text": "Kithena is reading your documents",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the label of <Spinner>."
   },
+  "library.library.kithena_reads_only_what_you_may_open": {
+    "text": "Kithena reads only what you may open, and says which document each answer is from.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <p>."
+  },
   "library.library.loading_your_documents": {
     "text": "Loading your documents",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Library: the label of <Skeleton>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Screen: the label of <Skeleton>."
   },
   "library.library.message": {
     "text": "Message",
@@ -1693,7 +1725,7 @@
   },
   "library.library.needs_you": {
     "text": "Needs you",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <h2>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <Widget>."
   },
   "library.library.new_section": {
     "text": "New section",
@@ -1731,13 +1763,25 @@
     "text": "Nothing in this queue",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the title of <EmptyState>."
   },
+  "library.library.nothing_is_out_for_signature": {
+    "text": "Nothing is out for signature",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <EmptyState>."
+  },
   "library.library.nothing_matches": {
     "text": "Nothing matches “{{q}}”",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the title of <EmptyState>. Filled in: {{q}}."
   },
+  "library.library.nothing_needs_you": {
+    "text": "Nothing needs you",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <EmptyState>."
+  },
   "library.library.of_signed_pending": {
     "text": "{{signed}} of {{of}} signed · {{pending}} pending",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, SigningBadge: text inside <Badge>. Filled in: {{signed}}, {{of}}, {{pending}}."
+  },
+  "library.library.one_letter_per_person_from_a_template": {
+    "text": "One letter per person, from a template.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <ActionCard>."
   },
   "library.library.only_me": {
     "text": "Only me",
@@ -1751,9 +1795,25 @@
     "text": "Open",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <a>."
   },
+  "library.library.open_a_document_to_send_it": {
+    "text": "Open a document and choose Send for signature.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <EmptyState>."
+  },
+  "library.library.out_for_signature": {
+    "text": "Out for signature",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <Widget>."
+  },
+  "library.library.overview": {
+    "text": "Overview",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the title of <PageHeader>."
+  },
   "library.library.people_files": {
     "text": "People files",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.questions_to_start_from": {
+    "text": "Questions to start from",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the aria-label of <div>."
   },
   "library.library.queues": {
     "text": "Queues",
@@ -1761,7 +1821,11 @@
   },
   "library.library.read_it": {
     "text": "Read it",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the trailing of <a>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the trailing of <a>."
+  },
+  "library.library.recently_updated": {
+    "text": "Recently updated",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <Widget>."
   },
   "library.library.refuse": {
     "text": "Refuse",
@@ -1783,6 +1847,10 @@
     "text": "Remove from {{name}}",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <DropdownMenuItem>. Filled in: {{name}}."
   },
+  "library.library.requests_and_signatures_show_here": {
+    "text": "A document asked of you, or one to sign or read, shows here.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <EmptyState>."
+  },
   "library.library.restore": {
     "text": "Restore",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <Button>."
@@ -1793,7 +1861,7 @@
   },
   "library.library.review_and_sign": {
     "text": "Review and sign",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the trailing of <a>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the trailing of <a>."
   },
   "library.library.search_documents": {
     "text": "Search documents",
@@ -1823,13 +1891,25 @@
     "text": "Show",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: the aria-label of <SelectTrigger>."
   },
+  "library.library.show_all_count": {
+    "text": "Show all {{count}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <Button>. Filled in: {{count}}."
+  },
   "library.library.show_every_document": {
     "text": "Show every document",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the removeLabel of <Badge>."
   },
+  "library.library.show_fewer": {
+    "text": "Show fewer",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <Button>."
+  },
   "library.library.sign": {
     "text": "Sign",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <a>."
+  },
+  "library.library.signatures": {
+    "text": "Signatures",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <ActionCard>."
   },
   "library.library.signing_cancelled": {
     "text": "Signing cancelled",
@@ -1843,6 +1923,18 @@
     "text": "Split a scan",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
   },
+  "library.library.starter_expiring": {
+    "text": "What expires in the next three months?",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text built in code."
+  },
+  "library.library.starter_notice": {
+    "text": "What is my notice period?",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text built in code."
+  },
+  "library.library.starter_unsigned": {
+    "text": "Which documents are still waiting for a signature?",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text built in code."
+  },
   "library.library.status": {
     "text": "Status",
     "context": "Documents: files, e-signatures, letters. library/library.tsx: a \"header\" value."
@@ -1851,13 +1943,33 @@
     "text": "The company",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <SelectItem>."
   },
+  "library.library.to_follow_up": {
+    "text": "To follow up",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <h2>."
+  },
   "library.library.updated": {
     "text": "Updated",
     "context": "Documents: files, e-signatures, letters. library/library.tsx: a \"header\" value."
   },
+  "library.library.upload_a_file_and_say_whose": {
+    "text": "Upload a file. Kithena suggests where it belongs.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <ActionCard>."
+  },
+  "library.library.waiting_for": {
+    "text": "Waiting for {{names}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <ListItem>. Filled in: {{names}}."
+  },
   "library.library.waiting_for_a_signature": {
     "text": "Waiting for a signature",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: text built in code."
+  },
+  "library.library.ways_to_begin": {
+    "text": "Ways to begin",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the aria-label of <section>."
+  },
+  "library.library.what_you_sign_and_what_you_sent": {
+    "text": "What is waiting for you to sign, and what you sent.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the description of <ActionCard>."
   },
   "library.library.who_can_see_it": {
     "text": "Who can see it",
@@ -1865,7 +1977,7 @@
   },
   "library.library.your_documents": {
     "text": "your documents",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Library: the what of <Loaded>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Screen: the what of <Loaded>."
   },
   "library.library.yours_only_you_see_these": {
     "text": "Yours · only you see these",
@@ -1968,7 +2080,7 @@
     "context": "Documents: files, e-signatures, letters. load.tsx, Loaded: the action of <Button>."
   },
   "nav./documents/all.description": {
-    "text": "Every document you can open, what needs you, and HR’s queues",
+    "text": "Every document you can open, and who else can see it",
     "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): one sentence under its name in a menu or on a card."
   },
   "nav./documents/all.group": {
@@ -1976,12 +2088,88 @@
     "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): the heading of the group it is listed under."
   },
   "nav./documents/all.label": {
-    "text": "Documents",
+    "text": "All documents",
     "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./documents/all.summary": {
     "text": "Every document you can open",
     "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): a short line under its name on a phone’s row."
+  },
+  "nav./documents/deleted.description": {
+    "text": "Deleted documents wait 30 days, then are gone. A legal hold keeps them.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/deleted): one sentence under its name in a menu or on a card."
+  },
+  "nav./documents/deleted.group": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/deleted): the heading of the group it is listed under."
+  },
+  "nav./documents/deleted.label": {
+    "text": "Deleted",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/deleted): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/deleted.summary": {
+    "text": "Kept for 30 days",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/deleted): a short line under its name on a phone’s row."
+  },
+  "nav./documents/envelopes.description": {
+    "text": "Every request you sign or follow",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/envelopes): one sentence under its name in a menu or on a card."
+  },
+  "nav./documents/envelopes.group": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/envelopes): the heading of the group it is listed under."
+  },
+  "nav./documents/envelopes.label": {
+    "text": "Signatures",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/envelopes): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/envelopes.summary": {
+    "text": "What you sign and what you sent",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/envelopes): a short line under its name on a phone’s row."
+  },
+  "nav./documents/overview.description": {
+    "text": "What needs you, what is out for signature, and what changed",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/overview): one sentence under its name in a menu or on a card."
+  },
+  "nav./documents/overview.group": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/overview): the heading of the group it is listed under."
+  },
+  "nav./documents/overview.label": {
+    "text": "Overview",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/overview): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/overview.summary": {
+    "text": "What needs you and what changed",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/overview): a short line under its name on a phone’s row."
+  },
+  "nav./documents/queues/expiring.label": {
+    "text": "Expiring",
+    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Follow-up (/documents/queues/expiring): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/queues/missing.description": {
+    "text": "Documents missing from people's files, expiring, and due for deletion",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/queues/missing): one sentence under its name in a menu or on a card."
+  },
+  "nav./documents/queues/missing.group": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/queues/missing): the heading of the group it is listed under."
+  },
+  "nav./documents/queues/missing.label": {
+    "text": "Follow-up",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/queues/missing): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/queues/missing.summary": {
+    "text": "Missing, expiring and due for deletion",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/queues/missing): a short line under its name on a phone’s row."
+  },
+  "nav./documents/queues/missing.tab_label": {
+    "text": "Missing",
+    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Follow-up (/documents/queues/missing): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/queues/to-delete.label": {
+    "text": "To delete",
+    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Follow-up (/documents/queues/to-delete): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./settings/documents/access.description": {
     "text": "What new documents start as, how far people can share, and what Confidential enforces.",

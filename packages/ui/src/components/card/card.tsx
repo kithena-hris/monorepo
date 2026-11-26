@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import type { ComponentPropsWithoutRef, JSX } from 'react';
+import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -109,6 +109,78 @@ export function Card({
       {...(surface ? { 'data-surface': '' } : {})}
       {...props}
     />
+  );
+}
+
+export interface ActionCardProps {
+  /** A glyph for what the card starts, in a tinted tile. */
+  readonly icon: ReactNode;
+  readonly title: ReactNode;
+  /** One line on what it does. */
+  readonly description?: ReactNode;
+  /** The tile's tint: `accent` for the one the page is for. */
+  readonly tone?: 'neutral' | 'accent';
+  /** Somewhere to go: the card is a link. Without it, a button that calls `onClick`. */
+  readonly href?: string;
+  readonly onClick?: () => void;
+  readonly disabled?: boolean;
+  readonly className?: string;
+}
+
+/**
+ * A card that is one thing to start: a glyph, what it is called and a line
+ * on what it does, the whole of it the target. For a short row of ways to
+ * begin at the head of a page ("Add a document", "Draft one"), where a row of
+ * buttons would say what but never why. A link when it has somewhere to go,
+ * a button when it opens something here.
+ */
+export function ActionCard({
+  icon,
+  title,
+  description,
+  tone = 'neutral',
+  href,
+  onClick,
+  disabled = false,
+  className,
+}: ActionCardProps): JSX.Element {
+  const looks = cn(
+    card({ variant: 'raised', padded: false, interactive: !disabled }),
+    'flex w-full items-start gap-3 p-4 text-start',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+    disabled && 'cursor-not-allowed opacity-60',
+    className,
+  );
+  const body = (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'grid size-10 shrink-0 place-items-center rounded-md [&_svg]:size-5',
+          tone === 'accent' ? 'bg-accent-subtle text-accent-fg' : 'bg-surface-sunken text-fg-muted',
+        )}
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm font-semibold text-fg">{title}</span>
+        {description === undefined ? null : (
+          <span className="text-sm text-fg-muted">{description}</span>
+        )}
+      </span>
+    </>
+  );
+  if (href !== undefined && !disabled) {
+    return (
+      <a href={href} className={looks} {...(onClick === undefined ? {} : { onClick })}>
+        {body}
+      </a>
+    );
+  }
+  return (
+    <button type="button" className={looks} disabled={disabled} onClick={onClick}>
+      {body}
+    </button>
   );
 }
 

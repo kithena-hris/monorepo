@@ -337,6 +337,7 @@ export type {
 } from './components/floating-button/floating-button';
 
 export {
+  ActionCard,
   Card,
   CardContent,
   CardDescription,
@@ -345,7 +346,7 @@ export {
   CardToolbar,
   CardTitle,
 } from './components/card/card';
-export type { CardProps } from './components/card/card';
+export type { ActionCardProps, CardProps } from './components/card/card';
 
 export { Checkbox, CheckboxCard } from './components/checkbox/checkbox';
 export type { CheckboxCardProps, CheckboxProps } from './components/checkbox/checkbox';

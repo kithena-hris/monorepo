@@ -26,15 +26,29 @@ async function read(
 
 const QUEUES = new Set(['to_sign', 'expiring', 'missing', 'to_delete']);
 
-export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
+/** The queue an address is: HR's follow-up tabs are each their own page. */
+const QUEUE_AT: Readonly<Record<string, string>> = {
+  '/documents/queues/missing': 'missing',
+  '/documents/queues/expiring': 'expiring',
+  '/documents/queues/to-delete': 'to_delete',
+};
+
+export async function loadScreen(
+  component: string,
+  query: ScreenQuery,
+  path = '',
+): Promise<ScreenLoad> {
   const s = query.search;
   switch (component) {
+    // Where Documents opens: the list's own read, unfiltered, drawn as an overview.
+    case 'Overview':
+      return read('DocumentsLibrary', { show: 'all', q: '', queue: null, deleted: false });
     case 'Library':
       return read('DocumentsLibrary', {
         show: s['show'] ?? 'all',
         q: s['q'] ?? '',
-        queue: QUEUES.has(s['queue'] ?? '') ? s['queue'] : null,
-        deleted: s['deleted'] === 'true',
+        queue: QUEUE_AT[path] ?? (QUEUES.has(s['queue'] ?? '') ? s['queue'] : null),
+        deleted: path === '/documents/deleted' || s['deleted'] === 'true',
       });
     case 'DocumentView':
       return read('DocumentsDocument', { documentId: query.params['id'] ?? '' });
