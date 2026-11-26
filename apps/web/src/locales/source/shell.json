@@ -1109,11 +1109,11 @@
   },
   "components.home-missing.count_to_save_one": {
     "text": "{{count}} detail to save",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: the hint of <Actions>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
   "components.home-missing.count_to_save_other": {
     "text": "{{count}} details to save",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: the hint of <Actions>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.home-missing.every_required_detail_you_can_fill": {
     "text": "Every required detail you can fill in is on your record.",
@@ -1121,7 +1121,7 @@
   },
   "components.home-missing.fill_in_any_and_save": {
     "text": "Fill in any of these and save. The rest can wait.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text inside <p>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: the hint of <Actions>."
   },
   "components.home-missing.nothing_is_missing": {
     "text": "Nothing is missing",

@@ -7,7 +7,11 @@ import { useState, useTransition, type JSX } from 'react';
 import { saveOwnSection } from '../app/(app)/people/actions';
 import { t } from '../lib/t';
 import { FieldInput } from './inbox/detail-people';
+import { Actions } from './inbox/pane';
 import { gapsQuery } from './home-reads';
+
+/** The form's id: its Save is drawn outside it, in the footer. */
+const FORM = 'home-missing';
 
 const filled = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
 
@@ -86,6 +90,7 @@ export function MissingFields({
   };
   return (
     <form
+      id={FORM}
       className="flex flex-col gap-6"
       onSubmit={(event) => {
         event.preventDefault();
@@ -109,9 +114,10 @@ export function MissingFields({
         </section>
       ))}
       {error === null ? null : <Alert tone="danger" title={error} />}
-      <div className="sticky bottom-0 -mx-5 flex items-center justify-between gap-3 border-t border-border bg-surface px-5 py-3">
-        <p className="text-sm text-fg-muted">
-          {count === 0
+      {/* In the footer of what holds it (Home's modal), as a task's actions are. */}
+      <Actions
+        hint={
+          count === 0
             ? t(
                 'components.home-missing.fill_in_any_and_save',
                 'Fill in any of these and save. The rest can wait.',
@@ -120,12 +126,19 @@ export function MissingFields({
                 'components.home-missing.count_to_save',
                 { one: '{{count}} detail to save', other: '{{count}} details to save' },
                 { count },
-              )}
-        </p>
-        <Button type="submit" variant="primary" loading={pending} disabled={count === 0}>
+              )
+        }
+      >
+        <Button
+          type="submit"
+          form={FORM}
+          variant="primary"
+          loading={pending}
+          disabled={count === 0}
+        >
           {t('components.home-missing.save', 'Save')}
         </Button>
-      </div>
+      </Actions>
     </form>
   );
 }

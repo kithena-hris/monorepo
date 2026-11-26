@@ -476,21 +476,23 @@ export function HomeModal(): JSX.Element {
                 <KeptFrame key={opened.href} href={opened.href} label={opened.label} />
               </ModalPageBody>
             ) : (
-              // No padding above or below: a bar the content pins (a form's summary,
-              // Save) pins to the modal's own edge, with nothing showing past it.
+              // No padding above or below: a bar the content pins (a form's summary)
+              // pins to the modal's own edge, with nothing showing past it.
               <ModalPageBody className="px-4 py-0 touch:px-3">
                 <div className="mx-auto max-w-3xl">
                   <Suspense fallback={wait}>
                     {kind.is === 'missing' ? (
-                      // Clipped, not hidden: its corners cut the Save bar's, and the bar still pins.
-                      <div className="my-4 overflow-clip rounded-2xl bg-surface px-5 pt-5 shadow-sm">
+                      // Its Save is drawn in the modal's footer below, as a task's actions are.
+                      <div className="my-4 rounded-2xl bg-surface p-5 shadow-sm">
                         {/* A field with no control here opens their record, in this modal. */}
                         <OpenHereContext
                           value={(href) => {
                             setOpened({ href, label: opened.label });
                           }}
                         >
-                          <MissingFields personId={kind.personId} onSaved={done} />
+                          <ActionsSlotContext value={footer}>
+                            <MissingFields personId={kind.personId} onSaved={done} />
+                          </ActionsSlotContext>
                         </OpenHereContext>
                       </div>
                     ) : task === undefined || task === null ? (
@@ -516,8 +518,8 @@ export function HomeModal(): JSX.Element {
                 </div>
               </ModalPageBody>
             )}
-            {framed || kind.is === 'missing' ? null : (
-              // A task's actions (`Actions`), fixed under what scrolls; gone while it has none.
+            {framed ? null : (
+              // A task's actions or the fields' Save (`Actions`), fixed under what scrolls; gone while there are none.
               <ModalPageFooter className="has-[[data-slot=actions]:empty]:hidden @2xl:*:w-full">
                 <div ref={setFooter} data-slot="actions" />
               </ModalPageFooter>

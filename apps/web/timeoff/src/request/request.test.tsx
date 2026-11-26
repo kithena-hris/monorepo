@@ -5,6 +5,8 @@ import { axeViolations } from '../test/axe';
 import { december, october, opening } from './acme.fixture';
 import { RequestTimeOff, type RequestData } from './request';
 
+const span = (day: string) => ({ from: day, to: day, startsHalfDay: false, endsHalfDay: false });
+
 /**
  * Requesting time off (T3, T5) at a desk, on Acme's demo data: Adam on
  * 1 October 2026. The panel is portalled over the overview, so axe runs over
@@ -181,5 +183,62 @@ describe('going below zero', () => {
     expect(panel().getByText('This goes past the 3 days you can go below zero')).toBeTruthy();
     expect(panel().getByRole('radio', { name: /Shorten to/ })).toBeTruthy();
     expect(panel().getByRole('button', { name: 'Send to Marco and HR' })).toBeDisabled();
+  });
+
+  it('answers a change without the page, and another type for the same dates at once', async () => {
+    const answer = october();
+    const sick = { preview: null, problem: 'Sick leave is not asked for ahead.' };
+    const onRead = vi.fn(() =>
+      Promise.resolve({ answer: ready(answer), others: { sick } }),
+    );
+    render(<RequestTimeOff load={ready(opening())} onAsk={vi.fn()} onRead={onRead} />);
+    // A type alone costs nothing to say: nobody is asked.
+    fireEvent.click(panel().getByRole('radio', { name: 'Vacation' }));
+    expect(onRead).not.toHaveBeenCalled();
+    fireEvent.click(panel().getByRole('button', { name: /19 October 2026/ }));
+    fireEvent.click(panel().getByRole('button', { name: /23 October 2026/ }));
+    expect(onRead).toHaveBeenCalledTimes(1);
+    expect(onRead.mock.calls[0]).toEqual([
+      { type: 'vacation', from: '2026-10-19', to: '2026-10-23', month: '2026-10' },
+      ['personal', 'comp', 'sick'],
+    ]);
+    expect(await panel().findByText('Vacation · 5 days · 9 days away')).toBeTruthy();
+    // The other type came with the dates: drawn at once, with a kind word, and nobody asked.
+    fireEvent.click(panel().getByRole('radio', { name: 'Sick' }));
+    expect(panel().getByText('Sick leave is not asked for ahead.')).toBeTruthy();
+    expect(panel().getByText('Sorry you’re not feeling well')).toBeTruthy();
+    fireEvent.click(panel().getByRole('radio', { name: 'Vacation' }));
+    expect(panel().getByRole('button', { name: 'Send to Marco' })).toBeEnabled();
+    expect(onRead).toHaveBeenCalledTimes(1);
+  });
+
+  it('names five of who else is off and folds the rest until asked', () => {
+    const data = october();
+    const people = Array.from({ length: 8 }, (_, n) => ({
+      personId: `p-${String(n)}`,
+      displayName: `Person ${String(n)}`,
+    }));
+    render(
+      <RequestTimeOff
+        load={ready({
+          ...data,
+          team: {
+            people,
+            coverage: [],
+            entries: people.flatMap((p) => [
+              // Twice each: one row, both spans.
+              { personId: p.personId, leaveTypeKey: 'vacation', span: span('2026-10-19') },
+              { personId: p.personId, leaveTypeKey: 'vacation', span: span('2026-10-22') },
+            ]),
+          },
+        })}
+      />,
+    );
+    const others = within(panel().getByRole('region', { name: 'Who else is off · 8' }));
+    expect(others.getAllByRole('listitem')).toHaveLength(5);
+    expect(others.getAllByRole('listitem')[0]).toHaveTextContent('19 Oct, 22 Oct');
+    fireEvent.click(others.getByRole('button', { name: 'Show all 8' }));
+    expect(others.getAllByRole('listitem')).toHaveLength(8);
+    expect(others.getByRole('button', { name: 'Show fewer' })).toBeTruthy();
   });
 });

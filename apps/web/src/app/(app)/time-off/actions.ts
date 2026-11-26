@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 
 import { currentTenant } from '../../../lib/branding';
 import { timeOff } from '../../../lib/people';
+import { requestAnswer as readRequestAnswer } from '../../../lib/timeoff-screens';
 import { serverWords } from '../../../lib/server-words';
 import { type T } from '@reach/ui';
 
@@ -364,6 +365,14 @@ const done = (a: { readonly ok: boolean; readonly message?: string }, t: T): Out
           a.message ??
           t('app.app.time-off.actions.time_off_did_not_answer', 'Time Off did not answer'),
       };
+
+/** T3, T5: the request panel's answer to a change of type, dates or month, without the page. */
+export async function requestAnswer(
+  search: Readonly<Record<string, string>>,
+  also: readonly string[],
+): ReturnType<typeof readRequestAnswer> {
+  return readRequestAnswer(search, also);
+}
 
 /**
  * T3, T5: send a request. Within a negative balance's limit sending is
