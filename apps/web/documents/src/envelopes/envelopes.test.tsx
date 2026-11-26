@@ -62,7 +62,7 @@ describe('sending (K1–K3)', () => {
         onFileLink={() => Promise.resolve({ ok: false, message: 'Not here' })}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next: where they sign' }));
     expect(screen.getByRole('heading', { name: 'Add a box' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Signature' })).toBeTruthy();
     // The day is in the print under a signature: there is no dated one to add.

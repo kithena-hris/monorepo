@@ -512,150 +512,174 @@ function SendSteps({
         }}
       />
       {step === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle level={2}>
-              {tr('envelopes.envelopes.who_signs_in_order', 'Who signs, in order')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {signers.length === 0 ? (
-              <p className="text-sm text-fg-muted">
-                {tr('envelopes.envelopes.nobody_yet', 'Nobody yet.')}
-              </p>
-            ) : null}
-            <List>
-              {signers.map((s, i) => (
-                <ListItem
-                  key={s.key}
-                  leading={<Avatar name={s.name} size="md" />}
-                  description={
-                    s.personId === null
-                      ? tr(
-                          'envelopes.envelopes.confirms_with_a_code_by_email',
-                          '{{email}} · confirms with a code by email',
-                          { email: s.email },
-                        )
-                      : tr(
-                          'envelopes.envelopes.signs_with_their_kithena_login',
-                          'Signs with their Kithena login',
-                        )
-                  }
-                  meta={
-                    <Badge size="sm">
-                      {i === 0
-                        ? tr('envelopes.envelopes.signs_first', 'Signs first')
-                        : i === 1
-                          ? tr('envelopes.envelopes.signs_second', 'Signs second')
-                          : tr('envelopes.envelopes.signs_in_position', 'Signs in position {{n}}', {
-                              n: i + 1,
-                            })}
-                    </Badge>
-                  }
-                  trailing={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={tr('envelopes.envelopes.remove', 'Remove {{name}}', {
-                        name: s.name,
-                      })}
-                      startIcon={<icons.close aria-hidden />}
-                      onClick={() => {
-                        setSigners(signers.filter((x) => x.key !== s.key));
-                      }}
-                    />
-                  }
-                >
-                  {s.name}
-                </ListItem>
-              ))}
-            </List>
-            <Field>
-              <FieldLabel>
-                {tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
-              </FieldLabel>
-              <FieldControl>
-                <Combobox
-                  label={tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
-                  options={doc.people
-                    .filter((p) => !named.has(p.personId))
-                    .map((p) => ({
-                      value: p.personId,
-                      label: p.name,
-                      ...(p.teamName === null ? {} : { description: p.teamName }),
-                    }))}
-                  value={null}
-                  onChange={(v) => {
-                    const p = doc.people.find((x) => x.personId === v);
-                    if (p !== undefined) add({ personId: p.personId, email: '', name: p.name });
-                  }}
-                  placeholder={tr('envelopes.envelopes.find_a_colleague', 'Find a colleague')}
-                  searchPlaceholder={tr('envelopes.envelopes.find_someone', 'Find someone')}
-                  emptyMessage={tr(
-                    'envelopes.envelopes.nobody_by_that_name',
-                    'Nobody by that name',
+        // Who is on it beside how to add one: the order builds as people are added.
+        <div className="grid gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_24rem] @4xl/page:items-start">
+          <Card className="motion-safe:animate-arrive">
+            <CardHeader>
+              <CardTitle level={2}>
+                {tr('envelopes.envelopes.who_signs_in_order', 'Who signs, in order')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {signers.length === 0 ? (
+                <EmptyState
+                  icon={<icons.edit />}
+                  title={tr('envelopes.envelopes.nobody_signs_yet', 'Nobody signs yet')}
+                  description={tr(
+                    'envelopes.envelopes.add_who_signs_first',
+                    'Add whoever signs first. Each person is asked when the one before has signed.',
                   )}
                 />
-              </FieldControl>
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              ) : (
+                <List>
+                  {signers.map((s, i) => (
+                    <ListItem
+                      key={s.key}
+                      leading={<Avatar name={s.name} size="md" />}
+                      description={
+                        s.personId === null
+                          ? tr(
+                              'envelopes.envelopes.confirms_with_a_code_by_email',
+                              '{{email}} · confirms with a code by email',
+                              { email: s.email },
+                            )
+                          : tr(
+                              'envelopes.envelopes.signs_with_their_kithena_login',
+                              'Signs with their Kithena login',
+                            )
+                      }
+                      meta={
+                        <Badge size="sm">
+                          {i === 0
+                            ? tr('envelopes.envelopes.signs_first', 'Signs first')
+                            : i === 1
+                              ? tr('envelopes.envelopes.signs_second', 'Signs second')
+                              : tr(
+                                  'envelopes.envelopes.signs_in_position',
+                                  'Signs in position {{n}}',
+                                  {
+                                    n: i + 1,
+                                  },
+                                )}
+                        </Badge>
+                      }
+                      trailing={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={tr('envelopes.envelopes.remove', 'Remove {{name}}', {
+                            name: s.name,
+                          })}
+                          startIcon={<icons.close aria-hidden />}
+                          onClick={() => {
+                            setSigners(signers.filter((x) => x.key !== s.key));
+                          }}
+                        />
+                      }
+                    >
+                      {s.name}
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+              <Button
+                variant="primary"
+                className="self-end"
+                endIcon={<icons.forward aria-hidden />}
+                disabled={signers.length === 0}
+                onClick={toPlacing}
+              >
+                {tr('envelopes.envelopes.next_where_they_sign', 'Next: where they sign')}
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="motion-safe:animate-arrive">
+            <CardHeader>
+              <CardTitle level={2}>
+                {tr('envelopes.envelopes.add_a_signer', 'Add a signer')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
               <Field>
                 <FieldLabel>
-                  {tr('envelopes.envelopes.somebody_outside', 'Somebody outside')}
+                  {tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
                 </FieldLabel>
                 <FieldControl>
-                  <Input
-                    placeholder={tr('envelopes.envelopes.their_email', 'Their email')}
-                    type="email"
-                    value={outside.email}
-                    onChange={(e) => {
-                      setOutside({ ...outside, email: e.target.value });
+                  <Combobox
+                    label={tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
+                    options={doc.people
+                      .filter((p) => !named.has(p.personId))
+                      .map((p) => ({
+                        value: p.personId,
+                        label: p.name,
+                        ...(p.teamName === null ? {} : { description: p.teamName }),
+                      }))}
+                    value={null}
+                    onChange={(v) => {
+                      const p = doc.people.find((x) => x.personId === v);
+                      if (p !== undefined) add({ personId: p.personId, email: '', name: p.name });
                     }}
+                    placeholder={tr('envelopes.envelopes.find_a_colleague', 'Find a colleague')}
+                    searchPlaceholder={tr('envelopes.envelopes.find_someone', 'Find someone')}
+                    emptyMessage={tr(
+                      'envelopes.envelopes.nobody_by_that_name',
+                      'Nobody by that name',
+                    )}
                   />
                 </FieldControl>
               </Field>
-              <Field>
-                <FieldLabel>{tr('envelopes.envelopes.their_name', 'Their name')}</FieldLabel>
-                <FieldControl>
-                  <Input
-                    value={outside.name}
-                    onChange={(e) => {
-                      setOutside({ ...outside, name: e.target.value });
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-              <Button
-                variant="secondary"
-                disabled={!outside.email.includes('@') || named.has(outside.email)}
-                onClick={() => {
-                  add({
-                    personId: null,
-                    email: outside.email.trim(),
-                    name: outside.name.trim() || outside.email.trim(),
-                  });
-                  setOutside({ email: '', name: '' });
-                }}
-              >
-                {tr('envelopes.envelopes.add', 'Add')}
-              </Button>
-            </div>
-            <p className="text-sm text-fg-muted">
-              {tr(
-                'envelopes.envelopes.people_outside_confirm_it_is_them',
-                'People outside confirm it is them with a code we email them.',
-              )}
-            </p>
-            <Button
-              variant="primary"
-              className="self-end"
-              disabled={signers.length === 0}
-              onClick={toPlacing}
-            >
-              {tr('envelopes.envelopes.next', 'Next')}
-            </Button>
-          </CardContent>
-        </Card>
+              <div className="flex flex-col gap-3 border-t border-border pt-4">
+                <Field>
+                  <FieldLabel>
+                    {tr('envelopes.envelopes.somebody_outside', 'Somebody outside')}
+                  </FieldLabel>
+                  <FieldControl>
+                    <Input
+                      placeholder={tr('envelopes.envelopes.their_email', 'Their email')}
+                      type="email"
+                      value={outside.email}
+                      onChange={(e) => {
+                        setOutside({ ...outside, email: e.target.value });
+                      }}
+                    />
+                  </FieldControl>
+                </Field>
+                <Field>
+                  <FieldLabel>{tr('envelopes.envelopes.their_name', 'Their name')}</FieldLabel>
+                  <FieldControl>
+                    <Input
+                      value={outside.name}
+                      onChange={(e) => {
+                        setOutside({ ...outside, name: e.target.value });
+                      }}
+                    />
+                  </FieldControl>
+                </Field>
+                <Button
+                  variant="secondary"
+                  className="self-start"
+                  disabled={!outside.email.includes('@') || named.has(outside.email)}
+                  onClick={() => {
+                    add({
+                      personId: null,
+                      email: outside.email.trim(),
+                      name: outside.name.trim() || outside.email.trim(),
+                    });
+                    setOutside({ email: '', name: '' });
+                  }}
+                >
+                  {tr('envelopes.envelopes.add', 'Add')}
+                </Button>
+              </div>
+              <p className="text-sm text-fg-muted">
+                {tr(
+                  'envelopes.envelopes.people_outside_confirm_it_is_them',
+                  'People outside confirm it is them with a code we email them.',
+                )}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       ) : step === 1 ? (
         <div className="flex flex-col gap-4">
           <WhereTheySign

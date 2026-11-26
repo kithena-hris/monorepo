@@ -603,9 +603,17 @@
     "text": "Add a colleague",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>."
   },
+  "envelopes.envelopes.add_a_signer": {
+    "text": "Add a signer",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <CardTitle>."
+  },
   "envelopes.envelopes.add_the_document_as_a_pdf": {
     "text": "Add the document as a PDF, then send it for signature.",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendForSignature: text inside <Alert>."
+  },
+  "envelopes.envelopes.add_who_signs_first": {
+    "text": "Add whoever signs first. Each person is asked when the one before has signed.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the description of <EmptyState>."
   },
   "envelopes.envelopes.adopt_your_signature": {
     "text": "Adopt your signature",
@@ -763,6 +771,10 @@
     "text": "Next",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <Button>."
   },
+  "envelopes.envelopes.next_where_they_sign": {
+    "text": "Next: where they sign",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <Button>."
+  },
   "envelopes.envelopes.no_date": {
     "text": "No date",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the placeholder of <DatePicker>."
@@ -779,9 +791,9 @@
     "text": "Nobody by that name",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the emptyMessage of <Combobox>."
   },
-  "envelopes.envelopes.nobody_yet": {
-    "text": "Nobody yet.",
-    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <p>."
+  "envelopes.envelopes.nobody_signs_yet": {
+    "text": "Nobody signs yet",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the title of <EmptyState>."
   },
   "envelopes.envelopes.not_available_here": {
     "text": "Not available here",

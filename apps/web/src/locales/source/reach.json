@@ -2447,6 +2447,10 @@
     "text": "Clear",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: text built in code."
   },
+  "components.signature-pad.signature-pad.draw_on_the_line": {
+    "text": "Draw on the line with a mouse, a finger or a pen.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: text inside <p>."
+  },
   "components.signature-pad.signature-pad.drawn": {
     "text": "{{label}}: drawn",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: the aria-label of <svg>. Filled in: {{label}}."
@@ -2462,6 +2466,10 @@
   "components.signature-pad.signature-pad.text": {
     "text": "{{value}} {{value2}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: text built in code. Filled in: {{value}}, {{value2}}."
+  },
+  "components.signature-pad.signature-pad.undo": {
+    "text": "Undo",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: text built in code."
   },
   "components.signature.adopt-signature.a_signature_is_your_legal_first": {
     "text": "A signature is your legal first and last name, as your company keeps them.",
