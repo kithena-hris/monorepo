@@ -243,7 +243,9 @@ function Ready({
         figures={tallyFigures(
           {
             label: tr('library.library.figure_documents', 'documents'),
-            value: data.sections.reduce((n, s) => n + s.count, 0),
+            // The overview is of everything they may open; the list, of its sections.
+            value:
+              view === 'overview' ? data.total : data.sections.reduce((n, s) => n + s.count, 0),
           },
           [
             {
@@ -259,14 +261,20 @@ function Ready({
                 'library.library.deleted_documents_wait_30_days_then',
                 'Deleted documents wait 30 days, then are gone. A legal hold keeps them.',
               )
-            : tr(
-                'library.library.document_you_can_open',
-                {
-                  one: '{{count}} document you can open',
-                  other: '{{count}} documents you can open',
-                },
-                { count: data.total },
-              )
+            : data.queue !== null
+              ? tr(
+                  'library.library.count_to_follow_up',
+                  { one: '{{count}} to follow up', other: '{{count}} to follow up' },
+                  { count: data.queueRows.length },
+                )
+              : tr(
+                  'library.library.document_you_can_open',
+                  {
+                    one: '{{count}} document you can open',
+                    other: '{{count}} documents you can open',
+                  },
+                  { count: data.total },
+                )
         }
         actions={
           <>
@@ -719,7 +727,8 @@ function OverviewBody({
         onAnswer={props.onAnswer}
       />
 
-      <WidgetGrid>
+      {/* As wide as the page's other parts, not the grid's own cap. */}
+      <WidgetGrid className="max-w-none">
         <Widget
           flush
           className={ARRIVE}
@@ -1007,7 +1016,13 @@ function Tiles({
 }): JSX.Element {
   return (
     // Tiles of one size, never stretched to the row.
-    <WidgetGrid size="sm" fill role="list" aria-label={tr('library.library.queues', 'Queues')}>
+    <WidgetGrid
+      size="sm"
+      fill
+      className="max-w-none"
+      role="list"
+      aria-label={tr('library.library.queues', 'Queues')}
+    >
       {data.tiles.map((t, i) => (
         <div
           role="listitem"
@@ -1066,13 +1081,6 @@ function QueueList({
   return (
     <section className="flex flex-col gap-3" aria-label={QUEUE_TITLES[queue]}>
       <div className="flex flex-wrap items-center gap-3">
-        <Badge
-          tone="accent"
-          onRemove={() => props.onFilter?.({ queue: null })}
-          removeLabel={tr('library.library.show_every_document', 'Show every document')}
-        >
-          {QUEUE_TITLES[queue]}
-        </Badge>
         {queue === 'to_delete' && deletable.length > 0 ? (
           <Button
             size="sm"
