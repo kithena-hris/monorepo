@@ -114,6 +114,30 @@ export async function saveOwnSection(sectionKey: string, changed: Values): Promi
   return saved(people('SaveOwnSection', { changed: formInputs(changed) }));
 }
 
+/**
+ * Their own fields saved each on its own, side by side: one People refuses
+ * does not hold back the rest. Under each key, null when it is saved (or sent
+ * to HR for approval), or why it was refused.
+ * ponytail: a write a field; save them as one and have People say which field
+ * it refused if a record ever has rules across fields.
+ */
+export async function saveOwnFields(
+  changed: Values,
+): Promise<readonly (readonly [key: string, refused: string | null])[]> {
+  return Promise.all(
+    Object.entries(changed)
+      // A field's key is a name People gave, never a property of every object.
+      .filter(([key]) => FIELD_KEY.test(key) && !UNSAFE_KEYS.has(key))
+      .map(async ([key, value]) => {
+        const one = await saveOwnSection('', Object.fromEntries([[key, value]]));
+        return [key, one.ok ? null : one.message] as const;
+      }),
+  );
+}
+
+const FIELD_KEY = /^[\w.:-]{1,200}$/u;
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export async function savePersonSection(
   personId: string,
   sectionKey: string,
@@ -1076,9 +1100,7 @@ export async function invitePerson(
     personId,
     sendOn,
   });
-  return sent.ok
-    ? { ok: true, invitation: sent.data }
-    : { ok: false, message: sent.message };
+  return sent.ok ? { ok: true, invitation: sent.data } : { ok: false, message: sent.message };
 }
 
 export async function requestDetails(personId: string, keys: readonly string[]): Promise<Outcome> {

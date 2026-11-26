@@ -1881,6 +1881,8 @@ function Profile({
                 </AvatarGroup>
                 {line.reportsFilter === null ? null : (
                   <Way
+                    // Looked at from Home, over it; the modal's header opens the page itself.
+                    over
                     href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}
                     label={tr(
                       'home.people-home.see_them_in_the_directory',

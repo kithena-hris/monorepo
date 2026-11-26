@@ -77,10 +77,14 @@ const BUDGET = {
 // From 22 Nov 2026, by the owner's choice: Reach gained Country and a rail that
 // names its areas, and Time Off's first load measured 562.4; its budget went
 // from 562 to 563.
+// From 26 Nov 2026, by the owner's choice ("increase the budget if needed"):
+// the request panel answers its choices without the page, and Time Off's first
+// load measured 562.98 then 563.004 on a change that touched none of its code;
+// its budget went from 563 to 564, as a page varies by about 0.5 KB a run.
 const JS_BUDGET_KB: Readonly<Record<string, number>> = {
   people: 604,
   settings: 602,
-  timeoff: 563,
+  timeoff: 564,
 };
 
 /**
