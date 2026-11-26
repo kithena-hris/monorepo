@@ -273,8 +273,6 @@
   "components.app-shell.viewing_as_read_only": "Просмотр от имени {{value}} · только чтение",
   "components.app-shell.your_account": "Ваш аккаунт",
   "components.app-shell.your_companies": "Ваши компании",
-  "components.app-shell.your_profile": "Ваш профиль",
-  "components.app-shell.your_time_off": "Ваши отсутствия",
   "components.assistant-panel.answers_with_only_what_you_can": "Отвечает только тем, что вам доступно",
   "components.assistant-panel.ask_about_your_inbox": "Спросите о входящих…",
   "components.assistant-panel.ask_about_your_people": "Спросите о сотрудниках…",

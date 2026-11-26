@@ -246,8 +246,6 @@
   "components.app-shell.viewing_as_read_only": "{{value}} ஆகப் பார்க்கிறீர்கள் · படிக்க மட்டும்",
   "components.app-shell.your_account": "உங்கள் கணக்கு",
   "components.app-shell.your_companies": "உங்கள் நிறுவனங்கள்",
-  "components.app-shell.your_profile": "உங்கள் சுயவிவரம்",
-  "components.app-shell.your_time_off": "உங்கள் விடுப்பு",
   "components.assistant-panel.answers_with_only_what_you_can": "நீங்கள் பார்க்கக்கூடியவற்றை மட்டுமே கொண்டு பதிலளிக்கிறது",
   "components.assistant-panel.ask_about_your_inbox": "உங்கள் இன்பாக்ஸ் பற்றிக் கேளுங்கள்…",
   "components.assistant-panel.ask_about_your_people": "உங்கள் நபர்களைப் பற்றிக் கேளுங்கள்…",

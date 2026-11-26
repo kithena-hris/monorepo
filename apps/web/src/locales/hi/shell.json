@@ -248,8 +248,6 @@
   "components.app-shell.viewing_as_read_only": "{{value}} के रूप में देख रहे हैं · सिर्फ़ पढ़ने के लिए",
   "components.app-shell.your_account": "आपका खाता",
   "components.app-shell.your_companies": "आपकी कंपनियाँ",
-  "components.app-shell.your_profile": "आपकी प्रोफ़ाइल",
-  "components.app-shell.your_time_off": "आपकी छुट्टी",
   "components.assistant-panel.answers_with_only_what_you_can": "सिर्फ़ उसी से जवाब देता है जो आप देख सकते हैं",
   "components.assistant-panel.ask_about_your_inbox": "अपने इनबॉक्स के बारे में पूछें…",
   "components.assistant-panel.ask_about_your_people": "अपने लोगों के बारे में पूछें…",

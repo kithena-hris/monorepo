@@ -268,8 +268,6 @@
   "components.app-shell.viewing_as_read_only": "Podgląd jako {{value}} · tylko do odczytu",
   "components.app-shell.your_account": "Twoje konto",
   "components.app-shell.your_companies": "Twoje firmy",
-  "components.app-shell.your_profile": "Twój profil",
-  "components.app-shell.your_time_off": "Twoje nieobecności",
   "components.assistant-panel.answers_with_only_what_you_can": "Odpowiada tylko tym, co możesz zobaczyć",
   "components.assistant-panel.ask_about_your_inbox": "Zapytaj o swoją skrzynkę…",
   "components.assistant-panel.ask_about_your_people": "Zapytaj o swoich ludzi…",

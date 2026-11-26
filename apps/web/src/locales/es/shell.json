@@ -257,8 +257,6 @@
   "components.app-shell.viewing_as_read_only": "Viendo como {{value}} · solo lectura",
   "components.app-shell.your_account": "Tu cuenta",
   "components.app-shell.your_companies": "Tus empresas",
-  "components.app-shell.your_profile": "Tu perfil",
-  "components.app-shell.your_time_off": "Tus ausencias",
   "components.assistant-panel.answers_with_only_what_you_can": "Responde solo con lo que puedes ver",
   "components.assistant-panel.ask_about_your_inbox": "Pregunta sobre tu bandeja de entrada…",
   "components.assistant-panel.ask_about_your_people": "Pregunta sobre tu personal…",

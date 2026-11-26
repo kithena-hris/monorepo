@@ -252,8 +252,6 @@
   "components.app-shell.viewing_as_read_only": "Affichage en tant que {{value}} · lecture seule",
   "components.app-shell.your_account": "Votre compte",
   "components.app-shell.your_companies": "Vos entreprises",
-  "components.app-shell.your_profile": "Votre profil",
-  "components.app-shell.your_time_off": "Vos congés",
   "components.assistant-panel.answers_with_only_what_you_can": "Répond uniquement avec ce que vous pouvez voir",
   "components.assistant-panel.ask_about_your_inbox": "Posez une question sur votre boîte de réception…",
   "components.assistant-panel.ask_about_your_people": "Posez une question sur vos collaborateurs…",
