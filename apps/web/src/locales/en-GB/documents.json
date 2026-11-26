@@ -1,0 +1,7 @@
+{
+  "envelopes.envelopes.every_request_is_waiting_for_you": "All requests here are awaiting your signature above.",
+  "envelopes.envelopes.make_one_now_to_sign_in_a_press": "Create one now, and signing a document is just one click.",
+  "envelopes.envelopes.no_request_stands_here": "There are no requests here at the moment.",
+  "envelopes.envelopes.nobody_signs_yet": "No one has signed yet",
+  "library.library.requests_and_signatures_show_here": "A document requested of you, or one to sign or read, appears here."
+}

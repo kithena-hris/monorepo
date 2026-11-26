@@ -1,4 +1,9 @@
 {
   "envelopes.envelopes.cancelled": "Canceled",
-  "library.library.signing_cancelled": "Signing canceled"
+  "library.library.kithena_reads_only_what_you_may_open": "Kithena reads only what you can open, and shows which document each answer comes from.",
+  "library.library.nothing_needs_you": "Nothing needs your attention",
+  "library.library.requests_and_signatures_show_here": "A document requested from you, or one to sign or read, appears here.",
+  "library.library.signing_cancelled": "Signing canceled",
+  "library.library.what_you_sign_and_what_you_sent": "What’s waiting for you to sign and what you sent.",
+  "nav./documents/all.description": "Every document you can open and who else can see it"
 }

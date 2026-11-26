@@ -1,6 +1,7 @@
 {
   "analytics.analytics.annualised_over_leavers": "Annualized over {{leavers}} leavers: {{formula}}",
   "analytics.what-changed.choose_the_format_and_who_it": "Choose the format and who it is for; anything they may not see is left out or summarized.",
+  "home.people-home.filter_by_due": "Filter by when it’s due",
   "home.people-home.the_month_before": "the previous month",
   "home.people-home.time_off_you_ask_for_shows": "Time off you request appears here, along with its status.",
   "home.people-home.what_needs_hr_today": "Here’s what HR needs today.",
