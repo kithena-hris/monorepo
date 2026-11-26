@@ -1004,9 +1004,9 @@ function Record({
                   title={t('profile.profile.nothing_else_to_show', 'Nothing else to show')}
                 />
               ) : (
-                // Two sections to a row where the page is wide: a section of two
-                // fields is a card, not a band across the screen.
-                <div className="grid items-start gap-6 @7xl/page:grid-cols-2">
+                // One section to a row, its fields two abreast where it is wide:
+                // sections of unequal length side by side left holes under the shorter.
+                <div className="grid items-start gap-6">
                   {sections.map((section) => {
                     const writable = section.fields.some((f) => !f.readOnly);
                     const isEditing = editing === section.key;
@@ -1141,7 +1141,11 @@ function Record({
                             }}
                           />
                         ) : (
-                          <dl className="-mt-1 flex flex-col">
+                          <dl
+                            // Two abreast in a wide section; the last row's left field
+                            // drops its rule as the last field does.
+                            className="-mt-1 flex flex-col @5xl:grid @5xl:grid-cols-2 @5xl:gap-x-10 @5xl:[&>*:nth-last-child(2):nth-child(odd)]:border-b-0"
+                          >
                             {section.fields.map((field) => (
                               <FieldRow
                                 key={field.key}
