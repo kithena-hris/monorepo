@@ -94,3 +94,40 @@ describe('a policy’s acknowledgements (F3)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe('the signatures list (K10)', () => {
+  const row = (id: string, title: string, extra: object) => ({
+    id,
+    documentId: `d-${id}`,
+    title,
+    status: 'sent' as const,
+    signed: 0,
+    of: 2,
+    waitingOn: null,
+    dueOn: null,
+    createdAt: '2026-10-01T09:00:00Z',
+    needsYou: false,
+    ...extra,
+  });
+  const rows = [
+    row('e1', 'Remote-work addendum', { needsYou: true }),
+    row('e2', 'Offer letter', { waitingOn: 'Mei Tanaka' }),
+    row('e3', 'Employment contract', { status: 'completed', signed: 2 }),
+  ];
+
+  it('says what is yours to sign first, then cuts the rest by where it stands', async () => {
+    const { container } = render(<screens.Envelopes load={ready({ rows })} />);
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Waiting for your signature' }),
+    ).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Review and sign' }).getAttribute('href')).toBe(
+      '/documents/envelopes/e1',
+    );
+    // On All the list is the rest: the one to sign is not said twice.
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('radio', { name: 'Signed · 1' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByRole('link', { name: /Employment contract/ })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});

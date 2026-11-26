@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/documents/actions';
@@ -8,7 +8,7 @@ import * as peopleActions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS } from '../lib/remotes';
 import type { areaFrame } from '../lib/shell-data';
-import { withQuery } from '../lib/url-state';
+import { noteInAddress, withQuery } from '../lib/url-state';
 import type { Embedded } from './act-screen';
 import { useShellData } from './app-shell';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
@@ -37,6 +37,7 @@ export function DocumentsScreen({
 }: DocumentsScreenProps): JSX.Element {
   const router = useRouter();
   const here = usePathname();
+  const live = useSearchParams();
   const pathname = embedded === undefined || path === undefined ? here : path;
   // People is here: a document can fill the record of the person it is about.
   const shellData = useShellData();
@@ -164,7 +165,15 @@ export function DocumentsScreen({
             : {}),
         };
       case 'Envelopes':
-        return { load: loadable, onNavigate: go };
+        return {
+          load: loadable,
+          onNavigate: go,
+          // A cut of what is on the page: the address follows, nothing is read again.
+          show: live.get('show'),
+          onShow: (show: string | null) => {
+            noteInAddress({ show }, 'replace');
+          },
+        };
       case 'Envelope':
         return {
           load: loadable,

@@ -669,11 +669,15 @@
   },
   "envelopes.envelopes.due": {
     "text": "due {{date}}",
-    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the description of <ListItem>. Filled in: {{date}}."
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <p>. Filled in: {{date}}."
   },
   "envelopes.envelopes.due_2": {
     "text": "Due",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.every_request_is_waiting_for_you": {
+    "text": "Every request here is waiting for your signature, above.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the description of <EmptyState>."
   },
   "envelopes.envelopes.every_request_you_sign_or_follow": {
     "text": "Every request you sign or follow.",
@@ -763,6 +767,10 @@
     "text": "No date",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the placeholder of <DatePicker>."
   },
+  "envelopes.envelopes.no_request_stands_here": {
+    "text": "No request stands here now.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the description of <EmptyState>."
+  },
   "envelopes.envelopes.no_signature_requests": {
     "text": "No signature requests",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the title of <EmptyState>."
@@ -787,9 +795,17 @@
     "text": "Not signed",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: the title of <Alert>."
   },
+  "envelopes.envelopes.nothing_else": {
+    "text": "Nothing else",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the title of <EmptyState>."
+  },
+  "envelopes.envelopes.nothing_here": {
+    "text": "Nothing here",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the title of <EmptyState>."
+  },
   "envelopes.envelopes.of_signed": {
     "text": "{{signed}} of {{of}} signed",
-    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the description of <ListItem>. Filled in: {{signed}}, {{of}}."
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <p>. Filled in: {{signed}}, {{of}}."
   },
   "envelopes.envelopes.only_a_pdf_can_be_signed": {
     "text": "Only a PDF can be signed",
@@ -839,6 +855,10 @@
     "text": "Review and send",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the steps of <Stepper>."
   },
+  "envelopes.envelopes.review_and_sign": {
+    "text": "Review and sign",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <a>."
+  },
   "envelopes.envelopes.s_signature": {
     "text": "{{name}}’s signature",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: the label of <Signature>. Filled in: {{name}}."
@@ -878,6 +898,26 @@
   "envelopes.envelopes.sent": {
     "text": "Sent",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, STATUS: a \"sent\" value."
+  },
+  "envelopes.envelopes.show_all": {
+    "text": "All",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, CUTS: a \"all\" value."
+  },
+  "envelopes.envelopes.show_closed": {
+    "text": "Declined or cancelled",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, CUTS: a \"closed\" value."
+  },
+  "envelopes.envelopes.show_out": {
+    "text": "Out for signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, CUTS: a \"out\" value."
+  },
+  "envelopes.envelopes.show_signed": {
+    "text": "Signed",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, CUTS: a \"signed\" value."
+  },
+  "envelopes.envelopes.show_yours": {
+    "text": "Needs you",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, CUTS: a \"yours\" value."
   },
   "envelopes.envelopes.signature_request": {
     "text": "Signature request",
@@ -991,6 +1031,10 @@
     "text": "Waiting for a signature",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, ENVELOPE: a \"sent\" value."
   },
+  "envelopes.envelopes.waiting_for_your_signature": {
+    "text": "Waiting for your signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: text inside <h2>."
+  },
   "envelopes.envelopes.what_happened": {
     "text": "What happened",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <CardTitle>."
@@ -998,6 +1042,10 @@
   "envelopes.envelopes.where_they_sign": {
     "text": "Where they sign",
     "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the steps of <Stepper>."
+  },
+  "envelopes.envelopes.which_requests": {
+    "text": "Which requests",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the aria-label of <SegmentedControl>."
   },
   "envelopes.envelopes.who_signs": {
     "text": "Who signs",

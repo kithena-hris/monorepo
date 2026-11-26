@@ -7,6 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardToolbar,
   Checkbox,
   Combobox,
   DatePicker,
@@ -29,10 +30,13 @@ import {
   List,
   ListItem,
   PageHeader,
+  SegmentedControl,
+  SegmentedControlItem,
   tallyFigures,
   Signature,
   Skeleton,
   Spinner,
+  staggerStyle,
   Stepper,
   icons,
   isFilled,
@@ -89,13 +93,47 @@ const ENVELOPE = () =>
 
 /* ------------------------------------------------------------- K10 list -- */
 
+type EnvelopeRow = EnvelopesData['rows'][number];
+type Show = 'all' | 'yours' | 'out' | 'signed' | 'closed';
+
+/** Which of the list's cuts a request falls in: yours to sign first, whatever its state. */
+const cutOf = (r: EnvelopeRow): Exclude<Show, 'all'> =>
+  r.needsYou
+    ? 'yours'
+    : r.status === 'sent'
+      ? 'out'
+      : r.status === 'completed'
+        ? 'signed'
+        : 'closed';
+
+const CUTS = () =>
+  ({
+    all: tr('envelopes.envelopes.show_all', 'All'),
+    yours: tr('envelopes.envelopes.show_yours', 'Needs you'),
+    out: tr('envelopes.envelopes.show_out', 'Out for signature'),
+    signed: tr('envelopes.envelopes.show_signed', 'Signed'),
+    closed: tr('envelopes.envelopes.show_closed', 'Declined or cancelled'),
+  }) as const;
+
+/**
+ * Every request this person signs or follows (K10). What is theirs to sign
+ * comes first, each with the one thing to do; the rest is one list, cut by
+ * where each request stands. The cut is the address's `show`, so a link opens
+ * the same list.
+ */
 export function Envelopes({
   load,
+  show: asked,
+  onShow,
   onNavigate,
 }: {
   readonly load: Loadable<EnvelopesData>;
+  /** The cut on show, from the address; absent, the screen keeps its own. */
+  readonly show?: string | null | undefined;
+  readonly onShow?: ((show: string | null) => void) | undefined;
   readonly onNavigate?: ((href: string) => void) | undefined;
 }): JSX.Element {
+  const [own, setOwn] = useState<string | null>(null);
   if (load.status === 'loading')
     return (
       <Skeleton
@@ -103,6 +141,19 @@ export function Envelopes({
         label={tr('envelopes.envelopes.loading_signature_requests', 'Loading signature requests')}
       />
     );
+  const cuts = CUTS();
+  const wanted = (onShow === undefined ? own : asked) ?? 'all';
+  const show: Show = wanted in cuts ? (wanted as Show) : 'all';
+  const pick = (next: string): void => {
+    const value = next === 'all' ? null : next;
+    if (onShow === undefined) setOwn(value);
+    else onShow(value);
+  };
+  const open = (id: string) => (e: { preventDefault: () => void }) => {
+    if (onNavigate === undefined) return;
+    e.preventDefault();
+    onNavigate(`/documents/envelopes/${id}`);
+  };
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -140,68 +191,164 @@ export function Envelopes({
         )}
       />
       <Loaded load={load} what={tr('envelopes.envelopes.signature_requests', 'signature requests')}>
-        {(data) =>
-          data.rows.length === 0 ? (
-            <EmptyState
-              icon={<icons.edit />}
-              title={tr('envelopes.envelopes.no_signature_requests', 'No signature requests')}
-              description={tr(
-                'envelopes.envelopes.send_one_from_a_document',
-                'Send one from a document.',
+        {(data) => {
+          if (data.rows.length === 0)
+            return (
+              <EmptyState
+                icon={<icons.edit />}
+                title={tr('envelopes.envelopes.no_signature_requests', 'No signature requests')}
+                description={tr(
+                  'envelopes.envelopes.send_one_from_a_document',
+                  'Send one from a document.',
+                )}
+              />
+            );
+          const count = (cut: Show): number =>
+            cut === 'all' ? data.rows.length : data.rows.filter((r) => cutOf(r) === cut).length;
+          const yours = data.rows.filter((r) => r.needsYou);
+          // On All, what is theirs is said above the list, so the list is the rest.
+          const listed = data.rows.filter((r) =>
+            show === 'all' ? !r.needsYou : cutOf(r) === show,
+          );
+          return (
+            <>
+              {show !== 'all' || yours.length === 0 ? null : (
+                <section className="flex flex-col gap-3" aria-labelledby="yours-to-sign">
+                  <h2 id="yours-to-sign" className="text-md font-semibold">
+                    {tr(
+                      'envelopes.envelopes.waiting_for_your_signature',
+                      'Waiting for your signature',
+                    )}
+                  </h2>
+                  <div className="grid gap-3 @3xl/page:grid-cols-2">
+                    {yours.map((r, i) => (
+                      <Card
+                        key={r.id}
+                        padded
+                        tone="attention"
+                        className="flex items-center gap-3 motion-safe:animate-arrive"
+                        style={staggerStyle(i, 'animation')}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold">{r.title}</p>
+                          <p className="text-sm text-fg-muted">
+                            {[
+                              tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
+                                signed: r.signed,
+                                of: r.of,
+                              }),
+                              ...(r.dueOn === null
+                                ? []
+                                : [
+                                    tr('envelopes.envelopes.due', 'due {{date}}', {
+                                      date: shortDate(r.dueOn),
+                                    }),
+                                  ]),
+                            ].join(' · ')}
+                          </p>
+                        </div>
+                        <Button asChild variant="primary" startIcon={<icons.edit aria-hidden />}>
+                          <a href={`/documents/envelopes/${r.id}`} onClick={open(r.id)}>
+                            {tr('envelopes.envelopes.review_and_sign', 'Review and sign')}
+                          </a>
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
               )}
-            />
-          ) : (
-            <List>
-              {data.rows.map((r) => (
-                <ListItem
-                  key={r.id}
-                  icon={<icons.edit />}
-                  iconTone={r.needsYou ? 'accent' : 'neutral'}
-                  description={[
-                    tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
-                      signed: r.signed,
-                      of: r.of,
-                    }),
-                    ...(r.waitingOn === null
-                      ? []
-                      : [
-                          tr('envelopes.envelopes.waiting_for', 'waiting for {{who}}', {
-                            who: r.waitingOn,
-                          }),
-                        ]),
-                    ...(r.dueOn === null
-                      ? []
-                      : [
-                          tr('envelopes.envelopes.due', 'due {{date}}', {
-                            date: shortDate(r.dueOn),
-                          }),
-                        ]),
-                  ].join(' · ')}
-                  meta={
-                    <Badge tone={r.needsYou ? 'accent' : ENVELOPE()[r.status][1]} size="sm" dot>
-                      {r.needsYou
-                        ? tr('envelopes.envelopes.your_signature', 'Your signature')
-                        : ENVELOPE()[r.status][0]}
-                    </Badge>
-                  }
-                  chevron
-                  asChild
-                >
-                  <a
-                    href={`/documents/envelopes/${r.id}`}
-                    onClick={(e) => {
-                      if (onNavigate === undefined) return;
-                      e.preventDefault();
-                      onNavigate(`/documents/envelopes/${r.id}`);
-                    }}
+              <Card>
+                <CardToolbar className="flex-row flex-wrap items-center">
+                  <SegmentedControl
+                    size="sm"
+                    aria-label={tr('envelopes.envelopes.which_requests', 'Which requests')}
+                    value={show}
+                    onValueChange={pick}
                   >
-                    {r.title}
-                  </a>
-                </ListItem>
-              ))}
-            </List>
-          )
-        }
+                    {(Object.keys(cuts) as Show[])
+                      // A cut with nothing in it is not offered; the one on show always is.
+                      .filter((cut) => cut === 'all' || cut === show || count(cut) > 0)
+                      .map((cut) => (
+                        <SegmentedControlItem key={cut} value={cut}>
+                          {cuts[cut]} · {count(cut)}
+                        </SegmentedControlItem>
+                      ))}
+                  </SegmentedControl>
+                </CardToolbar>
+                {listed.length === 0 ? (
+                  <EmptyState
+                    icon={<icons.edit />}
+                    title={
+                      show === 'all'
+                        ? tr('envelopes.envelopes.nothing_else', 'Nothing else')
+                        : tr('envelopes.envelopes.nothing_here', 'Nothing here')
+                    }
+                    description={
+                      show === 'all'
+                        ? tr(
+                            'envelopes.envelopes.every_request_is_waiting_for_you',
+                            'Every request here is waiting for your signature, above.',
+                          )
+                        : tr(
+                            'envelopes.envelopes.no_request_stands_here',
+                            'No request stands here now.',
+                          )
+                    }
+                  />
+                ) : (
+                  <List>
+                    {listed.map((r, i) => (
+                      <ListItem
+                        key={r.id}
+                        className="motion-safe:animate-arrive"
+                        style={staggerStyle(i, 'animation')}
+                        icon={<icons.edit />}
+                        iconTone={r.needsYou ? 'accent' : 'neutral'}
+                        description={[
+                          tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
+                            signed: r.signed,
+                            of: r.of,
+                          }),
+                          ...(r.waitingOn === null
+                            ? []
+                            : [
+                                tr('envelopes.envelopes.waiting_for', 'waiting for {{who}}', {
+                                  who: r.waitingOn,
+                                }),
+                              ]),
+                          ...(r.dueOn === null
+                            ? []
+                            : [
+                                tr('envelopes.envelopes.due', 'due {{date}}', {
+                                  date: shortDate(r.dueOn),
+                                }),
+                              ]),
+                        ].join(' · ')}
+                        meta={
+                          <Badge
+                            tone={r.needsYou ? 'accent' : ENVELOPE()[r.status][1]}
+                            size="sm"
+                            dot
+                          >
+                            {r.needsYou
+                              ? tr('envelopes.envelopes.your_signature', 'Your signature')
+                              : ENVELOPE()[r.status][0]}
+                          </Badge>
+                        }
+                        chevron
+                        asChild
+                      >
+                        <a href={`/documents/envelopes/${r.id}`} onClick={open(r.id)}>
+                          {r.title}
+                        </a>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Card>
+            </>
+          );
+        }}
       </Loaded>
     </div>
   );
