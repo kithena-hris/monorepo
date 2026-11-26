@@ -34,6 +34,7 @@
   "inbox.inbox.declined_your_change_to_your": "{{by}} hat Ihre Änderung an Ihrem Feld {{field}} abgelehnt",
   "inbox.inbox.details": "Angaben",
   "inbox.inbox.details_hr_asked_for": "von Personal erbetene Angaben",
+  "inbox.inbox.details_to_fill_in": "Auszufüllende Details",
   "inbox.inbox.documents": "Dokumente",
   "inbox.inbox.done": "Erledigt",
   "inbox.inbox.exports_to_approve": "Zu genehmigende Exporte",
