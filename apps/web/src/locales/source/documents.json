@@ -1681,15 +1681,15 @@
   },
   "library.library.ask": {
     "text": "Ask",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <Button>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <Button>."
   },
   "library.library.ask_a_question": {
     "text": "Ask a question",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the aria-label of <Input>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the aria-label of <AssistantComposer>."
   },
   "library.library.ask_anything_your_documents_can_answer": {
-    "text": "Ask anything your documents can answer",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the placeholder of <Input>."
+    "text": "Ask anything your documents can answer…",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the placeholder of <AssistantComposer>."
   },
   "library.library.ask_for_a_document": {
     "text": "Ask {{first}} for a document",
@@ -1701,7 +1701,7 @@
   },
   "library.library.ask_your_documents": {
     "text": "Ask your documents",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <h2>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the title of <AssistantCard>."
   },
   "library.library.cancel": {
     "text": "Cancel",
@@ -1809,7 +1809,7 @@
   },
   "library.library.kithena_reads_only_what_you_may_open": {
     "text": "Kithena reads only what you may open, and says which document each answer is from.",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <p>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the disclaimer of <AssistantComposer>."
   },
   "library.library.loading_your_documents": {
     "text": "Loading your documents",
@@ -1926,10 +1926,6 @@
   "library.library.people_files": {
     "text": "People files",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
-  },
-  "library.library.questions_to_start_from": {
-    "text": "Questions to start from",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: the aria-label of <div>."
   },
   "library.library.queues": {
     "text": "Queues",

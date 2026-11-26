@@ -1,12 +1,15 @@
 import {
   ActionCard,
   Alert,
+  AssistantCard,
+  AssistantComposer,
+  AssistantSuggestion,
+  AssistantSuggestions,
   Avatar,
   Badge,
   Button,
   Card,
   CardToolbar,
-  Chip,
   type DataColumn,
   DataTable,
   Dialog,
@@ -588,7 +591,7 @@ function OverviewBody({
   ];
   const ask = (q: string): void => {
     if (q.trim() === '') return;
-    setAsked(q);
+    setAsked('');
     onAsk(q);
   };
   return (
@@ -648,53 +651,28 @@ function OverviewBody({
       </section>
 
       {props.onAskAcross === undefined ? null : (
-        <Card variant="assistant" padded className={`flex flex-col gap-3 ${ARRIVE}`}>
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              ask(asked);
-            }}
-          >
-            <h2 className="flex items-center gap-2 text-md font-semibold">
-              <icons.assistant aria-hidden className="size-4 text-accent-fg" />
-              {tr('library.library.ask_your_documents', 'Ask your documents')}
-            </h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                aria-label={tr('library.library.ask_a_question', 'Ask a question')}
-                placeholder={tr(
-                  'library.library.ask_anything_your_documents_can_answer',
-                  'Ask anything your documents can answer',
-                )}
-                value={asked}
-                onChange={(e) => {
-                  setAsked(e.target.value);
-                }}
-                className="min-w-0 flex-1"
-              />
-              <Button type="submit" variant="primary" disabled={asked.trim() === ''}>
-                {tr('library.library.ask', 'Ask')}
-              </Button>
-            </div>
-            <div
-              className="flex flex-wrap gap-2"
-              role="group"
-              aria-label={tr('library.library.questions_to_start_from', 'Questions to start from')}
-            >
+        // Kithena's own card, as inside a document: a few questions to start
+        // from, the answer with where it is from, and the box to ask the next.
+        <AssistantCard
+          level={2}
+          className={ARRIVE}
+          title={tr('library.library.ask_your_documents', 'Ask your documents')}
+        >
+          {answer === null ? (
+            <AssistantSuggestions>
               {starters.map((q) => (
-                <Chip
+                <AssistantSuggestion
                   key={q}
+                  icon={<icons.assistant aria-hidden />}
                   onClick={() => {
                     ask(q);
                   }}
                 >
                   {q}
-                </Chip>
+                </AssistantSuggestion>
               ))}
-            </div>
-          </form>
-          {answer === null ? null : answer.a === null ? (
+            </AssistantSuggestions>
+          ) : answer.a === null ? (
             answer.error === undefined ? (
               <Spinner
                 size="sm"
@@ -711,13 +689,23 @@ function OverviewBody({
               <AcrossAnswer question={answer.q} answer={answer.a} onNavigate={props.onNavigate} />
             </div>
           )}
-          <p className="text-xs text-fg-muted">
-            {tr(
+          <AssistantComposer
+            className="px-0 pb-0"
+            aria-label={tr('library.library.ask_a_question', 'Ask a question')}
+            value={asked}
+            onValueChange={setAsked}
+            onSubmit={ask}
+            streaming={answer !== null && answer.a === null && answer.error === undefined}
+            placeholder={tr(
+              'library.library.ask_anything_your_documents_can_answer',
+              'Ask anything your documents can answer…',
+            )}
+            disclaimer={tr(
               'library.library.kithena_reads_only_what_you_may_open',
               'Kithena reads only what you may open, and says which document each answer is from.',
             )}
-          </p>
-        </Card>
+          />
+        </AssistantCard>
       )}
 
       <Answers
