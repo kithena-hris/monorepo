@@ -1123,6 +1123,10 @@
     "text": "Fill in any of these and save. The rest can wait.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: the hint of <Actions>."
   },
+  "components.home-missing.not_saved_try_again": {
+    "text": "Not saved. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: text built in code."
+  },
   "components.home-missing.nothing_is_missing": {
     "text": "Nothing is missing",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/home-missing.tsx, MissingFields: the title of <Alert>."
@@ -1403,6 +1407,18 @@
     "text": "Countersigned by",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the items of <KeyValues>."
   },
+  "components.inbox.detail-people.details_filled_in": {
+    "text": "Details filled in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the label of <Progress>."
+  },
+  "components.inbox.detail-people.details_needed_before_the_invitation_one": {
+    "text": "{{count}} detail is needed before the invitation can go",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.detail-people.details_needed_before_the_invitation_other": {
+    "text": "{{count}} details are needed before the invitation can go",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "components.inbox.detail-people.document": {
     "text": "Document",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the aria-label of <List>."
@@ -1415,6 +1431,10 @@
     "text": "Done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the onClick of <Button>."
   },
+  "components.inbox.detail-people.done_of_needed": {
+    "text": "{{done}} of {{needed}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the valueLabel of <Progress>. Filled in: {{done}}, {{needed}}."
+  },
   "components.inbox.detail-people.download": {
     "text": "Download",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the trailing of <Button>."
@@ -1422,6 +1442,10 @@
   "components.inbox.detail-people.due_date_changed": {
     "text": "Due date changed",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onPick of <DueDialog>."
+  },
+  "components.inbox.detail-people.every_required_detail_is_on": {
+    "text": "Every required detail is on their record. Sending the invitation emails them a link to sign up.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <Alert>."
   },
   "components.inbox.detail-people.failed_times_in_a_row": {
     "text": "Failed {{attempts}} times in a row",
@@ -1438,6 +1462,10 @@
   "components.inbox.detail-people.fill_in": {
     "text": "Fill in",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <OpenHere>."
+  },
+  "components.inbox.detail-people.fill_in_the_rest_to_send": {
+    "text": "Fill in {{count}} more to send the invitation.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the hint of <Actions>. Filled in: {{count}}."
   },
   "components.inbox.detail-people.fill_this_in_on_your_profile": {
     "text": "Fill this in on your profile",
@@ -1579,10 +1607,6 @@
     "text": "Nothing changes on the record until HR decides. It takes effect from {{effectiveFrom}}.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: text inside <p>. Filled in: {{effectiveFrom}}."
   },
-  "components.inbox.detail-people.nothing_missing": {
-    "text": "Nothing missing",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the title of <Alert>."
-  },
   "components.inbox.detail-people.nothing_to_do": {
     "text": "Nothing to do.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Alert>."
@@ -1659,6 +1683,14 @@
     "text": "Reading the record",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the label of <Spinner>."
   },
+  "components.inbox.detail-people.ready_to_invite": {
+    "text": "Ready to invite",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the title of <Alert>."
+  },
+  "components.inbox.detail-people.ready_to_invite_name": {
+    "text": "Ready to invite {{name}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: the title of <Alert>. Filled in: {{name}}."
+  },
   "components.inbox.detail-people.remind": {
     "text": "Remind",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the trailing of <Button>."
@@ -1694,6 +1726,10 @@
   "components.inbox.detail-people.save": {
     "text": "Save",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <Button>."
+  },
+  "components.inbox.detail-people.save_and_send_invitation": {
+    "text": "Save and send invitation",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <Button>."
   },
   "components.inbox.detail-people.saved_to_the_record": {
     "text": "Saved to the record",
@@ -1818,10 +1854,6 @@
   "components.inbox.detail-people.the_last_answer_was_nothing_new": {
     "text": "The last answer was {{value}}. Nothing new reaches it until it is fixed.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <Alert>. Filled in: {{value}}."
-  },
-  "components.inbox.detail-people.the_record_has_everything_required": {
-    "text": "The record has everything required. Send the invitation when you are ready.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <Alert>."
   },
   "components.inbox.detail-people.this_cant_be_shown_here": {
     "text": "This can’t be shown here",

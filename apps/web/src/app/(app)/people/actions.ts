@@ -114,6 +114,23 @@ export async function saveOwnSection(sectionKey: string, changed: Values): Promi
   return saved(people('SaveOwnSection', { changed: formInputs(changed) }));
 }
 
+/**
+ * Their own fields saved each on its own, side by side: one People refuses
+ * does not hold back the rest. Under each key, null when it is saved (or sent
+ * to HR for approval), or why it was refused.
+ * ponytail: a write a field; save them as one and have People say which field
+ * it refused if a record ever has rules across fields.
+ */
+export async function saveOwnFields(changed: Values): Promise<Record<string, string | null>> {
+  const all = await Promise.all(
+    Object.entries(changed).map(async ([key, value]) => {
+      const one = await saveOwnSection('', { [key]: value });
+      return [key, one.ok ? null : one.message] as const;
+    }),
+  );
+  return Object.fromEntries(all);
+}
+
 export async function savePersonSection(
   personId: string,
   sectionKey: string,

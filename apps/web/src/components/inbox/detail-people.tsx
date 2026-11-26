@@ -16,6 +16,7 @@ import {
   Field,
   FieldControl,
   FieldDescription,
+  FieldError,
   FieldLabel,
   formatList,
   formatNumber,
@@ -153,11 +154,14 @@ export function FieldInput({
   value,
   onChange,
   disabled,
+  error,
 }: {
   readonly field: InboxField;
   readonly value: unknown;
   readonly onChange: (v: unknown) => void;
   readonly disabled: boolean;
+  /** Why what was entered was refused: said under the control, which is marked invalid. */
+  readonly error?: string | undefined;
 }): JSX.Element {
   const here = useOpenHereClick();
   const text = typeof value === 'string' ? value : '';
@@ -282,9 +286,10 @@ export function FieldInput({
     );
   })();
   return (
-    <Field required={field.required} disabled={disabled}>
+    <Field required={field.required} disabled={disabled} invalid={error !== undefined}>
       <FieldLabel>{field.label}</FieldLabel>
       {control}
+      <FieldError>{error}</FieldError>
       {field.description === null ? null : <FieldDescription>{field.description}</FieldDescription>}
       {field.sensitive ? (
         <FieldDescription>
@@ -1595,23 +1600,42 @@ function SetUp({ item, act }: BodyProps): JSX.Element {
     };
   }, [personId]);
   const sections = gaps?.ok === true ? gaps.sections : [];
+  // What can be filled in here. A field with no control here (a file) is
+  // linked to on their record and does not hold the invitation back.
+  const needed = sections.flatMap((s) => s.fields).filter((f) => INLINE.has(f.dataType));
   const filled = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
   const changed = Object.fromEntries(Object.entries(values).filter(([, v]) => filled(v)));
-  const invite = (): void => {
-    act.run(
-      async () => {
-        const sent = await invitePerson(personId, null);
-        return sent.ok ? { ok: true } : sent;
-      },
-      {
-        title: t('components.inbox.detail-people.invitation_sent', 'Invitation sent'),
-        next: true,
-      },
+  const done = needed.filter((f) => f.key in changed).length;
+  const ready = gaps?.ok === true && needed.length === 0;
+  const first = firstName(item.from?.name);
+  /** Save what is filled in; what was saved leaves the list where it stands. */
+  const save = async (): Promise<{ ok: true } | { ok: false; message: string }> => {
+    const saved = await savePersonSection(personId, '', changed);
+    if (!saved.ok) return saved;
+    forgetGap(personId);
+    setGaps((was) =>
+      was?.ok !== true
+        ? was
+        : {
+            ...was,
+            sections: was.sections
+              .map((s) => ({ ...s, fields: s.fields.filter((f) => !(f.key in changed)) }))
+              .filter((s) => s.fields.length > 0),
+          },
     );
+    setValues({});
+    return { ok: true };
+  };
+  const invite = async (): Promise<{ ok: true } | { ok: false; message: string }> => {
+    const sent = await invitePerson(personId, null);
+    return sent.ok ? { ok: true } : sent;
+  };
+  const sent = {
+    title: t('components.inbox.detail-people.invitation_sent', 'Invitation sent'),
+    next: true,
   };
   return (
     <div className="flex flex-col gap-5">
-      {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
       {gaps === undefined ? (
         <div className="grid min-h-24 place-items-center">
           <Spinner
@@ -1625,68 +1649,144 @@ function SetUp({ item, act }: BodyProps): JSX.Element {
         >
           {gaps.message}
         </Alert>
-      ) : sections.length === 0 ? (
-        <Alert
-          tone="success"
-          title={t('components.inbox.detail-people.nothing_missing', 'Nothing missing')}
-        >
-          {t(
-            'components.inbox.detail-people.the_record_has_everything_required',
-            'The record has everything required. Send the invitation when you are ready.',
-          )}
-        </Alert>
       ) : (
-        <form
-          id={`setup-${personId}`}
-          className="flex flex-col gap-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (Object.keys(changed).length === 0) return;
-            act.run(() => savePersonSection(personId, '', changed), {
-              title: t('components.inbox.detail-people.saved_to_the_record', 'Saved to the record'),
-            });
-            forgetGap(personId);
-          }}
-        >
-          {sections.map((s) => (
-            <section key={s.key} aria-label={s.label} className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-fg">{s.label}</h3>
-              {s.fields.map((f) => (
-                <FieldInput
-                  key={f.key}
-                  field={f}
-                  value={values[f.key]}
-                  disabled={act.pending}
-                  onChange={(v) => {
-                    setValues((was) => ({ ...was, [f.key]: v }));
-                  }}
-                />
+        <>
+          {ready ? (
+            // One state, one thing to do: nothing to check, only to send.
+            <Alert
+              tone="success"
+              title={
+                first === ''
+                  ? t('components.inbox.detail-people.ready_to_invite', 'Ready to invite')
+                  : t(
+                      'components.inbox.detail-people.ready_to_invite_name',
+                      'Ready to invite {{name}}',
+                      {
+                        name: first,
+                      },
+                    )
+              }
+            >
+              {t(
+                'components.inbox.detail-people.every_required_detail_is_on',
+                'Every required detail is on their record. Sending the invitation emails them a link to sign up.',
+              )}
+            </Alert>
+          ) : (
+            // What stands between this hire and their invitation, and how far along it is.
+            <div className="flex flex-col gap-2">
+              <p className="text-base font-semibold text-fg">
+                {t(
+                  'components.inbox.detail-people.details_needed_before_the_invitation',
+                  {
+                    one: '{{count}} detail is needed before the invitation can go',
+                    other: '{{count}} details are needed before the invitation can go',
+                  },
+                  { count: needed.length },
+                )}
+              </p>
+              <Progress
+                value={done}
+                max={needed.length}
+                label={t('components.inbox.detail-people.details_filled_in', 'Details filled in')}
+                showValue
+                valueLabel={t(
+                  'components.inbox.detail-people.done_of_needed',
+                  '{{done}} of {{needed}}',
+                  {
+                    done: String(done),
+                    needed: String(needed.length),
+                  },
+                )}
+              />
+            </div>
+          )}
+          {sections.length === 0 ? null : (
+            <form
+              id={`setup-${personId}`}
+              className="flex flex-col gap-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (done === 0) return;
+                // Everything filled in: saved and invited in one go. Some: saved, the rest waits.
+                if (done === needed.length) {
+                  act.run(async () => {
+                    const saved = await save();
+                    return saved.ok ? invite() : saved;
+                  }, sent);
+                } else {
+                  act.run(save, {
+                    title: t(
+                      'components.inbox.detail-people.saved_to_the_record',
+                      'Saved to the record',
+                    ),
+                  });
+                }
+              }}
+            >
+              {sections.map((s) => (
+                <section key={s.key} aria-label={s.label} className="flex flex-col gap-3">
+                  <h3 className="text-sm font-semibold text-fg">{s.label}</h3>
+                  {s.fields.map((f) => (
+                    <FieldInput
+                      key={f.key}
+                      field={f}
+                      value={values[f.key]}
+                      disabled={act.pending}
+                      onChange={(v) => {
+                        setValues((was) => ({ ...was, [f.key]: v }));
+                      }}
+                    />
+                  ))}
+                </section>
               ))}
-            </section>
-          ))}
-        </form>
+            </form>
+          )}
+        </>
       )}
-      <Actions>
-        {sections.length === 0 ? null : (
+      {gaps?.ok !== true ? null : ready ? (
+        <Actions>
+          <Button
+            variant="primary"
+            startIcon={<icons.email aria-hidden />}
+            loading={act.pending}
+            onClick={() => {
+              act.run(invite, sent);
+            }}
+          >
+            {t('components.inbox.detail-people.send_invitation', 'Send invitation')}
+          </Button>
+        </Actions>
+      ) : (
+        // One button, named for what it will do with what is filled in so far.
+        <Actions
+          hint={
+            done === needed.length
+              ? undefined
+              : t(
+                  'components.inbox.detail-people.fill_in_the_rest_to_send',
+                  'Fill in {{count}} more to send the invitation.',
+                  { count: String(needed.length - done) },
+                )
+          }
+        >
           <Button
             type="submit"
             form={`setup-${personId}`}
             variant="primary"
+            startIcon={done === needed.length ? <icons.email aria-hidden /> : undefined}
             loading={act.pending}
-            disabled={Object.keys(changed).length === 0}
+            disabled={done === 0}
           >
-            {t('components.inbox.detail-people.save', 'Save')}
+            {done === needed.length
+              ? t(
+                  'components.inbox.detail-people.save_and_send_invitation',
+                  'Save and send invitation',
+                )
+              : t('components.inbox.detail-people.save', 'Save')}
           </Button>
-        )}
-        <Button
-          variant={sections.length === 0 ? 'primary' : 'secondary'}
-          startIcon={<icons.email aria-hidden />}
-          disabled={act.pending || gaps === undefined}
-          onClick={invite}
-        >
-          {t('components.inbox.detail-people.send_invitation', 'Send invitation')}
-        </Button>
-      </Actions>
+        </Actions>
+      )}
     </div>
   );
 }
