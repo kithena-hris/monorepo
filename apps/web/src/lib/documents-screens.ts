@@ -54,8 +54,26 @@ export async function loadScreen(
       return read('DocumentsDocument', { documentId: query.params['id'] ?? '' });
     case 'PersonFile':
       return read('DocumentsPersonFile', { personId: query.params['id'] ?? '' });
-    case 'Envelopes':
-      return read('DocumentsEnvelopes');
+    case 'Envelopes': {
+      // The signature on file, from People, read beside the list: made and changed from here.
+      const [list, signature] = await Promise.all([
+        read('DocumentsEnvelopes'),
+        mySignature().catch(() => null),
+      ]);
+      if (list.status !== 'ready' || signature === null) return list;
+      return {
+        status: 'ready',
+        data: {
+          ...(list.data as object),
+          signature: {
+            mark: signature.mark,
+            name: signature.name,
+            pending: signature.pending,
+            canSet: signature.canKeep || signature.canChange,
+          },
+        },
+      };
+    }
     case 'Envelope': {
       // The signature on file and the legal name, from People, read beside the request.
       const [envelope, signature, legalName] = await Promise.all([

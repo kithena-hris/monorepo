@@ -380,6 +380,20 @@ export interface EnvelopeData {
 }
 
 export interface EnvelopesData {
+  /**
+   * The viewer's own signature, where People keeps one (the shell joins it):
+   * what they sign with, shown here to make one or change it. Absent where
+   * the company keeps none.
+   */
+  readonly signature?: {
+    readonly mark: Mark | null;
+    /** Their legal name: what a typed signature says. */
+    readonly name: string;
+    /** A change to it is waiting for HR's approval. */
+    readonly pending: boolean;
+    /** They may set or change it here. */
+    readonly canSet: boolean;
+  };
   readonly rows: readonly {
     readonly id: string;
     readonly documentId: string;

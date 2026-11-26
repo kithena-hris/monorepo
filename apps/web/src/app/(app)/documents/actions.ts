@@ -1,6 +1,6 @@
 'use server';
 
-import type { SignatureMark } from '@kithena/contracts';
+import { SignatureMark } from '@kithena/contracts';
 
 import { keepMySignature } from '../../../lib/my-signature';
 import { documents, people, timeOff } from '../../../lib/people';
@@ -1113,6 +1113,26 @@ export async function certificateLeave(documentId: string): Promise<
       leaveType: leaveType === undefined ? null : { key: leaveType.key, name: leaveType.name },
     },
   };
+}
+
+/**
+ * Their own signature, made or changed from Signatures: kept on their record
+ * as their own change, so it waits for HR where the field needs approval.
+ */
+export async function setSignature(
+  mark: Mark,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  // What the browser sent is checked to be a signature before it is kept.
+  const parsed = SignatureMark.safeParse(mark);
+  if (!parsed.success) {
+    const t = await serverWords();
+    return {
+      ok: false,
+      message: t('documents.actions.not_a_signature', 'That is not a signature.'),
+    };
+  }
+  const kept = await keepMySignature(parsed.data, false);
+  return kept.ok ? { ok: true } : kept;
 }
 
 /** K5: a signature adopted while signing, kept on the signer's record where there is none. */

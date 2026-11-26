@@ -3715,6 +3715,10 @@
     "text": "Waking up {{area}}, usually under a minute",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the title of <EmptyState>. Filled in: {{area}}."
   },
+  "documents.actions.not_a_signature": {
+    "text": "That is not a signature.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
   "lib.activity.ai": {
     "text": "AI",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."

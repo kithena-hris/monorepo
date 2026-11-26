@@ -173,6 +173,7 @@ export function DocumentsScreen({
           onShow: (show: string | null) => {
             noteInAddress({ show }, 'replace');
           },
+          onSetSignature: actions.setSignature,
         };
       case 'Envelope':
         return {

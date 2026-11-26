@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import * as screens from '../index';
 import { adamDocument, adamToSign } from '../test/acme.fixture';
@@ -129,5 +129,28 @@ describe('the signatures list (K10)', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(screen.getByRole('link', { name: /Employment contract/ })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('lets them make the signature they sign with, in their legal name', () => {
+    const onSetSignature = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(
+      <screens.Envelopes
+        load={ready({
+          rows,
+          signature: { mark: null, name: 'Adam Novak', pending: false, canSet: true },
+        })}
+        onSetSignature={onSetSignature}
+      />,
+    );
+    expect(screen.getByText('No signature yet')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Create your signature' }));
+    const legal = screen.getByRole<HTMLInputElement>('textbox', { name: 'Your legal name' });
+    expect(legal.value).toBe('Adam Novak');
+    fireEvent.click(screen.getByRole('button', { name: 'Save signature' }));
+    expect(onSetSignature).toHaveBeenCalledWith({
+      kind: 'typed',
+      text: 'Adam Novak',
+      style: 'flowing',
+    });
   });
 });

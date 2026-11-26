@@ -1,4 +1,5 @@
 import {
+  AdoptSignatureDialog,
   Alert,
   Avatar,
   Badge,
@@ -126,12 +127,15 @@ export function Envelopes({
   show: asked,
   onShow,
   onNavigate,
+  onSetSignature,
 }: {
   readonly load: Loadable<EnvelopesData>;
   /** The cut on show, from the address; absent, the screen keeps its own. */
   readonly show?: string | null | undefined;
   readonly onShow?: ((show: string | null) => void) | undefined;
   readonly onNavigate?: ((href: string) => void) | undefined;
+  /** Keep the signature they made or changed here on their record. */
+  readonly onSetSignature?: ((mark: Mark) => Promise<Outcome>) | undefined;
 }): JSX.Element {
   const [own, setOwn] = useState<string | null>(null);
   if (load.status === 'loading')
@@ -192,16 +196,23 @@ export function Envelopes({
       />
       <Loaded load={load} what={tr('envelopes.envelopes.signature_requests', 'signature requests')}>
         {(data) => {
+          const mine =
+            data.signature === undefined ? null : (
+              <YourSignature signature={data.signature} onSet={onSetSignature} />
+            );
           if (data.rows.length === 0)
             return (
-              <EmptyState
-                icon={<icons.edit />}
-                title={tr('envelopes.envelopes.no_signature_requests', 'No signature requests')}
-                description={tr(
-                  'envelopes.envelopes.send_one_from_a_document',
-                  'Send one from a document.',
-                )}
-              />
+              <>
+                {mine}
+                <EmptyState
+                  icon={<icons.edit />}
+                  title={tr('envelopes.envelopes.no_signature_requests', 'No signature requests')}
+                  description={tr(
+                    'envelopes.envelopes.send_one_from_a_document',
+                    'Send one from a document.',
+                  )}
+                />
+              </>
             );
           const count = (cut: Show): number =>
             cut === 'all' ? data.rows.length : data.rows.filter((r) => cutOf(r) === cut).length;
@@ -212,6 +223,7 @@ export function Envelopes({
           );
           return (
             <>
+              {mine}
               {show !== 'all' || yours.length === 0 ? null : (
                 <section className="flex flex-col gap-3" aria-labelledby="yours-to-sign">
                   <h2 id="yours-to-sign" className="text-md font-semibold">
@@ -351,6 +363,111 @@ export function Envelopes({
         }}
       </Loaded>
     </div>
+  );
+}
+
+/**
+ * The signature this person signs with, where their company keeps one: shown
+ * as it will be drawn on a document, and made or changed here, in the same
+ * dialog signing uses. It is kept on their record as their own change, so
+ * where that needs approval the new one waits and the old one still signs.
+ */
+function YourSignature({
+  signature,
+  onSet,
+}: {
+  readonly signature: NonNullable<EnvelopesData['signature']>;
+  readonly onSet: ((mark: Mark) => Promise<Outcome>) | undefined;
+}): JSX.Element {
+  const [adopting, setAdopting] = useState(false);
+  // What was just made here, shown at once; the record's own arrives with the next read.
+  const [made, setMade] = useState<Mark | null>(null);
+  const write = useWrite();
+  const mark = made ?? signature.mark;
+  return (
+    <Card padded className="flex flex-wrap items-center gap-4 motion-safe:animate-arrive">
+      <div
+        className="grid h-20 w-64 max-w-full shrink-0 place-items-center rounded-md bg-surface-sunken px-4"
+        aria-hidden={mark === null}
+      >
+        {mark === null ? (
+          <span className="w-full border-b border-border-strong pb-1 text-xs text-fg-muted">
+            {tr('envelopes.envelopes.no_signature_yet', 'No signature yet')}
+          </span>
+        ) : (
+          <span className="block h-14 w-full motion-safe:animate-enter">
+            <Signature
+              value={mark}
+              label={tr('envelopes.envelopes.persons_signature', '{{name}}’s signature', {
+                name: signature.name,
+              })}
+            />
+          </span>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <h2 className="text-md font-semibold">
+          {tr('envelopes.envelopes.your_signature_title', 'Your signature')}
+        </h2>
+        <p className="text-sm text-fg-muted">
+          {made !== null
+            ? tr(
+                'envelopes.envelopes.saved_to_your_record',
+                'Saved to your record. If your company approves changes, it signs once HR has.',
+              )
+            : signature.pending
+              ? tr(
+                  'envelopes.envelopes.a_change_is_waiting_for_hr',
+                  'A change is waiting for HR’s approval. Until then this one signs.',
+                )
+              : mark === null
+                ? tr(
+                    'envelopes.envelopes.make_one_now_to_sign_in_a_press',
+                    'Make one now, and signing a document is one press.',
+                  )
+                : tr(
+                    'envelopes.envelopes.what_you_sign_documents_with',
+                    'What you sign documents with, in your legal name.',
+                  )}
+        </p>
+        {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
+      </div>
+      {signature.canSet && onSet !== undefined ? (
+        <Button
+          variant={mark === null ? 'primary' : 'secondary'}
+          startIcon={<icons.edit aria-hidden />}
+          loading={write.pending}
+          onClick={() => {
+            setAdopting(true);
+          }}
+        >
+          {mark === null
+            ? tr('envelopes.envelopes.create_your_signature', 'Create your signature')
+            : tr('envelopes.envelopes.change_it', 'Change')}
+        </Button>
+      ) : null}
+      <AdoptSignatureDialog
+        open={adopting}
+        name={signature.name}
+        value={mark}
+        title={
+          mark === null
+            ? tr('envelopes.envelopes.create_your_signature', 'Create your signature')
+            : tr('envelopes.envelopes.change_your_signature', 'Change your signature')
+        }
+        action={tr('envelopes.envelopes.save_signature', 'Save signature')}
+        onOpenChange={setAdopting}
+        onAdopt={(next) => {
+          setAdopting(false);
+          write.run(
+            () => onSet?.(next) ?? Promise.resolve({ ok: true }),
+            () => {
+              setMade(next);
+            },
+          );
+        }}
+      />
+    </Card>
   );
 }
 
