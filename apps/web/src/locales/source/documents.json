@@ -1715,6 +1715,14 @@
     "text": "Company · set up by HR",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectLabel>."
   },
+  "library.library.count_to_follow_up_one": {
+    "text": "{{count}} to follow up",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "library.library.count_to_follow_up_other": {
+    "text": "{{count}} to follow up",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "library.library.create": {
     "text": "Create",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <Button>."
@@ -2006,10 +2014,6 @@
   "library.library.show_all_count": {
     "text": "Show all {{count}}",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, OverviewBody: text inside <Button>. Filled in: {{count}}."
-  },
-  "library.library.show_every_document": {
-    "text": "Show every document",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the removeLabel of <Badge>."
   },
   "library.library.show_fewer": {
     "text": "Show fewer",
