@@ -590,6 +590,57 @@ describe('Home, with a host that knows who is away', () => {
     expect(onAway).toHaveBeenCalledTimes(1);
   });
 
+  it('draws the host’s documents: one list at a time, grouped as they ask, with figures that lead on', async () => {
+    const rows = (kind: string, about?: string) => (n: number) => ({
+      id: `${kind}-${String(n)}`,
+      title: `${kind} ${String(n)}`,
+      href: `/documents/d/${kind}-${String(n)}`,
+      detail: 'Only you',
+      kind,
+      ...(about === undefined ? {} : { about }),
+    });
+    const { container } = render(
+      <PeopleHome
+        load={ready(employee())}
+        documents={{
+          href: '/documents/all',
+          lists: [
+            {
+              key: 'needs',
+              label: 'Needs you',
+              href: '/documents/all',
+              total: 2,
+              rows: [rows('To sign')(1), rows('To read')(2)],
+            },
+            {
+              key: 'recent',
+              label: 'Recently updated',
+              href: '/documents/all',
+              total: 9,
+              rows: [1, 2, 3, 4, 5, 6].map(rows('Contract', 'Omar Haddad')),
+            },
+          ],
+          figures: [{ label: 'missing', value: 12, href: '/documents/queues/missing' }],
+        }}
+      />,
+    );
+    const documents = within(part('Documents'));
+    expect(documents.getByRole('link', { name: /To sign 1/u })).toBeTruthy();
+    expect(documents.getByRole('link', { name: /12\s*missing/u }).getAttribute('href')).toBe(
+      '/documents/queues/missing',
+    );
+    const user = fast();
+    await user.click(documents.getByRole('combobox', { name: 'Group by' }));
+    await user.click(screen.getByRole('option', { name: 'Group by kind' }));
+    expect(documents.getByRole('heading', { level: 3, name: /To read/u })).toBeTruthy();
+    await user.click(documents.getByRole('combobox', { name: 'Show' }));
+    await user.click(screen.getByRole('option', { name: 'Recently updated' }));
+    // Five of the nine, and the way to the rest.
+    expect(documents.getAllByRole('link', { name: /Contract \d/u })).toHaveLength(5);
+    expect(documents.getByText('Showing 5 of 9')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('is drawn before the host has its lists, each widget saying it is loading', () => {
     render(<PeopleHome load={ready(employee())} pending={{ toDo: true, time: true }} />);
     // Who they are is People's own, here at once.

@@ -3343,6 +3343,14 @@
     "text": "{{count}} days ago",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
+  "home.people-home.documents": {
+    "text": "Documents",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: text built in code."
+  },
+  "home.people-home.documents_show_up_here": {
+    "text": "A document to sign, read or add shows up here.",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the detail of <Done>."
+  },
   "home.people-home.due": {
     "text": "Due",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: the items of <Facts>."
@@ -3422,6 +3430,14 @@
   "home.people-home.group_by": {
     "text": "Group by",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: text inside <span>."
+  },
+  "home.people-home.group_by_kind": {
+    "text": "Group by kind",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the options of <Pick>."
+  },
+  "home.people-home.group_by_person": {
+    "text": "Group by person",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the options of <Pick>."
   },
   "home.people-home.happy_diwali": {
     "text": "Happy Diwali, {{name}}!",
@@ -3515,6 +3531,10 @@
     "text": "Newest first",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the options of <Pick>."
   },
+  "home.people-home.no_document_needs_you": {
+    "text": "No document needs you",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the title of <Done>."
+  },
   "home.people-home.no_due_date": {
     "text": "No due date",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: a \"noDue\" value."
@@ -3538,6 +3558,10 @@
   "home.people-home.nobody_here_is_away": {
     "text": "Nobody here is away in the next three weeks.",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, AwayAll: the detail of <Done>."
+  },
+  "home.people-home.not_about_one_person": {
+    "text": "Not about one person",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: text built in code."
   },
   "home.people-home.not_hired_yet": {
     "text": "Not hired yet",
@@ -3598,6 +3622,10 @@
   "home.people-home.open": {
     "text": "Open",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Todo: text inside <a>."
+  },
+  "home.people-home.open_documents": {
+    "text": "Open Documents",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the label of <Way>."
   },
   "home.people-home.open_in_review": {
     "text": "Open in Review",
@@ -3771,6 +3799,10 @@
     "text": "{{count}} people have details of their own to add, and are reminded weekly.",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HrHome: the says of <Figure>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
+  "home.people-home.see_all": {
+    "text": "See all",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: text inside <a>."
+  },
   "home.people-home.see_all_count_in_the_inbox": {
     "text": "See all {{count}} in the Inbox",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: text inside <a>. Filled in: {{count}}."
@@ -3802,6 +3834,10 @@
   "home.people-home.sent_nothing_changes_until_hr_approves": {
     "text": "Sent {{waited}} · nothing changes until HR approves",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, ToDo: the description of <Todo>. Filled in: {{waited}}."
+  },
+  "home.people-home.show": {
+    "text": "Show",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the label of <Pick>."
   },
   "home.people-home.showing_of": {
     "text": "Showing {{shown}} of {{of}}",
@@ -3866,6 +3902,10 @@
   "home.people-home.to_do": {
     "text": "To do",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the title of <Widget>."
+  },
+  "home.people-home.to_follow_up": {
+    "text": "To follow up",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: text inside <span>."
   },
   "home.people-home.to_one": {
     "text": "{{count}} other reports to {{first}}.",

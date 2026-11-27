@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   formatList,
+  formatNumber,
   type IconName,
   icons,
   KeyValues,
@@ -249,7 +250,45 @@ export interface PeopleHomeProps {
    * What the host is still reading: Home is drawn at once, and each of these
    * says it is loading in its own widget until the host hands it over.
    */
-  readonly pending?: { readonly toDo?: boolean; readonly time?: boolean };
+  readonly pending?: {
+    readonly toDo?: boolean;
+    readonly time?: boolean;
+    readonly documents?: boolean;
+  };
+  /** Their documents, as lists to choose between, from a host that keeps them. */
+  readonly documents?: HostDocuments;
+}
+
+/** Documents, already worded by the host: People never learns what one is. */
+export interface HostDocuments {
+  /** Where they all live. */
+  readonly href: string;
+  /** What the reader chooses between; the widget opens on the first. */
+  readonly lists: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly href: string;
+    /** How many there are in all: `rows` may be the first of them. */
+    readonly total: number;
+    readonly rows: readonly {
+      readonly id: string;
+      readonly title: string;
+      readonly href: string;
+      readonly detail: string;
+      /** What kind of thing it is, in words: one of the ways to group. */
+      readonly kind: string;
+      /** Who it is about: the other way to group. */
+      readonly about?: string;
+      /** Where it stands, at the row's end. */
+      readonly status?: string;
+    }[];
+  }[];
+  /** Counts that lead somewhere, said above the rows. */
+  readonly figures: readonly {
+    readonly label: string;
+    readonly value: number;
+    readonly href: string;
+  }[];
 }
 
 /** Who is away, already worded by the host: People never learns what leave is. */
@@ -1338,7 +1377,7 @@ function Waiting({
 }: {
   readonly title: string;
   readonly icon: ReactNode;
-  readonly tone: 'accent' | 'chart-3' | 'chart-4';
+  readonly tone: 'accent' | 'chart-2' | 'chart-3' | 'chart-4';
   readonly span?: 1 | 2;
 }): JSX.Element {
   return (
@@ -2162,6 +2201,158 @@ function Away({
             <AwayRow key={p.id} p={p} />
           ))}
         </List>
+      )}
+    </Widget>
+  );
+}
+
+interface DocumentsView {
+  readonly list: string;
+  readonly group: 'none' | 'kind' | 'about';
+}
+
+const documentsViewOf = (raw: unknown): DocumentsView => {
+  const kept = (raw ?? {}) as Partial<DocumentsView>;
+  return {
+    list: typeof kept.list === 'string' ? kept.list : '',
+    group: kept.group === 'kind' || kept.group === 'about' ? kept.group : 'none',
+  };
+};
+
+/**
+ * The host's documents: one of its lists at a time, the first five of it,
+ * grouped if the reader asks, with what they chose kept for the next visit.
+ * Counts the host says lead somewhere sit above the rows.
+ */
+function Documents({ documents }: { readonly documents: HostDocuments }): JSX.Element {
+  const [view, setView] = useKept('kithena.home.documents', documentsViewOf);
+  // A list kept from another day that has nothing today is the first that has.
+  const list = documents.lists.find((l) => l.key === view.list) ?? documents.lists[0];
+  const shown = list?.rows.slice(0, TOP) ?? [];
+  const total = list === undefined ? 0 : Math.max(list.total, list.rows.length);
+  const needs = documents.lists.find((l) => l.key === 'needs')?.total ?? 0;
+  const title = tr('home.people-home.documents', 'Documents');
+  const nobody = tr('home.people-home.not_about_one_person', 'Not about one person');
+  // Groups in the order their first row comes, so the list's own order holds.
+  const groups = new Map<string, (typeof shown)[number][]>();
+  for (const row of shown) {
+    const name =
+      view.group === 'none' ? '' : view.group === 'kind' ? row.kind : (row.about ?? nobody);
+    groups.set(name, [...(groups.get(name) ?? []), row]);
+  }
+  return (
+    <Widget
+      title={title}
+      icon={<icons.document aria-hidden />}
+      tone="chart-2"
+      {...(needs === 0 ? {} : { meta: needs })}
+      flush={list !== undefined || documents.figures.length > 0}
+      action={
+        <Way
+          href={documents.href}
+          label={tr('home.people-home.open_documents', 'Open Documents')}
+        />
+      }
+      {...(list === undefined
+        ? {}
+        : {
+            toolbar: (
+              <>
+                <Pick
+                  label={tr('home.people-home.show', 'Show')}
+                  value={list.key}
+                  options={documents.lists.map((l) => ({ key: l.key, label: l.label }))}
+                  onChange={(key) => {
+                    setView({ ...view, list: key });
+                  }}
+                />
+                <Pick
+                  label={tr('home.people-home.group_by', 'Group by')}
+                  value={view.group}
+                  className="ms-auto w-auto"
+                  options={[
+                    { key: 'none', label: tr('home.people-home.no_grouping', 'No grouping') },
+                    { key: 'kind', label: tr('home.people-home.group_by_kind', 'Group by kind') },
+                    {
+                      key: 'about',
+                      label: tr('home.people-home.group_by_person', 'Group by person'),
+                    },
+                  ]}
+                  onChange={(group) => {
+                    setView(documentsViewOf({ ...view, group }));
+                  }}
+                />
+              </>
+            ),
+          })}
+      {...(list === undefined || shown.length >= total
+        ? {}
+        : {
+            footer: (
+              <Showing shown={shown.length} of={total}>
+                <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+                  <a href={list.href}>{tr('home.people-home.see_all', 'See all')}</a>
+                </Button>
+              </Showing>
+            ),
+          })}
+    >
+      {documents.figures.length === 0 ? null : (
+        <div className="flex flex-wrap items-center gap-x-1 border-b border-border bg-surface-sunken px-3 py-1 text-sm text-fg-muted touch:px-2">
+          <span className="px-2">{tr('home.people-home.to_follow_up', 'To follow up')}</span>
+          {documents.figures.map((f) => (
+            <Button key={f.href} asChild size="sm" variant="ghost">
+              <a href={f.href}>
+                <span className="font-semibold tabular-nums">{formatNumber(f.value)}</span>
+                {f.label}
+              </a>
+            </Button>
+          ))}
+        </div>
+      )}
+      {list === undefined ? (
+        <div className={documents.figures.length === 0 ? undefined : 'px-5 py-4 touch:px-4'}>
+          <Done
+            title={tr('home.people-home.no_document_needs_you', 'No document needs you')}
+            detail={tr(
+              'home.people-home.documents_show_up_here',
+              'A document to sign, read or add shows up here.',
+            )}
+          />
+        </div>
+      ) : (
+        [...groups].map(([name, rows]) => (
+          <section key={name} aria-label={name === '' ? undefined : name}>
+            {name === '' ? null : (
+              <h3 className="flex items-center gap-2 bg-surface-sunken px-5 py-1.5 text-xs font-semibold text-fg-muted touch:px-4">
+                {name}
+                <span className="font-medium tabular-nums">{rows.length}</span>
+              </h3>
+            )}
+            <List aria-label={name === '' ? list.label : name} className={ROWS_IN}>
+              {rows.map((r) => (
+                <ListItem
+                  key={r.id}
+                  asChild
+                  description={(view.group === 'kind' ? [r.detail] : [r.kind, r.detail])
+                    .filter((x) => x !== '')
+                    .join(' · ')}
+                  {...(r.status === undefined
+                    ? {}
+                    : {
+                        trailing: (
+                          <Badge size="sm" tone="neutral">
+                            {r.status}
+                          </Badge>
+                        ),
+                      })}
+                >
+                  <a href={r.href}>{r.title}</a>
+                </ListItem>
+              ))}
+            </List>
+          </section>
+        ))
       )}
     </Widget>
   );
@@ -3016,6 +3207,7 @@ export function PeopleHome({
   onOpen,
   onAway,
   pending,
+  documents,
 }: PeopleHomeProps): JSX.Element {
   // The quick look: what was last pressed stays while it closes.
   const [peeked, setPeeked] = useState<Peeked | null>(null);
@@ -3077,15 +3269,29 @@ export function PeopleHome({
           // card on the page, so the lists share the wide column and the two
           // columns end near each other.
           const out =
-            me === null ? null : away !== undefined ? (
-              <Away away={away} onAway={onAway} />
-            ) : pending?.time === true ? (
-              <Waiting
-                title={tr('home.people-home.whos_out', 'Who’s out')}
-                icon={<icons.calendar aria-hidden />}
-                tone="chart-4"
-              />
-            ) : null;
+            me === null ? null : (
+              <>
+                {away !== undefined ? (
+                  <Away away={away} onAway={onAway} />
+                ) : pending?.time === true ? (
+                  <Waiting
+                    title={tr('home.people-home.whos_out', 'Who’s out')}
+                    icon={<icons.calendar aria-hidden />}
+                    tone="chart-4"
+                  />
+                ) : null}
+                {/* Their documents, under who is away: the lists share the wide column. */}
+                {documents !== undefined ? (
+                  <Documents documents={documents} />
+                ) : pending?.documents === true ? (
+                  <Waiting
+                    title={tr('home.people-home.documents', 'Documents')}
+                    icon={<icons.document aria-hidden />}
+                    tone="chart-2"
+                  />
+                ) : null}
+              </>
+            );
           // Who they are and their own time off, beside the lists.
           const around =
             me === null ? null : (

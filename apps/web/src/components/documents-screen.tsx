@@ -28,6 +28,14 @@ export interface DocumentsScreenProps {
   readonly embedded?: Embedded;
 }
 
+/** The tab each of the library's figures counts. */
+const TILE_AT: Readonly<Record<string, string>> = {
+  to_sign: '/documents/envelopes',
+  missing: '/documents/queues/missing',
+  expiring: '/documents/queues/expiring',
+  to_delete: '/documents/queues/to-delete',
+};
+
 export function DocumentsScreen({
   route,
   load,
@@ -91,7 +99,6 @@ export function DocumentsScreen({
 
   const props = ((): Record<string, unknown> => {
     switch (route?.component) {
-      case 'Overview':
       case 'Library':
         return {
           load: loadable,
@@ -224,6 +231,22 @@ export function DocumentsScreen({
     }
   })();
 
+  // The library's own figures, on the tabs they are of: what is to sign and HR's follow-up.
+  const tiles =
+    load.status === 'ready'
+      ? (load.data as { tiles?: readonly { key: string; count: number }[] } | null)?.tiles
+      : undefined;
+  const counted =
+    tiles === undefined || frame.tabs === undefined
+      ? frame
+      : {
+          ...frame,
+          tabs: frame.tabs.map((tab) => {
+            const n = tiles.find((tile) => TILE_AT[tile.key] === tab.href)?.count ?? 0;
+            return n > 0 ? { ...tab, count: n } : tab;
+          }),
+        };
+
   return (
     <RemoteScreen
       name={AREAS.documents.name}
@@ -233,8 +256,8 @@ export function DocumentsScreen({
         ...props,
         frame:
           load.status === 'ready' && load.notice !== undefined
-            ? { ...frame, notice: load.notice }
-            : frame,
+            ? { ...counted, notice: load.notice }
+            : counted,
       }}
       fallback={null}
     />

@@ -12,7 +12,8 @@ import {
   type OverviewAnswer,
 } from '../lib/home-time-off';
 import { homeAwayIn } from '../lib/home-time-off-read';
-import { accessToken, timeOff } from '../lib/people';
+import { homeDocuments, type LibraryAnswer } from '../lib/home-documents';
+import { accessToken, documents, timeOff } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import {
@@ -283,6 +284,8 @@ export async function PeopleHome(
   greeting?: string,
   /** The company has Time Off: Home shows who is away and their own time off. */
   withTimeOff = false,
+  /** The company has Documents: Home shows what of them needs the reader. */
+  withDocuments = false,
 ): Promise<JSX.Element | null> {
   const t = await serverWords();
   const area = AREAS.people;
@@ -300,6 +303,17 @@ export async function PeopleHome(
   }));
   const timeLater: Promise<{ away?: HomeAway; leave?: HomeLeave }> | undefined = withTimeOff
     ? homeTimeOff().catch(() => ({}))
+    : undefined;
+  const documentsLater = withDocuments
+    ? documents<LibraryAnswer>('DocumentsLibrary', {
+        show: 'all',
+        q: '',
+        queue: null,
+        deleted: false,
+      }).then(
+        (answer) => (answer.ok ? homeDocuments(answer.data) : undefined),
+        () => undefined,
+      )
     : undefined;
   // A read nobody waited for must not fail the request it outlives.
   toDoLater?.catch(() => undefined);
@@ -326,6 +340,7 @@ export async function PeopleHome(
           {...(toDoLater === undefined ? {} : { toDoLater })}
           {...(greeting === undefined ? {} : { greeting })}
           {...(timeLater === undefined ? {} : { timeLater })}
+          {...(documentsLater === undefined ? {} : { documentsLater })}
         />
       )}
     </Waking>
