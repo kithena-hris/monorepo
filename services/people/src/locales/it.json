@@ -35,6 +35,7 @@
   "inbox.inbox.declined_your_change_to_your": "{{by}} ha rifiutato la modifica al tuo {{field}}",
   "inbox.inbox.details": "Dati",
   "inbox.inbox.details_hr_asked_for": "dati richiesti dalle HR",
+  "inbox.inbox.details_to_fill_in": "Dettagli da completare",
   "inbox.inbox.documents": "Documenti",
   "inbox.inbox.done": "Fatto",
   "inbox.inbox.export": "Esportazione",
