@@ -50,7 +50,12 @@ export default async function Home(): Promise<JSX.Element> {
   // People's Home filters and groups To do itself, so it is handed more rows.
   const inbox = (withPeople ? inboxHome() : inboxPeek()).catch(() => EMPTY_PEEK);
   const people = withPeople
-    ? await PeopleHome(inbox, greeting, person.entitlements.includes('module.timeoff'))
+    ? await PeopleHome(
+        inbox,
+        greeting,
+        person.entitlements.includes('module.timeoff'),
+        person.entitlements.includes('module.documents'),
+      )
     : null;
   if (people === null) {
     return (

@@ -4003,6 +4003,58 @@
     "text": "Working time: {{hours}} a week ({{fte}} FTE), {{mode}} with {{count}} days on site.",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{hours}}, {{fte}}, {{mode}}, {{count}}. Plural: the words for any other {{count}}."
   },
+  "lib.home-documents.access_to_decide": {
+    "text": "Access to decide",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts, KIND: a \"access_request\" value."
+  },
+  "lib.home-documents.due": {
+    "text": "Due {{when}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts: a \"detail\" value. Filled in: {{when}}."
+  },
+  "lib.home-documents.expiring": {
+    "text": "expiring",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts, FIGURES: a \"expiring\" value."
+  },
+  "lib.home-documents.missing": {
+    "text": "missing",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts, FIGURES: a \"missing\" value."
+  },
+  "lib.home-documents.needs_you": {
+    "text": "Needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts: a \"label\" value."
+  },
+  "lib.home-documents.out_for_signature": {
+    "text": "Out for signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts: a \"label\" value."
+  },
+  "lib.home-documents.recently_updated": {
+    "text": "Recently updated",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts: a \"label\" value."
+  },
+  "lib.home-documents.signed_of": {
+    "text": "{{signed}} of {{of}} signed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts: a \"status\" value. Filled in: {{signed}}, {{of}}."
+  },
+  "lib.home-documents.to_add": {
+    "text": "To add",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts, KIND: a \"request\" value."
+  },
+  "lib.home-documents.to_delete": {
+    "text": "to delete",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts, FIGURES: a \"to_delete\" value."
+  },
+  "lib.home-documents.to_read": {
+    "text": "To read",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts, KIND: a \"acknowledge\" value."
+  },
+  "lib.home-documents.to_sign": {
+    "text": "To sign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts, KIND: a \"sign\" value."
+  },
+  "lib.home-documents.waiting_for": {
+    "text": "Waiting for {{names}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-documents.ts: a \"detail\" value. Filled in: {{names}}."
+  },
   "lib.home-time-off.approved": {
     "text": "Approved",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/home-time-off.ts, STATUS: a \"label\" value."

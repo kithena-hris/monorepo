@@ -37,6 +37,7 @@ import { RemoteScreen, type RemoteRoute } from './remote-screen';
 import { ASK_EVENT, HELD_EVENT, OPEN_EVENT } from '../lib/ask-event';
 import type { Shown } from '../lib/inbox/model';
 import type { homeToDo } from './inbox/format';
+import type { HomeDocuments } from '../lib/home-documents';
 import type { HomeAway, HomeLeave } from '../lib/home-time-off';
 import {
   exportAddressOf,
@@ -110,6 +111,8 @@ export interface PeopleScreenProps {
     | undefined
   >;
   readonly timeLater?: Promise<{ readonly away?: HomeAway; readonly leave?: HomeLeave }>;
+  /** Documents' part of Home, on its way as Time Off's is. */
+  readonly documentsLater?: Promise<HomeDocuments | undefined>;
   /**
    * The breadcrumb's section, its siblings and the umbrella page's tabs, and
    * the actions, for the screen's own header (`headerFrame`): the remote's
@@ -463,6 +466,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const { load } = input;
   const toDoLater = useLater(input.toDoLater);
   const timeLater = useLater(input.timeLater);
+  const documentsLater = useLater(input.documentsLater);
   const toDo = input.toDo ?? toDoLater.value?.toDo;
   // Handed to Home's modal (`home-modal.tsx`), which keeps each as it reads a
   // task, before the rows are read ahead from: opening one asks nobody. By an
@@ -1278,9 +1282,16 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...(toDo === undefined ? {} : { toDo }),
           ...(input.greeting === undefined ? {} : { greeting: input.greeting }),
           // What is still on its way: each widget says so in its own place.
-          ...(toDoLater.pending || timeLater.pending
-            ? { pending: { toDo: toDoLater.pending, time: timeLater.pending } }
+          ...(toDoLater.pending || timeLater.pending || documentsLater.pending
+            ? {
+                pending: {
+                  toDo: toDoLater.pending,
+                  time: timeLater.pending,
+                  documents: documentsLater.pending,
+                },
+              }
             : {}),
+          ...(documentsLater.value === undefined ? {} : { documents: documentsLater.value }),
           ...(away === undefined ? {} : { away }),
           // Who's out in another scope, kept so going back to one asks nobody.
           onAway: cached('homeAway', homeAway),

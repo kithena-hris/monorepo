@@ -40,9 +40,6 @@ export async function loadScreen(
 ): Promise<ScreenLoad> {
   const s = query.search;
   switch (component) {
-    // Where Documents opens: the list's own read, unfiltered, drawn as an overview.
-    case 'Overview':
-      return read('DocumentsLibrary', { show: 'all', q: '', queue: null, deleted: false });
     case 'Library':
       return read('DocumentsLibrary', {
         show: s['show'] ?? 'all',

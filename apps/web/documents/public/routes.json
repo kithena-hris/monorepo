@@ -1,10 +1,6 @@
 {
   "routes": [
     {
-      "path": "/documents/overview",
-      "component": "Overview"
-    },
-    {
       "path": "/documents/all",
       "component": "Library"
     },
@@ -68,61 +64,48 @@
   "actions": [],
   "sections": [
     {
-      "path": "/documents/overview",
-      "label": "Overview",
-      "group": "Documents",
-      "icon": "overview",
-      "description": "What needs you, what is out for signature, and what changed",
-      "summary": "What needs you and what changed"
-    },
-    {
       "path": "/documents/all",
-      "label": "All documents",
+      "label": "Documents",
       "group": "Documents",
       "icon": "folder",
-      "description": "Every document you can open, and who else can see it",
-      "summary": "Every document you can open",
-      "owns": ["/documents/d/:id", "/documents/people/:id"]
-    },
-    {
-      "path": "/documents/envelopes",
-      "label": "Signatures",
-      "group": "Documents",
-      "icon": "edit",
-      "description": "Every request you sign or follow",
-      "summary": "What you sign and what you sent",
-      "owns": ["/documents/envelopes/:id", "/documents/d/:id/send", "/documents/campaigns/:id"]
-    },
-    {
-      "path": "/documents/queues/missing",
-      "label": "Follow-up",
-      "group": "Documents",
-      "icon": "scheduled",
-      "for": ["hr"],
-      "description": "Documents missing from people's files, expiring, and due for deletion",
-      "summary": "Missing, expiring and due for deletion",
+      "description": "Every document you can open, what you sign, and what to follow up",
+      "summary": "Your documents and signatures",
       "tabs": [
         {
+          "path": "/documents/all",
+          "label": "All documents"
+        },
+        {
+          "path": "/documents/envelopes",
+          "label": "Signatures"
+        },
+        {
           "path": "/documents/queues/missing",
-          "label": "Missing"
+          "label": "Missing",
+          "for": ["hr"]
         },
         {
           "path": "/documents/queues/expiring",
-          "label": "Expiring"
+          "label": "Expiring",
+          "for": ["hr"]
         },
         {
           "path": "/documents/queues/to-delete",
-          "label": "To delete"
+          "label": "To delete",
+          "for": ["hr"]
+        },
+        {
+          "path": "/documents/deleted",
+          "label": "Deleted"
         }
+      ],
+      "owns": [
+        "/documents/d/:id",
+        "/documents/people/:id",
+        "/documents/envelopes/:id",
+        "/documents/d/:id/send",
+        "/documents/campaigns/:id"
       ]
-    },
-    {
-      "path": "/documents/deleted",
-      "label": "Deleted",
-      "group": "Documents",
-      "icon": "archive",
-      "description": "Deleted documents wait 30 days, then are gone. A legal hold keeps them.",
-      "summary": "Kept for 30 days"
     }
   ],
   "slots": {},

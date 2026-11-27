@@ -26,6 +26,7 @@ describe('routes.json', () => {
   it('lists every place and owned path as a route of its own', () => {
     const places: readonly { path: string; owns?: readonly string[] }[] = [
       ...manifest.sections,
+      ...manifest.sections.flatMap((s) => s.tabs),
       ...manifest.settings,
     ];
     const paths = places.flatMap((p) => [p.path, ...(p.owns ?? [])]);
@@ -34,43 +35,41 @@ describe('routes.json', () => {
 });
 
 describe('the library (B1, B2)', () => {
-  it('opens on an overview: ways to begin, what needs Adam, and what changed last', async () => {
-    const { container } = render(<screens.Overview load={ready(adamLibrary())} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Add a document/ })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /Signatures/ }).getAttribute('href')).toBe(
-      '/documents/envelopes',
-    );
-    expect(screen.getByText('Add your Bank details form')).toBeTruthy();
-    expect(screen.getByRole('link', { name: /Remote-work addendum/ }).getAttribute('href')).toBe(
-      '/documents/d/d-add',
-    );
-    expect(await axeViolations(container)).toEqual([]);
-  });
-
-  it('lists each document with who can see it', async () => {
+  it('is one page: what needs Adam above the list, each document once, with who can see it', async () => {
     const { container } = render(<screens.Library load={ready(adamLibrary())} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy();
-    expect(screen.queryByText('Add your Bank details form')).toBeNull();
+    expect(screen.getByText('Add your Bank details form')).toBeTruthy();
+    // Once: no second list repeats what the table says.
     expect(screen.getByRole('link', { name: 'Remote-work addendum' }).getAttribute('href')).toBe(
       '/documents/d/d-add',
     );
+    expect(screen.queryByText('Recently updated')).toBeNull();
     expect(screen.getByText('Only you')).toBeTruthy();
     expect(screen.getAllByText('Confidential').length).toBeGreaterThan(0);
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('gives HR the four queues on the overview, each at its own address', async () => {
-    const { container } = render(
-      <screens.Overview load={ready({ ...adaLibrary(), queue: null })} />,
+  it('offers a question to start from beside the search, when Kithena answers', () => {
+    render(
+      <screens.Library
+        load={ready(adamLibrary())}
+        onAskAcross={() => Promise.resolve({ ok: false, message: 'no' })}
+      />,
     );
-    expect(screen.getByRole('link', { name: /Expiring/ }).getAttribute('href')).toBe(
-      '/documents/queues/expiring',
-    );
-    expect(screen.getByRole('link', { name: /Missing/ }).getAttribute('href')).toBe(
+    expect(screen.getByRole('button', { name: 'Ask Kithena' })).toBeTruthy();
+    expect(screen.getByPlaceholderText('Search, or ask a question')).toBeTruthy();
+  });
+
+  it('is one place in the sidebar, its views the tabs of it', () => {
+    expect(manifest.sections.map((s) => s.label)).toEqual(['Documents']);
+    expect(manifest.sections[0]?.tabs.map((t) => t.path)).toEqual([
+      '/documents/all',
+      '/documents/envelopes',
       '/documents/queues/missing',
-    );
-    expect(await axeViolations(container)).toEqual([]);
+      '/documents/queues/expiring',
+      '/documents/queues/to-delete',
+      '/documents/deleted',
+    ]);
   });
 
   it('is the queue itself at a queue’s address', async () => {
