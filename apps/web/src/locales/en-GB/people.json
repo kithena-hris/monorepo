@@ -1,3 +1,8 @@
 {
+  "home.people-home.says_oldest": "The eldest was asked {{waited}}.",
+  "home.people-home.time_off_does_not_show_you_that": "Time Off doesn’t show you that.",
+  "home.people-home.time_off_you_ask_for_shows": "Time off you request appears here, with its status.",
+  "home.people-home.what_needs_hr_today": "Here’s what HR needs today.",
+  "home.people-home.what_needs_you_today": "Here’s what needs your attention today.",
   "home.people-home.your_time_off_coming_up": "Your upcoming leave"
 }
