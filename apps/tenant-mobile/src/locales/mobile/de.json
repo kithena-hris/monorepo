@@ -139,6 +139,8 @@
   "documents.documents-tab.shared_with_me": "Mit mir geteilt",
   "documents.documents-tab.show": "Anzeigen",
   "documents.documents-tab.show_every_document": "Alle Dokumente anzeigen",
+  "documents.documents-tab.show_more": "Mehr anzeigen",
+  "documents.documents-tab.showing_of": "{{shown}} von {{total}} angezeigt",
   "documents.documents-tab.sign": "Unterschreiben",
   "documents.documents-tab.type": "Typ",
   "documents.documents-tab.who_it_is_about": "Um wen es geht",

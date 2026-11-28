@@ -143,6 +143,8 @@
   "documents.documents-tab.shared_with_me": "Compartits amb mi",
   "documents.documents-tab.show": "Mostrar",
   "documents.documents-tab.show_every_document": "Mostrar tots els documents",
+  "documents.documents-tab.show_more": "Mostra’n més",
+  "documents.documents-tab.showing_of": "Es mostren {{shown}} de {{total}}",
   "documents.documents-tab.sign": "Signar",
   "documents.documents-tab.type": "Tipus",
   "documents.documents-tab.who_it_is_about": "A qui es refereix",

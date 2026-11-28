@@ -72,7 +72,7 @@ export const expiring =
           name: r.person?.name ?? own.value.viewer.name ?? 'You',
           label: `${r.title} · ${r.detail}`.slice(0, 200),
         })),
-        total: rows.length,
+        total: queue.value.queueTotal,
       });
     }
     const today = deps.clock.date('UTC');

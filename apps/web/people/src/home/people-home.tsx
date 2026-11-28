@@ -55,6 +55,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ComponentType,
   type JSX,
@@ -1084,8 +1085,13 @@ function Pick({
 /**
  * A choice kept in this browser for the next visit: the default on the
  * server and until the browser has been read, so the two agree.
- * ponytail: per browser, not per account; move it to the person's
- * preferences if a view should follow them between devices.
+ *
+ * `read` turns whatever was stored (or `null`, nothing) into a value the
+ * caller can trust: storage is the reader's, and an old version's shape or a
+ * hand-edited one must not reach the screen as it is.
+ *
+ * ponytail: per browser, not per account; a preference that should follow a
+ * person between devices belongs with their account, not here.
  */
 function useKept<T>(key: string, read: (raw: unknown) => T): [T, (next: T) => void] {
   const [value, setValue] = useState(() => read(null));
@@ -1965,6 +1971,8 @@ const AWAY_HEIGHT: readonly (string | undefined)[] = [
 function useAway(
   first: HostAway,
   onAway: PeopleHomeProps['onAway'],
+  /** The scope this browser chose before, and where a new choice is kept: the widget's. */
+  kept?: { readonly scope: string; readonly keep: (scope: string) => void },
 ): {
   readonly away: HostAway;
   readonly people: readonly AwayPerson[];
@@ -1984,6 +1992,31 @@ function useAway(
   const [loading, setLoading] = useState(false);
   const [refused, setRefused] = useState(false);
   const scopes = away.scopes ?? [];
+  const pick = (scope: string): void => {
+    if (onAway === undefined) return;
+    setBusy(true);
+    setRefused(false);
+    void onAway(scope)
+      .catch(() => null)
+      .then((next) => {
+        setBusy(false);
+        if (next === null) setRefused(true);
+        else {
+          setAway(next);
+          setLater([]);
+        }
+      });
+  };
+  // The scope chosen on an earlier visit, asked for once: the host opens on its own default.
+  const restored = useRef(false);
+  const wanted = kept?.scope ?? '';
+  useEffect(() => {
+    if (restored.current || wanted === '' || wanted === (away.scope ?? '')) return;
+    if (!scopes.some((s) => s.key === wanted)) return;
+    restored.current = true;
+    pick(wanted);
+    // Once, when the kept scope is read: `pick` and the scopes are this draw's.
+  }, [wanted]);
   const people = later.length === 0 ? away.people : [...away.people, ...later];
   const total = Math.max(away.total ?? 0, people.length);
   const choices =
@@ -1995,18 +2028,8 @@ function useAway(
           options={scopes}
           disabled={busy}
           onChange={(scope) => {
-            setBusy(true);
-            setRefused(false);
-            void onAway(scope)
-              .catch(() => null)
-              .then((next) => {
-                setBusy(false);
-                if (next === null) setRefused(true);
-                else {
-                  setAway(next);
-                  setLater([]);
-                }
-              });
+            kept?.keep(scope);
+            pick(scope);
           }}
         />
         {busy ? <Spinner size="sm" label={tr('home.people-home.reading', 'Reading')} /> : null}
@@ -2140,7 +2163,8 @@ function Away({
   readonly onAway: PeopleHomeProps['onAway'];
 }): JSX.Element {
   const peek = useContext(PeekContext);
-  const { away, people, total, choices, busy } = useAway(first, onAway);
+  const [scope, keep] = useKept('kithena.home.away', wordOf);
+  const { away, people, total, choices, busy } = useAway(first, onAway, { scope, keep });
   const out = people.filter((p) => p.now).length;
   const shown = people.slice(0, TOP);
   const title = tr('home.people-home.whos_out', 'Who’s out');
@@ -2206,15 +2230,21 @@ function Away({
   );
 }
 
+/** A word kept in this browser, or none: storage is the reader's, not ours. */
+const wordOf = (raw: unknown): string => (typeof raw === 'string' ? raw : '');
+
 interface DocumentsView {
   readonly list: string;
+  /** The one kind of document shown; none is every kind. */
+  readonly type: string;
   readonly group: 'none' | 'kind' | 'about';
 }
 
 const documentsViewOf = (raw: unknown): DocumentsView => {
   const kept = (raw ?? {}) as Partial<DocumentsView>;
   return {
-    list: typeof kept.list === 'string' ? kept.list : '',
+    list: wordOf(kept.list),
+    type: wordOf(kept.type),
     group: kept.group === 'kind' || kept.group === 'about' ? kept.group : 'none',
   };
 };
@@ -2228,8 +2258,16 @@ function Documents({ documents }: { readonly documents: HostDocuments }): JSX.El
   const [view, setView] = useKept('kithena.home.documents', documentsViewOf);
   // A list kept from another day that has nothing today is the first that has.
   const list = documents.lists.find((l) => l.key === view.list) ?? documents.lists[0];
-  const shown = list?.rows.slice(0, TOP) ?? [];
-  const total = list === undefined ? 0 : Math.max(list.total, list.rows.length);
+  // The kinds this list holds, in the order they first come: what there is to narrow to.
+  const kinds = [...new Set(list?.rows.map((r) => r.kind) ?? [])];
+  // A kind kept from another list, or another day, that is not here is every kind.
+  const type = kinds.includes(view.type) ? view.type : '';
+  const of =
+    list === undefined ? [] : type === '' ? list.rows : list.rows.filter((r) => r.kind === type);
+  const shown = of.slice(0, TOP);
+  // Narrowed, the count is of the rows the host handed over: it reads no more for a kind.
+  const total =
+    list === undefined ? 0 : type === '' ? Math.max(list.total, list.rows.length) : of.length;
   const needs = documents.lists.find((l) => l.key === 'needs')?.total ?? 0;
   const title = tr('home.people-home.documents', 'Documents');
   const nobody = tr('home.people-home.not_about_one_person', 'Not about one person');
@@ -2266,6 +2304,19 @@ function Documents({ documents }: { readonly documents: HostDocuments }): JSX.El
                     setView({ ...view, list: key });
                   }}
                 />
+                {kinds.length < 2 ? null : (
+                  <Pick
+                    label={tr('home.people-home.document_type', 'Document type')}
+                    value={type}
+                    options={[
+                      { key: '', label: tr('home.people-home.all_types', 'All types') },
+                      ...kinds.map((k) => ({ key: k, label: k })),
+                    ]}
+                    onChange={(key) => {
+                      setView({ ...view, type: key });
+                    }}
+                  />
+                )}
                 <Pick
                   label={tr('home.people-home.group_by', 'Group by')}
                   value={view.group}

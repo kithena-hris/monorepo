@@ -311,7 +311,9 @@ type DocumentsLibrary {
   people: [DocumentsPerson!]!
   q: String!
   queue: String
+  queueNext: String
   queueRows: [DocumentsQueueRow!]!
+  queueTotal: Int!
   rows: [DocumentsRow!]!
   sections: [DocumentsSection!]!
   show: String!
@@ -369,6 +371,11 @@ type DocumentsPersonFile {
   person: DocumentsPerson!
   rows: [DocumentsRow!]!
   types: [DocumentsTypeOption!]!
+}
+
+type DocumentsQueuePage {
+  next: String
+  rows: [DocumentsQueueRow!]!
 }
 
 type DocumentsQueueRow {
@@ -965,6 +972,10 @@ type Query {
   documentsLibrary(deleted: Boolean, q: String, queue: String, show: String): DocumentsLibrary!
   """A person’s file: what their types require, and what they have"""
   documentsPersonFile(personId: String!): DocumentsPersonFile!
+  """
+  A page of an HR queue after the first: missing, expiring, to delete or to sign
+  """
+  documentsQueue(after: String!, queue: String!): DocumentsQueuePage!
   """Settings › Documents: types, sections, access and legal holds"""
   documentsSettings: DocumentsSettings!
 }

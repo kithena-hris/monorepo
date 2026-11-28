@@ -28,6 +28,7 @@ import type {
   NeedsYou,
   OpenOrClosed,
   PersonFileView,
+  QueuePage,
   QueueRow,
   SettingsView,
   Tile,
@@ -340,11 +341,11 @@ export async function library(
     }
 
     let tiles: z.infer<typeof Tile>[] = [];
-    let queueRows: z.infer<typeof QueueRow>[] = [];
+    let queue: z.infer<typeof QueuePage> & { total: number } = { rows: [], next: null, total: 0 };
     if (ctx.viewer.hr) {
       const queues = await hrQueues(ctx, types, dir, live);
       tiles = queues.tiles;
-      queueRows = params.queue === null ? [] : (queues.rows.get(params.queue) ?? []);
+      if (params.queue !== null) queue = pageOf(queues.rows.get(params.queue) ?? [], 0);
     }
     const ask = await tx.settings.get(`ask:${caller.accountId}`);
     const settings = await accessSettings(ctx);
@@ -366,13 +367,74 @@ export async function library(
         ),
       needsYou,
       tiles,
-      queueRows,
+      queueRows: queue.rows,
+      queueNext: queue.next,
+      queueTotal: queue.total,
       rows,
       total: live.length,
       types: typeOptions(types),
       // Names and teams only: who a document could be shared with or filed to.
       people: peopleOf(dir),
     });
+  });
+}
+
+/** How many of a queue's rows a read carries: the first with the screen, the rest as it scrolls. */
+export const QUEUE_PAGE = 100;
+
+/**
+ * One page of a queue, from `from`. The cursor is the place in the list.
+ * ponytail: a row that joins or leaves the queue between two pages moves the
+ * next page by one; a cursor on the row's own key when queues change faster
+ * than they are read.
+ */
+function pageOf(
+  all: readonly z.infer<typeof QueueRow>[],
+  from: number,
+): z.infer<typeof QueuePage> & { total: number } {
+  const to = from + QUEUE_PAGE;
+  return {
+    rows: all.slice(from, to),
+    next: to < all.length ? String(to) : null,
+    total: all.length,
+  };
+}
+
+/**
+ * H1, H3: the page of an HR queue after `after`, for a list that loads as it
+ * scrolls. Nobody but HR has queues, so anybody else is answered an empty page.
+ * ponytail: the whole queue is worked out again for each page, as the screen's
+ * read does; kept between pages when a company's queue takes longer than a page to scroll.
+ */
+export async function queuePage(
+  deps: Deps,
+  caller: Caller,
+  params: { readonly queue: string; readonly after: string },
+): Promise<Result<z.infer<typeof QueuePage>>> {
+  return deps.uow.run(caller.tenantId, async (tx) => {
+    const ctx = await contextOf(deps, tx, caller);
+    if (!ctx.viewer.hr) return ok({ rows: [], next: null });
+    const [types, dir, candidates] = await Promise.all([
+      typesOf(ctx),
+      directory(ctx),
+      tx.documents.candidates(ctx.viewer),
+    ]);
+    const live = candidates.filter(
+      (d) =>
+        d.deletedAt === null &&
+        canOpen(
+          factsOf(d, d.typeKey === null ? null : (types.get(d.typeKey) ?? null)),
+          ctx.viewer,
+          ctx.today,
+        ),
+    );
+    const queues = await hrQueues(ctx, types, dir, live);
+    const from = Number.parseInt(params.after, 10);
+    const { rows, next } = pageOf(
+      queues.rows.get(params.queue) ?? [],
+      Number.isFinite(from) && from > 0 ? from : 0,
+    );
+    return ok({ rows, next });
   });
 }
 
@@ -412,19 +474,25 @@ async function hrQueues(ctx: Ctx, types: Types, dir: Directory, live: readonly D
   const typeList = [...types.values()].filter((t) => !t.archived);
   const missing: z.infer<typeof QueueRow>[] = [];
   const requests = await ctx.tx.docRequests.open();
+  // By person once: every person against every document is a company's size squared.
+  const liveOf = Map.groupBy(
+    live.filter((d) => d.subjectPersonId !== null),
+    (d) => d.subjectPersonId,
+  );
+  const requestsOf = Map.groupBy(requests, (r) => r.personId);
   for (const m of dir.byPerson.values()) {
     if (m.status === 'terminated') continue;
-    const held = live
-      .filter((d) => d.subjectPersonId === m.personId)
-      .map((d) => ({ id: d.id, typeKey: d.typeKey, expiresOn: d.expiresOn }));
-    const asked = requests
-      .filter((r) => r.personId === m.personId)
-      .map((r) => ({
-        id: r.id,
-        typeKey: r.typeKey,
-        dueOn: r.dueOn,
-        askedOn: r.createdAt.slice(0, 10) as never,
-      }));
+    const held = (liveOf.get(m.personId) ?? []).map((d) => ({
+      id: d.id,
+      typeKey: d.typeKey,
+      expiresOn: d.expiresOn,
+    }));
+    const asked = (requestsOf.get(m.personId) ?? []).map((r) => ({
+      id: r.id,
+      typeKey: r.typeKey,
+      dueOn: r.dueOn,
+      askedOn: r.createdAt.slice(0, 10) as never,
+    }));
     for (const row of checklist(m, typeList, held, asked, ctx.today)) {
       if (row.state === 'have') continue;
       const type = types.get(row.typeKey);

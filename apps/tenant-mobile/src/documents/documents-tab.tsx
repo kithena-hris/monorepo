@@ -103,6 +103,10 @@ interface Library {
     typeKey: string | null;
     action: string;
   }[];
+  /** The cursor to the queue's next page; null at its end. */
+  readonly queueNext?: string | null;
+  /** How many the queue holds in all, loaded or not. */
+  readonly queueTotal?: number;
   readonly rows: readonly Row[];
   readonly types: readonly TypeOption[];
   readonly people: readonly PersonRef[];
@@ -347,6 +351,38 @@ function Body({
     );
   };
   const shownQueue = data.tiles.find((t) => t.key === queue);
+  // The queue's pages after the first, asked for a press at a time: a phone lists what was asked for.
+  const [more, setMore] = useState({
+    of: data.queueRows,
+    rows: [] as Library['queueRows'],
+    next: data.queueNext ?? null,
+    loading: false,
+  });
+  // Another queue, or the first page read again: start over, while rendering.
+  if (more.of !== data.queueRows) {
+    setMore({ of: data.queueRows, rows: [], next: data.queueNext ?? null, loading: false });
+  }
+  const queueRows = more.rows.length === 0 ? data.queueRows : [...data.queueRows, ...more.rows];
+  const queueTotal = Math.max(data.queueTotal ?? 0, queueRows.length);
+  const showMore = (): void => {
+    const after = more.next;
+    if (queue === null || after === null || more.loading) return;
+    setMore((m) => ({ ...m, loading: true }));
+    void askDocuments<{ rows: Library['queueRows']; next: string | null }>(
+      signed,
+      'DocumentsQueue',
+      { queue, after },
+    ).then((page) => {
+      setMore((m) =>
+        // A page of a queue no longer shown is dropped; one that failed leaves the list as it is.
+        m.of !== data.queueRows || m.next !== after
+          ? m
+          : page.ok
+            ? { ...m, rows: [...m.rows, ...page.data.rows], next: page.data.next, loading: false }
+            : { ...m, loading: false },
+      );
+    });
+  };
   return (
     <>
       {queue !== null ? null : (
@@ -457,14 +493,14 @@ function Body({
               {shownQueue.label}
             </Chip>
           </View>
-          {data.queueRows.length === 0 ? (
+          {queueRows.length === 0 ? (
             <EmptyState
               icon={FolderOpen}
               title={tr('documents.documents-tab.nothing_in_this_queue', 'Nothing in this queue')}
             />
           ) : (
             <List>
-              {data.queueRows.map((r) => (
+              {queueRows.map((r) => (
                 <ListItem
                   key={r.id}
                   description={r.detail}
@@ -478,6 +514,19 @@ function Body({
                 </ListItem>
               ))}
             </List>
+          )}
+          {queueRows.length >= queueTotal ? null : (
+            <Text variant="footnote" tone="muted">
+              {tr('documents.documents-tab.showing_of', 'Showing {{shown}} of {{total}}', {
+                shown: String(queueRows.length),
+                total: String(queueTotal),
+              })}
+            </Text>
+          )}
+          {more.next === null ? null : (
+            <Button variant="secondary" loading={more.loading} onPress={showMore}>
+              {tr('documents.documents-tab.show_more', 'Show more')}
+            </Button>
           )}
         </>
       ) : (

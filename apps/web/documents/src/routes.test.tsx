@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import manifest from '../public/routes.json';
 import * as screens from './index';
@@ -49,7 +49,7 @@ describe('the library (B1, B2)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('is one field: words search, a question is Kithena’s to answer', () => {
+  it('is one field: words search, a question is Kithena’s to answer on Enter', () => {
     const asked: string[] = [];
     render(
       <screens.Library
@@ -60,13 +60,35 @@ describe('the library (B1, B2)', () => {
         }}
       />,
     );
-    const field = screen.getByPlaceholderText('Search, or ask a question');
-    // Nothing beside the field until what is typed is a question.
-    expect(screen.queryByRole('button', { name: 'Ask Kithena' })).toBeNull();
+    const field = screen.getByRole('searchbox', { name: 'Search, or ask a question' });
+    fireEvent.change(field, { target: { value: 'contract' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    // A word is a search: nothing is asked of Kithena.
+    expect(asked).toEqual([]);
     fireEvent.change(field, { target: { value: 'When does my contract end?' } });
-    expect(screen.getByRole('button', { name: 'Ask Kithena' })).toBeTruthy();
     fireEvent.keyDown(field, { key: 'Enter' });
     expect(asked).toEqual(['When does my contract end?']);
+  });
+
+  it('offers questions to start from when the field is focused, and asks the one picked', async () => {
+    window.localStorage.clear();
+    const onAskAcross = vi.fn(() => Promise.resolve({ ok: false as const, message: 'no' }));
+    render(<screens.Library load={ready(adamLibrary())} onAskAcross={onAskAcross} />);
+    expect(screen.queryByText('Try asking')).toBeNull();
+    fireEvent.focus(screen.getByRole('searchbox', { name: 'Search, or ask a question' }));
+    expect(await screen.findByText('Try asking')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'What is my notice period?' }));
+    expect(onAskAcross).toHaveBeenCalledExactlyOnceWith('What is my notice period?');
+    // Asked here before, it is offered once: as the suggestion it already is.
+    expect(JSON.parse(window.localStorage.getItem('documents.library.recent') ?? '[]')).toEqual([
+      'What is my notice period?',
+    ]);
+  });
+
+  it('only searches where Kithena does not answer: no suggestions', () => {
+    render(<screens.Library load={ready(adamLibrary())} />);
+    fireEvent.focus(screen.getByRole('searchbox', { name: 'Search documents' }));
+    expect(screen.queryByText('Try asking')).toBeNull();
   });
 
   it('is one place in the sidebar, its views the tabs of it', () => {
@@ -87,6 +109,27 @@ describe('the library (B1, B2)', () => {
     );
     expect(screen.getByText('Work permit · Omar')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('loads a queue’s next page as its end nears, and says how many there are in all', async () => {
+    const first = adaLibrary();
+    const row = first.queueRows[0];
+    if (row === undefined) throw new Error('the fixture has a queue row');
+    const onLoadMoreQueue = vi.fn(() =>
+      Promise.resolve({
+        rows: [{ ...row, id: 'd-permit-2', title: 'Work permit · Mei' }],
+        next: null,
+      }),
+    );
+    render(
+      <screens.Library
+        load={ready({ ...first, queueNext: '1', queueTotal: 2 })}
+        onLoadMoreQueue={onLoadMoreQueue}
+      />,
+    );
+    expect(await screen.findByText('Work permit · Mei')).toBeTruthy();
+    expect(onLoadMoreQueue).toHaveBeenCalledExactlyOnceWith('expiring', '1');
+    expect(screen.getByText('Work permit · Omar')).toBeTruthy();
   });
 
   it('says why when Documents refused', () => {

@@ -593,7 +593,7 @@ export type { HoverCardProps, HoverCardTriggerProps } from './components/hover-c
 
 export { CircularProgress, Progress } from './components/progress/progress';
 
-export { Reveal, staggerStyle } from './components/reveal/reveal';
+export { Reveal, staggerStyle, useArrival } from './components/reveal/reveal';
 export type { RevealProps } from './components/reveal/reveal';
 
 export {

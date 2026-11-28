@@ -1,6 +1,6 @@
 import { TooltipProvider } from '@reach/ui';
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
@@ -48,6 +48,11 @@ const employee = (over: Partial<ReturnType<typeof overview>> = {}) =>
     },
     ...over,
   });
+
+// What a widget keeps in the browser is one test's, never the next one's.
+afterEach(() => {
+  window.localStorage.clear();
+});
 
 describe('Home’s greeting', () => {
   it('follows the hour where they work', () => {
@@ -562,6 +567,39 @@ describe('Home, with a host that knows who is away', () => {
     await user.click(await screen.findByRole('option', { name: 'Whole company' }));
     expect(onAway).toHaveBeenCalledWith('company');
     expect(await within(out).findByText('Company Person')).toBeInTheDocument();
+    // Kept in this browser, for the next visit.
+    expect(window.localStorage.getItem('kithena.home.away')).toBe('"company"');
+  });
+
+  it('opens Who’s out on the scope this browser chose before', async () => {
+    window.localStorage.setItem('kithena.home.away', JSON.stringify('company'));
+    const scopes = [
+      { key: 'team', label: 'My team' },
+      { key: 'company', label: 'Whole company' },
+    ];
+    const base = { href: '/time-off/calendar/month', total: 1, scopes };
+    const onAway = vi.fn(() =>
+      Promise.resolve({
+        ...base,
+        scope: 'company',
+        people: [
+          { id: 'c1', name: 'Company Person', when: 'Today', detail: 'Back Fri', now: true },
+        ],
+      }),
+    );
+    render(
+      <PeopleHome
+        load={ready(employee())}
+        away={{
+          ...base,
+          scope: 'team',
+          people: [{ id: 't1', name: 'Team Person', when: 'Today', detail: 'Back Fri', now: true }],
+        }}
+        onAway={onAway}
+      />,
+    );
+    expect(await within(part('Who’s out')).findByText('Company Person')).toBeInTheDocument();
+    expect(onAway).toHaveBeenCalledExactlyOnceWith('company');
   });
 
   it('asks the host for the next page of who is out as the full list nears its end', async () => {
@@ -630,6 +668,17 @@ describe('Home, with a host that knows who is away', () => {
       '/documents/compliance?queue=missing',
     );
     const user = fast();
+    // One kind of document at a time, kept in this browser like the rest of the widget's choices.
+    await user.click(documents.getByRole('combobox', { name: 'Document type' }));
+    await user.click(screen.getByRole('option', { name: 'To read' }));
+    expect(documents.queryByRole('link', { name: /To sign 1/u })).toBeNull();
+    expect(documents.getByRole('link', { name: /To read 2/u })).toBeTruthy();
+    expect(JSON.parse(window.localStorage.getItem('kithena.home.documents') ?? '{}')).toMatchObject(
+      { type: 'To read' },
+    );
+    await user.click(documents.getByRole('combobox', { name: 'Document type' }));
+    await user.click(screen.getByRole('option', { name: 'All types' }));
+    expect(documents.getByRole('link', { name: /To sign 1/u })).toBeTruthy();
     await user.click(documents.getByRole('combobox', { name: 'Group by' }));
     await user.click(screen.getByRole('option', { name: 'Group by kind' }));
     expect(documents.getByRole('heading', { level: 3, name: /To read/u })).toBeTruthy();

@@ -21,6 +21,7 @@ import {
 } from '@reach/ui';
 import type { JSX } from 'react';
 
+import { useKeptFilters } from './kept';
 import { Loaded } from './load';
 import { CycleBadge, Live, Refusal, ReviewBadge, To, day, kindLabel, useAct } from './shared';
 import type { ScreenProps } from './types';
@@ -725,7 +726,26 @@ const STAT_ICON = (href: string | undefined): JSX.Element =>
     <icons.review aria-hidden />
   );
 
-export function Home(props: ScreenProps<HomeData>): JSX.Element {
+/** Every widget's filter and sort, by its name in the address: what a visit remembers. */
+const WIDGET_CUTS = [
+  'tasks',
+  'taskSort',
+  'reviews',
+  'reviewSort',
+  'goals',
+  'goalSort',
+  'cycles',
+  'cycleSort',
+] as const;
+
+export function Home(screen: ScreenProps<HomeData>): JSX.Element {
+  // Each widget's cut is the address's, and kept in this browser for the next visit.
+  const onFilter = useKeptFilters(
+    'kithena.performance.home',
+    Object.fromEntries(WIDGET_CUTS.map((k) => [k, screen.search?.[k] ?? null])),
+    screen.onFilter,
+  );
+  const props = { ...screen, onFilter };
   const act = useAct(props);
   return (
     <Loaded load={props.load} what={tr('home.performance', 'Performance')}>

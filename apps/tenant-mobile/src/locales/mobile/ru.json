@@ -148,6 +148,8 @@
   "documents.documents-tab.shared_with_me": "Доступные мне",
   "documents.documents-tab.show": "Показать",
   "documents.documents-tab.show_every_document": "Показать все документы",
+  "documents.documents-tab.show_more": "Показать ещё",
+  "documents.documents-tab.showing_of": "Показано {{shown}} из {{total}}",
   "documents.documents-tab.sign": "Подписать",
   "documents.documents-tab.type": "Тип",
   "documents.documents-tab.who_it_is_about": "К кому относится",

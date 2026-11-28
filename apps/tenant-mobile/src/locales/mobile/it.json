@@ -145,6 +145,8 @@
   "documents.documents-tab.shared_with_me": "Condivisi con me",
   "documents.documents-tab.show": "Mostra",
   "documents.documents-tab.show_every_document": "Mostra tutti i documenti",
+  "documents.documents-tab.show_more": "Mostra altri",
+  "documents.documents-tab.showing_of": "{{shown}} di {{total}} mostrati",
   "documents.documents-tab.sign": "Firma",
   "documents.documents-tab.type": "Tipo",
   "documents.documents-tab.who_it_is_about": "Chi riguarda",

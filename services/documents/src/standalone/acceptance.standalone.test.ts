@@ -371,6 +371,23 @@ describe('HR’s queues, Deleted and holds (H1, H3)', () => {
     expect(
       lib.body.queueRows.every((r: { person: { name: string } }) => r.person.name === 'Mei Tanaka'),
     ).toBe(true);
+    // All of it fits the first page: the count is the queue's, and no page follows.
+    expect(lib.body.queueTotal).toBe(4);
+    expect(lib.body.queueNext).toBeNull();
+  });
+
+  it('answers a queue from any place in it, to HR alone', async () => {
+    const rest = await call('ada', 'GET', '/v1/documents/queue?queue=missing&after=1');
+    expect(rest.status).toBe(200);
+    expect(rest.body.rows).toHaveLength(3);
+    expect(rest.body.next).toBeNull();
+    const whole = await call('ada', 'GET', '/v1/documents/library?queue=missing');
+    expect(rest.body.rows.map((r: { id: string }) => r.id)).toEqual(
+      whole.body.queueRows.slice(1).map((r: { id: string }) => r.id),
+    );
+    // Nobody else has queues.
+    const marco = await call('marco', 'GET', '/v1/documents/queue?queue=missing&after=0');
+    expect(marco.body).toEqual({ rows: [], next: null });
   });
 
   it('a hold keeps a document out of Deleted', async () => {

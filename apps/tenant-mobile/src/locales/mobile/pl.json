@@ -148,6 +148,8 @@
   "documents.documents-tab.shared_with_me": "Udostępnione mi",
   "documents.documents-tab.show": "Pokaż",
   "documents.documents-tab.show_every_document": "Pokaż wszystkie dokumenty",
+  "documents.documents-tab.show_more": "Pokaż więcej",
+  "documents.documents-tab.showing_of": "Widać {{shown}} z {{total}}",
   "documents.documents-tab.sign": "Podpisz",
   "documents.documents-tab.type": "Typ",
   "documents.documents-tab.who_it_is_about": "Kogo dotyczy",

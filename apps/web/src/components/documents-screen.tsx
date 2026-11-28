@@ -114,6 +114,8 @@ export function DocumentsScreen({
           onRemindSigners: actions.remindEnvelope,
           onRestore: actions.restoreDocument,
           onConfirmDeletion: actions.confirmDeletion,
+          // A Compliance queue loads as it scrolls; the address opens its first page.
+          onLoadMoreQueue: actions.queuePage,
           onAskAcross: actions.askDocuments,
           ...(people
             ? {

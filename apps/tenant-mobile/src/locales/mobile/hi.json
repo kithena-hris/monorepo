@@ -142,6 +142,8 @@
   "documents.documents-tab.shared_with_me": "मेरे साथ शेयर किए गए",
   "documents.documents-tab.show": "दिखाएँ",
   "documents.documents-tab.show_every_document": "हर दस्तावेज़ दिखाएँ",
+  "documents.documents-tab.show_more": "और दिखाएँ",
+  "documents.documents-tab.showing_of": "{{total}} में से {{shown}} दिख रहे हैं",
   "documents.documents-tab.sign": "हस्ताक्षर करें",
   "documents.documents-tab.type": "प्रकार",
   "documents.documents-tab.who_it_is_about": "यह किसके बारे में है",

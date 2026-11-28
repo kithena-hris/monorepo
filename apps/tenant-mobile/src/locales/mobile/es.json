@@ -145,6 +145,8 @@
   "documents.documents-tab.shared_with_me": "Compartidos conmigo",
   "documents.documents-tab.show": "Mostrar",
   "documents.documents-tab.show_every_document": "Mostrar todos los documentos",
+  "documents.documents-tab.show_more": "Mostrar más",
+  "documents.documents-tab.showing_of": "Mostrando {{shown}} de {{total}}",
   "documents.documents-tab.sign": "Firmar",
   "documents.documents-tab.type": "Tipo",
   "documents.documents-tab.who_it_is_about": "A quién se refiere",

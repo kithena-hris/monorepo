@@ -118,6 +118,12 @@ export const QueueRow = z
   })
   .meta(Title('DocumentsQueueRow'));
 
+/** A page of a queue after the first, as the list scrolls. */
+export const QueuePage = z
+  .object({ rows: z.array(QueueRow), next: z.string().nullable() })
+  .meta(Title('DocumentsQueuePage'));
+export type QueuePage = z.infer<typeof QueuePage>;
+
 export const TypeOption = z
   .object({
     key: z.string(),
@@ -143,7 +149,11 @@ export const LibraryView = z
     sections: z.array(SectionView),
     needsYou: z.array(NeedsYou),
     tiles: z.array(Tile),
+    /** The first page of the queue asked for; `queueNext` is the cursor to the one after it. */
     queueRows: z.array(QueueRow),
+    queueNext: z.string().nullable(),
+    /** How many the queue holds in all, loaded or not. */
+    queueTotal: z.int(),
     rows: z.array(DocumentRow),
     total: z.int(),
     types: z.array(TypeOption),
