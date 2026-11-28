@@ -524,8 +524,7 @@ describe.runIf(!coarse)('the directory’s table, in the window', () => {
     await vi.waitFor(() => {
       const head = box.querySelector('thead th')?.getBoundingClientRect() as DOMRect;
       const sticky =
-        Number.parseFloat(getComputedStyle(box).getPropertyValue('--reach-sticky-top') || '0') ||
-        0;
+        Number.parseFloat(getComputedStyle(box).getPropertyValue('--reach-sticky-top') || '0') || 0;
       expect(Math.abs(head.top - sticky)).toBeLessThanOrEqual(2);
     });
     // Sideways, the row's controls and its name stay where they are.
