@@ -1,41 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-
-/**
- * A choice kept in this browser for the next visit: the default on the
- * server and until the browser has been read, so the two agree.
- *
- * `read` turns whatever was stored (or `null`, nothing) into a value the
- * caller can trust: storage is the reader's, and an old version's shape or a
- * hand-edited one must not reach the screen as it is.
- *
- * ponytail: per browser, not per account; a preference that should follow a
- * person between devices belongs with their account, not here.
- */
-export function useKept<T>(key: string, read: (raw: unknown) => T): [T, (next: T) => void] {
-  const [value, setValue] = useState(() => read(null));
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw !== null) setValue(read(JSON.parse(raw)));
-    } catch {
-      // No storage, or not ours: the default stands.
-    }
-    // `read` is pure and the same every draw: only the key says what to read.
-  }, [key]);
-  return [
-    value,
-    (next) => {
-      setValue(next);
-      try {
-        window.localStorage.setItem(key, JSON.stringify(next));
-      } catch {
-        // Not kept: it still holds for this visit.
-      }
-    },
-  ];
-}
+import { useEffect, useRef } from 'react';
 
 /** The keys put back this page load: once each, so Back to the bare address stays there. */
 const restored = new Set<string>();
@@ -50,6 +15,9 @@ const restored = new Set<string>();
  * An address that names any of them wins, so a shared link is never overridden.
  *
  * Returns the function to call in place of `apply`: it remembers, then applies.
+ *
+ * Kept beside the screen that uses it, as each remote keeps its own helpers:
+ * Reach is on every page, and this is not presentation.
  */
 export function useKeptFilters(
   key: string,

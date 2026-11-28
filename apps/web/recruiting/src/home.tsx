@@ -25,10 +25,10 @@ import {
   WidgetGrid,
   WIDGET_LIMIT,
   type ChartTone,
-  useKeptFilters,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
 
+import { useKeptFilters } from './kept';
 import { Loaded } from './load';
 import { JobConfirm, jobCommands, type Confirming, type JobRef } from './job-actions';
 import { MoreMenu, Refusal, Search, StateBadge, To, day, useAct, when, whereFrom } from './shared';

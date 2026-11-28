@@ -18,10 +18,10 @@ import {
   Widget,
   WidgetGrid,
   WIDGET_LIMIT,
-  useKeptFilters,
 } from '@reach/ui';
 import type { JSX } from 'react';
 
+import { useKeptFilters } from './kept';
 import { Loaded } from './load';
 import { CycleBadge, Live, Refusal, ReviewBadge, To, day, kindLabel, useAct } from './shared';
 import type { ScreenProps } from './types';

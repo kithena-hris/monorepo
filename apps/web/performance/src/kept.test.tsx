@@ -1,36 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useKept, useKeptFilters } from './use-kept';
-
-const word = (raw: unknown): string => (typeof raw === 'string' ? raw : 'due');
+import { useKeptFilters } from './kept';
 
 beforeEach(() => {
   window.localStorage.clear();
-});
-
-describe('useKept', () => {
-  it('opens on the default, then on what this browser kept', () => {
-    window.localStorage.setItem('k.sort', JSON.stringify('newest'));
-    const { result } = renderHook(() => useKept('k.sort', word));
-    expect(result.current[0]).toBe('newest');
-  });
-
-  it('keeps a choice as it is made', () => {
-    const { result } = renderHook(() => useKept('k.sort', word));
-    expect(result.current[0]).toBe('due');
-    act(() => {
-      result.current[1]('oldest');
-    });
-    expect(result.current[0]).toBe('oldest');
-    expect(window.localStorage.getItem('k.sort')).toBe('"oldest"');
-  });
-
-  it('never hands the screen what it cannot read', () => {
-    window.localStorage.setItem('k.sort', '{not json');
-    const { result } = renderHook(() => useKept('k.sort', word));
-    expect(result.current[0]).toBe('due');
-  });
 });
 
 describe('useKeptFilters', () => {
