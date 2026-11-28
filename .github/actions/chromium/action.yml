@@ -53,8 +53,13 @@ runs:
         BROWSERS: ${{ inputs.browsers }}
       run: |
         debs=~/.cache/playwright-debs
+        # Twice when the first pass fails: a package that breaks the installed
+        # version of another in the same set (libasound2-data against
+        # libasound2t64, 2026-11-28) is refused until that one is unpacked,
+        # which the first pass does, and left half done apt cannot recover.
         if [ "$HIT" = true ] && compgen -G "$debs/*.deb" >/dev/null &&
-          sudo dpkg --install "$debs"/*.deb >/dev/null; then
+          { sudo dpkg --install "$debs"/*.deb >/dev/null ||
+            sudo dpkg --install "$debs"/*.deb >/dev/null; }; then
           pnpm --filter "$PACKAGE" exec playwright install $BROWSERS
           exit 0
         fi
