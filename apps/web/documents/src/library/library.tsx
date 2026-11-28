@@ -42,6 +42,7 @@ import {
   Spinner,
   Widget,
   WidgetGrid,
+  formatNumber,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
 
@@ -160,6 +161,10 @@ export function Library(props: LibraryProps): JSX.Element {
 
 const href = (id: string) => `/documents/d/${id}`;
 
+/** What was typed reads as a question, not as words to find. */
+const asksKithena = (typed: string): boolean =>
+  typed.trim().endsWith('?') || typed.trim().split(/\s+/u).length >= 4;
+
 function Ready({
   data,
   ...props
@@ -171,14 +176,16 @@ function Ready({
   const [splitting, setSplitting] = useState(false);
   const [lettering, setLettering] = useState(false);
   const [drafting, setDrafting] = useState(false);
-  const [query, type] = useTyped(data.q, (q) => props.onFilter?.({ q: q === '' ? null : q }));
+  // Kithena answers across what they may open; nothing deleted is read.
+  const asks = props.onAskAcross !== undefined && !data.deleted;
+  // One field: a word or two narrows the list, a question is Kithena's to answer on Enter.
+  const [query, type] = useTyped(data.q, (q) =>
+    props.onFilter?.({ q: q === '' || (asks && asksKithena(q)) ? null : q }),
+  );
   const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(
     null,
   );
-  // A search that reads as a question is offered to Kithena; a word or two stays a search.
-  const question = query.trim().endsWith('?') || query.trim().split(/\s+/u).length >= 4;
-  // Kithena answers across what they may open; nothing deleted is read.
-  const asks = props.onAskAcross !== undefined && !data.deleted;
+  const question = asks && asksKithena(query);
   // The front of Documents: the whole list, unfiltered.
   const front = data.queue === null && !data.deleted && data.q === '' && data.show === 'all';
   const askAcross = (asked: string = query): void => {
@@ -217,13 +224,7 @@ function Ready({
   return (
     <>
       <PageHeader
-        title={
-          data.deleted
-            ? tr('library.library.deleted', 'Deleted')
-            : data.queue !== null
-              ? QUEUE_TITLES[data.queue]
-              : tr('library.library.documents', 'Documents')
-        }
+        title={tr('library.library.documents', 'Documents')}
         figures={tallyFigures(
           {
             label: tr('library.library.figure_documents', 'documents'),
@@ -237,23 +238,20 @@ function Ready({
             },
           ],
         ).map((f) => ({ label: f.label, value: f.value, ...(f.tone ? { tone: f.tone } : {}) }))}
-        // The list's count is its figure: only a queue and the deleted say more.
-        {...(data.deleted
-          ? {
-              description: tr(
+        // One line under the title on every tab, so the page holds still between them.
+        description={
+          data.deleted
+            ? tr(
                 'library.library.deleted_documents_wait_30_days_then',
                 'Deleted documents wait 30 days, then are gone. A legal hold keeps them.',
-              ),
-            }
-          : data.queue !== null
-            ? {
-                description: tr(
-                  'library.library.count_to_follow_up',
-                  { one: '{{count}} to follow up', other: '{{count}} to follow up' },
-                  { count: data.queueRows.length },
-                ),
-              }
-            : {})}
+              )
+            : data.queue !== null
+              ? tr(
+                  'library.library.compliance_description',
+                  'What is missing from people’s files, expiring soon or due for deletion.',
+                )
+              : tr('library.library.every_document_you_can_open', 'Every document you can open.')
+        }
         actions={
           <>
             {data.viewer.hr && props.onDraftDocument !== undefined ? (
@@ -316,61 +314,44 @@ function Ready({
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          aria-label={tr('library.library.search_documents', 'Search documents')}
-          placeholder={
-            asks
-              ? tr('library.library.search_or_ask_a_question', 'Search, or ask a question')
-              : tr('library.library.search_documents', 'Search documents')
-          }
-          startAdornment={<icons.search aria-hidden />}
-          value={query}
-          onChange={(e) => {
-            type(e.target.value);
-          }}
-          className="max-w-xl flex-1 basis-64"
-        />
-        {/* One control for Kithena: it asks what was typed, or offers a question to start from. */}
-        {!asks ? null : question ? (
-          <Button
-            variant="secondary"
-            startIcon={<icons.assistant aria-hidden />}
-            onClick={() => {
-              askAcross();
-            }}
-          >
-            {tr('library.library.ask_kithena', 'Ask Kithena')}
-          </Button>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" startIcon={<icons.assistant aria-hidden />}>
-                {tr('library.library.ask_kithena', 'Ask Kithena')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {[
-                tr('library.library.starter_expiring', 'What expires in the next three months?'),
-                tr('library.library.starter_notice', 'What is my notice period?'),
-                tr(
-                  'library.library.starter_unsigned',
-                  'Which documents are still waiting for a signature?',
-                ),
-              ].map((q) => (
-                <DropdownMenuItem
-                  key={q}
-                  onSelect={() => {
-                    askAcross(q);
+      <Input
+        aria-label={
+          asks
+            ? tr('library.library.search_or_ask_a_question', 'Search, or ask a question')
+            : tr('library.library.search_documents', 'Search documents')
+        }
+        placeholder={
+          asks
+            ? tr('library.library.search_or_ask_a_question', 'Search, or ask a question')
+            : tr('library.library.search_documents', 'Search documents')
+        }
+        startAdornment={<icons.search aria-hidden />}
+        value={query}
+        onChange={(e) => {
+          type(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && question) askAcross();
+        }}
+        // A question shows who answers it: the same field, sent with Enter or this.
+        {...(question
+          ? {
+              endAdornment: (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  startIcon={<icons.assistant aria-hidden />}
+                  onClick={() => {
+                    askAcross();
                   }}
                 >
-                  {q}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+                  {tr('library.library.ask_kithena', 'Ask Kithena')}
+                </Button>
+              ),
+            }
+          : {})}
+        className="max-w-xl"
+      />
       {answer === null ? null : answer.a === null ? (
         answer.error === undefined ? (
           <Spinner
@@ -409,7 +390,25 @@ function Ready({
       ) : null}
 
       {data.queue !== null && !data.deleted ? (
-        <QueueList data={data} {...props} />
+        <>
+          <Select value={data.queue} onValueChange={(queue) => props.onFilter?.({ queue })}>
+            <SelectTrigger
+              aria-label={tr('library.library.show', 'Show')}
+              className="w-80 max-w-full"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(['missing', 'expiring', 'to_delete'] as const).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {QUEUE_TITLES[key]} (
+                  {formatNumber(data.tiles.find((tile) => tile.key === key)?.count ?? 0)})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <QueueList data={data} {...props} />
+        </>
       ) : (
         <section
           className="flex flex-col gap-3"
@@ -420,7 +419,13 @@ function Ready({
             <CardToolbar className="flex-row flex-wrap items-center">
               <ShowPicker
                 data={data}
-                onShow={(show) => props.onFilter?.({ show: show === 'all' ? null : show })}
+                onShow={(show) =>
+                  props.onFilter?.(
+                    show === 'deleted'
+                      ? { show: null, deleted: 'true' }
+                      : { show: show === 'all' ? null : show, deleted: null },
+                  )
+                }
                 onNew={() => {
                   setNewSection(true);
                 }}
@@ -1013,7 +1018,7 @@ function ShowPicker({
   const mine = data.sections.filter((s) => s.kind === 'personal');
   return (
     <Select
-      value={data.show}
+      value={data.deleted ? 'deleted' : data.show}
       onValueChange={(v) => {
         if (v === '__new') onNew();
         else onShow(v);
@@ -1066,6 +1071,12 @@ function ShowPicker({
           ))}
           <SelectItem value="__new">
             {tr('library.library.new_section_2', 'New section…')}
+          </SelectItem>
+        </SelectGroup>
+        <SelectSeparator />
+        <SelectGroup>
+          <SelectItem value="deleted">
+            {tr('library.library.recently_deleted', 'Recently deleted')}
           </SelectItem>
         </SelectGroup>
       </SelectContent>

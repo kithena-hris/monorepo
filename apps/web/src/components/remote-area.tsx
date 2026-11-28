@@ -11,6 +11,7 @@ import {
   type ActScreenProps,
 } from './act-screen';
 import { TimeOffScreen } from './timeoff-screen';
+import { Waking, WakingHeader } from './waking';
 import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import { remoteRoute } from '../lib/remote-manifest';
@@ -113,17 +114,29 @@ export async function RemoteArea({
     ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
   };
   const frame = areaFrame(area, route.path, places);
-  if (screens !== undefined)
+  if (screens !== undefined) {
+    // The VM is asleep or still waking: the page's header, and in place of its
+    // body a state that asks again by itself, as People's does (`waking.tsx`).
+    const waking = load.status === 'error' && load.unreachable === true;
     return (
-      <screens.Screen
-        route={drawn}
-        load={load}
-        frame={frame}
-        path={path}
-        params={route.params}
-        search={search}
-      />
+      <Waking
+        area={area.label}
+        waking={waking}
+        header={<WakingHeader frame={frame} title={area.label} />}
+      >
+        {waking ? null : (
+          <screens.Screen
+            route={drawn}
+            load={load}
+            frame={frame}
+            path={path}
+            params={route.params}
+            search={search}
+          />
+        )}
+      </Waking>
     );
+  }
   return (
     <RemoteScreen
       name={area.name}

@@ -34,6 +34,7 @@
   "inbox.inbox.declined_your_change_to_your": "{{by}} heeft je wijziging van je {{field}} afgewezen",
   "inbox.inbox.details": "Gegevens",
   "inbox.inbox.details_hr_asked_for": "gegevens die HR vroeg",
+  "inbox.inbox.details_to_fill_in": "Gegevens om in te vullen",
   "inbox.inbox.documents": "Documenten",
   "inbox.inbox.done": "Klaar",
   "inbox.inbox.exports_to_approve": "Exports om goed te keuren",

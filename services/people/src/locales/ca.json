@@ -35,6 +35,7 @@
   "inbox.inbox.declined_your_change_to_your": "{{by}} ha rebutjat el canvi al teu {{field}}",
   "inbox.inbox.details": "Dades",
   "inbox.inbox.details_hr_asked_for": "dades que va demanar RH",
+  "inbox.inbox.details_to_fill_in": "Detalls a omplir",
   "inbox.inbox.done": "Fet",
   "inbox.inbox.export": "Exportació",
   "inbox.inbox.exports_to_approve": "Exportacions per aprovar",

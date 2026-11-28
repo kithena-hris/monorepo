@@ -36,6 +36,7 @@
   "inbox.inbox.declined_your_change_to_your": "{{by}} отклонил(а) изменение вашего поля «{{field}}»",
   "inbox.inbox.details": "Данные",
   "inbox.inbox.details_hr_asked_for": "данные, которые запросил отдел кадров",
+  "inbox.inbox.details_to_fill_in": "Данные для заполнения",
   "inbox.inbox.documents": "Документы",
   "inbox.inbox.done": "Готово",
   "inbox.inbox.export": "Экспорт",

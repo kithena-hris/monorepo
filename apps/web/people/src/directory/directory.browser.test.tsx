@@ -519,10 +519,14 @@ describe.runIf(!coarse)('the directory’s table, in the window', () => {
     window.scrollTo(0, tableTop(box) + 30 * ROW);
     await frame();
     await frame();
-    const head = box.querySelector('thead th')?.getBoundingClientRect() as DOMRect;
-    const sticky =
-      Number.parseFloat(getComputedStyle(box).getPropertyValue('--reach-sticky-top') || '0') || 0;
-    expect(Math.abs(head.top - sticky)).toBeLessThanOrEqual(2);
+    // Until it has settled: the page header folds as it sticks, and the table's
+    // header follows it over a few frames, more of them in WebKit.
+    await vi.waitFor(() => {
+      const head = box.querySelector('thead th')?.getBoundingClientRect() as DOMRect;
+      const sticky =
+        Number.parseFloat(getComputedStyle(box).getPropertyValue('--reach-sticky-top') || '0') || 0;
+      expect(Math.abs(head.top - sticky)).toBeLessThanOrEqual(2);
+    });
     // Sideways, the row's controls and its name stay where they are.
     const row = box.querySelector<HTMLTableRowElement>('tbody tr[data-row-id]');
     const pins = [...(row?.cells ?? [])].filter((c) => getComputedStyle(c).position === 'sticky');

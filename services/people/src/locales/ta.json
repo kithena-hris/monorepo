@@ -34,6 +34,7 @@
   "inbox.inbox.declined_your_change_to_your": "உங்கள் {{field}} இல் உங்கள் மாற்றத்தை {{by}} மறுத்தார்",
   "inbox.inbox.details": "விவரங்கள்",
   "inbox.inbox.details_hr_asked_for": "மனிதவளம் கேட்ட விவரங்கள்",
+  "inbox.inbox.details_to_fill_in": "நிரப்ப வேண்டிய விவரங்கள்",
   "inbox.inbox.documents": "ஆவணங்கள்",
   "inbox.inbox.done": "முடிந்தது",
   "inbox.inbox.export": "ஏற்றுமதி",

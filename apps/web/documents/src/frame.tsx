@@ -199,6 +199,8 @@ export function ScreenFrame({
     pending = false,
   } = frame;
   const tab = tabs.find((t) => t.current);
+  // A section named as its area ("Documents › Documents") is said once, as the section.
+  const crumbs = trail.at(-1)?.label === section ? trail.slice(0, -1) : trail;
   // One tab is the page itself: no row for it.
   const shownTabs = tabs.length > 1 ? tabs : [];
   const buttons = actions.filter((a) => a.menu !== true);
@@ -241,7 +243,7 @@ export function ScreenFrame({
             {/* At a desk, the trail; its last crumb switches to a sibling. */}
             <Breadcrumb className="touch:hidden">
               <BreadcrumbList>
-                {trail.map((link) => (
+                {crumbs.map((link) => (
                   <Fragment key={`${link.href} ${link.label}`}>
                     <BreadcrumbItem>
                       <BreadcrumbLink href={link.href}>{link.label}</BreadcrumbLink>

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import manifest from '../public/routes.json';
@@ -49,15 +49,24 @@ describe('the library (B1, B2)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('offers a question to start from beside the search, when Kithena answers', () => {
+  it('is one field: words search, a question is Kithena’s to answer', () => {
+    const asked: string[] = [];
     render(
       <screens.Library
         load={ready(adamLibrary())}
-        onAskAcross={() => Promise.resolve({ ok: false, message: 'no' })}
+        onAskAcross={(q) => {
+          asked.push(q);
+          return Promise.resolve({ ok: false, message: 'no' });
+        }}
       />,
     );
+    const field = screen.getByPlaceholderText('Search, or ask a question');
+    // Nothing beside the field until what is typed is a question.
+    expect(screen.queryByRole('button', { name: 'Ask Kithena' })).toBeNull();
+    fireEvent.change(field, { target: { value: 'When does my contract end?' } });
     expect(screen.getByRole('button', { name: 'Ask Kithena' })).toBeTruthy();
-    expect(screen.getByPlaceholderText('Search, or ask a question')).toBeTruthy();
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(asked).toEqual(['When does my contract end?']);
   });
 
   it('is one place in the sidebar, its views the tabs of it', () => {
@@ -65,16 +74,17 @@ describe('the library (B1, B2)', () => {
     expect(manifest.sections[0]?.tabs.map((t) => t.path)).toEqual([
       '/documents/all',
       '/documents/envelopes',
-      '/documents/queues/missing',
-      '/documents/queues/expiring',
-      '/documents/queues/to-delete',
-      '/documents/deleted',
+      '/documents/compliance',
     ]);
   });
 
   it('is the queue itself at a queue’s address', async () => {
     const { container } = render(<screens.Library load={ready(adaLibrary())} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Expiring in 60 days' })).toBeTruthy();
+    // The same title and one line under it on every tab: the page holds still between them.
+    expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Show' }).textContent).toContain(
+      'Expiring in 60 days',
+    );
     expect(screen.getByText('Work permit · Omar')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });

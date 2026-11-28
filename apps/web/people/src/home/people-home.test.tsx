@@ -620,14 +620,14 @@ describe('Home, with a host that knows who is away', () => {
               rows: [1, 2, 3, 4, 5, 6].map(rows('Contract', 'Omar Haddad')),
             },
           ],
-          figures: [{ label: 'missing', value: 12, href: '/documents/queues/missing' }],
+          figures: [{ label: 'missing', value: 12, href: '/documents/compliance?queue=missing' }],
         }}
       />,
     );
     const documents = within(part('Documents'));
     expect(documents.getByRole('link', { name: /To sign 1/u })).toBeTruthy();
     expect(documents.getByRole('link', { name: /12\s*missing/u }).getAttribute('href')).toBe(
-      '/documents/queues/missing',
+      '/documents/compliance?queue=missing',
     );
     const user = fast();
     await user.click(documents.getByRole('combobox', { name: 'Group by' }));

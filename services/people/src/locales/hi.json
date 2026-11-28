@@ -34,6 +34,7 @@
   "inbox.inbox.declined_your_change_to_your": "{{by}} ने आपके {{field}} में बदलाव अस्वीकार किया",
   "inbox.inbox.details": "विवरण",
   "inbox.inbox.details_hr_asked_for": "HR द्वारा माँगे गए विवरण",
+  "inbox.inbox.details_to_fill_in": "भरने के लिए विवरण",
   "inbox.inbox.documents": "दस्तावेज़",
   "inbox.inbox.done": "पूरा",
   "inbox.inbox.export": "एक्सपोर्ट",

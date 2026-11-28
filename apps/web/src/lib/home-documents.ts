@@ -87,9 +87,9 @@ export interface HomeDocuments {
 const HELD = 20;
 
 const FIGURE_AT: Readonly<Record<string, string>> = {
-  missing: '/documents/queues/missing',
-  expiring: '/documents/queues/expiring',
-  to_delete: '/documents/queues/to-delete',
+  missing: '/documents/compliance?queue=missing',
+  expiring: '/documents/compliance?queue=expiring',
+  to_delete: '/documents/compliance?queue=to_delete',
 };
 
 export function homeDocuments(library: LibraryAnswer): HomeDocuments {

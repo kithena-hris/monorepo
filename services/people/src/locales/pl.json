@@ -36,6 +36,7 @@
   "inbox.inbox.declined_your_change_to_your": "{{by}} odrzucił zmianę Twojego pola {{field}}",
   "inbox.inbox.details": "Dane",
   "inbox.inbox.details_hr_asked_for": "dane, o które prosi dział kadr",
+  "inbox.inbox.details_to_fill_in": "Dane do uzupełnienia",
   "inbox.inbox.documents": "Dokumenty",
   "inbox.inbox.done": "Gotowe",
   "inbox.inbox.export": "Eksport",

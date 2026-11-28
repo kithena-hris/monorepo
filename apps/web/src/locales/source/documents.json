@@ -1687,13 +1687,9 @@
     "text": "Company · set up by HR",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectLabel>."
   },
-  "library.library.count_to_follow_up_one": {
-    "text": "{{count}} to follow up",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <PageHeader>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
-  },
-  "library.library.count_to_follow_up_other": {
-    "text": "{{count}} to follow up",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <PageHeader>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  "library.library.compliance_description": {
+    "text": "What is missing from people’s files, expiring soon or due for deletion.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>."
   },
   "library.library.create": {
     "text": "Create",
@@ -1703,13 +1699,9 @@
     "text": "Delete",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: text inside <Button>."
   },
-  "library.library.deleted": {
-    "text": "Deleted",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the title of <PageHeader>."
-  },
   "library.library.deleted_documents_wait_30_days_then": {
     "text": "Deleted documents wait 30 days, then are gone. A legal hold keeps them.",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <PageHeader>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>."
   },
   "library.library.document": {
     "text": "Document",
@@ -1734,6 +1726,10 @@
   "library.library.every_document": {
     "text": "Every document",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <section>."
+  },
+  "library.library.every_document_you_can_open": {
+    "text": "Every document you can open.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>."
   },
   "library.library.everyone_sees_it_with_only_the": {
     "text": "Everyone sees it, with only the documents each of them can open.",
@@ -1875,6 +1871,10 @@
     "text": "Read it",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, NeedsYou: the trailing of <a>."
   },
+  "library.library.recently_deleted": {
+    "text": "Recently deleted",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
   "library.library.refuse": {
     "text": "Refuse",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, AccessDecision: text inside <Button>."
@@ -1917,7 +1917,7 @@
   },
   "library.library.search_or_ask_a_question": {
     "text": "Search, or ask a question",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the placeholder of <Input>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <Input>."
   },
   "library.library.send": {
     "text": "Send",
@@ -1941,7 +1941,7 @@
   },
   "library.library.show": {
     "text": "Show",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: the aria-label of <SelectTrigger>."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <SelectTrigger>."
   },
   "library.library.show_all_count": {
     "text": "Show all {{count}}",
@@ -1966,18 +1966,6 @@
   "library.library.split_a_scan": {
     "text": "Split a scan",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
-  },
-  "library.library.starter_expiring": {
-    "text": "What expires in the next three months?",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <DropdownMenuContent>."
-  },
-  "library.library.starter_notice": {
-    "text": "What is my notice period?",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <DropdownMenuContent>."
-  },
-  "library.library.starter_unsigned": {
-    "text": "Which documents are still waiting for a signature?",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <DropdownMenuContent>."
   },
   "library.library.status": {
     "text": "Status",
@@ -2123,25 +2111,13 @@
     "text": "All documents",
     "context": "Documents: files, e-signatures, letters. Navigation, a tab of Documents (/documents/all): its name in the sidebar, the breadcrumb and the menus."
   },
-  "nav./documents/deleted.label": {
-    "text": "Deleted",
-    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Documents (/documents/deleted): its name in the sidebar, the breadcrumb and the menus."
+  "nav./documents/compliance.label": {
+    "text": "Compliance",
+    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Documents (/documents/compliance): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./documents/envelopes.label": {
     "text": "Signatures",
     "context": "Documents: files, e-signatures, letters. Navigation, a tab of Documents (/documents/envelopes): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./documents/queues/expiring.label": {
-    "text": "Expiring",
-    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Documents (/documents/queues/expiring): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./documents/queues/missing.label": {
-    "text": "Missing",
-    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Documents (/documents/queues/missing): its name in the sidebar, the breadcrumb and the menus."
-  },
-  "nav./documents/queues/to-delete.label": {
-    "text": "To delete",
-    "context": "Documents: files, e-signatures, letters. Navigation, a tab of Documents (/documents/queues/to-delete): its name in the sidebar, the breadcrumb and the menus."
   },
   "nav./settings/documents/access.description": {
     "text": "What new documents start as, how far people can share, and what Confidential enforces.",

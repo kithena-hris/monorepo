@@ -53,14 +53,25 @@ runs:
         BROWSERS: ${{ inputs.browsers }}
       run: |
         debs=~/.cache/playwright-debs
+        # Twice when the first pass fails: a package that breaks the installed
+        # version of another in the same set (libasound2-data against
+        # libasound2t64, 2026-11-28) is refused until that one is unpacked,
+        # which the first pass does, and left half done apt cannot recover.
         if [ "$HIT" = true ] && compgen -G "$debs/*.deb" >/dev/null &&
-          sudo dpkg --install "$debs"/*.deb >/dev/null; then
+          { sudo dpkg --install "$debs"/*.deb >/dev/null ||
+            sudo dpkg --install "$debs"/*.deb >/dev/null; }; then
           pnpm --filter "$PACKAGE" exec playwright install $BROWSERS
           exit 0
         fi
         # Emptied first, so what is kept is exactly what apt fetched for this
         # image, which is what the next run on it will need.
         sudo rm -f /var/cache/apt/archives/*.deb
+        # A cached set the image has moved past leaves packages half installed,
+        # and apt then refuses everything until they are finished.
+        if [ "$HIT" = true ]; then
+          sudo apt-get update >/dev/null
+          sudo apt-get --fix-broken install --yes >/dev/null
+        fi
         pnpm --filter "$PACKAGE" exec playwright install --with-deps $BROWSERS
         if [ "$HIT" != true ]; then
           mkdir -p "$debs"

@@ -28,12 +28,10 @@ export interface DocumentsScreenProps {
   readonly embedded?: Embedded;
 }
 
-/** The tab each of the library's figures counts. */
-const TILE_AT: Readonly<Record<string, string>> = {
-  to_sign: '/documents/envelopes',
-  missing: '/documents/queues/missing',
-  expiring: '/documents/queues/expiring',
-  to_delete: '/documents/queues/to-delete',
+/** Which of the library's figures each tab counts: what is to sign, and HR's follow-up together. */
+const TAB_TILES: Readonly<Record<string, readonly string[]>> = {
+  '/documents/envelopes': ['to_sign'],
+  '/documents/compliance': ['missing', 'expiring', 'to_delete'],
 };
 
 export function DocumentsScreen({
@@ -242,7 +240,11 @@ export function DocumentsScreen({
       : {
           ...frame,
           tabs: frame.tabs.map((tab) => {
-            const n = tiles.find((tile) => TILE_AT[tile.key] === tab.href)?.count ?? 0;
+            const of = TAB_TILES[tab.href] ?? [];
+            const n = tiles.reduce(
+              (sum, tile) => sum + (of.includes(tile.key) ? tile.count : 0),
+              0,
+            );
             return n > 0 ? { ...tab, count: n } : tab;
           }),
         };
