@@ -593,7 +593,7 @@ export type { HoverCardProps, HoverCardTriggerProps } from './components/hover-c
 
 export { CircularProgress, Progress } from './components/progress/progress';
 
-export { Reveal, staggerStyle } from './components/reveal/reveal';
+export { Reveal, staggerStyle, useArrival } from './components/reveal/reveal';
 export type { RevealProps } from './components/reveal/reveal';
 
 export {
@@ -906,6 +906,7 @@ export {
 export type { Breakpoint } from './lib/use-media-query';
 
 export { useInView } from './lib/use-in-view';
+export { useKept, useKeptFilters } from './lib/use-kept';
 export { usePages } from './lib/use-pages';
 export type { LoadedPage } from './lib/use-pages';
 export { PINNED_BAR, useClearOfPinned } from './lib/pinned';

@@ -39,12 +39,15 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-  Spinner,
+  useArrival,
+  usePages,
+  VirtualList,
+  type VirtualListProps,
   Widget,
   WidgetGrid,
   formatNumber,
 } from '@reach/ui';
-import { useMemo, useState, type JSX } from 'react';
+import { useCallback, useMemo, useState, type JSX } from 'react';
 
 import { useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
@@ -65,6 +68,7 @@ import type {
   StartUpload,
 } from '../types';
 import { ShareQuestion, UploadDialog, type UploadInput, type UploadPreset } from '../upload';
+import { AskBar, useRecentQuestions } from './ask-bar';
 import { DraftDialog, type DraftProps } from './draft';
 import { LettersDialog, type LettersProps } from './letters';
 import { SplitDialog, type SplitProps } from './split';
@@ -116,6 +120,11 @@ export interface LibraryProps {
   readonly onRemindSigners?: ((envelopeId: string) => Promise<Outcome>) | undefined;
   readonly onRestore?: ((documentId: string) => Promise<Outcome>) | undefined;
   readonly onConfirmDeletion?: ((documentIds: readonly string[]) => Promise<Outcome>) | undefined;
+  /**
+   * H1, H3: the page of a queue after `after`, for a list that loads as it
+   * scrolls: `{ rows, next }`, or null when it could not be read.
+   */
+  readonly onLoadMoreQueue?: ((queue: string, after: string) => Promise<unknown>) | undefined;
   /** B4: a question across what this person may open. */
   readonly onAskAcross?: ((question: string) => Promise<Read<Answer>>) | undefined;
   /** C1: what an upload looks like it is. */
@@ -161,6 +170,13 @@ export function Library(props: LibraryProps): JSX.Element {
 
 const href = (id: string) => `/documents/d/${id}`;
 
+/** Questions to start from, offered when the field is focused and empty. */
+const STARTERS = (): readonly string[] => [
+  tr('library.library.starter_expiring', 'What expires in the next three months?'),
+  tr('library.library.starter_notice', 'What is my notice period?'),
+  tr('library.library.starter_unsigned', 'Which documents are still waiting for a signature?'),
+];
+
 /** What was typed reads as a question, not as words to find. */
 const asksKithena = (typed: string): boolean =>
   typed.trim().endsWith('?') || typed.trim().split(/\s+/u).length >= 4;
@@ -185,17 +201,23 @@ function Ready({
   const [answer, setAnswer] = useState<{ q: string; a: Answer | null; error?: string } | null>(
     null,
   );
-  const question = asks && asksKithena(query);
+  const [recent, remember] = useRecentQuestions();
   // The front of Documents: the whole list, unfiltered.
   const front = data.queue === null && !data.deleted && data.q === '' && data.show === 'all';
   const askAcross = (asked: string = query): void => {
     const q = asked.trim();
     if (props.onAskAcross === undefined || q === '') return;
     setAnswer({ q, a: null });
+    remember(q);
     void props.onAskAcross(q).then((r) => {
       setAnswer(r.ok ? { q, a: r.data } : { q, a: null, error: r.message });
     });
   };
+  // Their own documents, newest first, for what their record still lacks: never a medical one.
+  const mine = useMemo(
+    () => data.rows.filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical').slice(0, LOOK_IN),
+    [data.rows],
+  );
   // Held while what they close over holds, so opening a dialog redraws no row.
   const { onNavigate, onRestore, onChangeSection, onRemindSigners } = props;
   const columns = useMemo(
@@ -314,54 +336,25 @@ function Ready({
         }
       />
 
-      <Input
-        aria-label={
-          asks
-            ? tr('library.library.search_or_ask_a_question', 'Search, or ask a question')
-            : tr('library.library.search_documents', 'Search documents')
-        }
-        placeholder={
-          asks
-            ? tr('library.library.search_or_ask_a_question', 'Search, or ask a question')
-            : tr('library.library.search_documents', 'Search documents')
-        }
-        startAdornment={<icons.search aria-hidden />}
+      <AskBar
         value={query}
-        onChange={(e) => {
-          type(e.target.value);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && question) askAcross();
-        }}
-        // A question shows who answers it: the same field, sent with Enter or this.
-        {...(question
+        onValueChange={type}
+        loading={answer !== null && answer.a === null && answer.error === undefined}
+        suggestions={STARTERS()}
+        recent={recent}
+        {...(asks
           ? {
-              endAdornment: (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  startIcon={<icons.assistant aria-hidden />}
-                  onClick={() => {
-                    askAcross();
-                  }}
-                >
-                  {tr('library.library.ask_kithena', 'Ask Kithena')}
-                </Button>
-              ),
+              onAsk: (asked: string) => {
+                // Cleared, the answer goes with the question; words stay a search.
+                if (asked.trim() === '') setAnswer(null);
+                else if (asksKithena(asked)) askAcross(asked);
+              },
             }
           : {})}
-        className="max-w-xl"
       />
+      {/* While Kithena reads, the field says so itself. */}
       {answer === null ? null : answer.a === null ? (
-        answer.error === undefined ? (
-          <Spinner
-            size="sm"
-            label={tr(
-              'library.library.kithena_is_reading_your_documents',
-              'Kithena is reading your documents',
-            )}
-          />
-        ) : (
+        answer.error === undefined ? null : (
           <Alert tone="danger">{answer.error}</Alert>
         )
       ) : (
@@ -377,10 +370,10 @@ function Ready({
             <NeedsYou data={data} props={props} onUpload={upload} />
           )}
           <Answers
-            documentIds={data.rows
-              .filter((r) => (r.mine || r.aboutMe) && r.kind !== 'Medical')
-              .slice(0, 5)
-              .map((r) => r.id)}
+            // Read without being asked: what Kithena found is here when the page is.
+            auto
+            documentIds={mine.map((r) => r.id)}
+            stamp={mine.map((r) => r.updatedAt).join()}
             titles={Object.fromEntries(data.rows.map((r) => [r.id, r.title]))}
             onWaitingFor={props.onWaitingFor}
             onLookFor={props.onLookFor}
@@ -407,7 +400,8 @@ function Ready({
               ))}
             </SelectContent>
           </Select>
-          <QueueList data={data} {...props} />
+          {/* A queue of its own each: the rows arrive again, and none is carried over. */}
+          <QueueList key={data.queue} data={data} {...props} />
         </>
       ) : (
         <section
@@ -460,6 +454,7 @@ function Ready({
                 rowId={rowId}
                 describeRow={rowTitle}
                 fill
+                arrive
                 columns={columns}
               />
             )}
@@ -566,6 +561,9 @@ function Ready({
     </>
   );
 }
+
+/** How many of their own documents are read for what their record lacks: the host reads no more. */
+const LOOK_IN = 12;
 
 /** How many rows a widget names before it offers the rest. */
 const TOP = 5;
@@ -744,6 +742,14 @@ const QUEUE_TITLES: Record<QueueKey, string> = {
   },
 };
 
+type QueueRow = LibraryData['queueRows'][number];
+
+/**
+ * One of HR's queues (H1, H3): its first page as the host drew it, each page
+ * after as the reader nears the end, and only the rows near the view drawn.
+ * The window scrolls it, so the count of what is loaded and the way back to
+ * the top are the list's own.
+ */
 function QueueList({
   data,
   ...props
@@ -753,13 +759,94 @@ function QueueList({
     null,
   );
   const write = useWrite();
-  const deletable = data.queueRows
+  const { onLoadMoreQueue, onRemind } = props;
+  const more = useCallback(
+    async (after: string) => {
+      const page = (await onLoadMoreQueue?.(queue, after)) as {
+        readonly rows: readonly QueueRow[];
+        readonly next: string | null;
+      } | null;
+      return page == null ? null : { items: page.rows, next: page.next };
+    },
+    [onLoadMoreQueue, queue],
+  );
+  const pages = usePages(
+    data.queueRows,
+    data.queueNext ?? null,
+    onLoadMoreQueue === undefined ? undefined : more,
+  );
+  const arrival = useArrival();
+  // Of the rows loaded: what is not on screen yet is not deleted unseen.
+  const deletable = pages.items
     .filter((r) => r.action === 'confirm_delete')
     .map((r) => r.documentId ?? '');
+  const renderItem = useCallback<VirtualListProps<QueueRow>['renderItem']>(
+    (r, index, row) => {
+      const { className, style } = arrival(index);
+      return (
+        <ListItem
+          key={r.id}
+          {...row}
+          {...(className === undefined ? {} : { className })}
+          {...(style === undefined ? {} : { style })}
+          leading={
+            r.person === null ? (
+              <DocIconFor kind={r.kind} />
+            ) : (
+              <Avatar name={r.person.name} size="lg" />
+            )
+          }
+          description={r.detail}
+          trailing={
+            (r.action === 'sign' || r.action === 'view') &&
+            r.requestId !== null &&
+            queue === 'to_sign' ? (
+              <Button size="sm" variant={r.action === 'sign' ? 'primary' : 'secondary'} asChild>
+                <a href={`/documents/envelopes/${r.requestId}`}>
+                  {r.action === 'sign'
+                    ? tr('library.library.sign', 'Sign')
+                    : tr('library.library.open', 'Open')}
+                </a>
+              </Button>
+            ) : r.action === 'view' && r.documentId !== null ? (
+              <Button size="sm" variant="secondary" asChild>
+                <a href={href(r.documentId)}>{tr('library.library.open', 'Open')}</a>
+              </Button>
+            ) : r.action === 'remind' && r.requestId !== null ? (
+              <Remind id={r.requestId} onRemind={onRemind} />
+            ) : r.action === 'ask' && r.person !== null && r.typeKey !== null ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  if (r.person !== null && r.typeKey !== null) {
+                    setAsking({
+                      personId: r.person.personId,
+                      typeKey: r.typeKey,
+                      name: r.person.name,
+                    });
+                  }
+                }}
+              >
+                {tr('library.library.ask', 'Ask')}
+              </Button>
+            ) : r.documentId === null ? null : (
+              <Badge tone={r.tone} size="sm">
+                {r.dueOn === null ? tr('library.library.due_2', 'Due') : shortDate(r.dueOn)}
+              </Badge>
+            )
+          }
+        >
+          {r.title}
+        </ListItem>
+      );
+    },
+    [arrival, onRemind, queue],
+  );
   return (
     <section className="flex flex-col gap-3" aria-label={QUEUE_TITLES[queue]}>
-      <div className="flex flex-wrap items-center gap-3">
-        {queue === 'to_delete' && deletable.length > 0 ? (
+      {queue === 'to_delete' && deletable.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             size="sm"
             variant="danger"
@@ -772,76 +859,31 @@ function QueueList({
           >
             {tr('library.library.delete', 'Delete')} {deletable.length}
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {write.error === null ? null : (
         <Alert tone="danger" title={tr('library.library.not_deleted', 'Not deleted')}>
           {write.error}
         </Alert>
       )}
-      {data.queueRows.length === 0 ? (
-        <EmptyState
-          icon={<icons.success />}
-          title={tr('library.library.nothing_in_this_queue', 'Nothing in this queue')}
-        />
-      ) : (
-        <List>
-          {data.queueRows.map((r) => (
-            <ListItem
-              key={r.id}
-              leading={
-                r.person === null ? (
-                  <DocIconFor kind={r.kind} />
-                ) : (
-                  <Avatar name={r.person.name} size="lg" />
-                )
-              }
-              description={r.detail}
-              trailing={
-                (r.action === 'sign' || r.action === 'view') &&
-                r.requestId !== null &&
-                queue === 'to_sign' ? (
-                  <Button size="sm" variant={r.action === 'sign' ? 'primary' : 'secondary'} asChild>
-                    <a href={`/documents/envelopes/${r.requestId}`}>
-                      {r.action === 'sign'
-                        ? tr('library.library.sign', 'Sign')
-                        : tr('library.library.open', 'Open')}
-                    </a>
-                  </Button>
-                ) : r.action === 'view' && r.documentId !== null ? (
-                  <Button size="sm" variant="secondary" asChild>
-                    <a href={href(r.documentId)}>{tr('library.library.open', 'Open')}</a>
-                  </Button>
-                ) : r.action === 'remind' && r.requestId !== null ? (
-                  <Remind id={r.requestId} onRemind={props.onRemind} />
-                ) : r.action === 'ask' && r.person !== null && r.typeKey !== null ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      if (r.person !== null && r.typeKey !== null) {
-                        setAsking({
-                          personId: r.person.personId,
-                          typeKey: r.typeKey,
-                          name: r.person.name,
-                        });
-                      }
-                    }}
-                  >
-                    {tr('library.library.ask', 'Ask')}
-                  </Button>
-                ) : r.documentId === null ? null : (
-                  <Badge tone={r.tone} size="sm">
-                    {r.dueOn === null ? tr('library.library.due_2', 'Due') : shortDate(r.dueOn)}
-                  </Badge>
-                )
-              }
-            >
-              {r.title}
-            </ListItem>
-          ))}
-        </List>
-      )}
+      <VirtualList
+        label={QUEUE_TITLES[queue]}
+        items={pages.items}
+        itemKey={queueRowId}
+        scroll="page"
+        listItems
+        estimateItemHeight={64}
+        {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+        loadingMore={pages.loading}
+        total={Math.max(data.queueTotal ?? 0, pages.items.length)}
+        renderItem={renderItem}
+        empty={
+          <EmptyState
+            icon={<icons.success />}
+            title={tr('library.library.nothing_in_this_queue', 'Nothing in this queue')}
+          />
+        }
+      />
       {asking === null ? null : (
         <AskDialog
           open
@@ -858,6 +900,8 @@ function QueueList({
     </section>
   );
 }
+
+const queueRowId = (row: QueueRow): string => row.id;
 
 const DocIconFor = ({ kind }: { readonly kind: Row['kind'] }): JSX.Element => (
   <DocIcon kind={kind} />

@@ -31,6 +31,15 @@ const outcome = (a: { ok: boolean; message?: string }, t: T): Outcome =>
         message: a.message ?? t('app.app.documents.actions.documents_refused', 'Documents refused'),
       };
 
+/**
+ * An HR queue after `after` (the last page's `next`), as the Compliance list
+ * scrolls: Documents answers HR alone, and anybody else an empty page.
+ */
+export async function queuePage(queue: string, after: string): Promise<unknown> {
+  const answer = await documents<unknown>('DocumentsQueue', { queue, after });
+  return answer.ok ? answer.data : null;
+}
+
 export interface PresignedPut {
   readonly uploadId: string;
   readonly url: string;
@@ -891,6 +900,10 @@ export async function waitingFor(): Promise<readonly Waiting[]> {
     .map((f) => ({ key: f.key, label: f.label, asked: asked.has(f.key) }));
 }
 
+/** How many documents one look reads, and how many of them at a time. */
+const LOOK_IN = 12;
+const AT_ONCE = 3;
+
 /** One answer found: the detail, its value, and the document and page it is on. */
 export interface Found {
   readonly key: string;
@@ -910,18 +923,28 @@ export async function lookFor(documentIds: readonly string[]): Promise<Read<read
   const waiting = await waitingFor();
   if (waiting.length === 0) return { ok: true, data: [] };
   const found = new Map<string, Found>();
-  // ponytail: five documents, one after another; a job when people keep more.
-  for (const documentId of documentIds.slice(0, 5)) {
+  const ids = documentIds.slice(0, LOOK_IN);
+  // ponytail: twelve documents, three at a time; a job when people keep more.
+  for (let at = 0; at < ids.length; at += AT_ONCE) {
     const left = waiting.filter((w) => !found.has(w.key));
+    // Everything found: the documents left are not read at all.
     if (left.length === 0) break;
-    const read = await documents<{
-      fields: readonly { name: string; value: string; page: number }[];
-    }>('ReadDocumentFields', { documentId, input: { names: left.map((w) => w.label) } });
-    if (!read.ok) continue;
-    for (const f of read.data.fields) {
-      const w = left.find((x) => x.label === f.name);
-      if (w !== undefined && !found.has(w.key)) {
-        found.set(w.key, { ...w, value: f.value, page: f.page, documentId });
+    const reads = await Promise.all(
+      ids.slice(at, at + AT_ONCE).map(async (documentId) => ({
+        documentId,
+        read: await documents<{
+          fields: readonly { name: string; value: string; page: number }[];
+        }>('ReadDocumentFields', { documentId, input: { names: left.map((w) => w.label) } }),
+      })),
+    );
+    // In the order asked, so the newest document's value is the one kept.
+    for (const { documentId, read } of reads) {
+      if (!read.ok) continue;
+      for (const f of read.data.fields) {
+        const w = left.find((x) => x.label === f.name);
+        if (w !== undefined && !found.has(w.key)) {
+          found.set(w.key, { ...w, value: f.value, page: f.page, documentId });
+        }
       }
     }
   }

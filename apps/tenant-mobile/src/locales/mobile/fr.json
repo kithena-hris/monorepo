@@ -139,6 +139,8 @@
   "documents.documents-tab.shared_with_me": "Partagés avec moi",
   "documents.documents-tab.show": "Afficher",
   "documents.documents-tab.show_every_document": "Afficher tous les documents",
+  "documents.documents-tab.show_more": "Afficher plus",
+  "documents.documents-tab.showing_of": "{{shown}} sur {{total}} affichés",
   "documents.documents-tab.sign": "Signer",
   "documents.documents-tab.who_it_is_about": "Personne concernée",
   "documents.draft.about": "Sur {{about}}",

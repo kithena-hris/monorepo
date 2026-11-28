@@ -114,6 +114,10 @@ export interface LibraryData {
     readonly typeKey: string | null;
     readonly action: 'view' | 'ask' | 'remind' | 'confirm_delete' | 'sign';
   }[];
+  /** The cursor to the queue's next page; absent or null at its end. */
+  readonly queueNext?: string | null;
+  /** How many the queue holds in all, loaded or not. */
+  readonly queueTotal?: number;
   readonly rows: readonly Row[];
   readonly total: number;
   readonly types: readonly TypeOption[];

@@ -25,6 +25,7 @@ import {
   WidgetGrid,
   WIDGET_LIMIT,
   type ChartTone,
+  useKeptFilters,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
 
@@ -566,7 +567,17 @@ function Jobs5({
   );
 }
 
-export function Home(props: ScreenProps<HomeData>): JSX.Element {
+/** Both widgets' filters and sorts, by their names in the address: what a visit remembers. */
+const WIDGET_CUTS = ['tasks', 'order', 'jobs', 'department', 'sort'] as const;
+
+export function Home(screen: ScreenProps<HomeData>): JSX.Element {
+  // Each widget's cut is the address's, and kept in this browser for the next visit.
+  const onFilter = useKeptFilters(
+    'kithena.recruiting.home',
+    Object.fromEntries(WIDGET_CUTS.map((k) => [k, screen.search?.[k] ?? null])),
+    screen.onFilter,
+  );
+  const props = { ...screen, onFilter };
   return (
     <Loaded load={props.load} what={tr('home.recruiting', 'Recruiting')}>
       {(data) => {

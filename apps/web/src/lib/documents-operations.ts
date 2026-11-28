@@ -14,6 +14,7 @@
 const PERSON = 'personId name teamName';
 const ROW = `id title kind typeKey typeName level confidential everyone who { label people { ${PERSON} } } subject { ${PERSON} } pages mediaType updatedAt expiresOn status { label tone } mine aboutMe deletedAt sectionIds signing { envelopeId status signed of waitingOn canRemind }`;
 const TYPE = 'key name kind filedTo confidential';
+const QUEUE_ROW = `id title kind person { ${PERSON} } detail dueOn tone documentId requestId typeKey action`;
 
 const write = (name: string, field: string, params: string, args: string, answer: string) =>
   `mutation ${name}(${params}$key: String!) {
@@ -28,9 +29,14 @@ export const OPERATIONS = {
       sections { id kind name count }
       needsYou { id kind title detail dueOn documentId typeKey }
       tiles { key label count detail }
-      queueRows { id title kind person { ${PERSON} } detail dueOn tone documentId requestId typeKey action }
+      queueRows { ${QUEUE_ROW} } queueNext queueTotal
       rows { ${ROW} } total types { ${TYPE} } people { ${PERSON} }
     }
+  }`,
+
+  /** H1, H3: a queue's page after the first, as the list scrolls */
+  DocumentsQueue: `query DocumentsQueue($queue: String!, $after: String!) {
+    documentsQueue(queue: $queue, after: $after) { rows { ${QUEUE_ROW} } next }
   }`,
 
   /** D1, E2, E3: a document, or who owns it */

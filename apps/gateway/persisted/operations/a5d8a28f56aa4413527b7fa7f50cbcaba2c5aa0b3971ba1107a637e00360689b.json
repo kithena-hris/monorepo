@@ -1,0 +1,1 @@
+{"version":1,"body":"query DocumentsQueue($queue: String!, $after: String!) {\n    documentsQueue(queue: $queue, after: $after) { rows { id title kind person { personId name teamName } detail dueOn tone documentId requestId typeKey action } next }\n  }"}

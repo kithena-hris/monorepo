@@ -77,6 +77,7 @@ import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
 import type * as TableScroll from './table-scroll';
+import { useArrival } from '../reveal/reveal';
 import { ScrollPositionRail } from '../scroll-position/scroll-position-rail';
 import {
   Table,
@@ -543,6 +544,11 @@ export interface DataTableProps<T extends TableRow> {
    */
   fill?: boolean;
   /**
+   * The rows first drawn arrive one after another, once: a list opening as
+   * its page does. Rows that scroll into view later are just drawn.
+   */
+  arrive?: boolean;
+  /**
    * What scrolls. `self` (the default): the table's own box, given a height
    * through `containerClassName`. `page`: the window, with the table as tall
    * as its rows, so a page with more above the table has one scroll, not a
@@ -623,6 +629,7 @@ export function DataTable<T extends TableRow>({
   activeRowId = null,
   empty = t('components.table.data-table.nothing_to_show', 'Nothing to show.'),
   fill = false,
+  arrive = false,
   stickyHeader = fill,
   scroll = fill ? 'page' : 'self',
   dense = false,
@@ -1221,6 +1228,7 @@ export function DataTable<T extends TableRow>({
 
   // Near the end of what is loaded: on scroll, and whenever the rows change,
   // since a first page shorter than the container never scrolls at all.
+  const arrival = useArrival();
   const endReached = useRef(onEndReached);
   endReached.current = onEndReached;
   // "50 more loaded", as each page lands: the rows below the reader are not announced otherwise.
@@ -1628,6 +1636,7 @@ export function DataTable<T extends TableRow>({
               describeRow={describeRow}
               rowActions={rowActions}
               onRowClick={onRowClick}
+              arrival={arrive ? arrival(rowIndex) : NO_ARRIVAL}
             />
           );
         })}
@@ -1778,7 +1787,12 @@ interface BodyRowProps<T> {
   describeRow: ((row: T) => string) | undefined;
   rowActions: ((row: T) => readonly RowAction[]) | undefined;
   onRowClick: ((row: T) => void) | undefined;
+  /** The row's entrance while the table is just drawn (`useArrival`); nothing after. */
+  arrival: { readonly className?: string; readonly style?: CSSProperties };
 }
+
+/** One object for every row that is not arriving, so a memoised row holds still. */
+const NO_ARRIVAL = {};
 
 /**
  * A body row and its detail, drawn from the row and the columns.
@@ -1815,6 +1829,7 @@ const BodyRow = memo(function BodyRow<T>({
   describeRow,
   rowActions,
   onRowClick,
+  arrival,
 }: BodyRowProps<T>): JSX.Element {
   const detail = renderDetail?.(row) ?? null;
   const isOpen = open && detail !== null;
@@ -1836,7 +1851,9 @@ const BodyRow = memo(function BodyRow<T>({
           // The hover a step past the stripe, so it shows on both.
           striped && 'hover:bg-surface-hover',
           hasTrailing && CARD.titleBreak,
+          arrival.className,
         )}
+        {...(arrival.style === undefined ? {} : { arrivalStyle: arrival.style })}
         leadClassName={cn(CARD.leadCell, CARD.lead[0])}
         {...(stripe ? { 'data-striped': true } : {})}
         {...(virtualized
@@ -2048,9 +2065,12 @@ function DataRow({
   leadClassName,
   measure,
   height,
+  arrivalStyle,
   children,
   ...rest
 }: {
+  /** The delay of an arriving row's entrance. */
+  arrivalStyle?: CSSProperties;
   id: string;
   name: string;
   reorderable: boolean;
@@ -2099,8 +2119,8 @@ function DataRow({
         reorderable
           ? { transform: CSS.Transform.toString(transform), transition, position: 'relative' }
           : height === undefined
-            ? undefined
-            : { height }
+            ? arrivalStyle
+            : { height, ...arrivalStyle }
       }
       className={cn(
         className,

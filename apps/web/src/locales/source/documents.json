@@ -1,4 +1,12 @@
 {
+  "answers.found_in_your_documents_one": {
+    "text": "Kithena found {{count}} of them in your documents.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "answers.found_in_your_documents_other": {
+    "text": "Kithena found {{count}} of them in your documents.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "answers.hr_asked": {
     "text": "HR asked",
     "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the trailing of <Badge>."
@@ -23,6 +31,14 @@
     "text": "Look in your documents",
     "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <Button>."
   },
+  "answers.not_in_your_documents": {
+    "text": "Not in your documents: {{list}}.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <p>. Filled in: {{list}}."
+  },
+  "answers.not_in_your_documents_more": {
+    "text": "Not in your documents: {{list}}, and {{count}} more.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <p>. Filled in: {{list}}, {{count}}."
+  },
   "answers.p": {
     "text": "{{value}} · {{value2}}, p. {{page}}",
     "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the description of <ListItem>. Filled in: {{value}}, {{value2}}, {{page}}."
@@ -46,6 +62,14 @@
   "answers.saved_wait_for_hr_to_approve": {
     "text": "Saved. {{held}} wait for HR to approve.",
     "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the onClick of <Button>. Filled in: {{held}}."
+  },
+  "answers.show_all": {
+    "text": "Show all {{count}}",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <Button>. Filled in: {{count}}."
+  },
+  "answers.show_fewer": {
+    "text": "Show fewer",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <Button>."
   },
   "answers.this_document": {
     "text": "this document",
@@ -1459,6 +1483,18 @@
     "text": "waiting",
     "context": "Documents: files, e-signatures, letters. frame.tsx: text inside <span>."
   },
+  "library.ask-bar.recent": {
+    "text": "Recent",
+    "context": "Documents: files, e-signatures, letters. library/ask-bar.tsx, AskBar: text inside <h2>."
+  },
+  "library.ask-bar.suggestions": {
+    "text": "Suggestions",
+    "context": "Documents: files, e-signatures, letters. library/ask-bar.tsx, AskBar: the aria-label of <PopoverContent>."
+  },
+  "library.ask-bar.try_asking": {
+    "text": "Try asking",
+    "context": "Documents: files, e-signatures, letters. library/ask-bar.tsx, AskBar: text inside <h2>."
+  },
   "library.draft.about": {
     "text": "About",
     "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <p>."
@@ -1671,10 +1707,6 @@
     "text": "Ask {{first}} for a document",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <DialogTitle>. Filled in: {{first}}."
   },
-  "library.library.ask_kithena": {
-    "text": "Ask Kithena",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <Button>."
-  },
   "library.library.cancel": {
     "text": "Cancel",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <Button>."
@@ -1766,10 +1798,6 @@
   "library.library.hi_we_need_your_a_photo": {
     "text": "Hi {{first}}, we need your {{toLowerCase}}. A photo is fine.",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text built in code. Filled in: {{first}}, {{toLowerCase}}."
-  },
-  "library.library.kithena_is_reading_your_documents": {
-    "text": "Kithena is reading your documents",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the label of <Spinner>."
   },
   "library.library.loading_your_documents": {
     "text": "Loading your documents",
@@ -1913,11 +1941,11 @@
   },
   "library.library.search_documents": {
     "text": "Search documents",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <Input>."
+    "context": "Documents: files, e-signatures, letters. library/ask-bar.tsx, AskBar: text built in code."
   },
   "library.library.search_or_ask_a_question": {
     "text": "Search, or ask a question",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <Input>."
+    "context": "Documents: files, e-signatures, letters. library/ask-bar.tsx, AskBar: text built in code."
   },
   "library.library.send": {
     "text": "Send",
@@ -1966,6 +1994,18 @@
   "library.library.split_a_scan": {
     "text": "Split a scan",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
+  },
+  "library.library.starter_expiring": {
+    "text": "What expires in the next three months?",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, STARTERS: text built in code."
+  },
+  "library.library.starter_notice": {
+    "text": "What is my notice period?",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, STARTERS: text built in code."
+  },
+  "library.library.starter_unsigned": {
+    "text": "Which documents are still waiting for a signature?",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, STARTERS: text built in code."
   },
   "library.library.status": {
     "text": "Status",

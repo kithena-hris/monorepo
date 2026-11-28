@@ -141,6 +141,8 @@
   "documents.documents-tab.shared_with_me": "Met mij gedeeld",
   "documents.documents-tab.show": "Tonen",
   "documents.documents-tab.show_every_document": "Alle documenten tonen",
+  "documents.documents-tab.show_more": "Meer tonen",
+  "documents.documents-tab.showing_of": "{{shown}} van {{total}} getoond",
   "documents.documents-tab.sign": "Ondertekenen",
   "documents.documents-tab.type": "Soort",
   "documents.documents-tab.who_it_is_about": "Over wie het gaat",

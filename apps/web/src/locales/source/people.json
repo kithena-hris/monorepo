@@ -3251,6 +3251,10 @@
     "text": "All modules",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the options of <Pick>."
   },
+  "home.people-home.all_types": {
+    "text": "All types",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the options of <Pick>."
+  },
   "home.people-home.any_time": {
     "text": "Any time",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Tasks: the options of <Pick>."
@@ -3342,6 +3346,10 @@
   "home.people-home.days_ago_count_other": {
     "text": "{{count}} days ago",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "home.people-home.document_type": {
+    "text": "Document type",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, Documents: the label of <Pick>."
   },
   "home.people-home.documents": {
     "text": "Documents",

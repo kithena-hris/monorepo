@@ -1,10 +1,12 @@
 'use client';
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
+  type CSSProperties,
   type JSX,
   type ReactNode,
 } from 'react';
@@ -161,3 +163,48 @@ export function staggerStyle(
   const delay = `min(calc(${String(index)} * var(--animate-stagger-step)), var(--animate-stagger-max))`;
   return kind === 'animation' ? { animationDelay: delay } : { transitionDelay: delay };
 }
+
+/** How many rows arrive one after another: past the stagger's ceiling they would land together. */
+const ARRIVING = 12;
+/**
+ * How long a list counts as just drawn: the stagger's ceiling and the arrival
+ * itself (`--animate-stagger-max`, `--animate-duration-spring-move`), and a
+ * frame or two for the first paint.
+ */
+const ARRIVAL_MS = 700;
+
+/**
+ * Rows that arrive one after another when a list is first drawn, and never
+ * again: spread what it returns for a row's index onto the row.
+ *
+ * A static list can carry `animate-arrive` on every row. A list that draws
+ * only the rows near the view mounts a row each time it scrolls into sight,
+ * and a row that arrived every time would never sit still; so the arrival
+ * belongs to the list's first moments, and after them a row is just a row.
+ * The server's HTML carries it too, so the first paint already moves.
+ */
+export function useArrival(): (index: number) => {
+  readonly className?: string;
+  readonly style?: CSSProperties;
+} {
+  const [fresh, setFresh] = useState(true);
+  useEffect(() => {
+    const done = setTimeout(() => {
+      setFresh(false);
+    }, ARRIVAL_MS);
+    return () => {
+      clearTimeout(done);
+    };
+  }, []);
+  // The same function until the list settles, so a row drawn with it holds still.
+  return useCallback(
+    (index) =>
+      fresh && index < ARRIVING
+        ? { className: 'motion-safe:animate-arrive', style: staggerStyle(index, 'animation') }
+        : SETTLED,
+    [fresh],
+  );
+}
+
+/** One object for every row that is not arriving, so a memoised row holds still. */
+const SETTLED = {};

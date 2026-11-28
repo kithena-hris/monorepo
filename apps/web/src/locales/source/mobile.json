@@ -571,6 +571,14 @@
     "text": "Show every document",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/documents-tab.tsx, Body: the removeLabel of <Chip>."
   },
+  "documents.documents-tab.show_more": {
+    "text": "Show more",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/documents-tab.tsx, Body: text inside <Button>."
+  },
+  "documents.documents-tab.showing_of": {
+    "text": "Showing {{shown}} of {{total}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/documents-tab.tsx, Body: text inside <Text>. Filled in: {{shown}}, {{total}}."
+  },
   "documents.documents-tab.sign": {
     "text": "Sign",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/documents-tab.tsx, Body: the trailing of <Button>."

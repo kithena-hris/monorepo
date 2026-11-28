@@ -95,8 +95,20 @@ import {
   setAskAfterUpload,
 } from '../application/organise.js';
 import type { Caller, Deps, StoredKey, UnitOfWork } from '../application/ports.js';
-import { documentScreen, library, personFile, settingsScreen } from '../application/screens.js';
-import { LibraryView, OpenOrClosed, PersonFileView, SettingsView } from '../application/views.js';
+import {
+  documentScreen,
+  library,
+  personFile,
+  queuePage,
+  settingsScreen,
+} from '../application/screens.js';
+import {
+  LibraryView,
+  OpenOrClosed,
+  PersonFileView,
+  QueuePage,
+  SettingsView,
+} from '../application/views.js';
 import type { CallerFrom } from './caller.js';
 
 /**
@@ -434,6 +446,18 @@ export const ROUTES: readonly Route[] = [
     }),
     answer: LibraryView,
     run: (deps, caller, { params }) => library(deps, caller, params),
+  }),
+  route({
+    name: 'documentsQueue',
+    method: 'GET',
+    path: `${V1}/queue`,
+    summary: 'A page of an HR queue after the first: missing, expiring, to delete or to sign',
+    params: z.object({
+      queue: z.enum(['to_sign', 'expiring', 'missing', 'to_delete']),
+      after: z.string().max(12),
+    }),
+    answer: QueuePage,
+    run: (deps, caller, { params }) => queuePage(deps, caller, params),
   }),
   route({
     name: 'documentsDocument',

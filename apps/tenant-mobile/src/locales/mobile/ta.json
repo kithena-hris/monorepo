@@ -142,6 +142,8 @@
   "documents.documents-tab.shared_with_me": "என்னுடன் பகிரப்பட்டவை",
   "documents.documents-tab.show": "காட்டவும்",
   "documents.documents-tab.show_every_document": "ஒவ்வொரு ஆவணத்தையும் காட்டவும்",
+  "documents.documents-tab.show_more": "மேலும் காட்டு",
+  "documents.documents-tab.showing_of": "{{total}} இல் {{shown}} காட்டப்படுகின்றன",
   "documents.documents-tab.sign": "கையொப்பமிடவும்",
   "documents.documents-tab.type": "வகை",
   "documents.documents-tab.who_it_is_about": "இது யாரைப் பற்றியது",
