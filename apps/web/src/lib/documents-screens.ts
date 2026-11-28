@@ -26,12 +26,8 @@ async function read(
 
 const QUEUES = new Set(['to_sign', 'expiring', 'missing', 'to_delete']);
 
-/** The queue an address is: HR's follow-up tabs are each their own page. */
-const QUEUE_AT: Readonly<Record<string, string>> = {
-  '/documents/queues/missing': 'missing',
-  '/documents/queues/expiring': 'expiring',
-  '/documents/queues/to-delete': 'to_delete',
-};
+/** HR's follow-up, on the Compliance tab: which of the three the address asks for, the first by default. */
+const FOLLOW_UP = new Set(['missing', 'expiring', 'to_delete']);
 
 export async function loadScreen(
   component: string,
@@ -44,8 +40,15 @@ export async function loadScreen(
       return read('DocumentsLibrary', {
         show: s['show'] ?? 'all',
         q: s['q'] ?? '',
-        queue: QUEUE_AT[path] ?? (QUEUES.has(s['queue'] ?? '') ? s['queue'] : null),
-        deleted: path === '/documents/deleted' || s['deleted'] === 'true',
+        queue:
+          path === '/documents/compliance'
+            ? FOLLOW_UP.has(s['queue'] ?? '')
+              ? s['queue']
+              : 'missing'
+            : QUEUES.has(s['queue'] ?? '')
+              ? s['queue']
+              : null,
+        deleted: s['deleted'] === 'true',
       });
     case 'DocumentView':
       return read('DocumentsDocument', { documentId: query.params['id'] ?? '' });
@@ -53,21 +56,33 @@ export async function loadScreen(
       return read('DocumentsPersonFile', { personId: query.params['id'] ?? '' });
     case 'Envelopes': {
       // The signature on file, from People, read beside the list: made and changed from here.
-      const [list, signature] = await Promise.all([
+      // And the library's figures, for the counts on the tabs beside this one.
+      // ponytail: the whole library read for its tiles; a tiles-only query if this page gets slow.
+      const [list, signature, library] = await Promise.all([
         read('DocumentsEnvelopes'),
         mySignature().catch(() => null),
+        read('DocumentsLibrary', { show: 'all', q: '', queue: null, deleted: false }),
       ]);
-      if (list.status !== 'ready' || signature === null) return list;
+      if (list.status !== 'ready') return list;
+      const tiles =
+        library.status === 'ready'
+          ? (library.data as { tiles?: unknown } | null)?.tiles
+          : undefined;
       return {
         status: 'ready',
         data: {
           ...(list.data as object),
-          signature: {
-            mark: signature.mark,
-            name: signature.name,
-            pending: signature.pending,
-            canSet: signature.canKeep || signature.canChange,
-          },
+          ...(tiles === undefined ? {} : { tiles }),
+          ...(signature === null
+            ? {}
+            : {
+                signature: {
+                  mark: signature.mark,
+                  name: signature.name,
+                  pending: signature.pending,
+                  canSet: signature.canKeep || signature.canChange,
+                },
+              }),
         },
       };
     }

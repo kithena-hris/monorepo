@@ -221,6 +221,8 @@ export function WakingHeader({
     tabs = [],
   } = frame;
   const tab = tabs.find((t) => t.current);
+  // A section named as its area is said once.
+  const crumbs = trail.at(-1)?.label === section ? trail.slice(0, -1) : trail;
   return (
     <PageHeader
       title={section ?? title}
@@ -228,7 +230,7 @@ export function WakingHeader({
         section === null ? undefined : (
           <Breadcrumb className="touch:hidden">
             <BreadcrumbList>
-              {trail.map((link) => (
+              {crumbs.map((link) => (
                 <Fragment key={`${link.href} ${link.label}`}>
                   <BreadcrumbItem>
                     <BreadcrumbLink href={link.href}>{link.label}</BreadcrumbLink>

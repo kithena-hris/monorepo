@@ -81,7 +81,7 @@ describe('Documents on Home', () => {
       total: 0,
     });
     expect(home.figures).toEqual([
-      { label: 'missing', value: 12, href: '/documents/queues/missing' },
+      { label: 'missing', value: 12, href: '/documents/compliance?queue=missing' },
     ]);
     expect(home.lists).toEqual([]);
   });
